@@ -9,7 +9,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from ..configuration.profiles import PROFILE_ROLES, ProfileMapping
 from ..configuration.resources import RoleResourceCatalog
 from ..contracts.runtime import resolve_runtime_contract
 from ..domain.identities import MethodIdentity
@@ -26,6 +25,7 @@ from ..harness.publication_basis import (
     recover_publication_head,
 )
 from ..harness.stage_execution import HarnessExecutionServices
+from ..harness.invocation_fencing import FencingError, InvocationFencer
 from ..harness.submission_validation import (
     SubmissionValidationResult,
     validate_submission,
@@ -76,6 +76,7 @@ class RunCoordinator:
         self.orchestrator = ContractSequentialOrchestrator()
         self.orchestrators = OrchestratorRegistry((self.orchestrator,))
         self.publisher = ContractPublicationService(repository)
+        self._fencer = InvocationFencer(repository)
         self._locks: dict[str, asyncio.Lock] = {}
         self._tasks: set[asyncio.Task[None]] = set()
         resource_root = Path(__file__).resolve().parents[3] / "resources"
@@ -86,59 +87,63 @@ class RunCoordinator:
 
         lock = self._locks.setdefault(run_id, asyncio.Lock())
         async with lock:
-            for _ in range(24):
-                row = self.repository.get_run(run_id)
-                status = str(row["status"])
-                if status in _TERMINAL:
-                    return
-                try:
-                    if status == "created":
-                        self.lifecycle.transition(
-                            run_id,
-                            RunStatus.PREPARING,
-                            "Freezing the exact inputs, roles, resources, and publication basis.",
-                        )
-                    elif status == "preparing":
-                        self._prepare(run_id)
-                    elif status == "prepared":
-                        self.lifecycle.transition(
-                            run_id,
-                            RunStatus.RUNNING,
-                            "The frozen role plan is starting.",
-                        )
-                    elif status == "running":
-                        pending = await self._execute(run_id)
-                        if pending:
-                            return
-                    elif status == "cancellation_requested":
-                        pending = await self._settle_cancellation(run_id)
-                        if pending:
-                            return
-                    elif status == "submitted":
-                        self.lifecycle.transition(
-                            run_id,
-                            RunStatus.VALIDATING,
-                            "The immutable submission is being checked against the frozen contract.",
-                            payload_updates={
-                                "validation_report": {
-                                    "status": "pending",
-                                    "summary": "Submission validation is in progress.",
-                                }
-                            },
-                        )
-                    elif status == "validating":
-                        self._validate(run_id)
-                    elif status == "promoting":
-                        self._promote(run_id)
-                    else:
-                        raise RuntimeError(f"Unsupported active run status {status!r}.")
-                except asyncio.CancelledError:
-                    raise
-                except Exception as error:
-                    if self._handle_error(run_id, error):
+            holder = f"coordinator:{run_id}"
+            self._fencer.acquire_lease(run_id, holder)
+            try:
+                for _ in range(24):
+                    row = self.repository.get_run(run_id)
+                    status = str(row["status"])
+                    if status in _TERMINAL:
                         return
-                    raise
-            raise RuntimeError("Run lifecycle exceeded its bounded transition count.")
+                    try:
+                        if status == "created":
+                            self.lifecycle.transition(
+                                run_id,
+                                RunStatus.PREPARING,
+                                "Freezing the exact inputs, roles, resources, and publication basis.",
+                            )
+                        elif status == "preparing":
+                            self._prepare(run_id)
+                        elif status == "prepared":
+                            self.lifecycle.transition(
+                                run_id,
+                                RunStatus.RUNNING,
+                                "The frozen role plan is starting.",
+                            )
+                        elif status == "running":
+                            pending = await self._execute(run_id)
+                            if pending:
+                                return
+                        elif status == "cancellation_requested":
+                            pending = await self._settle_cancellation(run_id)
+                            if pending:
+                                return
+                        elif status == "submitted":
+                            self.lifecycle.transition(
+                                run_id,
+                                RunStatus.VALIDATING,
+                                "The immutable submission is being checked against the frozen contract.",
+                                payload_updates={
+                                    "validation_report": {
+                                        "status": "pending",
+                                        "summary": "Submission validation is in progress.",
+                                    }
+                                },
+                            )
+                        elif status == "validating":
+                            self._validate(run_id)
+                        elif status == "promoting":
+                            self._promote(run_id)
+                        else:
+                            raise RuntimeError(f"Unsupported active run status {status!r}.")
+                    except asyncio.CancelledError:
+                        raise
+                    except Exception as error:
+                        if self._handle_error(run_id, error):
+                            return
+                        raise
+            finally:
+                self._fencer.release_lease(run_id)
 
     async def resume_incomplete(self) -> None:
         """Schedule every durable nonterminal run after application startup."""
@@ -228,6 +233,7 @@ class RunCoordinator:
             role_resources=resources,
         )
         self._verify_frozen_inputs(recipe)
+        self._verify_sealed_basis(command, recipe)
         self.repository.freeze_manifest(run_id, recipe.sha256, recipe.document)
         self._mark_prepared(run_id, recipe)
 
@@ -523,49 +529,16 @@ class RunCoordinator:
     def _freeze_role_resources(
         self, project_id: str, roles: set[str]
     ) -> tuple[dict[str, str], dict[str, dict[str, Any]]]:
-        effective_values = {
-            role: self.settings.profile_for(role)
-            for role in PROFILE_ROLES
-        }
-        for role in PROFILE_ROLES:
-            row = self.repository.get_profile_mapping(project_id, role)
-            if row is not None:
-                effective_values[role] = str(row["profile_name"])
-        effective_mapping = ProfileMapping(**effective_values)
+        from ..harness.role_resource_snapshot import compute_role_resources
 
-        manifest = self._skill_manifest
-        if type(manifest) is not dict or type(manifest.get("skills")) is not dict:
-            raise ValueError("Bundled skill manifest is invalid.")
-        source = manifest.get("source", {})
-        profiles: dict[str, str] = {}
-        resources: dict[str, dict[str, Any]] = {}
-        for role in sorted(roles):
-            resource = self.role_resources.role(role)
-            profile = effective_mapping.for_role(role)
-            profiles[role] = profile
-            skill_items = []
-            for recommendation in resource.recommended_skills:
-                bundled = manifest["skills"].get(recommendation.skill_id)
-                if type(bundled) is not dict:
-                    raise ValueError(
-                        f"Bundled skill {recommendation.skill_id!r} is unavailable."
-                    )
-                skill_items.append(
-                    {
-                        "skill_id": recommendation.skill_id,
-                        "source": recommendation.source,
-                        "source_revision": str(source.get("revision", "unknown")),
-                        "bundle_sha256": str(bundled["content_sha256"]),
-                    }
-                )
-            resources[role] = {
-                "profile": profile,
-                "profile_version": resource.profile_version,
-                "soul_text": resource.soul_text,
-                "soul_sha256": resource.soul_sha256,
-                "skills": skill_items,
-            }
-        return profiles, resources
+        return compute_role_resources(
+            repository=self.repository,
+            settings=self.settings,
+            role_resources=self.role_resources,
+            skill_manifest=self._skill_manifest,
+            roles=roles,
+            project_id=project_id,
+        )
 
     def _verify_frozen_inputs(self, recipe: PreparedRunRecipe) -> None:
         basis = recipe.document["publication_basis"]
@@ -592,6 +565,84 @@ class RunCoordinator:
                     "repository.preparation_basis_changed",
                     "A selected current input changed during preparation.",
                 )
+
+    def _verify_sealed_basis(
+        self, command: dict[str, Any], recipe: PreparedRunRecipe
+    ) -> None:
+        """Verify the sealed basis captured at view time against the freshly
+        prepared run recipe.
+
+        If the sealed basis in the command does not match the prepared state,
+        the run is rejected with ``STALE_BASIS`` — the researcher must refresh
+        and re-review.
+        """
+        sealed = command.get("sealed_basis")
+        if sealed is None:
+            return
+        project_id = str(command["project_id"])
+
+        # 1. Authority head
+        project = self.repository.get_project(project_id)
+        live_head = {
+            "authority_sequence": int(project["authority_sequence"]),
+            "authority_root_sha256": str(project["authority_root_sha256"]),
+            "current_revision": int(project["current_revision"]),
+        }
+        for key, expected in live_head.items():
+            actual = sealed.get("authority_head", {}).get(key)
+            if actual is not None and str(actual) != str(expected):
+                raise RepositoryConflictError(
+                    "stale_basis.authority_head_drifted",
+                    "The formal authority head changed between review and preparation.",
+                )
+
+        # 2. Reviewed current inputs — generation_id drift
+        for sealed_input in sealed.get("reviewed_current_inputs", ()):
+            option_id = sealed_input.get("option_id")
+            if option_id is None:
+                continue
+            sealed_gen = sealed_input.get("generation_id")
+            if sealed_gen is None:
+                continue
+            for frozen in recipe.document.get("frozen_inputs", ()):
+                if str(frozen.get("contract_input_id", "")) == str(option_id):
+                    if str(frozen["generation_id"]) != str(sealed_gen):
+                        raise RepositoryConflictError(
+                            "stale_basis.input_generation_drifted",
+                            "A reviewed current input was republished before the run froze.",
+                        )
+                    break
+
+        # 3. Role resources
+        sealed_resources = sealed.get("role_resources", {})
+        if sealed_resources:
+            roles = set(sealed_resources)
+            _, live_resources = self._freeze_role_resources(project_id, roles)
+            for role, sealed_role in sealed_resources.items():
+                live_role = live_resources.get(role)
+                if live_role is None:
+                    continue
+                for field in ("profile", "profile_version", "soul_sha256"):
+                    if str(sealed_role.get(field, "")) != str(
+                        live_role.get(field, "")
+                    ):
+                        raise RepositoryConflictError(
+                            "stale_basis.role_resource_drifted",
+                            f"Role resource for {role!r} changed between review and preparation.",
+                        )
+                sealed_skills = {
+                    s.get("skill_id"): s.get("bundle_sha256")
+                    for s in sealed_role.get("skills", ())
+                }
+                live_skills = {
+                    s.get("skill_id"): s.get("bundle_sha256")
+                    for s in live_role.get("skills", ())
+                }
+                if sealed_skills != live_skills:
+                    raise RepositoryConflictError(
+                        "stale_basis.role_resource_drifted",
+                        f"Skill bundles for role {role!r} changed between review and preparation.",
+                    )
 
     @staticmethod
     def _verify_transform_inputs(recipe, plan, transforms) -> None:
@@ -657,7 +708,10 @@ class RunCoordinator:
             return True
         if status == "cancellation_requested":
             return True
-        if isinstance(error, RepositoryConflictError) and status == "promoting":
+        if isinstance(error, RepositoryConflictError) and status in (
+            "promoting",
+            "preparing",
+        ):
             self.lifecycle.transition(
                 run_id,
                 RunStatus.CONFLICTED,

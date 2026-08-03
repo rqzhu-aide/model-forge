@@ -16,6 +16,7 @@ def build_run_command(
     *,
     requested_at: datetime | None = None,
     command_id: str | None = None,
+    sealed_basis: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Resolve and seal one exact command accepted from the researcher."""
 
@@ -49,6 +50,8 @@ def build_run_command(
         "content_sha256": "0" * 64,
         "requested_at": isoformat_utc(requested_at or utc_now()),
     }
+    if sealed_basis is not None:
+        document["sealed_basis"] = sealed_basis
     document["content_sha256"] = specification.digests.compute(
         "run_command.content", document
     )

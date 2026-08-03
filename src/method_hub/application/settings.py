@@ -21,7 +21,7 @@ class ApplicationSettings(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 8765
     user_id: str = "researcher.local"
-    executor_kind: Literal["disabled", "fake", "hermes_kanban"] = "disabled"
+    executor_kind: Literal["disabled", "fake", "hermes_kanban", "oci"] = "disabled"
     development_mode: bool = False
     hermes_executable: str = "hermes"
     hermes_board: str = "method-hub"

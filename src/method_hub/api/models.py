@@ -295,6 +295,7 @@ class ContextOption(StrictModel):
     label: NonEmptyString
     description: str
     artifact_pointer: ArtifactPointer | None = None
+    generation_id: NonEmptyString | None = None
     selected_by_default: bool
     required: bool
     disabled: bool | None = None
@@ -349,6 +350,7 @@ class PhaseView(StrictModel):
     actions: list[ActionDescriptor]
     active_runs: list[RunSummary]
     recent_runs: list[RunSummary]
+    descriptor_basis: dict | None = None  # internal: for sealed_basis extraction
     projection: ProjectionStamp
     empty_state_message: str | None = None
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from ..api.models import (
@@ -215,6 +215,7 @@ class ResearchProjectionService:
         method_id: str | None,
         active_runs: Sequence[RunSummary],
         recent_runs: Sequence[RunSummary],
+        role_resources: Mapping[str, Mapping[str, Any]] | None = None,
     ) -> PhaseView:
         document = self.phases.contract_document(phase_id)
         modes = tuple(document["run_modes"])
@@ -281,6 +282,7 @@ class ResearchProjectionService:
                     self.repository.get_project(project_id)["current_revision"]
                 ),
             },
+            role_resources=role_resources,
         )
         current = (
             None
@@ -343,6 +345,7 @@ class ResearchProjectionService:
                 ),
             )
         action_models = [ActionDescriptor.model_validate(item) for item in projected.pop("actions")]
+        descriptor_basis = projected.pop("_descriptor_basis", None)
         return PhaseView(
             phase_id=phase_id,
             name=str(document["name"]),
@@ -367,6 +370,7 @@ class ResearchProjectionService:
             actions=action_models,
             active_runs=list(active_runs),
             recent_runs=list(recent_runs),
+            descriptor_basis=descriptor_basis,
             projection=self._projection(project_id),
             empty_state_message=(
                 None
@@ -959,6 +963,7 @@ class ResearchProjectionService:
                         "uri": reference.artifact.uri,
                         "sha256": str(reference.artifact.sha256),
                     },
+                    "generation_id": str(reference.generation_id),
                     "selected_by_default": True,
                     "required": required,
                 }

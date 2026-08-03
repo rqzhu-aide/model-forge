@@ -1,0 +1,69 @@
+{
+  "format": "method-hub.golden-fixtures",
+  "format_version": "1.0.0",
+  "fixtures": [
+    {
+      "schema_file": "attention-item.schema.json",
+      "source": "attention-item.example.json",
+      "sha256": "1dba993a47dfd0fc65090dc7eec7b157d54e27c1ca9116ac650610ca043225d9",
+      "capture_executor": "schema_example",
+      "label": "golden_positive"
+    },
+    {
+      "schema_file": "decision-record.schema.json",
+      "source": "decision-record.example.json",
+      "sha256": "b300f9d74ad2e35050382a0cde8c5cbd9b5d4a17e5c3dfa9860f3f3c071a587d",
+      "capture_executor": "schema_example",
+      "label": "golden_positive"
+    },
+    {
+      "schema_file": "evidence.schema.json",
+      "source": "evidence.example.json",
+      "sha256": "56f3d813b5310f213a0330fece2eda4ce198e98c5343b5d6ad6b86622a40b547",
+      "capture_executor": "schema_example",
+      "label": "golden_positive"
+    },
+    {
+      "schema_file": "handoff.schema.json",
+      "source": "handoff.example.json",
+      "sha256": "18b7cad4d4d1f3df490417112a32cb66cd4c73d3cb0817ae0be81114b78786f9",
+      "capture_executor": "schema_example",
+      "label": "golden_positive"
+    },
+    {
+      "schema_file": "literature-source.schema.json",
+      "source": "literature-source.example.json",
+      "sha256": "0d4d68063fca8f269c9bca1ef45084cbd9ca64229da4586bf645357da9f6becc",
+      "capture_executor": "schema_example",
+      "label": "golden_positive"
+    },
+    {
+      "schema_file": "method.schema.json",
+      "source": "method.example.json",
+      "sha256": "e60641d01c07e4ffcca00b6111d88afb42a4a515c9eea14378c88b4d49b1f3f2",
+      "capture_executor": "schema_example",
+      "label": "golden_positive"
+    },
+    {
+      "schema_file": "review-issue.schema.json",
+      "source": "review-issue.example.json",
+      "sha256": "9460ce75b7776c039c27a520a310ad9eafaab9fcd7f7f922ec7981b4c119009b",
+      "capture_executor": "schema_example",
+      "label": "golden_positive"
+    },
+    {
+      "schema_file": "scientific-record.schema.json",
+      "source": "scientific-record.example.json",
+      "sha256": "89dea34ed3bde8f046fc36477eff1d11580104feec5ab6638f7dfb0e3a71f91c",
+      "capture_executor": "schema_example",
+      "label": "golden_positive"
+    },
+    {
+      "schema_file": "statement.schema.json",
+      "source": "statement.example.json",
+      "sha256": "76752034aa279749edb03de65454f4f9b993b8aee08d7a94552d07097b4068db",
+      "capture_executor": "schema_example",
+      "label": "golden_positive"
+    }
+  ]
+}

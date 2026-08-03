@@ -9,9 +9,12 @@ from fastapi import FastAPI
 from ..api import create_app
 from ..configuration.resources import RoleResourceCatalog
 from ..executors import (
+    BubblewrapExecutor,
+    BubblewrapSettings,
     HermesKanbanExecutor,
     HermesSettings,
     SchemaExampleFakeExecutor,
+    profile_exists,
 )
 from ..specification import SpecificationPackage
 from ..storage.artifacts import ArtifactStore
@@ -21,6 +24,27 @@ from .run_coordinator import RunCoordinator
 from .service import MethodHubService
 from .settings import ApplicationSettings
 from .static_frontend import SPAStaticFiles
+
+
+def _verify_hermes_profiles(settings: ApplicationSettings) -> None:
+    """Fail fast if any role profile does not exist on disk."""
+
+    role_profiles = {
+        "research_lead": settings.research_lead_profile,
+        "theorist": settings.theorist_profile,
+        "data_analyst": settings.data_analyst_profile,
+        "outside_reviewer": settings.outside_reviewer_profile,
+    }
+    missing = [
+        f"{role} ({profile})"
+        for role, profile in role_profiles.items()
+        if not profile_exists(profile, hermes_root=settings.hermes_root)
+    ]
+    if missing:
+        raise ValueError(
+            "Hermes profiles not found on disk: " + ", ".join(missing)
+            + ". Create them or configure the correct profile names."
+        )
 
 
 def build_service(settings: ApplicationSettings) -> MethodHubService:
@@ -45,10 +69,27 @@ def build_service(settings: ApplicationSettings) -> MethodHubService:
             executor=executor,
         )
     elif settings.executor_kind == "hermes_kanban":
+        _verify_hermes_profiles(settings)
         executor = HermesKanbanExecutor(
             HermesSettings(
                 executable=settings.hermes_executable,
                 board_slug=settings.hermes_board,
+                hermes_home=settings.hermes_root,
+            )
+        )
+        coordinator = RunCoordinator(
+            settings=settings,
+            specification=specification,
+            repository=repository,
+            artifacts=artifacts,
+            role_resources=resources,
+            executor=executor,
+        )
+    elif settings.executor_kind == "oci":
+        _verify_hermes_profiles(settings)
+        executor = BubblewrapExecutor(
+            BubblewrapSettings(
+                hermes_binary=settings.hermes_executable,
                 hermes_home=settings.hermes_root,
             )
         )

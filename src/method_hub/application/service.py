@@ -52,6 +52,7 @@ from ..digests.jcs import canonicalize
 from ..domain.identities import MethodIdentity
 from ..domain.runs import RunRequest, isoformat_utc, utc_now
 from ..harness.commands import build_run_command
+from ..harness.role_resource_snapshot import compute_role_resources, load_skill_manifest
 from ..specification import SpecificationPackage
 from ..storage.artifacts import ArtifactStore
 from ..storage.errors import ArtifactIntegrityError
@@ -346,6 +347,7 @@ class MethodHubService:
         runs = await self.list_runs(project_id, phase=phase_id)
         active = [item for item in runs if item.state in ACTIVE_RUN_STATES]
         recent = [item for item in runs if item.state not in ACTIVE_RUN_STATES][:10]
+        role_resources = self._phase_role_resources(project_id, phase_id, mode)
         try:
             return self.projections.phase_view(
                 project_id,
@@ -354,11 +356,46 @@ class MethodHubService:
                 method_id=method_id,
                 active_runs=active,
                 recent_runs=recent,
+                role_resources=role_resources,
             )
         except RepositoryNotFoundError as error:
             raise _not_found(error) from error
         except ValueError as error:
             raise _schema_rejected(str(error)) from error
+
+    def _phase_role_resources(
+        self,
+        project_id: str,
+        phase_id: str,
+        mode: str | None,
+    ) -> dict[str, dict[str, Any]] | None:
+        """Compute the role-resource snapshot for the phase's roles."""
+        identity = self.specification.phases.identity(phase_id)
+        try:
+            plan = self.specification.resolve_phase(
+                identity,
+                mode or "",
+                {},
+                "current_only",
+            )
+        except Exception:
+            return None
+        roles = {step.role for stage in plan.stages for step in stage.role_steps}
+        if not roles:
+            return None
+        try:
+            manifest = load_skill_manifest(self.skill_bundle_root)
+            _, resources = compute_role_resources(
+                repository=self.repository,
+                settings=self.settings,
+                role_resources=self.role_resources,
+                skill_manifest=manifest,
+                roles=roles,
+                project_id=project_id,
+            )
+        except Exception:
+            return None
+        return resources
 
     async def list_methods(self, project_id: str) -> list[MethodRow]:
         try:
@@ -675,7 +712,11 @@ class MethodHubService:
             idempotency_key=request_id,
             selected_current_input_ids=tuple(command.selected_context_option_ids),
         )
-        sealed = build_run_command(request, self.specification)
+        sealed = build_run_command(
+            request,
+            self.specification,
+            sealed_basis=phase_view.descriptor_basis,
+        )
         sealed_result = self.repository.seal_command(
             str(sealed["command_id"]),
             project_id,

@@ -16,6 +16,7 @@ from ..storage.repository import HubRepository
 from .execution_records import document_sha256
 from .outputs import OutputPlan, OutputSpec
 from .publication import RegisteredArtifactMetadata, RegisteredValidatedOutput
+from .scientific_validators import validate_phase_scientific
 
 
 @dataclass(frozen=True, slots=True)
@@ -185,6 +186,12 @@ def validate_submission(
             accepted[output_id] = result[0]
 
     _validate_phase_semantics(
+        plan=plan,
+        outputs=accepted,
+        selected_method=selected_method,
+        findings=findings,
+    )
+    validate_phase_scientific(
         plan=plan,
         outputs=accepted,
         selected_method=selected_method,

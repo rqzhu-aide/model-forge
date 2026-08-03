@@ -41,6 +41,7 @@ def build_phase_configuration(
     history_options: Sequence[Mapping[str, Any]] = (),
     eligibility_findings: Sequence[Mapping[str, str]] = (),
     authority_head: Mapping[str, Any] | None = None,
+    role_resources: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Return one complete backend-authored run form and launch action."""
 
@@ -102,10 +103,12 @@ def build_phase_configuration(
                     item.get("artifact_pointer", {}).get("artifact_id")
                 ),
                 "sha256": item.get("artifact_pointer", {}).get("sha256"),
+                "generation_id": item.get("generation_id"),
             }
             for item in current_inputs
         ],
         "authority_head": dict(authority_head or {}),
+        "role_resources": dict(role_resources or {}),
     }
     action: dict[str, Any] = {
         "descriptor_id": _descriptor_id(descriptor_basis),
@@ -143,6 +146,7 @@ def build_phase_configuration(
         "history_options": [dict(item) for item in history_options],
         "stage_plan": stages,
         "actions": [action],
+        "_descriptor_basis": descriptor_basis,
     }
 
 

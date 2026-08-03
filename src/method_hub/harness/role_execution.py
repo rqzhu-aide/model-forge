@@ -24,7 +24,9 @@ from ..storage.repository import (
     HubRepository,
     RepositoryConflictError,
 )
+from ..capabilities.broker import CapabilityBroker
 from .execution_context import RunExecutionContext
+from .output_adapters import AdaptedOutput, DefaultOutputAdapter
 from .outputs import OutputSpec, validate_role_outputs
 from .task_briefs import render_task_brief
 
@@ -63,6 +65,8 @@ class RoleLifecycleService:
         self.schemas = schemas
         self.artifacts = artifacts
         self.workspace = workspace
+        self._broker = CapabilityBroker()
+        self._adapter = DefaultOutputAdapter()
 
     async def execute_or_reconcile(
         self,
@@ -284,9 +288,21 @@ class RoleLifecycleService:
             phase_instruction=self.context.phase_instruction,
             scientific_stance=self.context.role_souls[role],
             same_group_roles=stage.roles,
+            schema_catalog=self.schemas,
         )
         task_payload = task_text.encode("utf-8")
         _immutable_write(task_path, task_payload)
+
+        # Materialize frozen inputs into the role workspace via the
+        # capability broker, verifying digests and logging every access.
+        access_log_path = role_root / "access.jsonl"
+        self._broker.materialize_context(
+            workspace=role_root,
+            frozen_inputs={
+                input_id: inputs[input_id] for input_id in role_step.input_ids
+            },
+            access_log_path=access_log_path,
+        )
 
         specs = self.context.output_plan.for_stage_role(stage.stage_id, role)
         run_root = self.workspace.ensure_directory(run_relative)
@@ -420,8 +436,26 @@ class RoleLifecycleService:
                 self._seal_output(item.spec, item.path, item.sha256)
                 for item in validation.outputs
             )
+            # Adapt validated outputs to capture linked artifacts
+            for item in validation.outputs:
+                self._adapter.adapt(
+                    spec=item.spec,
+                    workspace=invocation.workspace,
+                    validated=item,
+                )
         elif status is RoleExecutionStatus.FAILED:
             failure_code = "executor.role_failed"
+            # Preserve raw output for debugging even on failure
+            try:
+                from .output_adapters import preserve_raw_output
+                preserve_raw_output(
+                    workspace=invocation.workspace,
+                    run_id=invocation.run_id,
+                    role=role,
+                    artifacts=self.artifacts,
+                )
+            except Exception:
+                pass
 
         if status is RoleExecutionStatus.CANCELLED:
             failure_code = None

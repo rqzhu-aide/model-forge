@@ -1,0 +1,662 @@
+{
+    "phase_id":  "P4",
+    "contract_version":  "2.0.0",
+    "prose_contract":  "architecture/phases/phase-4.md",
+    "name":  "Empirical development",
+    "scientific_purpose":  "Build a reproducible cumulative evidence base and current empirical synthesis for one exact method identity.",
+    "current_record_semantics":  {
+                                     "strategy":  "indexed_cumulative",
+                                     "canonical_record_types":  [
+                                                                    "empirical_evidence_index",
+                                                                    "empirical_synthesis",
+                                                                    "implementation_record",
+                                                                    "phase_decision"
+                                                                ],
+                                     "research_meaning":  "Immutable evidence accumulates, while the current index and synthesis include only evidence applicable to the exact method and current claims.",
+                                     "history_policy":  "Previous evidence remains traceable. Current runs use applicable exact-method evidence by default and exclude outdated evidence unless the user selects it."
+                                 },
+    "user_choices":  [
+                         {
+                             "choice_id":  "p4.selected_method",
+                             "label":  "Method",
+                             "description":  "Select one active method and its current exact identity.",
+                             "required":  true,
+                             "allowed_values":  [
+
+                                                ],
+                             "value_kind":  "method_identity"
+                         },
+                         {
+                             "choice_id":  "p4.instructions",
+                             "label":  "Analysis instructions",
+                             "description":  "State the empirical question, data or simulation constraints, comparisons, and desired checks.",
+                             "required":  true,
+                             "allowed_values":  [
+
+                                                ],
+                             "value_kind":  "text"
+                         },
+                         {
+                             "choice_id":  "p4.selected_history",
+                             "label":  "Selected history",
+                             "description":  "Optionally include named historical evidence for a specific comparison or diagnostic.",
+                             "required":  false,
+                             "allowed_values":  [
+
+                                                ],
+                             "value_kind":  "artifact_pointer_list"
+                         }
+                     ],
+    "run_modes":  [
+                      {
+                          "mode_id":  "p4.preliminary",
+                          "label":  "Preliminary",
+                          "purpose":  "Run a small set of decisive feasibility, implementation, and diagnostic checks.",
+                          "requires_method":  true,
+                          "entry_conditions":  [
+                                                   "The project brief, Phase 1 basis, and Phase 2 catalog are current.",
+                                                   "The selected method is active and current."
+                                               ],
+                          "required_choice_ids":  [
+                                                      "p4.selected_method",
+                                                      "p4.instructions"
+                                                  ],
+                          "optional_choice_ids":  [
+                                                      "p4.selected_history"
+                                                  ],
+                          "method_choice_id":  "p4.selected_method"
+                      },
+                      {
+                          "mode_id":  "p4.comprehensive",
+                          "label":  "Comprehensive",
+                          "purpose":  "Run a prespecified full evaluation with comparisons, sensitivity analyses, and robustness checks.",
+                          "requires_method":  true,
+                          "entry_conditions":  [
+                                                   "The project brief, Phase 1 basis, and Phase 2 catalog are current.",
+                                                   "The selected method is active and current."
+                                               ],
+                          "required_choice_ids":  [
+                                                      "p4.selected_method",
+                                                      "p4.instructions"
+                                                  ],
+                          "optional_choice_ids":  [
+                                                      "p4.selected_history"
+                                                  ],
+                          "method_choice_id":  "p4.selected_method"
+                      }
+                  ],
+    "prerequisites":  [
+                          {
+                              "requirement_id":  "p4.current_project_brief",
+                              "kind":  "phase_record",
+                              "description":  "A formal current project brief is readable.",
+                              "required":  true
+                          },
+                          {
+                              "requirement_id":  "p4.current_literature",
+                              "kind":  "phase_record",
+                              "description":  "A formal current Phase 1 literature basis is readable.",
+                              "required":  true,
+                              "phase":  "P1"
+                          },
+                          {
+                              "requirement_id":  "p4.method_selected",
+                              "kind":  "method_selected",
+                              "description":  "The user selects one active current method from Phase 2.",
+                              "required":  true,
+                              "phase":  "P2"
+                          }
+                      ],
+    "required_inputs":  [
+                            {
+                                "input_id":  "p4.project_brief",
+                                "record_type":  "project_brief",
+                                "publication_required":  "formal",
+                                "position_required":  "current",
+                                "method_match":  "not_applicable",
+                                "purpose":  "Preserve the scientific problem and intended scope.",
+                                "condition":  "Always required.",
+                                "presence":  "always"
+                            },
+                            {
+                                "input_id":  "p4.literature_synthesis",
+                                "record_type":  "literature_synthesis",
+                                "publication_required":  "formal",
+                                "position_required":  "current",
+                                "method_match":  "not_applicable",
+                                "purpose":  "Ground comparisons, empirical precedents, interpretation, and biological or substantive context.",
+                                "condition":  "Always required.",
+                                "presence":  "always"
+                            },
+                            {
+                                "input_id":  "p4.method_catalog",
+                                "record_type":  "method_catalog",
+                                "publication_required":  "formal",
+                                "position_required":  "current",
+                                "method_match":  "not_applicable",
+                                "purpose":  "Confirm that the selected stable method is active and current.",
+                                "condition":  "Always required.",
+                                "presence":  "always"
+                            },
+                            {
+                                "input_id":  "p4.method",
+                                "record_type":  "method_record",
+                                "publication_required":  "formal",
+                                "position_required":  "current",
+                                "method_match":  "exact",
+                                "purpose":  "Freeze the exact calculation-defining method that code and evidence must implement.",
+                                "condition":  "Always required.",
+                                "presence":  "always"
+                            },
+                            {
+                                "input_id":  "p4.current_evidence_index",
+                                "record_type":  "empirical_evidence_index",
+                                "publication_required":  "formal",
+                                "position_required":  "current",
+                                "method_match":  "exact",
+                                "purpose":  "Identify applicable completed analyses and excluded outdated evidence.",
+                                "condition":  "Required on reruns for the same exact identity and absent on the first run.",
+                                "presence":  "required_on_rerun"
+                            },
+                            {
+                                "input_id":  "p4.current_empirical",
+                                "record_type":  "empirical_synthesis",
+                                "publication_required":  "formal",
+                                "position_required":  "current",
+                                "method_match":  "exact",
+                                "purpose":  "Identify the current conclusions and open checks that the run must update.",
+                                "condition":  "Required on reruns for the same exact identity and absent on the first run.",
+                                "presence":  "required_on_rerun"
+                            },
+                            {
+                                "input_id":  "p4.current_implementation",
+                                "record_type":  "implementation_record",
+                                "publication_required":  "formal",
+                                "position_required":  "current",
+                                "method_match":  "exact",
+                                "purpose":  "Provide the exact current code, environment, and configuration identity that a rerun must verify or replace.",
+                                "condition":  "Required on reruns for the same exact identity and absent on the first run.",
+                                "presence":  "required_on_rerun"
+                            },
+                            {
+                                "input_id":  "p4.current_theory",
+                                "record_type":  "theory_record",
+                                "publication_required":  "formal",
+                                "position_required":  "current",
+                                "method_match":  "exact",
+                                "purpose":  "Expose assumptions, empirical implications, and boundary cases.",
+                                "condition":  "Included when an exactly aligned Phase 3 record exists; Phase 3 is not a prerequisite.",
+                                "presence":  "if_exists"
+                            }
+                        ],
+    "prepared_contexts":  [
+
+                          ],
+    "optional_context_policy":  {
+                                    "default":  "current_only",
+                                    "allows_selected_history":  true,
+                                    "history_selection_user_controlled":  true,
+                                    "description":  "The exact current method and applicable evidence are loaded by default. Outdated and historical evidence is excluded unless selected.",
+                                    "history_choice_id":  "p4.selected_history"
+                                },
+    "role_stages":  [
+                        {
+                            "sequence":  1,
+                            "stage_id":  "p4.analyst",
+                            "applicable_modes":  [
+                                                     "p4.preliminary",
+                                                     "p4.comprehensive"
+                                                 ],
+                            "execution":  "serial",
+                            "roles":  [
+                                          "data_analyst"
+                                      ],
+                            "objective":  "Specify the protocol, verify exact implementation, execute the authorized scope, and produce reproducible evidence and synthesis.",
+                            "reads":  [
+                                          "p4.project_brief",
+                                          "p4.literature_synthesis",
+                                          "p4.method_catalog",
+                                          "p4.method",
+                                          "p4.current_evidence_index",
+                                          "p4.current_empirical",
+                                          "p4.current_implementation",
+                                          "p4.current_theory"
+                                      ],
+                            "writes":  [
+                                           "p4.protocol",
+                                           "p4.evidence",
+                                           "p4.analyst_synthesis",
+                                           "p4.analyst_handoff"
+                                       ],
+                            "handoff_required":  true
+                        },
+                        {
+                            "sequence":  2,
+                            "stage_id":  "p4.theorist",
+                            "applicable_modes":  [
+                                                     "p4.preliminary",
+                                                     "p4.comprehensive"
+                                                 ],
+                            "execution":  "serial",
+                            "roles":  [
+                                          "theorist"
+                                      ],
+                            "objective":  "Audit mathematical fidelity, definition-to-code correspondence, comparisons, interpretation, and consistency with available theory.",
+                            "reads":  [
+                                          "p4.method",
+                                          "p4.protocol",
+                                          "p4.evidence",
+                                          "p4.analyst_synthesis",
+                                          "p4.analyst_handoff",
+                                          "p4.current_theory"
+                                      ],
+                            "writes":  [
+                                           "p4.theory_audit",
+                                           "p4.theory_handoff"
+                                       ],
+                            "handoff_required":  true
+                        },
+                        {
+                            "sequence":  3,
+                            "stage_id":  "p4.lead",
+                            "applicable_modes":  [
+                                                     "p4.preliminary",
+                                                     "p4.comprehensive"
+                                                 ],
+                            "execution":  "serial",
+                            "roles":  [
+                                          "research_lead"
+                                      ],
+                            "objective":  "Integrate evidence and fidelity findings, retain applicable evidence, and state the scientific outcome and user-relevant changes.",
+                            "reads":  [
+                                          "p4.project_brief",
+                                          "p4.literature_synthesis",
+                                          "p4.method_catalog",
+                                          "p4.method",
+                                          "p4.current_evidence_index",
+                                          "p4.current_empirical",
+                                          "p4.current_implementation",
+                                          "p4.current_theory",
+                                          "p4.protocol",
+                                          "p4.evidence",
+                                          "p4.analyst_synthesis",
+                                          "p4.analyst_handoff",
+                                          "p4.theory_audit",
+                                          "p4.theory_handoff"
+                                      ],
+                            "writes":  [
+                                           "p4.empirical_index_candidate",
+                                           "p4.empirical_synthesis_candidate",
+                                           "p4.implementation_record_candidate",
+                                           "p4.attention_items",
+                                           "p4.decision"
+                                       ],
+                            "handoff_required":  true
+                        }
+                    ],
+    "run_local_outputs":  [
+                              {
+                                  "output_id":  "p4.protocol",
+                                  "output_kind":  "protocol",
+                                  "producer":  "data_analyst",
+                                  "schema_application":  "object",
+                                  "schema_uri":  "architecture/schemas/scientific-record.schema.json",
+                                  "purpose":  "Prespecify design, metrics, comparisons, diagnostics, and uncertainty analysis for the selected scope.",
+                                  "required":  true,
+                                  "requirement":  "always"
+                              },
+                              {
+                                  "output_id":  "p4.evidence",
+                                  "output_kind":  "evidence_set",
+                                  "producer":  "data_analyst",
+                                  "schema_application":  "each_item",
+                                  "schema_uri":  "architecture/schemas/evidence.schema.json",
+                                  "purpose":  "Provide immutable results with method, code, data or simulation, configuration, seed, environment, and artifact provenance.",
+                                  "required":  true,
+                                  "requirement":  "always"
+                              },
+                              {
+                                  "output_id":  "p4.analyst_synthesis",
+                                  "output_kind":  "synthesis",
+                                  "producer":  "data_analyst",
+                                  "schema_application":  "object",
+                                  "schema_uri":  "architecture/schemas/scientific-record.schema.json",
+                                  "purpose":  "Distinguish new evidence from previously applicable evidence and state the first empirical interpretation.",
+                                  "required":  true,
+                                  "requirement":  "always"
+                              },
+                              {
+                                  "output_id":  "p4.theory_audit",
+                                  "output_kind":  "audit",
+                                  "producer":  "theorist",
+                                  "schema_application":  "object",
+                                  "schema_uri":  "architecture/schemas/scientific-record.schema.json",
+                                  "purpose":  "Record stable mathematical-fidelity and interpretation issues.",
+                                  "required":  true,
+                                  "requirement":  "always"
+                              },
+                              {
+                                  "output_id":  "p4.empirical_index_candidate",
+                                  "output_kind":  "scientific_record",
+                                  "producer":  "research_lead",
+                                  "schema_application":  "object",
+                                  "schema_uri":  "architecture/schemas/scientific-record.schema.json",
+                                  "purpose":  "Provide the candidate current index of exact-method evidence and explicit exclusions.",
+                                  "required":  true,
+                                  "requirement":  "always"
+                              },
+                              {
+                                  "output_id":  "p4.empirical_synthesis_candidate",
+                                  "output_kind":  "synthesis",
+                                  "producer":  "research_lead",
+                                  "schema_application":  "object",
+                                  "schema_uri":  "architecture/schemas/scientific-record.schema.json",
+                                  "purpose":  "Provide the candidate complete empirical interpretation, uncertainty, limitations, and issue dispositions.",
+                                  "required":  true,
+                                  "requirement":  "always"
+                              },
+                              {
+                                  "output_id":  "p4.implementation_record_candidate",
+                                  "output_kind":  "scientific_record",
+                                  "producer":  "research_lead",
+                                  "schema_application":  "object",
+                                  "schema_uri":  "architecture/schemas/scientific-record.schema.json",
+                                  "purpose":  "Provide the candidate current implementation identity, environment, configuration, and reproducibility references.",
+                                  "required":  true,
+                                  "requirement":  "always"
+                              },
+                              {
+                                  "output_id":  "p4.attention_items",
+                                  "output_kind":  "attention_item_set",
+                                  "producer":  "research_lead",
+                                  "schema_application":  "each_item",
+                                  "schema_uri":  "architecture/schemas/attention-item.schema.json",
+                                  "purpose":  "Record each newly identified research-attention item with its exact basis, affected claim or record, and smallest resolving question.",
+                                  "required":  true,
+                                  "requirement":  "always"
+                              },
+                              {
+                                  "output_id":  "p4.decision",
+                                  "output_kind":  "decision_record",
+                                  "producer":  "research_lead",
+                                  "schema_application":  "object",
+                                  "schema_uri":  "architecture/schemas/decision-record.schema.json",
+                                  "purpose":  "Summarize what the evidence supports, material changes, outdated components, and meaningful user actions.",
+                                  "required":  true,
+                                  "requirement":  "always"
+                              },
+                              {
+                                  "output_id":  "p4.analyst_handoff",
+                                  "output_kind":  "handoff",
+                                  "producer":  "data_analyst",
+                                  "schema_application":  "object",
+                                  "schema_uri":  "architecture/schemas/handoff.schema.json",
+                                  "purpose":  "State what was computed, what changed, and which fidelity questions require theorist review.",
+                                  "required":  true,
+                                  "requirement":  "always"
+                              },
+                              {
+                                  "output_id":  "p4.theory_handoff",
+                                  "output_kind":  "handoff",
+                                  "producer":  "theorist",
+                                  "schema_application":  "object",
+                                  "schema_uri":  "architecture/schemas/handoff.schema.json",
+                                  "purpose":  "State method-fidelity findings, interpretation limits, and unresolved lead decisions.",
+                                  "required":  true,
+                                  "requirement":  "always"
+                              }
+                          ],
+    "validation_rules":  [
+                             {
+                                 "validator_id":  "p4.role_sequence",
+                                 "category":  "run_boundary",
+                                 "severity":  "blocking",
+                                 "description":  "Data analyst, theorist, and research lead outputs exist in that exact order with complete handoffs."
+                             },
+                             {
+                                 "validator_id":  "p4.exact_method",
+                                 "category":  "alignment",
+                                 "severity":  "blocking",
+                                 "description":  "Every selected-method computation and claim names the exact stable ID, version, and definition digest."
+                             },
+                             {
+                                 "validator_id":  "p4.reproducibility",
+                                 "category":  "reproducibility",
+                                 "severity":  "blocking",
+                                 "description":  "Every evidence item records code, data or simulation, configuration, randomness, environment, and artifact provenance."
+                             },
+                             {
+                                 "validator_id":  "p4.scope_completeness",
+                                 "category":  "scientific_completeness",
+                                 "severity":  "blocking",
+                                 "description":  "Outputs satisfy the declared preliminary or comprehensive protocol without inferring scope from chronology."
+                             },
+                             {
+                                 "validator_id":  "p4.evidence_applicability",
+                                 "category":  "alignment",
+                                 "severity":  "blocking",
+                                 "description":  "The current index excludes mismatched-method, outdated, withdrawn, invalid, superseded, and unresolved evidence from current claims."
+                             },
+                             {
+                                 "validator_id":  "p4.atomic_publication",
+                                 "category":  "promotion_safety",
+                                 "severity":  "blocking",
+                                 "description":  "New evidence and the replacement index and synthesis commit as one transaction."
+                             }
+                         ],
+    "publication_bindings":  [
+                                 {
+                                     "binding_id":  "p4.append_attention_items",
+                                     "applicable_modes":  [
+                                                              "p4.preliminary",
+                                                              "p4.comprehensive"
+                                                          ],
+                                     "operation":  "append",
+                                     "output_ids":  [
+                                                        "p4.attention_items"
+                                                    ],
+                                     "target":  {
+                                                    "kind":  "cumulative_collection",
+                                                    "collection_id":  "project.attention_history",
+                                                    "object_type":  "attention_item"
+                                                },
+                                     "prior_target_policy":  "not_applicable",
+                                     "publisher_transform":  "none",
+                                     "may_create_scientific_content":  false
+                                 },
+                                 {
+                                     "binding_id":  "p4.append_evidence",
+                                     "applicable_modes":  [
+                                                              "p4.preliminary",
+                                                              "p4.comprehensive"
+                                                          ],
+                                     "operation":  "append",
+                                     "output_ids":  [
+                                                        "p4.evidence"
+                                                    ],
+                                     "target":  {
+                                                    "kind":  "cumulative_collection",
+                                                    "collection_id":  "p4.evidence_history",
+                                                    "object_type":  "evidence_item"
+                                                },
+                                     "prior_target_policy":  "not_applicable",
+                                     "publisher_transform":  "none",
+                                     "may_create_scientific_content":  false
+                                 },
+                                 {
+                                     "binding_id":  "p4.replace_evidence_index",
+                                     "applicable_modes":  [
+                                                              "p4.preliminary",
+                                                              "p4.comprehensive"
+                                                          ],
+                                     "operation":  "replace",
+                                     "output_ids":  [
+                                                        "p4.empirical_index_candidate"
+                                                    ],
+                                     "target":  {
+                                                    "kind":  "current_slot",
+                                                    "slot_id":  "p4.empirical_evidence_index.current",
+                                                    "record_type":  "empirical_evidence_index"
+                                                },
+                                     "prior_target_policy":  "absent_or_match_current",
+                                     "publisher_transform":  "none",
+                                     "may_create_scientific_content":  false
+                                 },
+                                 {
+                                     "binding_id":  "p4.replace_empirical_synthesis",
+                                     "applicable_modes":  [
+                                                              "p4.preliminary",
+                                                              "p4.comprehensive"
+                                                          ],
+                                     "operation":  "replace",
+                                     "output_ids":  [
+                                                        "p4.empirical_synthesis_candidate"
+                                                    ],
+                                     "target":  {
+                                                    "kind":  "current_slot",
+                                                    "slot_id":  "p4.empirical_synthesis.current",
+                                                    "record_type":  "empirical_synthesis"
+                                                },
+                                     "prior_target_policy":  "absent_or_match_current",
+                                     "publisher_transform":  "none",
+                                     "may_create_scientific_content":  false
+                                 },
+                                 {
+                                     "binding_id":  "p4.replace_implementation_record",
+                                     "applicable_modes":  [
+                                                              "p4.preliminary",
+                                                              "p4.comprehensive"
+                                                          ],
+                                     "operation":  "replace",
+                                     "output_ids":  [
+                                                        "p4.implementation_record_candidate"
+                                                    ],
+                                     "target":  {
+                                                    "kind":  "current_slot",
+                                                    "slot_id":  "p4.implementation_record.current",
+                                                    "record_type":  "implementation_record"
+                                                },
+                                     "prior_target_policy":  "absent_or_match_current",
+                                     "publisher_transform":  "none",
+                                     "may_create_scientific_content":  false
+                                 },
+                                 {
+                                     "binding_id":  "p4.replace_phase_decision",
+                                     "applicable_modes":  [
+                                                              "p4.preliminary",
+                                                              "p4.comprehensive"
+                                                          ],
+                                     "operation":  "replace",
+                                     "output_ids":  [
+                                                        "p4.decision"
+                                                    ],
+                                     "target":  {
+                                                    "kind":  "current_slot",
+                                                    "slot_id":  "p4.phase_decision.current",
+                                                    "record_type":  "phase_decision"
+                                                },
+                                     "prior_target_policy":  "absent_or_match_current",
+                                     "publisher_transform":  "none",
+                                     "may_create_scientific_content":  false
+                                 }
+                             ],
+    "promotion":  {
+                      "strategy":  "evidence_index_transaction",
+                      "canonical_record_types":  [
+                                                     "empirical_evidence_index",
+                                                     "empirical_synthesis",
+                                                     "implementation_record",
+                                                     "phase_decision"
+                                                 ],
+                      "cumulative_object_types":  [
+                                                      "evidence_item",
+                                                      "attention_item"
+                                                  ],
+                      "blocking_validator_ids":  [
+                                                     "p4.role_sequence",
+                                                     "p4.exact_method",
+                                                     "p4.reproducibility",
+                                                     "p4.scope_completeness",
+                                                     "p4.evidence_applicability",
+                                                     "p4.atomic_publication"
+                                                 ],
+                      "failure_behavior":  "Append no evidence and keep the prior index and synthesis unchanged; retain the candidate only in its run workspace.",
+                      "atomic":  true
+                  },
+    "downstream_effects":  [
+                               {
+                                   "trigger":  "empirical_basis_change",
+                                   "affected_phases":  [
+                                                           "P3"
+                                                       ],
+                                   "description":  "Evidence that contradicts or narrows a theory statement creates targeted Phase 3 attention without method-identity mismatch.",
+                                   "automatic_run":  false,
+                                   "alignment_effect":  {
+                                                            "action":  "preserve"
+                                                        },
+                                   "attention_effect":  {
+                                                            "action":  "record_if_identified"
+                                                        }
+                               },
+                               {
+                                   "trigger":  "new_current_record",
+                                   "affected_phases":  [
+                                                           "P5"
+                                                       ],
+                                   "description":  "A current manuscript no longer has the latest empirical basis and requires user-started reconciliation.",
+                                   "automatic_run":  false,
+                                   "alignment_effect":  {
+                                                            "action":  "set",
+                                                            "state":  "outdated"
+                                                        },
+                                   "attention_effect":  {
+                                                            "action":  "create_required"
+                                                        }
+                               }
+                           ],
+    "ui_projection":  {
+                          "researcher_questions":  [
+                                                       "What evidence is valid for this exact method?",
+                                                       "What did this run add or reclassify?",
+                                                       "Does implementation match definition?",
+                                                       "Which empirical questions remain?"
+                                                   ],
+                          "fields":  [
+                                         {
+                                             "field_id":  "p4.method_summary",
+                                             "source":  "method_record.current",
+                                             "label":  "Selected method",
+                                             "meaning":  "Stable identity, mathematical definition, version, assumptions, and scope."
+                                         },
+                                         {
+                                             "field_id":  "p4.evidence_index",
+                                             "source":  "empirical_evidence_index.current",
+                                             "label":  "Current evidence",
+                                             "meaning":  "Applicable exact-method evidence with scope, provenance, and outcome."
+                                         },
+                                         {
+                                             "field_id":  "p4.outdated_evidence",
+                                             "source":  "empirical_evidence_index.excluded",
+                                             "label":  "Not current",
+                                             "meaning":  "Evidence excluded from current claims with a precise reason and retained provenance."
+                                         },
+                                         {
+                                             "field_id":  "p4.material_changes",
+                                             "source":  "phase_decision.material_changes",
+                                             "label":  "What changed",
+                                             "meaning":  "New results, changed interpretations, fidelity findings, and remaining decisions."
+                                         }
+                                     ],
+                          "user_action_choice_ids":  [
+                                                         "p4.selected_method",
+                                                         "p4.instructions",
+                                                         "p4.selected_history"
+                                                     ]
+                      },
+    "acceptance_scenarios":  [
+                                 "s03.phase4_before_phase3",
+                                 "s04.method_definition_change",
+                                 "s07.evidence_revalidation",
+                                 "s10.negative_result"
+                             ]
+}

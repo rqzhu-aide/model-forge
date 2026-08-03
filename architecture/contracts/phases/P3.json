@@ -1,0 +1,517 @@
+{
+    "phase_id":  "P3",
+    "contract_version":  "2.0.0",
+    "prose_contract":  "architecture/phases/phase-3.md",
+    "name":  "Theory development",
+    "scientific_purpose":  "Produce the complete current theoretical account for one exact method identity, including assumptions, claims, proofs or proof obligations, limitations, and empirical implications.",
+    "current_record_semantics":  {
+                                     "strategy":  "atomic_replace",
+                                     "canonical_record_types":  [
+                                                                    "theory_record",
+                                                                    "phase_decision"
+                                                                ],
+                                     "research_meaning":  "One complete theory package states the latest validated theoretical assessment, even when proofs are incomplete or claims are contradicted.",
+                                     "history_policy":  "A rerun replaces the complete current theory package. Older packages remain historical and are excluded unless the user selects them."
+                                 },
+    "user_choices":  [
+                         {
+                             "choice_id":  "p3.selected_method",
+                             "label":  "Method",
+                             "description":  "Select one active method and its current exact identity.",
+                             "required":  true,
+                             "allowed_values":  [
+
+                                                ],
+                             "value_kind":  "method_identity"
+                         },
+                         {
+                             "choice_id":  "p3.instructions",
+                             "label":  "Theory instructions",
+                             "description":  "State the theoretical question, proof targets, emphasis, and scientific constraints.",
+                             "required":  true,
+                             "allowed_values":  [
+
+                                                ],
+                             "value_kind":  "text"
+                         },
+                         {
+                             "choice_id":  "p3.selected_history",
+                             "label":  "Selected history",
+                             "description":  "Optionally include named historical records for an explicit question.",
+                             "required":  false,
+                             "allowed_values":  [
+
+                                                ],
+                             "value_kind":  "artifact_pointer_list"
+                         }
+                     ],
+    "run_modes":  [
+                      {
+                          "mode_id":  "p3.theory_update",
+                          "label":  "Theory run",
+                          "purpose":  "Create or replace the complete theory package for one exact method identity.",
+                          "requires_method":  true,
+                          "entry_conditions":  [
+                                                   "The project brief, Phase 1 basis, and Phase 2 catalog are current.",
+                                                   "The selected method is active and current."
+                                               ],
+                          "required_choice_ids":  [
+                                                      "p3.selected_method",
+                                                      "p3.instructions"
+                                                  ],
+                          "optional_choice_ids":  [
+                                                      "p3.selected_history"
+                                                  ],
+                          "method_choice_id":  "p3.selected_method"
+                      }
+                  ],
+    "prerequisites":  [
+                          {
+                              "requirement_id":  "p3.current_project_brief",
+                              "kind":  "phase_record",
+                              "description":  "A formal current project brief is readable.",
+                              "required":  true
+                          },
+                          {
+                              "requirement_id":  "p3.current_literature",
+                              "kind":  "phase_record",
+                              "description":  "A formal current Phase 1 literature basis is readable.",
+                              "required":  true,
+                              "phase":  "P1"
+                          },
+                          {
+                              "requirement_id":  "p3.method_selected",
+                              "kind":  "method_selected",
+                              "description":  "The user selects one active current method from Phase 2.",
+                              "required":  true,
+                              "phase":  "P2"
+                          }
+                      ],
+    "required_inputs":  [
+                            {
+                                "input_id":  "p3.project_brief",
+                                "record_type":  "project_brief",
+                                "publication_required":  "formal",
+                                "position_required":  "current",
+                                "method_match":  "not_applicable",
+                                "purpose":  "Preserve the scientific problem and scope.",
+                                "condition":  "Always required.",
+                                "presence":  "always"
+                            },
+                            {
+                                "input_id":  "p3.literature_synthesis",
+                                "record_type":  "literature_synthesis",
+                                "publication_required":  "formal",
+                                "position_required":  "current",
+                                "method_match":  "not_applicable",
+                                "purpose":  "Ground theoretical context, related work, assumptions, and novelty.",
+                                "condition":  "Always required.",
+                                "presence":  "always"
+                            },
+                            {
+                                "input_id":  "p3.method_catalog",
+                                "record_type":  "method_catalog",
+                                "publication_required":  "formal",
+                                "position_required":  "current",
+                                "method_match":  "not_applicable",
+                                "purpose":  "Confirm that the selected stable method is active and current.",
+                                "condition":  "Always required.",
+                                "presence":  "always"
+                            },
+                            {
+                                "input_id":  "p3.method",
+                                "record_type":  "method_record",
+                                "publication_required":  "formal",
+                                "position_required":  "current",
+                                "method_match":  "exact",
+                                "purpose":  "Freeze the calculation-defining identity that every theory output addresses.",
+                                "condition":  "Always required.",
+                                "presence":  "always"
+                            },
+                            {
+                                "input_id":  "p3.current_theory",
+                                "record_type":  "theory_record",
+                                "publication_required":  "formal",
+                                "position_required":  "current",
+                                "method_match":  "exact",
+                                "purpose":  "Provide the latest complete account that a rerun must repair or replace.",
+                                "condition":  "Required on reruns for the same exact identity and absent on the first run.",
+                                "presence":  "required_on_rerun"
+                            },
+                            {
+                                "input_id":  "p3.current_empirical_index",
+                                "record_type":  "empirical_evidence_index",
+                                "publication_required":  "formal",
+                                "position_required":  "current",
+                                "method_match":  "exact",
+                                "purpose":  "Resolve the exact current evidence items and explicit exclusions considered during theory assessment.",
+                                "condition":  "Included when an exactly aligned Phase 4 record exists; Phase 4 is not a prerequisite.",
+                                "presence":  "if_exists"
+                            },
+                            {
+                                "input_id":  "p3.current_empirical",
+                                "record_type":  "empirical_synthesis",
+                                "publication_required":  "formal",
+                                "position_required":  "current",
+                                "method_match":  "exact",
+                                "purpose":  "Expose current empirical implications, contradictions, and boundary behavior.",
+                                "condition":  "Included when an exactly aligned Phase 4 record exists; Phase 4 is not a prerequisite.",
+                                "presence":  "if_exists"
+                            },
+                            {
+                                "input_id":  "p3.current_implementation",
+                                "record_type":  "implementation_record",
+                                "publication_required":  "formal",
+                                "position_required":  "current",
+                                "method_match":  "exact",
+                                "purpose":  "Expose the exact implementation identity and computational assumptions behind the current empirical record.",
+                                "condition":  "Included when an exactly aligned Phase 4 record exists; Phase 4 is not a prerequisite.",
+                                "presence":  "if_exists"
+                            }
+                        ],
+    "prepared_contexts":  [
+
+                          ],
+    "optional_context_policy":  {
+                                    "default":  "current_only",
+                                    "allows_selected_history":  true,
+                                    "history_selection_user_controlled":  true,
+                                    "description":  "The exact current method and available current sibling record are the default. Old methods and runs appear only as selected history.",
+                                    "history_choice_id":  "p3.selected_history"
+                                },
+    "role_stages":  [
+                        {
+                            "sequence":  1,
+                            "stage_id":  "p3.theorist",
+                            "applicable_modes":  [
+                                                     "p3.theory_update"
+                                                 ],
+                            "execution":  "serial",
+                            "roles":  [
+                                          "theorist"
+                                      ],
+                            "objective":  "Construct the complete theory and assess assumptions, results, proofs, counterexamples, limitations, and open obligations.",
+                            "reads":  [
+                                          "p3.project_brief",
+                                          "p3.literature_synthesis",
+                                          "p3.method_catalog",
+                                          "p3.method",
+                                          "p3.current_theory",
+                                          "p3.current_empirical"
+                                      ],
+                            "writes":  [
+                                           "p3.theory_candidate",
+                                           "p3.theory_handoff"
+                                       ],
+                            "handoff_required":  true
+                        },
+                        {
+                            "sequence":  2,
+                            "stage_id":  "p3.analyst",
+                            "applicable_modes":  [
+                                                     "p3.theory_update"
+                                                 ],
+                            "execution":  "serial",
+                            "roles":  [
+                                          "data_analyst"
+                                      ],
+                            "objective":  "Challenge identifiability, operational meaning, computation, empirical testability, boundary cases, and consistency with available evidence.",
+                            "reads":  [
+                                          "p3.method",
+                                          "p3.theory_candidate",
+                                          "p3.theory_handoff",
+                                          "p3.current_empirical_index",
+                                          "p3.current_empirical",
+                                          "p3.current_implementation"
+                                      ],
+                            "writes":  [
+                                           "p3.analyst_audit",
+                                           "p3.analyst_handoff"
+                                       ],
+                            "handoff_required":  true
+                        },
+                        {
+                            "sequence":  3,
+                            "stage_id":  "p3.lead",
+                            "applicable_modes":  [
+                                                     "p3.theory_update"
+                                                 ],
+                            "execution":  "serial",
+                            "roles":  [
+                                          "research_lead"
+                                      ],
+                            "objective":  "Integrate the theory and audit, resolve or expose disagreement, and state the current outcome and user-relevant changes.",
+                            "reads":  [
+                                          "p3.project_brief",
+                                          "p3.literature_synthesis",
+                                          "p3.method_catalog",
+                                          "p3.method",
+                                          "p3.current_theory",
+                                          "p3.current_empirical_index",
+                                          "p3.current_empirical",
+                                          "p3.current_implementation",
+                                          "p3.theory_candidate",
+                                          "p3.theory_handoff",
+                                          "p3.analyst_audit",
+                                          "p3.analyst_handoff"
+                                      ],
+                            "writes":  [
+                                           "p3.complete_theory",
+                                           "p3.attention_items",
+                                           "p3.decision"
+                                       ],
+                            "handoff_required":  true
+                        }
+                    ],
+    "run_local_outputs":  [
+                              {
+                                  "output_id":  "p3.theory_candidate",
+                                  "output_kind":  "primary_artifact",
+                                  "producer":  "theorist",
+                                  "schema_application":  "object",
+                                  "schema_uri":  "architecture/schemas/scientific-record.schema.json",
+                                  "purpose":  "Provide a complete readable theory manuscript rather than a patch.",
+                                  "required":  true,
+                                  "requirement":  "always"
+                              },
+                              {
+                                  "output_id":  "p3.theory_handoff",
+                                  "output_kind":  "handoff",
+                                  "producer":  "theorist",
+                                  "schema_application":  "object",
+                                  "schema_uri":  "architecture/schemas/handoff.schema.json",
+                                  "purpose":  "State changes, assumptions, claims, unresolved obligations, and analyst checks.",
+                                  "required":  true,
+                                  "requirement":  "always"
+                              },
+                              {
+                                  "output_id":  "p3.analyst_audit",
+                                  "output_kind":  "audit",
+                                  "producer":  "data_analyst",
+                                  "schema_application":  "object",
+                                  "schema_uri":  "architecture/schemas/scientific-record.schema.json",
+                                  "purpose":  "Record stable operational, identifiability, computational, and empirical issues.",
+                                  "required":  true,
+                                  "requirement":  "always"
+                              },
+                              {
+                                  "output_id":  "p3.complete_theory",
+                                  "output_kind":  "scientific_record",
+                                  "producer":  "research_lead",
+                                  "schema_application":  "object",
+                                  "schema_uri":  "architecture/schemas/scientific-record.schema.json",
+                                  "purpose":  "Provide the complete candidate theory record with statements, dependencies, limitations, and issue dispositions.",
+                                  "required":  true,
+                                  "requirement":  "always"
+                              },
+                              {
+                                  "output_id":  "p3.attention_items",
+                                  "output_kind":  "attention_item_set",
+                                  "producer":  "research_lead",
+                                  "schema_application":  "each_item",
+                                  "schema_uri":  "architecture/schemas/attention-item.schema.json",
+                                  "purpose":  "Record each newly identified research-attention item with its exact basis, affected claim or record, and smallest resolving question.",
+                                  "required":  true,
+                                  "requirement":  "always"
+                              },
+                              {
+                                  "output_id":  "p3.decision",
+                                  "output_kind":  "decision_record",
+                                  "producer":  "research_lead",
+                                  "schema_application":  "object",
+                                  "schema_uri":  "architecture/schemas/decision-record.schema.json",
+                                  "purpose":  "Summarize the fundamental result, material changes, uncertainty, and meaningful user actions.",
+                                  "required":  true,
+                                  "requirement":  "always"
+                              },
+                              {
+                                  "output_id":  "p3.analyst_handoff",
+                                  "output_kind":  "handoff",
+                                  "producer":  "data_analyst",
+                                  "schema_application":  "object",
+                                  "schema_uri":  "architecture/schemas/handoff.schema.json",
+                                  "purpose":  "State analyst findings, unresolved issues, and the exact checks for lead synthesis.",
+                                  "required":  true,
+                                  "requirement":  "always"
+                              }
+                          ],
+    "validation_rules":  [
+                             {
+                                 "validator_id":  "p3.role_sequence",
+                                 "category":  "run_boundary",
+                                 "severity":  "blocking",
+                                 "description":  "Theorist, data analyst, and research lead outputs exist in that exact order with complete handoffs."
+                             },
+                             {
+                                 "validator_id":  "p3.exact_method",
+                                 "category":  "alignment",
+                                 "severity":  "blocking",
+                                 "description":  "Every method-bound output names the same stable ID, positive integer version, and definition digest."
+                             },
+                             {
+                                 "validator_id":  "p3.complete_account",
+                                 "category":  "scientific_completeness",
+                                 "severity":  "blocking",
+                                 "description":  "The candidate is complete and states assumptions, claims, proof locations or obligations, limitations, and empirical implications."
+                             },
+                             {
+                                 "validator_id":  "p3.issue_traceability",
+                                 "category":  "provenance",
+                                 "severity":  "blocking",
+                                 "description":  "Each analyst issue has a stable ID and a lead disposition or acknowledged unresolved state."
+                             },
+                             {
+                                 "validator_id":  "p3.atomic_publication",
+                                 "category":  "promotion_safety",
+                                 "severity":  "blocking",
+                                 "description":  "The complete theory package replaces the prior package atomically."
+                             }
+                         ],
+    "publication_bindings":  [
+                                 {
+                                     "binding_id":  "p3.append_attention_items",
+                                     "applicable_modes":  [
+                                                              "p3.theory_update"
+                                                          ],
+                                     "operation":  "append",
+                                     "output_ids":  [
+                                                        "p3.attention_items"
+                                                    ],
+                                     "target":  {
+                                                    "kind":  "cumulative_collection",
+                                                    "collection_id":  "project.attention_history",
+                                                    "object_type":  "attention_item"
+                                                },
+                                     "prior_target_policy":  "not_applicable",
+                                     "publisher_transform":  "none",
+                                     "may_create_scientific_content":  false
+                                 },
+                                 {
+                                     "binding_id":  "p3.replace_theory_record",
+                                     "applicable_modes":  [
+                                                              "p3.theory_update"
+                                                          ],
+                                     "operation":  "replace",
+                                     "output_ids":  [
+                                                        "p3.complete_theory"
+                                                    ],
+                                     "target":  {
+                                                    "kind":  "current_slot",
+                                                    "slot_id":  "p3.theory_record.current",
+                                                    "record_type":  "theory_record"
+                                                },
+                                     "prior_target_policy":  "absent_or_match_current",
+                                     "publisher_transform":  "none",
+                                     "may_create_scientific_content":  false
+                                 },
+                                 {
+                                     "binding_id":  "p3.replace_phase_decision",
+                                     "applicable_modes":  [
+                                                              "p3.theory_update"
+                                                          ],
+                                     "operation":  "replace",
+                                     "output_ids":  [
+                                                        "p3.decision"
+                                                    ],
+                                     "target":  {
+                                                    "kind":  "current_slot",
+                                                    "slot_id":  "p3.phase_decision.current",
+                                                    "record_type":  "phase_decision"
+                                                },
+                                     "prior_target_policy":  "absent_or_match_current",
+                                     "publisher_transform":  "none",
+                                     "may_create_scientific_content":  false
+                                 }
+                             ],
+    "promotion":  {
+                      "strategy":  "atomic_replace",
+                      "canonical_record_types":  [
+                                                     "theory_record",
+                                                     "phase_decision"
+                                                 ],
+                      "cumulative_object_types":  [
+                                                      "attention_item"
+                                                  ],
+                      "blocking_validator_ids":  [
+                                                     "p3.role_sequence",
+                                                     "p3.exact_method",
+                                                     "p3.complete_account",
+                                                     "p3.issue_traceability",
+                                                     "p3.atomic_publication"
+                                                 ],
+                      "failure_behavior":  "Keep the previous complete theory package current; retain the candidate only in its run workspace.",
+                      "atomic":  true
+                  },
+    "downstream_effects":  [
+                               {
+                                   "trigger":  "theory_basis_change",
+                                   "affected_phases":  [
+                                                           "P4"
+                                                       ],
+                                   "description":  "Changed assumptions or empirical implications create targeted Phase 4 attention without method-identity mismatch.",
+                                   "automatic_run":  false,
+                                   "alignment_effect":  {
+                                                            "action":  "preserve"
+                                                        },
+                                   "attention_effect":  {
+                                                            "action":  "record_if_identified"
+                                                        }
+                               },
+                               {
+                                   "trigger":  "new_current_record",
+                                   "affected_phases":  [
+                                                           "P5"
+                                                       ],
+                                   "description":  "A current manuscript no longer has the latest theory basis and requires user-started reconciliation.",
+                                   "automatic_run":  false,
+                                   "alignment_effect":  {
+                                                            "action":  "set",
+                                                            "state":  "outdated"
+                                                        },
+                                   "attention_effect":  {
+                                                            "action":  "create_required"
+                                                        }
+                               }
+                           ],
+    "ui_projection":  {
+                          "researcher_questions":  [
+                                                       "What is established?",
+                                                       "Which assumptions and proof obligations remain?",
+                                                       "What changed?",
+                                                       "How does current evidence bear on the theory?"
+                                                   ],
+                          "fields":  [
+                                         {
+                                             "field_id":  "p3.method_summary",
+                                             "source":  "method_record.current",
+                                             "label":  "Selected method",
+                                             "meaning":  "Stable identity, mathematical definition, target, assumptions, and scope."
+                                         },
+                                         {
+                                             "field_id":  "p3.theory_outcome",
+                                             "source":  "theory_record.current.scientific_outcome",
+                                             "label":  "Theoretical outcome",
+                                             "meaning":  "What the current complete account supports, conditions, contradicts, or leaves unresolved."
+                                         },
+                                         {
+                                             "field_id":  "p3.attention",
+                                             "source":  "theory_record.current.research_attention",
+                                             "label":  "Open questions",
+                                             "meaning":  "Specific proof, assumption, interpretation, or evidence questions for a possible rerun."
+                                         }
+                                     ],
+                          "user_action_choice_ids":  [
+                                                         "p3.selected_method",
+                                                         "p3.instructions",
+                                                         "p3.selected_history"
+                                                     ]
+                      },
+    "acceptance_scenarios":  [
+                                 "s03.phase4_before_phase3",
+                                 "s04.method_definition_change",
+                                 "s05.failed_run",
+                                 "s06.optional_history",
+                                 "s10.negative_result",
+                                 "s12.disjoint_concurrent_publication"
+                             ]
+}

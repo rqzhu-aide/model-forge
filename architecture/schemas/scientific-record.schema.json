@@ -1,0 +1,189 @@
+{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "$id":  "https://method-hub.local/architecture/schemas/scientific-record.schema.json",
+    "title":  "Immutable Scientific Record Generation",
+    "description":  "A run-local candidate or newly formal scientific generation. Every field is frozen at creation. Later publication, position, alignment, attention, withdrawal, or invalidation changes live in derived state and append-only authority events.",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "schema_version",
+                     "record_id",
+                     "generation_id",
+                     "record_type",
+                     "phase",
+                     "source_run_id",
+                     "authority_at_creation",
+                     "representations",
+                     "basis",
+                     "alignment_at_creation",
+                     "research_attention_at_creation",
+                     "scientific_outcome",
+                     "content_sha256",
+                     "created_at"
+                 ],
+    "properties":  {
+                       "schema_version":  {
+                                              "$ref":  "common-definitions.schema.json#/$defs/schemaVersion"
+                                          },
+                       "record_id":  {
+                                         "$ref":  "common-definitions.schema.json#/$defs/stableId"
+                                     },
+                       "generation_id":  {
+                                             "$ref":  "common-definitions.schema.json#/$defs/stableId"
+                                         },
+                       "generation_number":  {
+                                                 "type":  "integer",
+                                                 "minimum":  1
+                                             },
+                       "record_type":  {
+                                           "$ref":  "common-definitions.schema.json#/$defs/recordType"
+                                       },
+                       "phase":  {
+                                     "$ref":  "common-definitions.schema.json#/$defs/phaseId"
+                                 },
+                       "source_run_id":  {
+                                             "$ref":  "common-definitions.schema.json#/$defs/stableId"
+                                         },
+                       "method_identity":  {
+                                               "$ref":  "common-definitions.schema.json#/$defs/methodIdentity"
+                                           },
+                       "authority_at_creation":  {
+                                                     "$ref":  "common-definitions.schema.json#/$defs/creationAuthority"
+                                                 },
+                       "representations":  {
+                                               "type":  "array",
+                                               "minItems":  1,
+                                               "items":  {
+                                                             "type":  "object",
+                                                             "additionalProperties":  false,
+                                                             "required":  [
+                                                                              "information_layer",
+                                                                              "artifact"
+                                                                          ],
+                                                             "properties":  {
+                                                                                "information_layer":  {
+                                                                                                          "type":  "string",
+                                                                                                          "enum":  [
+                                                                                                                       "primary_artifact",
+                                                                                                                       "structured_record",
+                                                                                                                       "compact_decision_view"
+                                                                                                                   ],
+                                                                                                          "description":  "Information depth only. It does not imply current authority."
+                                                                                                      },
+                                                                                "artifact":  {
+                                                                                                 "$ref":  "common-definitions.schema.json#/$defs/artifactPointer"
+                                                                                             }
+                                                                            }
+                                                         }
+                                           },
+                       "basis":  {
+                                     "type":  "array",
+                                     "items":  {
+                                                   "$ref":  "common-definitions.schema.json#/$defs/recordBasis"
+                                               },
+                                     "uniqueItems":  true
+                                 },
+                       "alignment_at_creation":  {
+                                                     "$ref":  "common-definitions.schema.json#/$defs/alignmentAssessment",
+                                                     "description":  "The assessment against the frozen basis when this object was created. Current alignment is derived separately."
+                                                 },
+                       "research_attention_at_creation":  {
+                                                              "$ref":  "common-definitions.schema.json#/$defs/researchAttention",
+                                                              "description":  "Attention reported by this generation at creation. Later cross-phase attention is derived separately."
+                                                          },
+                       "scientific_outcome":  {
+                                                  "$ref":  "common-definitions.schema.json#/$defs/scientificOutcome"
+                                              },
+                       "replaces_generation_id":  {
+                                                      "$ref":  "common-definitions.schema.json#/$defs/stableId"
+                                                  },
+                       "content_sha256":  {
+                                              "$ref":  "common-definitions.schema.json#/$defs/sha256"
+                                          },
+                       "publication_receipt_id":  {
+                                                      "$ref":  "common-definitions.schema.json#/$defs/stableId"
+                                                  },
+                       "published_at":  {
+                                            "type":  "string",
+                                            "format":  "date-time"
+                                        },
+                       "created_at":  {
+                                          "type":  "string",
+                                          "format":  "date-time"
+                                      }
+                   },
+    "allOf":  [
+                  {
+                      "if":  {
+                                 "properties":  {
+                                                    "phase":  {
+                                                                  "enum":  [
+                                                                               "P3",
+                                                                               "P4",
+                                                                               "P5"
+                                                                           ]
+                                                              }
+                                                },
+                                 "required":  [
+                                                  "phase"
+                                              ]
+                             },
+                      "then":  {
+                                   "required":  [
+                                                    "method_identity"
+                                                ]
+                               }
+                  },
+                  {
+                      "if":  {
+                                 "properties":  {
+                                                    "record_type":  {
+                                                                        "const":  "method_record"
+                                                                    }
+                                                },
+                                 "required":  [
+                                                  "record_type"
+                                              ]
+                             },
+                      "then":  {
+                                   "required":  [
+                                                    "method_identity"
+                                                ]
+                               }
+                  },
+                  {
+                      "if":  {
+                                 "properties":  {
+                                                    "authority_at_creation":  {
+                                                                                  "const":  "formal_generation"
+                                                                              }
+                                                },
+                                 "required":  [
+                                                  "authority_at_creation"
+                                              ]
+                             },
+                      "then":  {
+                                   "required":  [
+                                                    "publication_receipt_id",
+                                                    "published_at"
+                                                ]
+                               },
+                      "else":  {
+                                   "not":  {
+                                               "anyOf":  [
+                                                             {
+                                                                 "required":  [
+                                                                                  "publication_receipt_id"
+                                                                              ]
+                                                             },
+                                                             {
+                                                                 "required":  [
+                                                                                  "published_at"
+                                                                              ]
+                                                             }
+                                                         ]
+                                           }
+                               }
+                  }
+              ]
+}

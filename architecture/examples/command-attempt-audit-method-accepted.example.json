@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0.0",
+  "event_type": "command_attempt_audit",
+  "audit_sequence": 2,
+  "audit_event_id": "audit.command.method.retire.001",
+  "project_id": "project.demo",
+  "action_type": "retire_method",
+  "target": {
+    "target_type": "method_lifecycle",
+    "method_id": "method.overlap_stabilized_score",
+    "expected_generation_id": "generation.method.overlap_stabilized_score.004",
+    "expected_content_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "target_lifecycle_state": "retired"
+  },
+  "raw_request": {
+    "artifact_id": "artifact.command.request.method.retire.001",
+    "uri": "artifact://project.demo/command-requests/command.method.retire.001.json",
+    "sha256": "e43d4bbd76d2be13db5cd0432c1de9a3271e678abb7bc5e361df5ccfce348e69",
+    "media_type": "application/json",
+    "byte_length": 2490
+  },
+  "validated_command": {
+    "command_id": "command.method.retire.001",
+    "command_sha256": "4be311be76c24daf692c79f87b5dd5bd6676e170aea7983b382b439d3a33d380"
+  },
+  "requested_by": {
+    "user_id": "researcher.demo",
+    "operating_actor_type": "user"
+  },
+  "check_stage": "pre_commit",
+  "authorization": {
+    "decision": "authorized",
+    "authentication_check": "passed"
+  },
+  "result": {
+    "status": "accepted",
+    "effect_ref": {
+      "effect_kind": "publication_receipt",
+      "effect_id": "publication.method.retire.001",
+      "effect_sha256": "bc9bfeadce1e3676f06c1bd9017a460cdaf020a1fc66081d93ab512aa352e33a"
+    }
+  },
+  "occurred_at": "2026-08-01T16:00:00Z",
+  "prior_audit_root_sha256": "6b2562fd9f4ad22f128ca2b1a22615f70585a5dc9c4287f6b3a537b0ad942c17",
+  "content_sha256": "9581ba5a6ce9770d31580fb0ee9d5e5816f60a16fa532b17764eae5f0ff09917",
+  "audit_root_sha256": "7eb7a3a63d796e4aeb4ed109628a13d2695f4667263495ddf1c0e43bca019a2b"
+}

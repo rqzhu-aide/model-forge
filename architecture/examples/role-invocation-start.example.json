@@ -1,0 +1,241 @@
+{
+    "schema_version":  "1.0.0",
+    "invocation_start_id":  "invocation_start.p4.analyst.001",
+    "run_id":  "run.p4.preliminary.20260801t140000z",
+    "project_id":  "project.demo",
+    "phase":  "P4",
+    "mode":  "p4.preliminary",
+    "manifest_binding":  {
+                             "artifact":  {
+                                              "artifact_id":  "artifact.run_manifest.p4.001",
+                                              "uri":  "run://run.p4.preliminary.20260801t140000z/artifact/artifact.run_manifest.p4.001",
+                                              "sha256":  "ff82f75fd52e338e96a9ea1d1cc59c2399a52c218934b6d298f3cf6e37d82d12",
+                                              "media_type":  "application/json"
+                                          },
+                             "manifest_sha256":  "ff82f75fd52e338e96a9ea1d1cc59c2399a52c218934b6d298f3cf6e37d82d12"
+                         },
+    "role_plan_step":  {
+                           "sequence":  1,
+                           "stage_id":  "p4.analyst",
+                           "execution_group_id":  "group.p4.1",
+                           "execution":  "serial",
+                           "role":  "data_analyst",
+                           "profile_input_id":  "input.profile.data_analyst",
+                           "assignment":  "Implement the exact current method and conduct the preliminary simulation study.",
+                           "input_ids":  [
+                                             "input.project_brief",
+                                             "input.literature_synthesis",
+                                             "input.current_method_catalog",
+                                             "input.current_method",
+                                             "input.skill.stat_paper_writing",
+                                             "input.tool_manifest"
+                                         ],
+                           "output_ids":  [
+                                              "output.protocol",
+                                              "output.preliminary_evidence",
+                                              "output.analyst_synthesis",
+                                              "output.analyst_handoff"
+                                          ],
+                           "role_write_root":  "runs/P4/run.p4.preliminary.20260801t140000z/roles/01-data_analyst/",
+                           "context_isolation":  false,
+                           "role_plan_entry_sha256":  "7e37ba9c158b368eeeb499b5b92a3df03a17e0f0b02cd74f2b2053037402e144"
+                       },
+    "resolved_profile_artifact":  {
+                                      "artifact_id":  "artifact.profile.data_analyst.p4",
+                                      "uri":  "artifact://artifact.profile.data_analyst.p4",
+                                      "sha256":  "1515151515151515151515151515151515151515151515151515151515151515",
+                                      "media_type":  "application/json"
+                                  },
+    "actual_input_bindings":  [
+                                  {
+                                      "input_id":  "input.project_brief",
+                                      "source_kind":  "manifest_frozen_input",
+                                      "artifact":  {
+                                                       "artifact_id":  "artifact.project_brief",
+                                                       "uri":  "artifact://artifact.project_brief",
+                                                       "sha256":  "1616161616161616161616161616161616161616161616161616161616161616",
+                                                       "media_type":  "application/json"
+                                                   },
+                                      "delivery":  "prepared_context"
+                                  },
+                                  {
+                                      "input_id":  "input.literature_synthesis",
+                                      "source_kind":  "manifest_frozen_input",
+                                      "artifact":  {
+                                                       "artifact_id":  "artifact.literature_synthesis",
+                                                       "uri":  "artifact://artifact.literature_synthesis",
+                                                       "sha256":  "1717171717171717171717171717171717171717171717171717171717171717",
+                                                       "media_type":  "application/json"
+                                                   },
+                                      "delivery":  "prepared_context"
+                                  },
+                                  {
+                                      "input_id":  "input.current_method_catalog",
+                                      "source_kind":  "manifest_frozen_input",
+                                      "artifact":  {
+                                                       "artifact_id":  "artifact.method_catalog",
+                                                       "uri":  "artifact://artifact.method_catalog",
+                                                       "sha256":  "3333333333333333333333333333333333333333333333333333333333333333",
+                                                       "media_type":  "application/json"
+                                                   },
+                                      "delivery":  "prepared_context"
+                                  },
+                                  {
+                                      "input_id":  "input.current_method",
+                                      "source_kind":  "manifest_frozen_input",
+                                      "artifact":  {
+                                                       "artifact_id":  "artifact.method_record",
+                                                       "uri":  "artifact://artifact.method_record",
+                                                       "sha256":  "07967bb4c92015f307fe0296aa889092494535223e28f87c541b722faffeb5eb",
+                                                       "media_type":  "application/json"
+                                                   },
+                                      "delivery":  "prepared_context"
+                                  },
+                                  {
+                                      "input_id":  "input.skill.stat_paper_writing",
+                                      "source_kind":  "manifest_frozen_input",
+                                      "artifact":  {
+                                                       "artifact_id":  "artifact.skill.stat_paper_writing",
+                                                       "uri":  "artifact://artifact.skill.stat_paper_writing",
+                                                       "sha256":  "1414141414141414141414141414141414141414141414141414141414141414",
+                                                       "media_type":  "application/json"
+                                                   },
+                                      "delivery":  "execution_resource"
+                                  },
+                                  {
+                                      "input_id":  "input.tool_manifest",
+                                      "source_kind":  "manifest_frozen_input",
+                                      "artifact":  {
+                                                       "artifact_id":  "artifact.tool.statistical_runtime",
+                                                       "uri":  "artifact://artifact.tool.statistical_runtime",
+                                                       "sha256":  "1818181818181818181818181818181818181818181818181818181818181818",
+                                                       "media_type":  "application/json"
+                                                   },
+                                      "delivery":  "execution_resource"
+                                  }
+                              ],
+    "output_contract_bindings":  [
+                                     {
+                                         "output_id":  "output.protocol",
+                                         "contract_output_id":  "p4.protocol",
+                                         "output_kind":  "protocol",
+                                         "relative_path":  "roles/01-data_analyst/protocol.json",
+                                         "schema_uri":  "../schemas/scientific-record.schema.json",
+                                         "required":  true
+                                     },
+                                     {
+                                         "output_id":  "output.preliminary_evidence",
+                                         "contract_output_id":  "p4.evidence",
+                                         "output_kind":  "evidence_set",
+                                         "relative_path":  "roles/01-data_analyst/evidence.json",
+                                         "schema_uri":  "../schemas/evidence.schema.json",
+                                         "required":  true
+                                     },
+                                     {
+                                         "output_id":  "output.analyst_synthesis",
+                                         "contract_output_id":  "p4.analyst_synthesis",
+                                         "output_kind":  "synthesis",
+                                         "relative_path":  "roles/01-data_analyst/analyst-synthesis.json",
+                                         "schema_uri":  "../schemas/scientific-record.schema.json",
+                                         "required":  true
+                                     },
+                                     {
+                                         "output_id":  "output.analyst_handoff",
+                                         "contract_output_id":  "p4.analyst_handoff",
+                                         "output_kind":  "handoff",
+                                         "relative_path":  "roles/01-data_analyst/analyst-to-theorist-handoff.json",
+                                         "schema_uri":  "../schemas/handoff.schema.json",
+                                         "required":  true
+                                     }
+                                 ],
+    "prepared_context_binding":  {
+                                     "prepared_context_id":  "prepared_context.p4.analyst.001",
+                                     "prepared_context_artifact":  {
+                                                                       "artifact_id":  "artifact.prepared_context.p4.analyst.001",
+                                                                       "uri":  "run://run.p4.preliminary.20260801t140000z/artifact/artifact.prepared_context.p4.analyst.001",
+                                                                       "sha256":  "2aeb67a591124847539d0a7e1aea4f48c75465115e022a27220e08411e9d2190",
+                                                                       "media_type":  "application/json"
+                                                                   },
+                                     "prepared_context_content_sha256":  "2aeb67a591124847539d0a7e1aea4f48c75465115e022a27220e08411e9d2190",
+                                     "prepared_context_sha256":  "e4382eb470cee365e33b89c44f0a58239900b1e97d740adc73fb67d0cf85caf2",
+                                     "prepared_at":  "2026-08-01T14:00:00Z"
+                                 },
+    "executor_binding":  {
+                             "executor_profile_id":  "executor.linux.rootless_oci.v1",
+                             "executor_profile_artifact":  {
+                                                               "artifact_id":  "artifact.executor.linux.rootless_oci.v1",
+                                                               "uri":  "artifact://artifact.executor.linux.rootless_oci.v1",
+                                                               "sha256":  "6464646464646464646464646464646464646464646464646464646464646464",
+                                                               "media_type":  "application/json"
+                                                           },
+                             "runtime_image_artifact":  {
+                                                            "artifact_id":  "artifact.runtime.research_roles.2026_08",
+                                                            "uri":  "artifact://artifact.runtime.research_roles.2026_08",
+                                                            "sha256":  "6565656565656565656565656565656565656565656565656565656565656565",
+                                                            "media_type":  "application/vnd.oci.image.manifest.v1+json"
+                                                        },
+                             "backend":  "rootless_oci",
+                             "user_namespace":  "private",
+                             "pid_namespace":  "private",
+                             "mount_namespace":  "private",
+                             "root_filesystem":  "read_only",
+                             "linux_capabilities":  "none",
+                             "no_new_privileges":  true,
+                             "broker_transport":  "unix_socket",
+                             "network_egress":  "allowlist_proxy",
+                             "project_store_mounted":  false,
+                             "formal_store_mounted":  false
+                         },
+    "capability_grants":  {
+                              "capability_set_id":  "capability_set.p4.analyst.001",
+                              "broker_policy":  {
+                                                    "artifact_id":  "artifact.policy.artifact_broker",
+                                                    "uri":  "artifact://artifact.policy.artifact_broker",
+                                                    "sha256":  "3232323232323232323232323232323232323232323232323232323232323232",
+                                                    "media_type":  "application/json"
+                                                },
+                              "read_input_ids":  [
+                                                     "input.project_brief",
+                                                     "input.literature_synthesis",
+                                                     "input.current_method_catalog",
+                                                     "input.current_method",
+                                                     "input.skill.stat_paper_writing",
+                                                     "input.tool_manifest"
+                                                 ],
+                              "write_output_ids":  [
+                                                       "output.protocol",
+                                                       "output.preliminary_evidence",
+                                                       "output.analyst_synthesis",
+                                                       "output.analyst_handoff"
+                                                   ],
+                              "on_demand_reads":  [
+                                                      {
+                                                          "capability_id":  "capability.read.p4.source_archive",
+                                                          "artifact":  {
+                                                                           "artifact_id":  "artifact.source_archive.p4.current",
+                                                                           "uri":  "generation://generation.evidence.004/artifact.source_archive.p4.current",
+                                                                           "sha256":  "3131313131313131313131313131313131313131313131313131313131313131",
+                                                                           "media_type":  "application/zip"
+                                                                       },
+                                                          "purpose":  "Inspect exact source code when the compact evidence summary is insufficient for reproducibility checks.",
+                                                          "maximum_successful_reads":  2,
+                                                          "maximum_returned_tokens":  8000,
+                                                          "maximum_returned_bytes":  40000,
+                                                          "expires_at":  "2026-08-01T16:00:00Z"
+                                                      }
+                                                  ],
+                              "tool_input_ids":  [
+                                                     "input.tool_manifest"
+                                                 ],
+                              "network_policy":  "approved_resources",
+                              "approved_network_resources":  [
+                                                                 "resource.statistical_runtime_docs"
+                                                             ],
+                              "expires_at":  "2026-08-01T16:00:00Z",
+                              "project_storage_credentials_exposed":  false,
+                              "formal_storage_credentials_exposed":  false
+                          },
+    "role_write_root":  "runs/P4/run.p4.preliminary.20260801t140000z/roles/01-data_analyst/",
+    "started_at":  "2026-08-01T14:00:05Z",
+    "start_sha256":  "754adfedcb93337a98a5051644514dae0ddcd846d96726e1cd310cba083e86f1"
+}

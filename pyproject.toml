@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "method-hub"
+version = "0.1.0"
+description = "Research workflow harness and web interface for Hermes agents"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.141,<1",
+    "jsonschema>=4.23,<5",
+    "pydantic-settings>=2.10,<3",
+    "referencing>=0.35,<1",
+    "uvicorn[standard]>=0.35,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx>=0.28,<1",
+    "pytest>=8,<9",
+]
+
+[project.scripts]
+method-hub = "method_hub.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["method_hub*"]
+namespaces = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"

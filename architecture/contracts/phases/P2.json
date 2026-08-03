@@ -1,0 +1,527 @@
+{
+    "phase_id":  "P2",
+    "contract_version":  "2.0.0",
+    "prose_contract":  "architecture/phases/phase-2.md",
+    "name":  "Method development",
+    "scientific_purpose":  "Develop and maintain a structured catalog of feasible research methods without selecting a branch for the user.",
+    "current_record_semantics":  {
+                                     "strategy":  "replaceable_catalog",
+                                     "canonical_record_types":  [
+                                                                    "method_catalog",
+                                                                    "method_record",
+                                                                    "phase_decision"
+                                                                ],
+                                     "research_meaning":  "The catalog presents the latest structured definition and scientific assessment for each method while preserving stable identity and lineage.",
+                                     "history_policy":  "Current in-scope method records are the default basis. Historical definitions and runs are opt-in and never silently merged."
+                                 },
+    "user_choices":  [
+                         {
+                             "choice_id":  "p2.selected_method",
+                             "label":  "Method",
+                             "description":  "Select the stable method ID when focused-method scope is used.",
+                             "required":  false,
+                             "allowed_values":  [
+
+                                                ],
+                             "value_kind":  "method_identity"
+                         },
+                         {
+                             "choice_id":  "p2.instructions",
+                             "label":  "Research instructions",
+                             "description":  "State the methodological question, constraints, and emphasis.",
+                             "required":  true,
+                             "allowed_values":  [
+
+                                                ],
+                             "value_kind":  "text"
+                         },
+                         {
+                             "choice_id":  "p2.selected_history",
+                             "label":  "Selected history",
+                             "description":  "Optionally include named historical records for an explicit comparison.",
+                             "required":  false,
+                             "allowed_values":  [
+
+                                                ],
+                             "value_kind":  "artifact_pointer_list"
+                         }
+                     ],
+    "run_modes":  [
+                      {
+                          "mode_id":  "p2.full_catalog",
+                          "label":  "Full catalog",
+                          "purpose":  "Add methods or update multiple method records as one catalog transaction.",
+                          "requires_method":  false,
+                          "entry_conditions":  [
+                                                   "A current Phase 1 literature basis is formal and readable."
+                                               ],
+                          "required_choice_ids":  [
+                                                      "p2.instructions"
+                                                  ],
+                          "optional_choice_ids":  [
+                                                      "p2.selected_history"
+                                                  ]
+                      },
+                      {
+                          "mode_id":  "p2.focused_method",
+                          "label":  "Focused method",
+                          "purpose":  "Reassess or revise exactly one existing stable method without changing another method.",
+                          "requires_method":  true,
+                          "entry_conditions":  [
+                                                   "The selected method exists and is active or explicitly reactivatable.",
+                                                   "A current Phase 1 literature basis is formal and readable."
+                                               ],
+                          "required_choice_ids":  [
+                                                      "p2.selected_method",
+                                                      "p2.instructions"
+                                                  ],
+                          "optional_choice_ids":  [
+                                                      "p2.selected_history"
+                                                  ],
+                          "method_choice_id":  "p2.selected_method"
+                      }
+                  ],
+    "prerequisites":  [
+                          {
+                              "requirement_id":  "p2.current_project_brief",
+                              "kind":  "phase_record",
+                              "description":  "A formal current project brief is readable.",
+                              "required":  true
+                          },
+                          {
+                              "requirement_id":  "p2.current_literature",
+                              "kind":  "phase_record",
+                              "description":  "A formal current Phase 1 literature basis is readable.",
+                              "required":  true,
+                              "phase":  "P1"
+                          }
+                      ],
+    "required_inputs":  [
+                            {
+                                "input_id":  "p2.project_brief",
+                                "record_type":  "project_brief",
+                                "publication_required":  "formal",
+                                "position_required":  "current",
+                                "method_match":  "not_applicable",
+                                "purpose":  "Preserve the scientific problem and intended scope.",
+                                "condition":  "Always required.",
+                                "presence":  "always"
+                            },
+                            {
+                                "input_id":  "p2.literature_synthesis",
+                                "record_type":  "literature_synthesis",
+                                "publication_required":  "formal",
+                                "position_required":  "current",
+                                "method_match":  "not_applicable",
+                                "purpose":  "Ground novelty, assumptions, comparisons, and substantive relevance.",
+                                "condition":  "Always required.",
+                                "presence":  "always"
+                            },
+                            {
+                                "input_id":  "p2.literature_library",
+                                "record_type":  "literature_library",
+                                "publication_required":  "formal",
+                                "position_required":  "current",
+                                "method_match":  "not_applicable",
+                                "purpose":  "Resolve the formal sources supporting method statements.",
+                                "condition":  "Always required.",
+                                "presence":  "always"
+                            },
+                            {
+                                "input_id":  "p2.literature_coverage",
+                                "record_type":  "literature_coverage",
+                                "publication_required":  "formal",
+                                "position_required":  "current",
+                                "method_match":  "not_applicable",
+                                "purpose":  "Expose the search boundaries and evidence gaps that constrain method novelty and scope.",
+                                "condition":  "Always required.",
+                                "presence":  "always"
+                            },
+                            {
+                                "input_id":  "p2.current_catalog",
+                                "record_type":  "method_catalog",
+                                "publication_required":  "formal",
+                                "position_required":  "current",
+                                "method_match":  "not_applicable",
+                                "purpose":  "Preserve stable identities and constrain the authorized update scope.",
+                                "condition":  "Required after the first catalog run and absent on the first run.",
+                                "presence":  "required_on_rerun"
+                            }
+                        ],
+    "prepared_contexts":  [
+
+                          ],
+    "optional_context_policy":  {
+                                    "default":  "current_only",
+                                    "allows_selected_history":  true,
+                                    "history_selection_user_controlled":  true,
+                                    "description":  "Current literature and in-scope methods are loaded by default. Historical material is included only when the user selects it.",
+                                    "history_choice_id":  "p2.selected_history"
+                                },
+    "role_stages":  [
+                        {
+                            "sequence":  1,
+                            "stage_id":  "p2.independent_proposals",
+                            "applicable_modes":  [
+                                                     "p2.full_catalog",
+                                                     "p2.focused_method"
+                                                 ],
+                            "execution":  "parallel",
+                            "roles":  [
+                                          "research_lead",
+                                          "theorist",
+                                          "data_analyst"
+                                      ],
+                            "objective":  "Generate independent proposals or scoped revisions from the same frozen basis.",
+                            "reads":  [
+                                          "p2.project_brief",
+                                          "p2.literature_synthesis",
+                                          "p2.literature_library",
+                                          "p2.literature_coverage",
+                                          "p2.current_catalog"
+                                      ],
+                            "writes":  [
+                                           "p2.lead_proposal",
+                                           "p2.theory_proposal",
+                                           "p2.empirical_proposal"
+                                       ],
+                            "handoff_required":  true,
+                            "isolation_rule":  "Proposal roles do not read one another\u0027s current-run proposals before submission."
+                        },
+                        {
+                            "sequence":  2,
+                            "stage_id":  "p2.cross_review",
+                            "applicable_modes":  [
+                                                     "p2.full_catalog",
+                                                     "p2.focused_method"
+                                                 ],
+                            "execution":  "parallel",
+                            "roles":  [
+                                          "theorist",
+                                          "data_analyst"
+                                      ],
+                            "objective":  "Cross-review definitions, assumptions, identifiability, implementation, data requirements, computation, and empirical distinguishability.",
+                            "reads":  [
+                                          "p2.project_brief",
+                                          "p2.literature_synthesis",
+                                          "p2.literature_library",
+                                          "p2.literature_coverage",
+                                          "p2.current_catalog",
+                                          "p2.lead_proposal",
+                                          "p2.theory_proposal",
+                                          "p2.empirical_proposal"
+                                      ],
+                            "writes":  [
+                                           "p2.theory_review",
+                                           "p2.empirical_review"
+                                       ],
+                            "handoff_required":  true
+                        },
+                        {
+                            "sequence":  3,
+                            "stage_id":  "p2.lead_reconciliation",
+                            "applicable_modes":  [
+                                                     "p2.full_catalog",
+                                                     "p2.focused_method"
+                                                 ],
+                            "execution":  "serial",
+                            "roles":  [
+                                          "research_lead"
+                                      ],
+                            "objective":  "Reconcile or expose disagreements and produce the candidate scoped catalog change and decision summary.",
+                            "reads":  [
+                                          "p2.project_brief",
+                                          "p2.literature_synthesis",
+                                          "p2.literature_library",
+                                          "p2.literature_coverage",
+                                          "p2.current_catalog",
+                                          "p2.lead_proposal",
+                                          "p2.theory_proposal",
+                                          "p2.empirical_proposal",
+                                          "p2.theory_review",
+                                          "p2.empirical_review"
+                                      ],
+                            "writes":  [
+                                           "p2.method_changes",
+                                           "p2.attention_items",
+                                           "p2.decision"
+                                       ],
+                            "handoff_required":  true
+                        }
+                    ],
+    "run_local_outputs":  [
+                              {
+                                  "output_id":  "p2.lead_proposal",
+                                  "output_kind":  "handoff",
+                                  "producer":  "research_lead",
+                                  "schema_application":  "object",
+                                  "schema_uri":  "architecture/schemas/handoff.schema.json",
+                                  "purpose":  "Preserve the lead\u0027s independent methodological proposal.",
+                                  "required":  true,
+                                  "requirement":  "always"
+                              },
+                              {
+                                  "output_id":  "p2.theory_proposal",
+                                  "output_kind":  "handoff",
+                                  "producer":  "theorist",
+                                  "schema_application":  "object",
+                                  "schema_uri":  "architecture/schemas/handoff.schema.json",
+                                  "purpose":  "Preserve the theorist\u0027s independent construction or revision.",
+                                  "required":  true,
+                                  "requirement":  "always"
+                              },
+                              {
+                                  "output_id":  "p2.empirical_proposal",
+                                  "output_kind":  "handoff",
+                                  "producer":  "data_analyst",
+                                  "schema_application":  "object",
+                                  "schema_uri":  "architecture/schemas/handoff.schema.json",
+                                  "purpose":  "Preserve the analyst\u0027s independent implementation and empirical assessment.",
+                                  "required":  true,
+                                  "requirement":  "always"
+                              },
+                              {
+                                  "output_id":  "p2.theory_review",
+                                  "output_kind":  "audit",
+                                  "producer":  "theorist",
+                                  "schema_application":  "object",
+                                  "schema_uri":  "architecture/schemas/handoff.schema.json",
+                                  "purpose":  "Audit definitions, assumptions, identifiability, and inferential claims.",
+                                  "required":  true,
+                                  "requirement":  "always"
+                              },
+                              {
+                                  "output_id":  "p2.empirical_review",
+                                  "output_kind":  "audit",
+                                  "producer":  "data_analyst",
+                                  "schema_application":  "object",
+                                  "schema_uri":  "architecture/schemas/handoff.schema.json",
+                                  "purpose":  "Audit implementability, study design, data needs, computation, and empirical distinguishability.",
+                                  "required":  true,
+                                  "requirement":  "always"
+                              },
+                              {
+                                  "output_id":  "p2.method_changes",
+                                  "output_kind":  "method_set",
+                                  "producer":  "research_lead",
+                                  "schema_application":  "each_item",
+                                  "schema_uri":  "architecture/schemas/method.schema.json",
+                                  "purpose":  "Provide complete structured candidate method records within the authorized scope.",
+                                  "required":  true,
+                                  "requirement":  "always"
+                              },
+                              {
+                                  "output_id":  "p2.attention_items",
+                                  "output_kind":  "attention_item_set",
+                                  "producer":  "research_lead",
+                                  "schema_application":  "each_item",
+                                  "schema_uri":  "architecture/schemas/attention-item.schema.json",
+                                  "purpose":  "Record each newly identified research-attention item with its exact basis, affected claim or record, and smallest resolving question.",
+                                  "required":  true,
+                                  "requirement":  "always"
+                              },
+                              {
+                                  "output_id":  "p2.decision",
+                                  "output_kind":  "decision_record",
+                                  "producer":  "research_lead",
+                                  "schema_application":  "object",
+                                  "schema_uri":  "architecture/schemas/decision-record.schema.json",
+                                  "purpose":  "Compare methods and explain innovation and material changes while leaving branch selection to the user.",
+                                  "required":  true,
+                                  "requirement":  "always"
+                              }
+                          ],
+    "validation_rules":  [
+                             {
+                                 "validator_id":  "p2.role_sequence",
+                                 "category":  "run_boundary",
+                                 "severity":  "blocking",
+                                 "description":  "Independent proposals, cross-reviews, and lead reconciliation obey the declared order and visibility."
+                             },
+                             {
+                                 "validator_id":  "p2.scope_boundary",
+                                 "category":  "promotion_safety",
+                                 "severity":  "blocking",
+                                 "description":  "Focused output changes only the selected stable method; full-catalog output changes only the declared change set."
+                             },
+                             {
+                                 "validator_id":  "p2.method_identity",
+                                 "category":  "alignment",
+                                 "severity":  "blocking",
+                                 "description":  "Stable IDs remain permanent; calculation-defining changes advance the positive integer version by exactly one and change the digest; prose-only changes preserve both."
+                             },
+                             {
+                                 "validator_id":  "p2.literature_authority",
+                                 "category":  "provenance",
+                                 "severity":  "blocking",
+                                 "description":  "Formal claims cite formal Phase 1 sources. Unresolved new sources remain run-local until Phase 1 promotes them."
+                             },
+                             {
+                                 "validator_id":  "p2.user_lifecycle_authority",
+                                 "category":  "promotion_safety",
+                                 "severity":  "blocking",
+                                 "description":  "A retirement recommendation cannot change method lifecycle without a separate authenticated user action."
+                             }
+                         ],
+    "publication_bindings":  [
+                                 {
+                                     "binding_id":  "p2.append_attention_items",
+                                     "applicable_modes":  [
+                                                              "p2.full_catalog",
+                                                              "p2.focused_method"
+                                                          ],
+                                     "operation":  "append",
+                                     "output_ids":  [
+                                                        "p2.attention_items"
+                                                    ],
+                                     "target":  {
+                                                    "kind":  "cumulative_collection",
+                                                    "collection_id":  "project.attention_history",
+                                                    "object_type":  "attention_item"
+                                                },
+                                     "prior_target_policy":  "not_applicable",
+                                     "publisher_transform":  "none",
+                                     "may_create_scientific_content":  false
+                                 },
+                                 {
+                                     "binding_id":  "p2.upsert_method_records",
+                                     "applicable_modes":  [
+                                                              "p2.full_catalog",
+                                                              "p2.focused_method"
+                                                          ],
+                                     "operation":  "upsert_each",
+                                     "output_ids":  [
+                                                        "p2.method_changes"
+                                                    ],
+                                     "target":  {
+                                                    "kind":  "keyed_current_slots",
+                                                    "collection_id":  "p2.method_records",
+                                                    "record_type":  "method_record",
+                                                    "item_key_pointer":  "/identity/stable_id",
+                                                    "slot_template":  "methods/{item_key}/current"
+                                                },
+                                     "prior_target_policy":  "absent_or_match_current",
+                                     "publisher_transform":  "none",
+                                     "may_create_scientific_content":  false
+                                 },
+                                 {
+                                     "binding_id":  "p2.rebuild_method_catalog",
+                                     "applicable_modes":  [
+                                                              "p2.full_catalog",
+                                                              "p2.focused_method"
+                                                          ],
+                                     "operation":  "replace",
+                                     "output_ids":  [
+                                                        "p2.method_changes"
+                                                    ],
+                                     "source_input_ids":  [
+                                                              "p2.current_catalog"
+                                                          ],
+                                     "target":  {
+                                                    "kind":  "current_slot",
+                                                    "slot_id":  "p2.method_catalog.current",
+                                                    "record_type":  "method_catalog"
+                                                },
+                                     "prior_target_policy":  "absent_or_match_current",
+                                     "publisher_transform":  "deterministic_index",
+                                     "may_create_scientific_content":  false
+                                 },
+                                 {
+                                     "binding_id":  "p2.replace_phase_decision",
+                                     "applicable_modes":  [
+                                                              "p2.full_catalog",
+                                                              "p2.focused_method"
+                                                          ],
+                                     "operation":  "replace",
+                                     "output_ids":  [
+                                                        "p2.decision"
+                                                    ],
+                                     "target":  {
+                                                    "kind":  "current_slot",
+                                                    "slot_id":  "p2.phase_decision.current",
+                                                    "record_type":  "phase_decision"
+                                                },
+                                     "prior_target_policy":  "absent_or_match_current",
+                                     "publisher_transform":  "none",
+                                     "may_create_scientific_content":  false
+                                 }
+                             ],
+    "promotion":  {
+                      "strategy":  "catalog_transaction",
+                      "canonical_record_types":  [
+                                                     "method_catalog",
+                                                     "method_record",
+                                                     "phase_decision"
+                                                 ],
+                      "cumulative_object_types":  [
+                                                      "attention_item"
+                                                  ],
+                      "blocking_validator_ids":  [
+                                                     "p2.role_sequence",
+                                                     "p2.scope_boundary",
+                                                     "p2.method_identity",
+                                                     "p2.literature_authority",
+                                                     "p2.user_lifecycle_authority"
+                                                 ],
+                      "failure_behavior":  "Keep the prior catalog and every method pointer unchanged; retain the candidate only in its run workspace.",
+                      "atomic":  true
+                  },
+    "downstream_effects":  [
+                               {
+                                   "trigger":  "mathematical_method_change",
+                                   "affected_phases":  [
+                                                           "P3",
+                                                           "P4",
+                                                           "P5"
+                                                       ],
+                                   "description":  "The latest method-bound records remain current in record position but cannot satisfy exact-method use until user-started replacement runs reassess the new identity.",
+                                   "automatic_run":  false,
+                                   "alignment_effect":  {
+                                                            "action":  "set",
+                                                            "state":  "outdated"
+                                                        },
+                                   "attention_effect":  {
+                                                            "action":  "create_required"
+                                                        }
+                               }
+                           ],
+    "ui_projection":  {
+                          "researcher_questions":  [
+                                                       "Which methods are available?",
+                                                       "What is each method\u0027s innovation and exact definition?",
+                                                       "What changed?",
+                                                       "Which methods have current exactly aligned P3 and P4 records?"
+                                                   ],
+                          "fields":  [
+                                         {
+                                             "field_id":  "p2.method_table",
+                                             "source":  "method_catalog.current.methods",
+                                             "label":  "Methods",
+                                             "meaning":  "Current methods with lifecycle, exact identity, definition, assumptions, and assessment."
+                                         },
+                                         {
+                                             "field_id":  "p2.phase_alignment",
+                                             "source":  "method_catalog.current.projections",
+                                             "label":  "P3 and P4",
+                                             "meaning":  "Separate publication, current-position, alignment, attention, and outcome indicators."
+                                         },
+                                         {
+                                             "field_id":  "p2.material_changes",
+                                             "source":  "phase_decision.material_changes",
+                                             "label":  "What changed",
+                                             "meaning":  "Additions, definition changes, no-change assessments, and retirement recommendations."
+                                         }
+                                     ],
+                          "user_action_choice_ids":  [
+                                                         "p2.selected_method",
+                                                         "p2.instructions",
+                                                         "p2.selected_history"
+                                                     ]
+                      },
+    "acceptance_scenarios":  [
+                                 "s01.first_project",
+                                 "s02.phase2_scopes",
+                                 "s04.method_definition_change",
+                                 "s09.interrupted_promotion"
+                             ]
+}

@@ -1,0 +1,3040 @@
+{
+  "schema_version": "1.0.0",
+  "contracts": [
+    {
+      "phase_id": "P1",
+      "contract_version": "2.0.0",
+      "prose_contract": "architecture/phases/phase-1.md",
+      "name": "Literature basis",
+      "scientific_purpose": "Maintain a cumulative, deduplicated literature corpus and a replaceable synthesis of what is known, disputed, and missing for the project question.",
+      "current_record_semantics": {
+        "strategy": "cumulative_append",
+        "canonical_record_types": [
+          "literature_library",
+          "literature_synthesis",
+          "literature_coverage",
+          "phase_decision"
+        ],
+        "research_meaning": "The current basis combines every valid unique source with the latest integrated account of coverage, evidence, disagreement, and gaps.",
+        "history_policy": "Earlier syntheses remain historical. Current sources and synthesis are the default basis; prior records enter only when the user selects them."
+      },
+      "user_choices": [
+        {
+          "choice_id": "p1.scope",
+          "label": "Search scope",
+          "description": "Choose a broad update or a focused question.",
+          "required": true,
+          "allowed_values": [
+            "broad_update",
+            "focused_update"
+          ],
+          "value_kind": "enum_string"
+        },
+        {
+          "choice_id": "p1.instructions",
+          "label": "Research instructions",
+          "description": "State the scientific question, emphasis, exclusions, and source constraints.",
+          "required": true,
+          "allowed_values": [],
+          "value_kind": "text"
+        },
+        {
+          "choice_id": "p1.selected_history",
+          "label": "Selected history",
+          "description": "Optionally add named historical records for a specific research question.",
+          "required": false,
+          "allowed_values": [],
+          "value_kind": "artifact_pointer_list"
+        }
+      ],
+      "run_modes": [
+        {
+          "mode_id": "p1.literature_update",
+          "label": "Literature update",
+          "purpose": "Discover sources, update provenance, assess coverage, and replace the current synthesis.",
+          "requires_method": false,
+          "entry_conditions": [
+            "A formal current project brief is readable."
+          ],
+          "required_choice_ids": [
+            "p1.scope",
+            "p1.instructions"
+          ],
+          "optional_choice_ids": [
+            "p1.selected_history"
+          ]
+        }
+      ],
+      "prerequisites": [
+        {
+          "requirement_id": "p1.current_project_brief",
+          "kind": "phase_record",
+          "description": "A formal current project brief states the scientific problem and scope.",
+          "required": true
+        }
+      ],
+      "required_inputs": [
+        {
+          "input_id": "p1.project_brief",
+          "record_type": "project_brief",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "not_applicable",
+          "purpose": "Fix the project question and scope.",
+          "condition": "Always required.",
+          "presence": "always"
+        },
+        {
+          "input_id": "p1.current_library",
+          "record_type": "literature_library",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "not_applicable",
+          "purpose": "Prevent duplicate source identities and preserve cumulative provenance.",
+          "condition": "Required on reruns and absent on the first run.",
+          "presence": "required_on_rerun"
+        },
+        {
+          "input_id": "p1.current_synthesis",
+          "record_type": "literature_synthesis",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "not_applicable",
+          "purpose": "Identify what the new run must revise or extend.",
+          "condition": "Required on reruns and absent on the first run.",
+          "presence": "required_on_rerun"
+        },
+        {
+          "input_id": "p1.current_coverage",
+          "record_type": "literature_coverage",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "not_applicable",
+          "purpose": "Identify covered questions, stated exclusions, and unresolved search gaps.",
+          "condition": "Required on reruns and absent on the first run.",
+          "presence": "required_on_rerun"
+        }
+      ],
+      "prepared_contexts": [],
+      "optional_context_policy": {
+        "default": "current_only",
+        "allows_selected_history": true,
+        "history_selection_user_controlled": true,
+        "description": "Only current formal records are loaded by default. Historical records enter only through explicit user selection.",
+        "history_choice_id": "p1.selected_history"
+      },
+      "role_stages": [
+        {
+          "sequence": 1,
+          "stage_id": "p1.discovery",
+          "applicable_modes": [
+            "p1.literature_update"
+          ],
+          "execution": "parallel",
+          "roles": [
+            "research_lead",
+            "theorist",
+            "data_analyst"
+          ],
+          "objective": "Search and assess the same frozen question from scientific, mathematical, and empirical perspectives.",
+          "reads": [
+            "p1.project_brief",
+            "p1.current_library",
+            "p1.current_synthesis",
+            "p1.current_coverage"
+          ],
+          "writes": [
+            "p1.lead_discovery",
+            "p1.theory_discovery",
+            "p1.empirical_discovery"
+          ],
+          "handoff_required": true,
+          "isolation_rule": "Discovery roles do not read one another's current-run reports before submission."
+        },
+        {
+          "sequence": 2,
+          "stage_id": "p1.lead_synthesis",
+          "applicable_modes": [
+            "p1.literature_update"
+          ],
+          "execution": "serial",
+          "roles": [
+            "research_lead"
+          ],
+          "objective": "Deduplicate sources, reconcile or expose disagreements, assess coverage, and produce the candidate current basis.",
+          "reads": [
+            "p1.project_brief",
+            "p1.current_library",
+            "p1.current_synthesis",
+            "p1.current_coverage",
+            "p1.lead_discovery",
+            "p1.theory_discovery",
+            "p1.empirical_discovery"
+          ],
+          "writes": [
+            "p1.source_changes",
+            "p1.synthesis_candidate",
+            "p1.coverage_candidate",
+            "p1.phase2_handoff",
+            "p1.attention_items",
+            "p1.decision"
+          ],
+          "handoff_required": true
+        }
+      ],
+      "run_local_outputs": [
+        {
+          "output_id": "p1.lead_discovery",
+          "output_kind": "handoff",
+          "producer": "research_lead",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/handoff.schema.json",
+          "purpose": "Preserve the lead's independent search and substantive assessment.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p1.theory_discovery",
+          "output_kind": "handoff",
+          "producer": "theorist",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/handoff.schema.json",
+          "purpose": "Preserve mathematical foundations, related methods, assumptions, and limits.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p1.empirical_discovery",
+          "output_kind": "handoff",
+          "producer": "data_analyst",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/handoff.schema.json",
+          "purpose": "Preserve study-design, data, computation, evaluation, and reproducibility findings.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p1.source_changes",
+          "output_kind": "scientific_record",
+          "producer": "research_lead",
+          "schema_application": "each_item",
+          "schema_uri": "architecture/schemas/literature-source.schema.json",
+          "purpose": "Record unique sources, corrections, and additional discovery provenance.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p1.synthesis_candidate",
+          "output_kind": "synthesis",
+          "producer": "research_lead",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/scientific-record.schema.json",
+          "purpose": "Provide the complete candidate synthesis of evidence, disagreement, and gaps.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p1.attention_items",
+          "output_kind": "attention_item_set",
+          "producer": "research_lead",
+          "schema_application": "each_item",
+          "schema_uri": "architecture/schemas/attention-item.schema.json",
+          "purpose": "Record each newly identified research-attention item with its exact basis, affected claim or record, and smallest resolving question.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p1.decision",
+          "output_kind": "decision_record",
+          "producer": "research_lead",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/decision-record.schema.json",
+          "purpose": "Explain material additions, coverage limits, uncertainty, and possible user actions.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p1.coverage_candidate",
+          "output_kind": "scientific_record",
+          "producer": "research_lead",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/scientific-record.schema.json",
+          "purpose": "Record current search coverage, exclusions, and unresolved gaps.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p1.phase2_handoff",
+          "output_kind": "handoff",
+          "producer": "research_lead",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/handoff.schema.json",
+          "purpose": "State the literature basis, conflicts, and open methodological questions for Phase 2.",
+          "required": true,
+          "requirement": "always"
+        }
+      ],
+      "validation_rules": [
+        {
+          "validator_id": "p1.role_sequence",
+          "category": "run_boundary",
+          "severity": "blocking",
+          "description": "All independent reports and the later lead synthesis exist in the declared order and remain run-local."
+        },
+        {
+          "validator_id": "p1.source_identity",
+          "category": "provenance",
+          "severity": "blocking",
+          "description": "Each source has a stable identity, citation metadata, search provenance, and no duplicate identity."
+        },
+        {
+          "validator_id": "p1.synthesis_traceability",
+          "category": "scientific_completeness",
+          "severity": "blocking",
+          "description": "Material synthesis statements cite promoted sources or explicitly mark missing or unresolved evidence."
+        },
+        {
+          "validator_id": "p1.atomic_publication",
+          "category": "promotion_safety",
+          "severity": "blocking",
+          "description": "The library update and synthesis replacement commit together or not at all."
+        }
+      ],
+      "publication_bindings": [
+        {
+          "binding_id": "p1.append_attention_items",
+          "applicable_modes": [
+            "p1.literature_update"
+          ],
+          "operation": "append",
+          "output_ids": [
+            "p1.attention_items"
+          ],
+          "target": {
+            "kind": "cumulative_collection",
+            "collection_id": "project.attention_history",
+            "object_type": "attention_item"
+          },
+          "prior_target_policy": "not_applicable",
+          "publisher_transform": "none",
+          "may_create_scientific_content": false
+        },
+        {
+          "binding_id": "p1.append_literature_sources",
+          "applicable_modes": [
+            "p1.literature_update"
+          ],
+          "operation": "append",
+          "output_ids": [
+            "p1.source_changes"
+          ],
+          "target": {
+            "kind": "cumulative_collection",
+            "collection_id": "p1.literature_sources",
+            "object_type": "literature_source"
+          },
+          "prior_target_policy": "not_applicable",
+          "publisher_transform": "none",
+          "may_create_scientific_content": false
+        },
+        {
+          "binding_id": "p1.rebuild_literature_library",
+          "applicable_modes": [
+            "p1.literature_update"
+          ],
+          "operation": "replace",
+          "output_ids": [
+            "p1.source_changes"
+          ],
+          "source_input_ids": [
+            "p1.current_library"
+          ],
+          "target": {
+            "kind": "current_slot",
+            "slot_id": "p1.literature_library.current",
+            "record_type": "literature_library"
+          },
+          "prior_target_policy": "absent_or_match_current",
+          "publisher_transform": "deterministic_index",
+          "may_create_scientific_content": false
+        },
+        {
+          "binding_id": "p1.replace_literature_synthesis",
+          "applicable_modes": [
+            "p1.literature_update"
+          ],
+          "operation": "replace",
+          "output_ids": [
+            "p1.synthesis_candidate"
+          ],
+          "target": {
+            "kind": "current_slot",
+            "slot_id": "p1.literature_synthesis.current",
+            "record_type": "literature_synthesis"
+          },
+          "prior_target_policy": "absent_or_match_current",
+          "publisher_transform": "none",
+          "may_create_scientific_content": false
+        },
+        {
+          "binding_id": "p1.replace_literature_coverage",
+          "applicable_modes": [
+            "p1.literature_update"
+          ],
+          "operation": "replace",
+          "output_ids": [
+            "p1.coverage_candidate"
+          ],
+          "target": {
+            "kind": "current_slot",
+            "slot_id": "p1.literature_coverage.current",
+            "record_type": "literature_coverage"
+          },
+          "prior_target_policy": "absent_or_match_current",
+          "publisher_transform": "none",
+          "may_create_scientific_content": false
+        },
+        {
+          "binding_id": "p1.replace_phase_decision",
+          "applicable_modes": [
+            "p1.literature_update"
+          ],
+          "operation": "replace",
+          "output_ids": [
+            "p1.decision"
+          ],
+          "target": {
+            "kind": "current_slot",
+            "slot_id": "p1.phase_decision.current",
+            "record_type": "phase_decision"
+          },
+          "prior_target_policy": "absent_or_match_current",
+          "publisher_transform": "none",
+          "may_create_scientific_content": false
+        }
+      ],
+      "promotion": {
+        "strategy": "append_merge",
+        "canonical_record_types": [
+          "literature_library",
+          "literature_synthesis",
+          "literature_coverage",
+          "phase_decision"
+        ],
+        "cumulative_object_types": [
+          "literature_source",
+          "attention_item"
+        ],
+        "blocking_validator_ids": [
+          "p1.role_sequence",
+          "p1.source_identity",
+          "p1.synthesis_traceability",
+          "p1.atomic_publication"
+        ],
+        "failure_behavior": "Keep the prior library and synthesis current; retain the candidate only in its run workspace.",
+        "atomic": true
+      },
+      "downstream_effects": [
+        {
+          "trigger": "new_current_record",
+          "affected_phases": [
+            "P2",
+            "P3",
+            "P4",
+            "P5"
+          ],
+          "description": "New literature creates targeted research attention where it bears on a method, claim, evidence interpretation, or manuscript statement. It does not create exact-method misalignment.",
+          "automatic_run": false,
+          "alignment_effect": {
+            "action": "preserve"
+          },
+          "attention_effect": {
+            "action": "record_if_identified"
+          }
+        }
+      ],
+      "ui_projection": {
+        "researcher_questions": [
+          "What new evidence was found?",
+          "What changed in the synthesis?",
+          "What remains weakly covered or disputed?",
+          "What can I run next?"
+        ],
+        "fields": [
+          {
+            "field_id": "p1.new_sources",
+            "source": "literature_library.current_generation",
+            "label": "New sources",
+            "meaning": "Unique references added by the latest successful run."
+          },
+          {
+            "field_id": "p1.coverage",
+            "source": "literature_coverage.current",
+            "label": "Coverage",
+            "meaning": "Coverage by research question, evidence type, and unresolved gap."
+          },
+          {
+            "field_id": "p1.material_changes",
+            "source": "phase_decision.material_changes",
+            "label": "What changed",
+            "meaning": "Scientific changes that may affect later user decisions."
+          }
+        ],
+        "user_action_choice_ids": [
+          "p1.scope",
+          "p1.instructions",
+          "p1.selected_history"
+        ]
+      },
+      "acceptance_scenarios": [
+        "s01.first_project",
+        "s06.optional_history",
+        "s09.interrupted_promotion"
+      ]
+    },
+    {
+      "phase_id": "P2",
+      "contract_version": "2.0.0",
+      "prose_contract": "architecture/phases/phase-2.md",
+      "name": "Method development",
+      "scientific_purpose": "Develop and maintain a structured catalog of feasible research methods without selecting a branch for the user.",
+      "current_record_semantics": {
+        "strategy": "replaceable_catalog",
+        "canonical_record_types": [
+          "method_catalog",
+          "method_record",
+          "phase_decision"
+        ],
+        "research_meaning": "The catalog presents the latest structured definition and scientific assessment for each method while preserving stable identity and lineage.",
+        "history_policy": "Current in-scope method records are the default basis. Historical definitions and runs are opt-in and never silently merged."
+      },
+      "user_choices": [
+        {
+          "choice_id": "p2.selected_method",
+          "label": "Method",
+          "description": "Select the stable method ID when focused-method scope is used.",
+          "required": false,
+          "allowed_values": [],
+          "value_kind": "method_identity"
+        },
+        {
+          "choice_id": "p2.instructions",
+          "label": "Research instructions",
+          "description": "State the methodological question, constraints, and emphasis.",
+          "required": true,
+          "allowed_values": [],
+          "value_kind": "text"
+        },
+        {
+          "choice_id": "p2.selected_history",
+          "label": "Selected history",
+          "description": "Optionally include named historical records for an explicit comparison.",
+          "required": false,
+          "allowed_values": [],
+          "value_kind": "artifact_pointer_list"
+        }
+      ],
+      "run_modes": [
+        {
+          "mode_id": "p2.full_catalog",
+          "label": "Full catalog",
+          "purpose": "Add methods or update multiple method records as one catalog transaction.",
+          "requires_method": false,
+          "entry_conditions": [
+            "A current Phase 1 literature basis is formal and readable."
+          ],
+          "required_choice_ids": [
+            "p2.instructions"
+          ],
+          "optional_choice_ids": [
+            "p2.selected_history"
+          ]
+        },
+        {
+          "mode_id": "p2.focused_method",
+          "label": "Focused method",
+          "purpose": "Reassess or revise exactly one existing stable method without changing another method.",
+          "requires_method": true,
+          "entry_conditions": [
+            "The selected method exists and is active or explicitly reactivatable.",
+            "A current Phase 1 literature basis is formal and readable."
+          ],
+          "required_choice_ids": [
+            "p2.selected_method",
+            "p2.instructions"
+          ],
+          "optional_choice_ids": [
+            "p2.selected_history"
+          ],
+          "method_choice_id": "p2.selected_method"
+        }
+      ],
+      "prerequisites": [
+        {
+          "requirement_id": "p2.current_project_brief",
+          "kind": "phase_record",
+          "description": "A formal current project brief is readable.",
+          "required": true
+        },
+        {
+          "requirement_id": "p2.current_literature",
+          "kind": "phase_record",
+          "description": "A formal current Phase 1 literature basis is readable.",
+          "required": true,
+          "phase": "P1"
+        }
+      ],
+      "required_inputs": [
+        {
+          "input_id": "p2.project_brief",
+          "record_type": "project_brief",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "not_applicable",
+          "purpose": "Preserve the scientific problem and intended scope.",
+          "condition": "Always required.",
+          "presence": "always"
+        },
+        {
+          "input_id": "p2.literature_synthesis",
+          "record_type": "literature_synthesis",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "not_applicable",
+          "purpose": "Ground novelty, assumptions, comparisons, and substantive relevance.",
+          "condition": "Always required.",
+          "presence": "always"
+        },
+        {
+          "input_id": "p2.literature_library",
+          "record_type": "literature_library",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "not_applicable",
+          "purpose": "Resolve the formal sources supporting method statements.",
+          "condition": "Always required.",
+          "presence": "always"
+        },
+        {
+          "input_id": "p2.literature_coverage",
+          "record_type": "literature_coverage",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "not_applicable",
+          "purpose": "Expose the search boundaries and evidence gaps that constrain method novelty and scope.",
+          "condition": "Always required.",
+          "presence": "always"
+        },
+        {
+          "input_id": "p2.current_catalog",
+          "record_type": "method_catalog",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "not_applicable",
+          "purpose": "Preserve stable identities and constrain the authorized update scope.",
+          "condition": "Required after the first catalog run and absent on the first run.",
+          "presence": "required_on_rerun"
+        }
+      ],
+      "prepared_contexts": [],
+      "optional_context_policy": {
+        "default": "current_only",
+        "allows_selected_history": true,
+        "history_selection_user_controlled": true,
+        "description": "Current literature and in-scope methods are loaded by default. Historical material is included only when the user selects it.",
+        "history_choice_id": "p2.selected_history"
+      },
+      "role_stages": [
+        {
+          "sequence": 1,
+          "stage_id": "p2.independent_proposals",
+          "applicable_modes": [
+            "p2.full_catalog",
+            "p2.focused_method"
+          ],
+          "execution": "parallel",
+          "roles": [
+            "research_lead",
+            "theorist",
+            "data_analyst"
+          ],
+          "objective": "Generate independent proposals or scoped revisions from the same frozen basis.",
+          "reads": [
+            "p2.project_brief",
+            "p2.literature_synthesis",
+            "p2.literature_library",
+            "p2.literature_coverage",
+            "p2.current_catalog"
+          ],
+          "writes": [
+            "p2.lead_proposal",
+            "p2.theory_proposal",
+            "p2.empirical_proposal"
+          ],
+          "handoff_required": true,
+          "isolation_rule": "Proposal roles do not read one another's current-run proposals before submission."
+        },
+        {
+          "sequence": 2,
+          "stage_id": "p2.cross_review",
+          "applicable_modes": [
+            "p2.full_catalog",
+            "p2.focused_method"
+          ],
+          "execution": "parallel",
+          "roles": [
+            "theorist",
+            "data_analyst"
+          ],
+          "objective": "Cross-review definitions, assumptions, identifiability, implementation, data requirements, computation, and empirical distinguishability.",
+          "reads": [
+            "p2.project_brief",
+            "p2.literature_synthesis",
+            "p2.literature_library",
+            "p2.literature_coverage",
+            "p2.current_catalog",
+            "p2.lead_proposal",
+            "p2.theory_proposal",
+            "p2.empirical_proposal"
+          ],
+          "writes": [
+            "p2.theory_review",
+            "p2.empirical_review"
+          ],
+          "handoff_required": true
+        },
+        {
+          "sequence": 3,
+          "stage_id": "p2.lead_reconciliation",
+          "applicable_modes": [
+            "p2.full_catalog",
+            "p2.focused_method"
+          ],
+          "execution": "serial",
+          "roles": [
+            "research_lead"
+          ],
+          "objective": "Reconcile or expose disagreements and produce the candidate scoped catalog change and decision summary.",
+          "reads": [
+            "p2.project_brief",
+            "p2.literature_synthesis",
+            "p2.literature_library",
+            "p2.literature_coverage",
+            "p2.current_catalog",
+            "p2.lead_proposal",
+            "p2.theory_proposal",
+            "p2.empirical_proposal",
+            "p2.theory_review",
+            "p2.empirical_review"
+          ],
+          "writes": [
+            "p2.method_changes",
+            "p2.attention_items",
+            "p2.decision"
+          ],
+          "handoff_required": true
+        }
+      ],
+      "run_local_outputs": [
+        {
+          "output_id": "p2.lead_proposal",
+          "output_kind": "handoff",
+          "producer": "research_lead",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/handoff.schema.json",
+          "purpose": "Preserve the lead's independent methodological proposal.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p2.theory_proposal",
+          "output_kind": "handoff",
+          "producer": "theorist",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/handoff.schema.json",
+          "purpose": "Preserve the theorist's independent construction or revision.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p2.empirical_proposal",
+          "output_kind": "handoff",
+          "producer": "data_analyst",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/handoff.schema.json",
+          "purpose": "Preserve the analyst's independent implementation and empirical assessment.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p2.theory_review",
+          "output_kind": "audit",
+          "producer": "theorist",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/handoff.schema.json",
+          "purpose": "Audit definitions, assumptions, identifiability, and inferential claims.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p2.empirical_review",
+          "output_kind": "audit",
+          "producer": "data_analyst",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/handoff.schema.json",
+          "purpose": "Audit implementability, study design, data needs, computation, and empirical distinguishability.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p2.method_changes",
+          "output_kind": "method_set",
+          "producer": "research_lead",
+          "schema_application": "each_item",
+          "schema_uri": "architecture/schemas/method.schema.json",
+          "purpose": "Provide complete structured candidate method records within the authorized scope.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p2.attention_items",
+          "output_kind": "attention_item_set",
+          "producer": "research_lead",
+          "schema_application": "each_item",
+          "schema_uri": "architecture/schemas/attention-item.schema.json",
+          "purpose": "Record each newly identified research-attention item with its exact basis, affected claim or record, and smallest resolving question.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p2.decision",
+          "output_kind": "decision_record",
+          "producer": "research_lead",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/decision-record.schema.json",
+          "purpose": "Compare methods and explain innovation and material changes while leaving branch selection to the user.",
+          "required": true,
+          "requirement": "always"
+        }
+      ],
+      "validation_rules": [
+        {
+          "validator_id": "p2.role_sequence",
+          "category": "run_boundary",
+          "severity": "blocking",
+          "description": "Independent proposals, cross-reviews, and lead reconciliation obey the declared order and visibility."
+        },
+        {
+          "validator_id": "p2.scope_boundary",
+          "category": "promotion_safety",
+          "severity": "blocking",
+          "description": "Focused output changes only the selected stable method; full-catalog output changes only the declared change set."
+        },
+        {
+          "validator_id": "p2.method_identity",
+          "category": "alignment",
+          "severity": "blocking",
+          "description": "Stable IDs remain permanent; calculation-defining changes advance the positive integer version by exactly one and change the digest; prose-only changes preserve both."
+        },
+        {
+          "validator_id": "p2.literature_authority",
+          "category": "provenance",
+          "severity": "blocking",
+          "description": "Formal claims cite formal Phase 1 sources. Unresolved new sources remain run-local until Phase 1 promotes them."
+        },
+        {
+          "validator_id": "p2.user_lifecycle_authority",
+          "category": "promotion_safety",
+          "severity": "blocking",
+          "description": "A retirement recommendation cannot change method lifecycle without a separate authenticated user action."
+        }
+      ],
+      "publication_bindings": [
+        {
+          "binding_id": "p2.append_attention_items",
+          "applicable_modes": [
+            "p2.full_catalog",
+            "p2.focused_method"
+          ],
+          "operation": "append",
+          "output_ids": [
+            "p2.attention_items"
+          ],
+          "target": {
+            "kind": "cumulative_collection",
+            "collection_id": "project.attention_history",
+            "object_type": "attention_item"
+          },
+          "prior_target_policy": "not_applicable",
+          "publisher_transform": "none",
+          "may_create_scientific_content": false
+        },
+        {
+          "binding_id": "p2.upsert_method_records",
+          "applicable_modes": [
+            "p2.full_catalog",
+            "p2.focused_method"
+          ],
+          "operation": "upsert_each",
+          "output_ids": [
+            "p2.method_changes"
+          ],
+          "target": {
+            "kind": "keyed_current_slots",
+            "collection_id": "p2.method_records",
+            "record_type": "method_record",
+            "item_key_pointer": "/identity/stable_id",
+            "slot_template": "methods/{item_key}/current"
+          },
+          "prior_target_policy": "absent_or_match_current",
+          "publisher_transform": "none",
+          "may_create_scientific_content": false
+        },
+        {
+          "binding_id": "p2.rebuild_method_catalog",
+          "applicable_modes": [
+            "p2.full_catalog",
+            "p2.focused_method"
+          ],
+          "operation": "replace",
+          "output_ids": [
+            "p2.method_changes"
+          ],
+          "source_input_ids": [
+            "p2.current_catalog"
+          ],
+          "target": {
+            "kind": "current_slot",
+            "slot_id": "p2.method_catalog.current",
+            "record_type": "method_catalog"
+          },
+          "prior_target_policy": "absent_or_match_current",
+          "publisher_transform": "deterministic_index",
+          "may_create_scientific_content": false
+        },
+        {
+          "binding_id": "p2.replace_phase_decision",
+          "applicable_modes": [
+            "p2.full_catalog",
+            "p2.focused_method"
+          ],
+          "operation": "replace",
+          "output_ids": [
+            "p2.decision"
+          ],
+          "target": {
+            "kind": "current_slot",
+            "slot_id": "p2.phase_decision.current",
+            "record_type": "phase_decision"
+          },
+          "prior_target_policy": "absent_or_match_current",
+          "publisher_transform": "none",
+          "may_create_scientific_content": false
+        }
+      ],
+      "promotion": {
+        "strategy": "catalog_transaction",
+        "canonical_record_types": [
+          "method_catalog",
+          "method_record",
+          "phase_decision"
+        ],
+        "cumulative_object_types": [
+          "attention_item"
+        ],
+        "blocking_validator_ids": [
+          "p2.role_sequence",
+          "p2.scope_boundary",
+          "p2.method_identity",
+          "p2.literature_authority",
+          "p2.user_lifecycle_authority"
+        ],
+        "failure_behavior": "Keep the prior catalog and every method pointer unchanged; retain the candidate only in its run workspace.",
+        "atomic": true
+      },
+      "downstream_effects": [
+        {
+          "trigger": "mathematical_method_change",
+          "affected_phases": [
+            "P3",
+            "P4",
+            "P5"
+          ],
+          "description": "The latest method-bound records remain current in record position but cannot satisfy exact-method use until user-started replacement runs reassess the new identity.",
+          "automatic_run": false,
+          "alignment_effect": {
+            "action": "set",
+            "state": "outdated"
+          },
+          "attention_effect": {
+            "action": "create_required"
+          }
+        }
+      ],
+      "ui_projection": {
+        "researcher_questions": [
+          "Which methods are available?",
+          "What is each method's innovation and exact definition?",
+          "What changed?",
+          "Which methods have current exactly aligned P3 and P4 records?"
+        ],
+        "fields": [
+          {
+            "field_id": "p2.method_table",
+            "source": "method_catalog.current.methods",
+            "label": "Methods",
+            "meaning": "Current methods with lifecycle, exact identity, definition, assumptions, and assessment."
+          },
+          {
+            "field_id": "p2.phase_alignment",
+            "source": "method_catalog.current.projections",
+            "label": "P3 and P4",
+            "meaning": "Separate publication, current-position, alignment, attention, and outcome indicators."
+          },
+          {
+            "field_id": "p2.material_changes",
+            "source": "phase_decision.material_changes",
+            "label": "What changed",
+            "meaning": "Additions, definition changes, no-change assessments, and retirement recommendations."
+          }
+        ],
+        "user_action_choice_ids": [
+          "p2.selected_method",
+          "p2.instructions",
+          "p2.selected_history"
+        ]
+      },
+      "acceptance_scenarios": [
+        "s01.first_project",
+        "s02.phase2_scopes",
+        "s04.method_definition_change",
+        "s09.interrupted_promotion"
+      ]
+    },
+    {
+      "phase_id": "P3",
+      "contract_version": "2.0.0",
+      "prose_contract": "architecture/phases/phase-3.md",
+      "name": "Theory development",
+      "scientific_purpose": "Produce the complete current theoretical account for one exact method identity, including assumptions, claims, proofs or proof obligations, limitations, and empirical implications.",
+      "current_record_semantics": {
+        "strategy": "atomic_replace",
+        "canonical_record_types": [
+          "theory_record",
+          "phase_decision"
+        ],
+        "research_meaning": "One complete theory package states the latest validated theoretical assessment, even when proofs are incomplete or claims are contradicted.",
+        "history_policy": "A rerun replaces the complete current theory package. Older packages remain historical and are excluded unless the user selects them."
+      },
+      "user_choices": [
+        {
+          "choice_id": "p3.selected_method",
+          "label": "Method",
+          "description": "Select one active method and its current exact identity.",
+          "required": true,
+          "allowed_values": [],
+          "value_kind": "method_identity"
+        },
+        {
+          "choice_id": "p3.instructions",
+          "label": "Theory instructions",
+          "description": "State the theoretical question, proof targets, emphasis, and scientific constraints.",
+          "required": true,
+          "allowed_values": [],
+          "value_kind": "text"
+        },
+        {
+          "choice_id": "p3.selected_history",
+          "label": "Selected history",
+          "description": "Optionally include named historical records for an explicit question.",
+          "required": false,
+          "allowed_values": [],
+          "value_kind": "artifact_pointer_list"
+        }
+      ],
+      "run_modes": [
+        {
+          "mode_id": "p3.theory_update",
+          "label": "Theory run",
+          "purpose": "Create or replace the complete theory package for one exact method identity.",
+          "requires_method": true,
+          "entry_conditions": [
+            "The project brief, Phase 1 basis, and Phase 2 catalog are current.",
+            "The selected method is active and current."
+          ],
+          "required_choice_ids": [
+            "p3.selected_method",
+            "p3.instructions"
+          ],
+          "optional_choice_ids": [
+            "p3.selected_history"
+          ],
+          "method_choice_id": "p3.selected_method"
+        }
+      ],
+      "prerequisites": [
+        {
+          "requirement_id": "p3.current_project_brief",
+          "kind": "phase_record",
+          "description": "A formal current project brief is readable.",
+          "required": true
+        },
+        {
+          "requirement_id": "p3.current_literature",
+          "kind": "phase_record",
+          "description": "A formal current Phase 1 literature basis is readable.",
+          "required": true,
+          "phase": "P1"
+        },
+        {
+          "requirement_id": "p3.method_selected",
+          "kind": "method_selected",
+          "description": "The user selects one active current method from Phase 2.",
+          "required": true,
+          "phase": "P2"
+        }
+      ],
+      "required_inputs": [
+        {
+          "input_id": "p3.project_brief",
+          "record_type": "project_brief",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "not_applicable",
+          "purpose": "Preserve the scientific problem and scope.",
+          "condition": "Always required.",
+          "presence": "always"
+        },
+        {
+          "input_id": "p3.literature_synthesis",
+          "record_type": "literature_synthesis",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "not_applicable",
+          "purpose": "Ground theoretical context, related work, assumptions, and novelty.",
+          "condition": "Always required.",
+          "presence": "always"
+        },
+        {
+          "input_id": "p3.method_catalog",
+          "record_type": "method_catalog",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "not_applicable",
+          "purpose": "Confirm that the selected stable method is active and current.",
+          "condition": "Always required.",
+          "presence": "always"
+        },
+        {
+          "input_id": "p3.method",
+          "record_type": "method_record",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "exact",
+          "purpose": "Freeze the calculation-defining identity that every theory output addresses.",
+          "condition": "Always required.",
+          "presence": "always"
+        },
+        {
+          "input_id": "p3.current_theory",
+          "record_type": "theory_record",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "exact",
+          "purpose": "Provide the latest complete account that a rerun must repair or replace.",
+          "condition": "Required on reruns for the same exact identity and absent on the first run.",
+          "presence": "required_on_rerun"
+        },
+        {
+          "input_id": "p3.current_empirical_index",
+          "record_type": "empirical_evidence_index",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "exact",
+          "purpose": "Resolve the exact current evidence items and explicit exclusions considered during theory assessment.",
+          "condition": "Included when an exactly aligned Phase 4 record exists; Phase 4 is not a prerequisite.",
+          "presence": "if_exists"
+        },
+        {
+          "input_id": "p3.current_empirical",
+          "record_type": "empirical_synthesis",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "exact",
+          "purpose": "Expose current empirical implications, contradictions, and boundary behavior.",
+          "condition": "Included when an exactly aligned Phase 4 record exists; Phase 4 is not a prerequisite.",
+          "presence": "if_exists"
+        },
+        {
+          "input_id": "p3.current_implementation",
+          "record_type": "implementation_record",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "exact",
+          "purpose": "Expose the exact implementation identity and computational assumptions behind the current empirical record.",
+          "condition": "Included when an exactly aligned Phase 4 record exists; Phase 4 is not a prerequisite.",
+          "presence": "if_exists"
+        }
+      ],
+      "prepared_contexts": [],
+      "optional_context_policy": {
+        "default": "current_only",
+        "allows_selected_history": true,
+        "history_selection_user_controlled": true,
+        "description": "The exact current method and available current sibling record are the default. Old methods and runs appear only as selected history.",
+        "history_choice_id": "p3.selected_history"
+      },
+      "role_stages": [
+        {
+          "sequence": 1,
+          "stage_id": "p3.theorist",
+          "applicable_modes": [
+            "p3.theory_update"
+          ],
+          "execution": "serial",
+          "roles": [
+            "theorist"
+          ],
+          "objective": "Construct the complete theory and assess assumptions, results, proofs, counterexamples, limitations, and open obligations.",
+          "reads": [
+            "p3.project_brief",
+            "p3.literature_synthesis",
+            "p3.method_catalog",
+            "p3.method",
+            "p3.current_theory",
+            "p3.current_empirical"
+          ],
+          "writes": [
+            "p3.theory_candidate",
+            "p3.theory_handoff"
+          ],
+          "handoff_required": true
+        },
+        {
+          "sequence": 2,
+          "stage_id": "p3.analyst",
+          "applicable_modes": [
+            "p3.theory_update"
+          ],
+          "execution": "serial",
+          "roles": [
+            "data_analyst"
+          ],
+          "objective": "Challenge identifiability, operational meaning, computation, empirical testability, boundary cases, and consistency with available evidence.",
+          "reads": [
+            "p3.method",
+            "p3.theory_candidate",
+            "p3.theory_handoff",
+            "p3.current_empirical_index",
+            "p3.current_empirical",
+            "p3.current_implementation"
+          ],
+          "writes": [
+            "p3.analyst_audit",
+            "p3.analyst_handoff"
+          ],
+          "handoff_required": true
+        },
+        {
+          "sequence": 3,
+          "stage_id": "p3.lead",
+          "applicable_modes": [
+            "p3.theory_update"
+          ],
+          "execution": "serial",
+          "roles": [
+            "research_lead"
+          ],
+          "objective": "Integrate the theory and audit, resolve or expose disagreement, and state the current outcome and user-relevant changes.",
+          "reads": [
+            "p3.project_brief",
+            "p3.literature_synthesis",
+            "p3.method_catalog",
+            "p3.method",
+            "p3.current_theory",
+            "p3.current_empirical_index",
+            "p3.current_empirical",
+            "p3.current_implementation",
+            "p3.theory_candidate",
+            "p3.theory_handoff",
+            "p3.analyst_audit",
+            "p3.analyst_handoff"
+          ],
+          "writes": [
+            "p3.complete_theory",
+            "p3.attention_items",
+            "p3.decision"
+          ],
+          "handoff_required": true
+        }
+      ],
+      "run_local_outputs": [
+        {
+          "output_id": "p3.theory_candidate",
+          "output_kind": "primary_artifact",
+          "producer": "theorist",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/scientific-record.schema.json",
+          "purpose": "Provide a complete readable theory manuscript rather than a patch.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p3.theory_handoff",
+          "output_kind": "handoff",
+          "producer": "theorist",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/handoff.schema.json",
+          "purpose": "State changes, assumptions, claims, unresolved obligations, and analyst checks.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p3.analyst_audit",
+          "output_kind": "audit",
+          "producer": "data_analyst",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/scientific-record.schema.json",
+          "purpose": "Record stable operational, identifiability, computational, and empirical issues.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p3.complete_theory",
+          "output_kind": "scientific_record",
+          "producer": "research_lead",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/scientific-record.schema.json",
+          "purpose": "Provide the complete candidate theory record with statements, dependencies, limitations, and issue dispositions.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p3.attention_items",
+          "output_kind": "attention_item_set",
+          "producer": "research_lead",
+          "schema_application": "each_item",
+          "schema_uri": "architecture/schemas/attention-item.schema.json",
+          "purpose": "Record each newly identified research-attention item with its exact basis, affected claim or record, and smallest resolving question.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p3.decision",
+          "output_kind": "decision_record",
+          "producer": "research_lead",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/decision-record.schema.json",
+          "purpose": "Summarize the fundamental result, material changes, uncertainty, and meaningful user actions.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p3.analyst_handoff",
+          "output_kind": "handoff",
+          "producer": "data_analyst",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/handoff.schema.json",
+          "purpose": "State analyst findings, unresolved issues, and the exact checks for lead synthesis.",
+          "required": true,
+          "requirement": "always"
+        }
+      ],
+      "validation_rules": [
+        {
+          "validator_id": "p3.role_sequence",
+          "category": "run_boundary",
+          "severity": "blocking",
+          "description": "Theorist, data analyst, and research lead outputs exist in that exact order with complete handoffs."
+        },
+        {
+          "validator_id": "p3.exact_method",
+          "category": "alignment",
+          "severity": "blocking",
+          "description": "Every method-bound output names the same stable ID, positive integer version, and definition digest."
+        },
+        {
+          "validator_id": "p3.complete_account",
+          "category": "scientific_completeness",
+          "severity": "blocking",
+          "description": "The candidate is complete and states assumptions, claims, proof locations or obligations, limitations, and empirical implications."
+        },
+        {
+          "validator_id": "p3.issue_traceability",
+          "category": "provenance",
+          "severity": "blocking",
+          "description": "Each analyst issue has a stable ID and a lead disposition or acknowledged unresolved state."
+        },
+        {
+          "validator_id": "p3.atomic_publication",
+          "category": "promotion_safety",
+          "severity": "blocking",
+          "description": "The complete theory package replaces the prior package atomically."
+        }
+      ],
+      "publication_bindings": [
+        {
+          "binding_id": "p3.append_attention_items",
+          "applicable_modes": [
+            "p3.theory_update"
+          ],
+          "operation": "append",
+          "output_ids": [
+            "p3.attention_items"
+          ],
+          "target": {
+            "kind": "cumulative_collection",
+            "collection_id": "project.attention_history",
+            "object_type": "attention_item"
+          },
+          "prior_target_policy": "not_applicable",
+          "publisher_transform": "none",
+          "may_create_scientific_content": false
+        },
+        {
+          "binding_id": "p3.replace_theory_record",
+          "applicable_modes": [
+            "p3.theory_update"
+          ],
+          "operation": "replace",
+          "output_ids": [
+            "p3.complete_theory"
+          ],
+          "target": {
+            "kind": "current_slot",
+            "slot_id": "p3.theory_record.current",
+            "record_type": "theory_record"
+          },
+          "prior_target_policy": "absent_or_match_current",
+          "publisher_transform": "none",
+          "may_create_scientific_content": false
+        },
+        {
+          "binding_id": "p3.replace_phase_decision",
+          "applicable_modes": [
+            "p3.theory_update"
+          ],
+          "operation": "replace",
+          "output_ids": [
+            "p3.decision"
+          ],
+          "target": {
+            "kind": "current_slot",
+            "slot_id": "p3.phase_decision.current",
+            "record_type": "phase_decision"
+          },
+          "prior_target_policy": "absent_or_match_current",
+          "publisher_transform": "none",
+          "may_create_scientific_content": false
+        }
+      ],
+      "promotion": {
+        "strategy": "atomic_replace",
+        "canonical_record_types": [
+          "theory_record",
+          "phase_decision"
+        ],
+        "cumulative_object_types": [
+          "attention_item"
+        ],
+        "blocking_validator_ids": [
+          "p3.role_sequence",
+          "p3.exact_method",
+          "p3.complete_account",
+          "p3.issue_traceability",
+          "p3.atomic_publication"
+        ],
+        "failure_behavior": "Keep the previous complete theory package current; retain the candidate only in its run workspace.",
+        "atomic": true
+      },
+      "downstream_effects": [
+        {
+          "trigger": "theory_basis_change",
+          "affected_phases": [
+            "P4"
+          ],
+          "description": "Changed assumptions or empirical implications create targeted Phase 4 attention without method-identity mismatch.",
+          "automatic_run": false,
+          "alignment_effect": {
+            "action": "preserve"
+          },
+          "attention_effect": {
+            "action": "record_if_identified"
+          }
+        },
+        {
+          "trigger": "new_current_record",
+          "affected_phases": [
+            "P5"
+          ],
+          "description": "A current manuscript no longer has the latest theory basis and requires user-started reconciliation.",
+          "automatic_run": false,
+          "alignment_effect": {
+            "action": "set",
+            "state": "outdated"
+          },
+          "attention_effect": {
+            "action": "create_required"
+          }
+        }
+      ],
+      "ui_projection": {
+        "researcher_questions": [
+          "What is established?",
+          "Which assumptions and proof obligations remain?",
+          "What changed?",
+          "How does current evidence bear on the theory?"
+        ],
+        "fields": [
+          {
+            "field_id": "p3.method_summary",
+            "source": "method_record.current",
+            "label": "Selected method",
+            "meaning": "Stable identity, mathematical definition, target, assumptions, and scope."
+          },
+          {
+            "field_id": "p3.theory_outcome",
+            "source": "theory_record.current.scientific_outcome",
+            "label": "Theoretical outcome",
+            "meaning": "What the current complete account supports, conditions, contradicts, or leaves unresolved."
+          },
+          {
+            "field_id": "p3.attention",
+            "source": "theory_record.current.research_attention",
+            "label": "Open questions",
+            "meaning": "Specific proof, assumption, interpretation, or evidence questions for a possible rerun."
+          }
+        ],
+        "user_action_choice_ids": [
+          "p3.selected_method",
+          "p3.instructions",
+          "p3.selected_history"
+        ]
+      },
+      "acceptance_scenarios": [
+        "s03.phase4_before_phase3",
+        "s04.method_definition_change",
+        "s05.failed_run",
+        "s06.optional_history",
+        "s10.negative_result",
+        "s12.disjoint_concurrent_publication"
+      ]
+    },
+    {
+      "phase_id": "P4",
+      "contract_version": "2.0.0",
+      "prose_contract": "architecture/phases/phase-4.md",
+      "name": "Empirical development",
+      "scientific_purpose": "Build a reproducible cumulative evidence base and current empirical synthesis for one exact method identity.",
+      "current_record_semantics": {
+        "strategy": "indexed_cumulative",
+        "canonical_record_types": [
+          "empirical_evidence_index",
+          "empirical_synthesis",
+          "implementation_record",
+          "phase_decision"
+        ],
+        "research_meaning": "Immutable evidence accumulates, while the current index and synthesis include only evidence applicable to the exact method and current claims.",
+        "history_policy": "Previous evidence remains traceable. Current runs use applicable exact-method evidence by default and exclude outdated evidence unless the user selects it."
+      },
+      "user_choices": [
+        {
+          "choice_id": "p4.selected_method",
+          "label": "Method",
+          "description": "Select one active method and its current exact identity.",
+          "required": true,
+          "allowed_values": [],
+          "value_kind": "method_identity"
+        },
+        {
+          "choice_id": "p4.instructions",
+          "label": "Analysis instructions",
+          "description": "State the empirical question, data or simulation constraints, comparisons, and desired checks.",
+          "required": true,
+          "allowed_values": [],
+          "value_kind": "text"
+        },
+        {
+          "choice_id": "p4.selected_history",
+          "label": "Selected history",
+          "description": "Optionally include named historical evidence for a specific comparison or diagnostic.",
+          "required": false,
+          "allowed_values": [],
+          "value_kind": "artifact_pointer_list"
+        }
+      ],
+      "run_modes": [
+        {
+          "mode_id": "p4.preliminary",
+          "label": "Preliminary",
+          "purpose": "Run a small set of decisive feasibility, implementation, and diagnostic checks.",
+          "requires_method": true,
+          "entry_conditions": [
+            "The project brief, Phase 1 basis, and Phase 2 catalog are current.",
+            "The selected method is active and current."
+          ],
+          "required_choice_ids": [
+            "p4.selected_method",
+            "p4.instructions"
+          ],
+          "optional_choice_ids": [
+            "p4.selected_history"
+          ],
+          "method_choice_id": "p4.selected_method"
+        },
+        {
+          "mode_id": "p4.comprehensive",
+          "label": "Comprehensive",
+          "purpose": "Run a prespecified full evaluation with comparisons, sensitivity analyses, and robustness checks.",
+          "requires_method": true,
+          "entry_conditions": [
+            "The project brief, Phase 1 basis, and Phase 2 catalog are current.",
+            "The selected method is active and current."
+          ],
+          "required_choice_ids": [
+            "p4.selected_method",
+            "p4.instructions"
+          ],
+          "optional_choice_ids": [
+            "p4.selected_history"
+          ],
+          "method_choice_id": "p4.selected_method"
+        }
+      ],
+      "prerequisites": [
+        {
+          "requirement_id": "p4.current_project_brief",
+          "kind": "phase_record",
+          "description": "A formal current project brief is readable.",
+          "required": true
+        },
+        {
+          "requirement_id": "p4.current_literature",
+          "kind": "phase_record",
+          "description": "A formal current Phase 1 literature basis is readable.",
+          "required": true,
+          "phase": "P1"
+        },
+        {
+          "requirement_id": "p4.method_selected",
+          "kind": "method_selected",
+          "description": "The user selects one active current method from Phase 2.",
+          "required": true,
+          "phase": "P2"
+        }
+      ],
+      "required_inputs": [
+        {
+          "input_id": "p4.project_brief",
+          "record_type": "project_brief",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "not_applicable",
+          "purpose": "Preserve the scientific problem and intended scope.",
+          "condition": "Always required.",
+          "presence": "always"
+        },
+        {
+          "input_id": "p4.literature_synthesis",
+          "record_type": "literature_synthesis",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "not_applicable",
+          "purpose": "Ground comparisons, empirical precedents, interpretation, and biological or substantive context.",
+          "condition": "Always required.",
+          "presence": "always"
+        },
+        {
+          "input_id": "p4.method_catalog",
+          "record_type": "method_catalog",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "not_applicable",
+          "purpose": "Confirm that the selected stable method is active and current.",
+          "condition": "Always required.",
+          "presence": "always"
+        },
+        {
+          "input_id": "p4.method",
+          "record_type": "method_record",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "exact",
+          "purpose": "Freeze the exact calculation-defining method that code and evidence must implement.",
+          "condition": "Always required.",
+          "presence": "always"
+        },
+        {
+          "input_id": "p4.current_evidence_index",
+          "record_type": "empirical_evidence_index",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "exact",
+          "purpose": "Identify applicable completed analyses and excluded outdated evidence.",
+          "condition": "Required on reruns for the same exact identity and absent on the first run.",
+          "presence": "required_on_rerun"
+        },
+        {
+          "input_id": "p4.current_empirical",
+          "record_type": "empirical_synthesis",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "exact",
+          "purpose": "Identify the current conclusions and open checks that the run must update.",
+          "condition": "Required on reruns for the same exact identity and absent on the first run.",
+          "presence": "required_on_rerun"
+        },
+        {
+          "input_id": "p4.current_implementation",
+          "record_type": "implementation_record",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "exact",
+          "purpose": "Provide the exact current code, environment, and configuration identity that a rerun must verify or replace.",
+          "condition": "Required on reruns for the same exact identity and absent on the first run.",
+          "presence": "required_on_rerun"
+        },
+        {
+          "input_id": "p4.current_theory",
+          "record_type": "theory_record",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "exact",
+          "purpose": "Expose assumptions, empirical implications, and boundary cases.",
+          "condition": "Included when an exactly aligned Phase 3 record exists; Phase 3 is not a prerequisite.",
+          "presence": "if_exists"
+        }
+      ],
+      "prepared_contexts": [],
+      "optional_context_policy": {
+        "default": "current_only",
+        "allows_selected_history": true,
+        "history_selection_user_controlled": true,
+        "description": "The exact current method and applicable evidence are loaded by default. Outdated and historical evidence is excluded unless selected.",
+        "history_choice_id": "p4.selected_history"
+      },
+      "role_stages": [
+        {
+          "sequence": 1,
+          "stage_id": "p4.analyst",
+          "applicable_modes": [
+            "p4.preliminary",
+            "p4.comprehensive"
+          ],
+          "execution": "serial",
+          "roles": [
+            "data_analyst"
+          ],
+          "objective": "Specify the protocol, verify exact implementation, execute the authorized scope, and produce reproducible evidence and synthesis.",
+          "reads": [
+            "p4.project_brief",
+            "p4.literature_synthesis",
+            "p4.method_catalog",
+            "p4.method",
+            "p4.current_evidence_index",
+            "p4.current_empirical",
+            "p4.current_implementation",
+            "p4.current_theory"
+          ],
+          "writes": [
+            "p4.protocol",
+            "p4.evidence",
+            "p4.analyst_synthesis",
+            "p4.analyst_handoff"
+          ],
+          "handoff_required": true
+        },
+        {
+          "sequence": 2,
+          "stage_id": "p4.theorist",
+          "applicable_modes": [
+            "p4.preliminary",
+            "p4.comprehensive"
+          ],
+          "execution": "serial",
+          "roles": [
+            "theorist"
+          ],
+          "objective": "Audit mathematical fidelity, definition-to-code correspondence, comparisons, interpretation, and consistency with available theory.",
+          "reads": [
+            "p4.method",
+            "p4.protocol",
+            "p4.evidence",
+            "p4.analyst_synthesis",
+            "p4.analyst_handoff",
+            "p4.current_theory"
+          ],
+          "writes": [
+            "p4.theory_audit",
+            "p4.theory_handoff"
+          ],
+          "handoff_required": true
+        },
+        {
+          "sequence": 3,
+          "stage_id": "p4.lead",
+          "applicable_modes": [
+            "p4.preliminary",
+            "p4.comprehensive"
+          ],
+          "execution": "serial",
+          "roles": [
+            "research_lead"
+          ],
+          "objective": "Integrate evidence and fidelity findings, retain applicable evidence, and state the scientific outcome and user-relevant changes.",
+          "reads": [
+            "p4.project_brief",
+            "p4.literature_synthesis",
+            "p4.method_catalog",
+            "p4.method",
+            "p4.current_evidence_index",
+            "p4.current_empirical",
+            "p4.current_implementation",
+            "p4.current_theory",
+            "p4.protocol",
+            "p4.evidence",
+            "p4.analyst_synthesis",
+            "p4.analyst_handoff",
+            "p4.theory_audit",
+            "p4.theory_handoff"
+          ],
+          "writes": [
+            "p4.empirical_index_candidate",
+            "p4.empirical_synthesis_candidate",
+            "p4.implementation_record_candidate",
+            "p4.attention_items",
+            "p4.decision"
+          ],
+          "handoff_required": true
+        }
+      ],
+      "run_local_outputs": [
+        {
+          "output_id": "p4.protocol",
+          "output_kind": "protocol",
+          "producer": "data_analyst",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/scientific-record.schema.json",
+          "purpose": "Prespecify design, metrics, comparisons, diagnostics, and uncertainty analysis for the selected scope.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p4.evidence",
+          "output_kind": "evidence_set",
+          "producer": "data_analyst",
+          "schema_application": "each_item",
+          "schema_uri": "architecture/schemas/evidence.schema.json",
+          "purpose": "Provide immutable results with method, code, data or simulation, configuration, seed, environment, and artifact provenance.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p4.analyst_synthesis",
+          "output_kind": "synthesis",
+          "producer": "data_analyst",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/scientific-record.schema.json",
+          "purpose": "Distinguish new evidence from previously applicable evidence and state the first empirical interpretation.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p4.theory_audit",
+          "output_kind": "audit",
+          "producer": "theorist",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/scientific-record.schema.json",
+          "purpose": "Record stable mathematical-fidelity and interpretation issues.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p4.empirical_index_candidate",
+          "output_kind": "scientific_record",
+          "producer": "research_lead",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/scientific-record.schema.json",
+          "purpose": "Provide the candidate current index of exact-method evidence and explicit exclusions.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p4.empirical_synthesis_candidate",
+          "output_kind": "synthesis",
+          "producer": "research_lead",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/scientific-record.schema.json",
+          "purpose": "Provide the candidate complete empirical interpretation, uncertainty, limitations, and issue dispositions.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p4.implementation_record_candidate",
+          "output_kind": "scientific_record",
+          "producer": "research_lead",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/scientific-record.schema.json",
+          "purpose": "Provide the candidate current implementation identity, environment, configuration, and reproducibility references.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p4.attention_items",
+          "output_kind": "attention_item_set",
+          "producer": "research_lead",
+          "schema_application": "each_item",
+          "schema_uri": "architecture/schemas/attention-item.schema.json",
+          "purpose": "Record each newly identified research-attention item with its exact basis, affected claim or record, and smallest resolving question.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p4.decision",
+          "output_kind": "decision_record",
+          "producer": "research_lead",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/decision-record.schema.json",
+          "purpose": "Summarize what the evidence supports, material changes, outdated components, and meaningful user actions.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p4.analyst_handoff",
+          "output_kind": "handoff",
+          "producer": "data_analyst",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/handoff.schema.json",
+          "purpose": "State what was computed, what changed, and which fidelity questions require theorist review.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p4.theory_handoff",
+          "output_kind": "handoff",
+          "producer": "theorist",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/handoff.schema.json",
+          "purpose": "State method-fidelity findings, interpretation limits, and unresolved lead decisions.",
+          "required": true,
+          "requirement": "always"
+        }
+      ],
+      "validation_rules": [
+        {
+          "validator_id": "p4.role_sequence",
+          "category": "run_boundary",
+          "severity": "blocking",
+          "description": "Data analyst, theorist, and research lead outputs exist in that exact order with complete handoffs."
+        },
+        {
+          "validator_id": "p4.exact_method",
+          "category": "alignment",
+          "severity": "blocking",
+          "description": "Every selected-method computation and claim names the exact stable ID, version, and definition digest."
+        },
+        {
+          "validator_id": "p4.reproducibility",
+          "category": "reproducibility",
+          "severity": "blocking",
+          "description": "Every evidence item records code, data or simulation, configuration, randomness, environment, and artifact provenance."
+        },
+        {
+          "validator_id": "p4.scope_completeness",
+          "category": "scientific_completeness",
+          "severity": "blocking",
+          "description": "Outputs satisfy the declared preliminary or comprehensive protocol without inferring scope from chronology."
+        },
+        {
+          "validator_id": "p4.evidence_applicability",
+          "category": "alignment",
+          "severity": "blocking",
+          "description": "The current index excludes mismatched-method, outdated, withdrawn, invalid, superseded, and unresolved evidence from current claims."
+        },
+        {
+          "validator_id": "p4.atomic_publication",
+          "category": "promotion_safety",
+          "severity": "blocking",
+          "description": "New evidence and the replacement index and synthesis commit as one transaction."
+        }
+      ],
+      "publication_bindings": [
+        {
+          "binding_id": "p4.append_attention_items",
+          "applicable_modes": [
+            "p4.preliminary",
+            "p4.comprehensive"
+          ],
+          "operation": "append",
+          "output_ids": [
+            "p4.attention_items"
+          ],
+          "target": {
+            "kind": "cumulative_collection",
+            "collection_id": "project.attention_history",
+            "object_type": "attention_item"
+          },
+          "prior_target_policy": "not_applicable",
+          "publisher_transform": "none",
+          "may_create_scientific_content": false
+        },
+        {
+          "binding_id": "p4.append_evidence",
+          "applicable_modes": [
+            "p4.preliminary",
+            "p4.comprehensive"
+          ],
+          "operation": "append",
+          "output_ids": [
+            "p4.evidence"
+          ],
+          "target": {
+            "kind": "cumulative_collection",
+            "collection_id": "p4.evidence_history",
+            "object_type": "evidence_item"
+          },
+          "prior_target_policy": "not_applicable",
+          "publisher_transform": "none",
+          "may_create_scientific_content": false
+        },
+        {
+          "binding_id": "p4.replace_evidence_index",
+          "applicable_modes": [
+            "p4.preliminary",
+            "p4.comprehensive"
+          ],
+          "operation": "replace",
+          "output_ids": [
+            "p4.empirical_index_candidate"
+          ],
+          "target": {
+            "kind": "current_slot",
+            "slot_id": "p4.empirical_evidence_index.current",
+            "record_type": "empirical_evidence_index"
+          },
+          "prior_target_policy": "absent_or_match_current",
+          "publisher_transform": "none",
+          "may_create_scientific_content": false
+        },
+        {
+          "binding_id": "p4.replace_empirical_synthesis",
+          "applicable_modes": [
+            "p4.preliminary",
+            "p4.comprehensive"
+          ],
+          "operation": "replace",
+          "output_ids": [
+            "p4.empirical_synthesis_candidate"
+          ],
+          "target": {
+            "kind": "current_slot",
+            "slot_id": "p4.empirical_synthesis.current",
+            "record_type": "empirical_synthesis"
+          },
+          "prior_target_policy": "absent_or_match_current",
+          "publisher_transform": "none",
+          "may_create_scientific_content": false
+        },
+        {
+          "binding_id": "p4.replace_implementation_record",
+          "applicable_modes": [
+            "p4.preliminary",
+            "p4.comprehensive"
+          ],
+          "operation": "replace",
+          "output_ids": [
+            "p4.implementation_record_candidate"
+          ],
+          "target": {
+            "kind": "current_slot",
+            "slot_id": "p4.implementation_record.current",
+            "record_type": "implementation_record"
+          },
+          "prior_target_policy": "absent_or_match_current",
+          "publisher_transform": "none",
+          "may_create_scientific_content": false
+        },
+        {
+          "binding_id": "p4.replace_phase_decision",
+          "applicable_modes": [
+            "p4.preliminary",
+            "p4.comprehensive"
+          ],
+          "operation": "replace",
+          "output_ids": [
+            "p4.decision"
+          ],
+          "target": {
+            "kind": "current_slot",
+            "slot_id": "p4.phase_decision.current",
+            "record_type": "phase_decision"
+          },
+          "prior_target_policy": "absent_or_match_current",
+          "publisher_transform": "none",
+          "may_create_scientific_content": false
+        }
+      ],
+      "promotion": {
+        "strategy": "evidence_index_transaction",
+        "canonical_record_types": [
+          "empirical_evidence_index",
+          "empirical_synthesis",
+          "implementation_record",
+          "phase_decision"
+        ],
+        "cumulative_object_types": [
+          "evidence_item",
+          "attention_item"
+        ],
+        "blocking_validator_ids": [
+          "p4.role_sequence",
+          "p4.exact_method",
+          "p4.reproducibility",
+          "p4.scope_completeness",
+          "p4.evidence_applicability",
+          "p4.atomic_publication"
+        ],
+        "failure_behavior": "Append no evidence and keep the prior index and synthesis unchanged; retain the candidate only in its run workspace.",
+        "atomic": true
+      },
+      "downstream_effects": [
+        {
+          "trigger": "empirical_basis_change",
+          "affected_phases": [
+            "P3"
+          ],
+          "description": "Evidence that contradicts or narrows a theory statement creates targeted Phase 3 attention without method-identity mismatch.",
+          "automatic_run": false,
+          "alignment_effect": {
+            "action": "preserve"
+          },
+          "attention_effect": {
+            "action": "record_if_identified"
+          }
+        },
+        {
+          "trigger": "new_current_record",
+          "affected_phases": [
+            "P5"
+          ],
+          "description": "A current manuscript no longer has the latest empirical basis and requires user-started reconciliation.",
+          "automatic_run": false,
+          "alignment_effect": {
+            "action": "set",
+            "state": "outdated"
+          },
+          "attention_effect": {
+            "action": "create_required"
+          }
+        }
+      ],
+      "ui_projection": {
+        "researcher_questions": [
+          "What evidence is valid for this exact method?",
+          "What did this run add or reclassify?",
+          "Does implementation match definition?",
+          "Which empirical questions remain?"
+        ],
+        "fields": [
+          {
+            "field_id": "p4.method_summary",
+            "source": "method_record.current",
+            "label": "Selected method",
+            "meaning": "Stable identity, mathematical definition, version, assumptions, and scope."
+          },
+          {
+            "field_id": "p4.evidence_index",
+            "source": "empirical_evidence_index.current",
+            "label": "Current evidence",
+            "meaning": "Applicable exact-method evidence with scope, provenance, and outcome."
+          },
+          {
+            "field_id": "p4.outdated_evidence",
+            "source": "empirical_evidence_index.excluded",
+            "label": "Not current",
+            "meaning": "Evidence excluded from current claims with a precise reason and retained provenance."
+          },
+          {
+            "field_id": "p4.material_changes",
+            "source": "phase_decision.material_changes",
+            "label": "What changed",
+            "meaning": "New results, changed interpretations, fidelity findings, and remaining decisions."
+          }
+        ],
+        "user_action_choice_ids": [
+          "p4.selected_method",
+          "p4.instructions",
+          "p4.selected_history"
+        ]
+      },
+      "acceptance_scenarios": [
+        "s03.phase4_before_phase3",
+        "s04.method_definition_change",
+        "s07.evidence_revalidation",
+        "s10.negative_result"
+      ]
+    },
+    {
+      "phase_id": "P5",
+      "contract_version": "2.0.0",
+      "prose_contract": "architecture/phases/phase-5.md",
+      "name": "Manuscript assembly and revision",
+      "scientific_purpose": "Maintain one complete, traceable manuscript for one exact method by reconciling the current literature, method, theory, and empirical records.",
+      "current_record_semantics": {
+        "strategy": "atomic_replace",
+        "canonical_record_types": [
+          "manuscript",
+          "review_issue_ledger",
+          "phase_decision"
+        ],
+        "research_meaning": "The current manuscript is the latest validated complete paper package and may faithfully report positive, partial, negative, contradictory, or inconclusive findings.",
+        "history_policy": "A successful run replaces the complete manuscript package. Prior packages remain historical; review-revision freezes the current manuscript as its review target."
+      },
+      "user_choices": [
+        {
+          "choice_id": "p5.selected_method",
+          "label": "Method",
+          "description": "Select the active method whose exact current P3 and P4 records support the manuscript.",
+          "required": true,
+          "allowed_values": [],
+          "value_kind": "method_identity"
+        },
+        {
+          "choice_id": "p5.instructions",
+          "label": "Writing instructions",
+          "description": "State the scientific emphasis, venue, scope, and revision priorities.",
+          "required": true,
+          "allowed_values": [],
+          "value_kind": "text"
+        },
+        {
+          "choice_id": "p5.selected_history",
+          "label": "Selected history",
+          "description": "Optionally include named historical records; review-revision always freezes its current manuscript target.",
+          "required": false,
+          "allowed_values": [],
+          "value_kind": "artifact_pointer_list"
+        }
+      ],
+      "run_modes": [
+        {
+          "mode_id": "p5.assembly",
+          "label": "Assembly",
+          "purpose": "Create or update the complete manuscript from the exact current upstream basis.",
+          "requires_method": true,
+          "entry_conditions": [
+            "The Phase 5 exact-basis readiness predicate passes."
+          ],
+          "required_choice_ids": [
+            "p5.selected_method",
+            "p5.instructions"
+          ],
+          "optional_choice_ids": [
+            "p5.selected_history"
+          ],
+          "method_choice_id": "p5.selected_method"
+        },
+        {
+          "mode_id": "p5.review_revision",
+          "label": "Review and revision",
+          "purpose": "Freeze the current manuscript, obtain isolated specialist and outside reviews, then revise against the exact current upstream basis.",
+          "requires_method": true,
+          "entry_conditions": [
+            "The Phase 5 exact-basis readiness predicate passes.",
+            "A complete formal current manuscript exists as the review target."
+          ],
+          "required_choice_ids": [
+            "p5.selected_method",
+            "p5.instructions"
+          ],
+          "optional_choice_ids": [
+            "p5.selected_history"
+          ],
+          "method_choice_id": "p5.selected_method"
+        }
+      ],
+      "prerequisites": [
+        {
+          "requirement_id": "p5.current_project_brief",
+          "kind": "phase_record",
+          "description": "A formal current project brief is readable.",
+          "required": true
+        },
+        {
+          "requirement_id": "p5.current_p1",
+          "kind": "phase_record",
+          "description": "A formal current Phase 1 literature basis is readable.",
+          "required": true,
+          "phase": "P1"
+        },
+        {
+          "requirement_id": "p5.method_selected",
+          "kind": "method_selected",
+          "description": "The user selects one active formal current method.",
+          "required": true,
+          "phase": "P2"
+        },
+        {
+          "requirement_id": "p5.exact_p3",
+          "kind": "exact_alignment",
+          "description": "A formal current Phase 3 record is exactly aligned to the selected method.",
+          "required": true,
+          "phase": "P3"
+        },
+        {
+          "requirement_id": "p5.exact_p4",
+          "kind": "exact_alignment",
+          "description": "A formal current Phase 4 record is exactly aligned to the selected method.",
+          "required": true,
+          "phase": "P4"
+        }
+      ],
+      "required_inputs": [
+        {
+          "input_id": "p5.project_brief",
+          "record_type": "project_brief",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "not_applicable",
+          "purpose": "Preserve the motivating scientific question and intended scope.",
+          "condition": "Always required.",
+          "presence": "always"
+        },
+        {
+          "input_id": "p5.literature_library",
+          "record_type": "literature_library",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "not_applicable",
+          "purpose": "Resolve formal sources supporting manuscript claims.",
+          "condition": "Always required.",
+          "presence": "always"
+        },
+        {
+          "input_id": "p5.literature_synthesis",
+          "record_type": "literature_synthesis",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "not_applicable",
+          "purpose": "Ground contribution, context, comparison, and limitations.",
+          "condition": "Always required.",
+          "presence": "always"
+        },
+        {
+          "input_id": "p5.literature_coverage",
+          "record_type": "literature_coverage",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "not_applicable",
+          "purpose": "Expose the exact search boundaries and evidence gaps that constrain contribution and limitation claims.",
+          "condition": "Always required.",
+          "presence": "always"
+        },
+        {
+          "input_id": "p5.method_catalog",
+          "record_type": "method_catalog",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "not_applicable",
+          "purpose": "Confirm that the selected method is active and current.",
+          "condition": "Always required; unrelated catalog methods remain contextual rather than hard manuscript dependencies.",
+          "presence": "always"
+        },
+        {
+          "input_id": "p5.method",
+          "record_type": "method_record",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "exact",
+          "purpose": "Fix the one calculation-defining method represented by the manuscript.",
+          "condition": "Always required.",
+          "presence": "always"
+        },
+        {
+          "input_id": "p5.theory",
+          "record_type": "theory_record",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "exact",
+          "purpose": "Supply the complete current theoretical account for the exact method.",
+          "condition": "Always required; missing, noncurrent, invalid, withdrawn, or mismatched records block preparation.",
+          "presence": "always"
+        },
+        {
+          "input_id": "p5.empirical_index",
+          "record_type": "empirical_evidence_index",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "exact",
+          "purpose": "Resolve the current exact-method evidence supporting empirical claims.",
+          "condition": "Always required.",
+          "presence": "always"
+        },
+        {
+          "input_id": "p5.empirical",
+          "record_type": "empirical_synthesis",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "exact",
+          "purpose": "Supply the current empirical conclusions for the exact method.",
+          "condition": "Always required with readable implementation and evidence artifacts.",
+          "presence": "always"
+        },
+        {
+          "input_id": "p5.implementation_record",
+          "record_type": "implementation_record",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "exact",
+          "purpose": "Supply the current implementation identity and reproducibility basis for the exact method.",
+          "condition": "Always required with readable code, environment, and configuration references.",
+          "presence": "always"
+        },
+        {
+          "input_id": "p5.current_manuscript",
+          "record_type": "manuscript",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "same_stable_method",
+          "purpose": "Provide the immutable prior complete paper and review target.",
+          "condition": "Required in review-revision mode and optional in assembly mode. It may use an older version of the selected stable method, but never a different method lineage.",
+          "presence": "required_in_modes",
+          "required_in_modes": [
+            "p5.review_revision"
+          ]
+        },
+        {
+          "input_id": "p5.review_issue_ledger",
+          "record_type": "review_issue_ledger",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "same_stable_method",
+          "purpose": "Preserve stable review issue and issue-version lineage during review-revision.",
+          "condition": "Included in review-revision when a current ledger exists for the selected stable method lineage.",
+          "presence": "if_exists"
+        }
+      ],
+      "prepared_contexts": [
+        {
+          "context_id": "p5.review_packet",
+          "applicable_modes": [
+            "p5.review_revision"
+          ],
+          "constructed_by": "harness_during_preparation",
+          "source_input_ids": [
+            "p5.current_manuscript",
+            "p5.literature_library"
+          ],
+          "source_choice_ids": [
+            "p5.instructions"
+          ],
+          "content_requirements": [
+            "The exact immutable manuscript snapshot and submitted supplements.",
+            "Only cited references and supporting material available to an external referee.",
+            "Reviewer-facing user and venue instructions.",
+            "No internal formal records, specialist audits, deliberation, hidden memory, or later role outputs."
+          ],
+          "purpose": "Freeze the complete and exclusive input available to the independent outside reviewer.",
+          "immutable": true
+        }
+      ],
+      "optional_context_policy": {
+        "default": "current_only",
+        "allows_selected_history": true,
+        "history_selection_user_controlled": true,
+        "description": "The exact current P1 through P4 basis is the default. Selected history is optional, except for the current manuscript frozen by review-revision.",
+        "history_choice_id": "p5.selected_history"
+      },
+      "role_stages": [
+        {
+          "sequence": 1,
+          "stage_id": "p5.assembly_lead",
+          "applicable_modes": [
+            "p5.assembly"
+          ],
+          "execution": "serial",
+          "roles": [
+            "research_lead"
+          ],
+          "objective": "Assemble or update the complete manuscript, claim traceability, limitations, and decision record from the exact frozen basis.",
+          "reads": [
+            "p5.project_brief",
+            "p5.literature_library",
+            "p5.literature_synthesis",
+            "p5.literature_coverage",
+            "p5.method_catalog",
+            "p5.method",
+            "p5.theory",
+            "p5.empirical_index",
+            "p5.empirical",
+            "p5.implementation_record",
+            "p5.current_manuscript"
+          ],
+          "writes": [
+            "p5.manuscript_candidate",
+            "p5.claim_traceability",
+            "p5.upstream_basis_manifest",
+            "p5.citation_integrity_report",
+            "p5.limitations_record",
+            "p5.assembly_report",
+            "p5.attention_items",
+            "p5.decision"
+          ],
+          "handoff_required": true
+        },
+        {
+          "sequence": 1,
+          "stage_id": "p5.parallel_reviews",
+          "applicable_modes": [
+            "p5.review_revision"
+          ],
+          "execution": "parallel",
+          "roles": [
+            "theorist",
+            "data_analyst",
+            "outside_reviewer"
+          ],
+          "objective": "Audit one immutable manuscript snapshot from mathematical, empirical, reproducibility, novelty, significance, validity, and reader perspectives.",
+          "reads": [],
+          "writes": [
+            "p5.theory_audit",
+            "p5.empirical_audit",
+            "p5.outside_review"
+          ],
+          "handoff_required": true,
+          "isolation_rule": "The outside reviewer sees its frozen review packet but never specialist audits, internal deliberation, or later role output.",
+          "role_reads": [
+            {
+              "role": "theorist",
+              "input_ids": [
+                "p5.review_packet",
+                "p5.current_manuscript",
+                "p5.method",
+                "p5.theory",
+                "p5.literature_synthesis"
+              ]
+            },
+            {
+              "role": "data_analyst",
+              "input_ids": [
+                "p5.review_packet",
+                "p5.current_manuscript",
+                "p5.method",
+                "p5.empirical_index",
+                "p5.empirical",
+                "p5.implementation_record",
+                "p5.literature_synthesis"
+              ]
+            },
+            {
+              "role": "outside_reviewer",
+              "input_ids": [
+                "p5.review_packet"
+              ]
+            }
+          ]
+        },
+        {
+          "sequence": 2,
+          "stage_id": "p5.revision_lead",
+          "applicable_modes": [
+            "p5.review_revision"
+          ],
+          "execution": "serial",
+          "roles": [
+            "research_lead"
+          ],
+          "objective": "Receive all fixed reviews together, disposition every stable issue, and revise the complete manuscript against the exact current basis.",
+          "reads": [
+            "p5.project_brief",
+            "p5.literature_library",
+            "p5.current_manuscript",
+            "p5.review_issue_ledger",
+            "p5.method_catalog",
+            "p5.method",
+            "p5.theory",
+            "p5.empirical_index",
+            "p5.empirical",
+            "p5.implementation_record",
+            "p5.literature_synthesis",
+            "p5.literature_coverage",
+            "p5.theory_audit",
+            "p5.empirical_audit",
+            "p5.outside_review"
+          ],
+          "writes": [
+            "p5.review_issues",
+            "p5.manuscript_candidate",
+            "p5.claim_traceability",
+            "p5.upstream_basis_manifest",
+            "p5.citation_integrity_report",
+            "p5.limitations_record",
+            "p5.revision_account",
+            "p5.attention_items",
+            "p5.decision"
+          ],
+          "handoff_required": true
+        }
+      ],
+      "run_local_outputs": [
+        {
+          "output_id": "p5.manuscript_candidate",
+          "output_kind": "publication_package",
+          "producer": "research_lead",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/scientific-record.schema.json",
+          "purpose": "Provide one complete readable manuscript bound to the exact current upstream basis.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p5.claim_traceability",
+          "output_kind": "statement_set",
+          "producer": "research_lead",
+          "schema_application": "each_item",
+          "schema_uri": "architecture/schemas/statement.schema.json",
+          "purpose": "Map central claims to exact supporting or contradicting literature, theory, and empirical records.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p5.upstream_basis_manifest",
+          "output_kind": "scientific_record",
+          "producer": "research_lead",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/scientific-record.schema.json",
+          "purpose": "Record the exact frozen P1 through P4 identities, digests, authority states, and selected method identity used by the candidate manuscript.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p5.citation_integrity_report",
+          "output_kind": "audit",
+          "producer": "research_lead",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/scientific-record.schema.json",
+          "purpose": "Record citation resolution, unsupported citation attempts, and agreement between manuscript claims and the frozen literature library.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p5.limitations_record",
+          "output_kind": "scientific_record",
+          "producer": "research_lead",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/scientific-record.schema.json",
+          "purpose": "State the manuscript's scientific scope, active assumptions, unresolved issues, and limitations as a structured record.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p5.review_issues",
+          "output_kind": "review_issue_set",
+          "producer": "research_lead",
+          "schema_application": "each_item",
+          "schema_uri": "architecture/schemas/review-issue.schema.json",
+          "purpose": "Preserve stable specialist and outside-review issues with final dispositions; required in review-revision mode.",
+          "required": false,
+          "requirement": "required_in_modes",
+          "required_in_modes": [
+            "p5.review_revision"
+          ]
+        },
+        {
+          "output_id": "p5.attention_items",
+          "output_kind": "attention_item_set",
+          "producer": "research_lead",
+          "schema_application": "each_item",
+          "schema_uri": "architecture/schemas/attention-item.schema.json",
+          "purpose": "Record each newly identified research-attention item with its exact basis, affected claim or record, and smallest resolving question.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p5.decision",
+          "output_kind": "decision_record",
+          "producer": "research_lead",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/decision-record.schema.json",
+          "purpose": "State contribution, material changes, unresolved limitations, and possible user actions without claiming submission approval.",
+          "required": true,
+          "requirement": "always"
+        },
+        {
+          "output_id": "p5.assembly_report",
+          "output_kind": "audit",
+          "producer": "research_lead",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/handoff.schema.json",
+          "purpose": "Explain major scientific and editorial choices in assembly mode.",
+          "required": false,
+          "requirement": "required_in_modes",
+          "required_in_modes": [
+            "p5.assembly"
+          ]
+        },
+        {
+          "output_id": "p5.theory_audit",
+          "output_kind": "audit",
+          "producer": "theorist",
+          "schema_application": "each_item",
+          "schema_uri": "architecture/schemas/review-issue.schema.json",
+          "purpose": "Audit mathematical fidelity and proof reporting in review-revision mode.",
+          "required": false,
+          "requirement": "required_in_modes",
+          "required_in_modes": [
+            "p5.review_revision"
+          ]
+        },
+        {
+          "output_id": "p5.empirical_audit",
+          "output_kind": "audit",
+          "producer": "data_analyst",
+          "schema_application": "each_item",
+          "schema_uri": "architecture/schemas/review-issue.schema.json",
+          "purpose": "Audit implementation, evidence, reproducibility, and statistical interpretation in review-revision mode.",
+          "required": false,
+          "requirement": "required_in_modes",
+          "required_in_modes": [
+            "p5.review_revision"
+          ]
+        },
+        {
+          "output_id": "p5.outside_review",
+          "output_kind": "audit",
+          "producer": "outside_reviewer",
+          "schema_application": "each_item",
+          "schema_uri": "architecture/schemas/review-issue.schema.json",
+          "purpose": "Provide an independent first-time-reader review from the frozen reviewer packet.",
+          "required": false,
+          "requirement": "required_in_modes",
+          "required_in_modes": [
+            "p5.review_revision"
+          ]
+        },
+        {
+          "output_id": "p5.revision_account",
+          "output_kind": "audit",
+          "producer": "research_lead",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/handoff.schema.json",
+          "purpose": "Link every issue disposition to the resulting manuscript change or scientific justification.",
+          "required": false,
+          "requirement": "required_in_modes",
+          "required_in_modes": [
+            "p5.review_revision"
+          ]
+        }
+      ],
+      "validation_rules": [
+        {
+          "validator_id": "p5.exact_basis",
+          "category": "alignment",
+          "severity": "blocking",
+          "description": "The selected method, theory, and empirical records are formal, current, readable, valid, and exactly aligned to one method identity."
+        },
+        {
+          "validator_id": "p5.complete_manuscript",
+          "category": "scientific_completeness",
+          "severity": "blocking",
+          "description": "The candidate is a complete paper and faithfully represents favorable, partial, negative, contradictory, and inconclusive outcomes."
+        },
+        {
+          "validator_id": "p5.claim_traceability",
+          "category": "provenance",
+          "severity": "blocking",
+          "description": "Each central claim resolves to current upstream support or is removed, narrowed, contradicted, or explicitly unresolved."
+        },
+        {
+          "validator_id": "p5.review_isolation",
+          "category": "run_boundary",
+          "severity": "blocking",
+          "description": "In review-revision, all reviews use one snapshot and the outside reviewer cannot access specialist audits or internal deliberation."
+        },
+        {
+          "validator_id": "p5.issue_disposition",
+          "category": "scientific_completeness",
+          "severity": "blocking",
+          "description": "In review-revision, every unique specialist and reviewer issue receives a final disposition linked to the revision."
+        },
+        {
+          "validator_id": "p5.atomic_publication",
+          "category": "promotion_safety",
+          "severity": "blocking",
+          "description": "The complete manuscript package replaces the prior package atomically."
+        }
+      ],
+      "publication_bindings": [
+        {
+          "binding_id": "p5.append_attention_items",
+          "applicable_modes": [
+            "p5.assembly",
+            "p5.review_revision"
+          ],
+          "operation": "append",
+          "output_ids": [
+            "p5.attention_items"
+          ],
+          "target": {
+            "kind": "cumulative_collection",
+            "collection_id": "project.attention_history",
+            "object_type": "attention_item"
+          },
+          "prior_target_policy": "not_applicable",
+          "publisher_transform": "none",
+          "may_create_scientific_content": false
+        },
+        {
+          "binding_id": "p5.publish_assembly_manuscript",
+          "applicable_modes": [
+            "p5.assembly"
+          ],
+          "operation": "bundle",
+          "output_ids": [
+            "p5.manuscript_candidate",
+            "p5.claim_traceability",
+            "p5.upstream_basis_manifest",
+            "p5.citation_integrity_report",
+            "p5.limitations_record",
+            "p5.assembly_report"
+          ],
+          "components": [
+            {
+              "component_name": "manuscript",
+              "output_id": "p5.manuscript_candidate"
+            },
+            {
+              "component_name": "claim_traceability",
+              "output_id": "p5.claim_traceability"
+            },
+            {
+              "component_name": "upstream_basis",
+              "output_id": "p5.upstream_basis_manifest"
+            },
+            {
+              "component_name": "citation_integrity",
+              "output_id": "p5.citation_integrity_report"
+            },
+            {
+              "component_name": "limitations_scope",
+              "output_id": "p5.limitations_record"
+            },
+            {
+              "component_name": "assembly_account",
+              "output_id": "p5.assembly_report"
+            }
+          ],
+          "target": {
+            "kind": "current_slot",
+            "slot_id": "p5.manuscript.current",
+            "record_type": "manuscript"
+          },
+          "prior_target_policy": "absent_or_match_current",
+          "publisher_transform": "deterministic_bundle",
+          "may_create_scientific_content": false
+        },
+        {
+          "binding_id": "p5.publish_reviewed_manuscript",
+          "applicable_modes": [
+            "p5.review_revision"
+          ],
+          "operation": "bundle",
+          "output_ids": [
+            "p5.manuscript_candidate",
+            "p5.claim_traceability",
+            "p5.upstream_basis_manifest",
+            "p5.citation_integrity_report",
+            "p5.limitations_record",
+            "p5.theory_audit",
+            "p5.empirical_audit",
+            "p5.outside_review",
+            "p5.review_issues",
+            "p5.revision_account"
+          ],
+          "components": [
+            {
+              "component_name": "manuscript",
+              "output_id": "p5.manuscript_candidate"
+            },
+            {
+              "component_name": "claim_traceability",
+              "output_id": "p5.claim_traceability"
+            },
+            {
+              "component_name": "upstream_basis",
+              "output_id": "p5.upstream_basis_manifest"
+            },
+            {
+              "component_name": "citation_integrity",
+              "output_id": "p5.citation_integrity_report"
+            },
+            {
+              "component_name": "limitations_scope",
+              "output_id": "p5.limitations_record"
+            },
+            {
+              "component_name": "theory_audit",
+              "output_id": "p5.theory_audit"
+            },
+            {
+              "component_name": "empirical_audit",
+              "output_id": "p5.empirical_audit"
+            },
+            {
+              "component_name": "outside_review",
+              "output_id": "p5.outside_review"
+            },
+            {
+              "component_name": "review_issues",
+              "output_id": "p5.review_issues"
+            },
+            {
+              "component_name": "revision_account",
+              "output_id": "p5.revision_account"
+            }
+          ],
+          "target": {
+            "kind": "current_slot",
+            "slot_id": "p5.manuscript.current",
+            "record_type": "manuscript"
+          },
+          "prior_target_policy": "must_match_current",
+          "publisher_transform": "deterministic_bundle",
+          "may_create_scientific_content": false
+        },
+        {
+          "binding_id": "p5.append_review_issues",
+          "applicable_modes": [
+            "p5.review_revision"
+          ],
+          "operation": "append",
+          "output_ids": [
+            "p5.review_issues"
+          ],
+          "target": {
+            "kind": "cumulative_collection",
+            "collection_id": "p5.review_issue_history",
+            "object_type": "review_issue"
+          },
+          "prior_target_policy": "not_applicable",
+          "publisher_transform": "none",
+          "may_create_scientific_content": false
+        },
+        {
+          "binding_id": "p5.replace_review_issue_ledger",
+          "applicable_modes": [
+            "p5.review_revision"
+          ],
+          "operation": "replace",
+          "output_ids": [
+            "p5.review_issues"
+          ],
+          "source_input_ids": [
+            "p5.review_issue_ledger"
+          ],
+          "target": {
+            "kind": "current_slot",
+            "slot_id": "p5.review_issue_ledger.current",
+            "record_type": "review_issue_ledger"
+          },
+          "prior_target_policy": "absent_or_match_current",
+          "publisher_transform": "deterministic_index",
+          "may_create_scientific_content": false
+        },
+        {
+          "binding_id": "p5.replace_phase_decision",
+          "applicable_modes": [
+            "p5.assembly",
+            "p5.review_revision"
+          ],
+          "operation": "replace",
+          "output_ids": [
+            "p5.decision"
+          ],
+          "target": {
+            "kind": "current_slot",
+            "slot_id": "p5.phase_decision.current",
+            "record_type": "phase_decision"
+          },
+          "prior_target_policy": "absent_or_match_current",
+          "publisher_transform": "none",
+          "may_create_scientific_content": false
+        }
+      ],
+      "promotion": {
+        "strategy": "atomic_replace",
+        "canonical_record_types": [
+          "manuscript",
+          "review_issue_ledger",
+          "phase_decision"
+        ],
+        "cumulative_object_types": [
+          "attention_item",
+          "review_issue"
+        ],
+        "blocking_validator_ids": [
+          "p5.exact_basis",
+          "p5.complete_manuscript",
+          "p5.claim_traceability",
+          "p5.review_isolation",
+          "p5.issue_disposition",
+          "p5.atomic_publication"
+        ],
+        "failure_behavior": "Keep the previous complete manuscript package current; retain the candidate and reviews only in the run workspace.",
+        "atomic": true
+      },
+      "downstream_effects": [
+        {
+          "trigger": "manuscript_change",
+          "affected_phases": [],
+          "description": "A manuscript result may request upstream attention but never changes an upstream record or starts a run.",
+          "automatic_run": false,
+          "alignment_effect": {
+            "action": "preserve"
+          },
+          "attention_effect": {
+            "action": "record_if_identified"
+          }
+        }
+      ],
+      "ui_projection": {
+        "researcher_questions": [
+          "Is the exact current basis ready?",
+          "What contribution and limitations does the paper state?",
+          "What changed?",
+          "Which review issues remain important?"
+        ],
+        "fields": [
+          {
+            "field_id": "p5.readiness",
+            "source": "phase5_readiness_projection",
+            "label": "Research basis",
+            "meaning": "Per-prerequisite authority, exact method match, artifact readability, and blocking integrity findings."
+          },
+          {
+            "field_id": "p5.manuscript_summary",
+            "source": "manuscript.current.phase_decision",
+            "label": "Current paper",
+            "meaning": "Contribution, main results, material changes, limitations, and outcome."
+          },
+          {
+            "field_id": "p5.review_issues",
+            "source": "review_issue_ledger.current",
+            "label": "Review issues",
+            "meaning": "Stable issue counts, severities, dispositions, and unresolved questions."
+          }
+        ],
+        "user_action_choice_ids": [
+          "p5.selected_method",
+          "p5.instructions",
+          "p5.selected_history"
+        ]
+      },
+      "acceptance_scenarios": [
+        "s08.phase5_workflow",
+        "s09.interrupted_promotion",
+        "s10.negative_result"
+      ]
+    }
+  ]
+}

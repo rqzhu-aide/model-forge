@@ -1,0 +1,71 @@
+{
+  "schema_version": "1.0.0",
+  "event_type": "command_attempt_audit",
+  "audit_sequence": 3,
+  "audit_event_id": "audit.command.withdrawal.rejected.001",
+  "project_id": "project.demo",
+  "action_type": "withdraw_formal_generation",
+  "target": {
+    "target_type": "formal_generation",
+    "record_id": "record.theory.overlap_stabilized_score",
+    "record_type": "theory_record",
+    "generation_id": "generation.theory.overlap_stabilized_score.003",
+    "content_sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+    "expected_record_state_sha256": "8888888888888888888888888888888888888888888888888888888888888888"
+  },
+  "raw_request": {
+    "artifact_id": "artifact.command.request.withdrawal.001",
+    "uri": "artifact://project.demo/command-requests/command.generation.withdraw.001.json",
+    "sha256": "205a34716798cc0346a6616013575f4cec758703e9cdf7100c357e7fecbab5c1",
+    "media_type": "application/json",
+    "byte_length": 2140
+  },
+  "validated_command": {
+    "command_id": "command.generation.withdraw.001",
+    "command_sha256": "14bf8f363c15dd0866a69cacafc4ef0d1cee75d0c3d19ac3f29f9ea6a643ed5a"
+  },
+  "requested_by": {
+    "user_id": "researcher.demo",
+    "operating_actor_type": "authorized_remote_operator",
+    "operator_id": "operator.hermes.demo"
+  },
+  "check_stage": "pre_commit",
+  "authorization": {
+    "decision": "denied",
+    "authentication_check": "passed",
+    "delegation_check": {
+      "grant_id": "delegation.research.operator.001",
+      "grant_sha256": "e55f7512a94764c1d35c9de2d83075ee089c7e93bf7dc8ffbab73dc247006dbb",
+      "project_scope_check": "passed",
+      "action_scope_check": "passed",
+      "target_scope_check": "passed",
+      "time_window_check": "passed",
+      "revocation_check": "failed"
+    }
+  },
+  "result": {
+    "status": "rejected",
+    "command_error": {
+      "schema_version": "1.0.0",
+      "error_id": "error.delegation.withdrawal.001",
+      "code": "DELEGATION_NOT_ACTIVE",
+      "category": "authorization",
+      "http_status": 403,
+      "retryable": true,
+      "rule_id": "MH-55",
+      "object_refs": [
+        "project.demo",
+        "command.generation.withdraw.001",
+        "delegation.research.operator.001"
+      ],
+      "field_path": "requested_by.delegation_id",
+      "researcher_message": "The remote operator's delegation was revoked before this withdrawal could commit, so no scientific state changed.",
+      "smallest_correction": "Ask the researcher to issue a new withdrawal-specific delegation or perform the action directly.",
+      "occurred_at": "2026-08-01T17:00:01Z"
+    }
+  },
+  "occurred_at": "2026-08-01T17:00:01Z",
+  "prior_audit_root_sha256": "7eb7a3a63d796e4aeb4ed109628a13d2695f4667263495ddf1c0e43bca019a2b",
+  "content_sha256": "314992e7c0285d7285a5333a0cc64fcffdd6681db8ee6b3b174d0f27bc875a15",
+  "audit_root_sha256": "9db2cb960a736b7bc839f978c62e230e56c1c318dbd4cdf52ad877a28d4b9ab5"
+}

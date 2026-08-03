@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0.0",
+  "roles": [
+    {
+      "role_id": "research_lead",
+      "display_name": "Research lead",
+      "profile_version": "1.0.0",
+      "default_profile": "research_lead",
+      "soul_file": "souls/research_lead.md",
+      "applicable_phases": ["P1", "P2", "P3", "P4", "P5"],
+      "recommended_skills": ["stat-paper-writing"]
+    },
+    {
+      "role_id": "theorist",
+      "display_name": "Theorist",
+      "profile_version": "1.0.0",
+      "default_profile": "theorist",
+      "soul_file": "souls/theorist.md",
+      "applicable_phases": ["P1", "P2", "P3", "P4", "P5"],
+      "recommended_skills": ["stat-paper-writing"]
+    },
+    {
+      "role_id": "data_analyst",
+      "display_name": "Data analyst",
+      "profile_version": "1.0.0",
+      "default_profile": "data_analyst",
+      "soul_file": "souls/data_analyst.md",
+      "applicable_phases": ["P1", "P2", "P3", "P4", "P5"],
+      "recommended_skills": ["stat-paper-writing"]
+    },
+    {
+      "role_id": "outside_reviewer",
+      "display_name": "Outside reviewer",
+      "profile_version": "1.0.0",
+      "default_profile": "paper_reviewer",
+      "soul_file": "souls/outside_reviewer.md",
+      "applicable_phases": ["P5"],
+      "recommended_skills": ["stat-paper-reviewer"]
+    }
+  ],
+  "skills": [
+    {
+      "skill_id": "stat-paper-writing",
+      "name": "Statistical paper writing",
+      "description": "Author-side statistical and machine-learning paper development.",
+      "source": "https://github.com/rqzhu-aide/stat-paper-skills/tree/main/stat-paper-writing",
+      "recommended_version": "main"
+    },
+    {
+      "skill_id": "stat-paper-reviewer",
+      "name": "Statistical paper reviewer",
+      "description": "Independent statistical and machine-learning manuscript review.",
+      "source": "https://github.com/rqzhu-aide/stat-paper-skills/tree/main/stat-paper-reviewer",
+      "recommended_version": "main"
+    }
+  ]
+}

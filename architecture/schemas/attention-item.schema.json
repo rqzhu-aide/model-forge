@@ -1,0 +1,183 @@
+{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "$id":  "https://method-hub.local/architecture/schemas/attention-item.schema.json",
+    "title":  "Research Attention Item",
+    "description":  "An immutable version of a research question or defect. Later disposition changes create a new version and current attention is derived separately.",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "schema_version",
+                     "attention_id",
+                     "source_run_id",
+                     "raised_by",
+                     "question",
+                     "severity",
+                     "likely_consequence",
+                     "affected_record_ids",
+                     "affected_statement_ids",
+                     "disposition",
+                     "content_sha256",
+                     "created_at",
+                     "updated_at",
+                     "attention_version_id",
+                     "authority_at_creation"
+                 ],
+    "properties":  {
+                       "schema_version":  {
+                                              "$ref":  "common-definitions.schema.json#/$defs/schemaVersion"
+                                          },
+                       "attention_id":  {
+                                            "$ref":  "common-definitions.schema.json#/$defs/stableId"
+                                        },
+                       "source_run_id":  {
+                                             "$ref":  "common-definitions.schema.json#/$defs/stableId"
+                                         },
+                       "raised_by":  {
+                                         "$ref":  "common-definitions.schema.json#/$defs/roleId"
+                                     },
+                       "question":  {
+                                        "type":  "string",
+                                        "minLength":  1
+                                    },
+                       "severity":  {
+                                        "$ref":  "common-definitions.schema.json#/$defs/attentionLevel"
+                                    },
+                       "likely_consequence":  {
+                                                  "type":  "string",
+                                                  "minLength":  1
+                                              },
+                       "affected_record_ids":  {
+                                                   "type":  "array",
+                                                   "items":  {
+                                                                 "$ref":  "common-definitions.schema.json#/$defs/stableId"
+                                                             },
+                                                   "uniqueItems":  true
+                                               },
+                       "affected_statement_ids":  {
+                                                      "type":  "array",
+                                                      "items":  {
+                                                                    "$ref":  "common-definitions.schema.json#/$defs/stableId"
+                                                                },
+                                                      "uniqueItems":  true
+                                                  },
+                       "disposition":  {
+                                           "type":  "string",
+                                           "enum":  [
+                                                        "open",
+                                                        "resolved",
+                                                        "deferred",
+                                                        "accepted_limitation",
+                                                        "rejected"
+                                                    ]
+                                       },
+                       "disposition_reason":  {
+                                                  "type":  "string",
+                                                  "minLength":  1
+                                              },
+                       "rerun_question":  {
+                                              "type":  "string",
+                                              "minLength":  1
+                                          },
+                       "content_sha256":  {
+                                              "$ref":  "common-definitions.schema.json#/$defs/sha256"
+                                          },
+                       "created_at":  {
+                                          "type":  "string",
+                                          "format":  "date-time"
+                                      },
+                       "updated_at":  {
+                                          "type":  "string",
+                                          "format":  "date-time"
+                                      },
+                       "attention_version_id":  {
+                                                    "$ref":  "common-definitions.schema.json#/$defs/stableId"
+                                                },
+                       "supersedes_attention_version_id":  {
+                                                               "$ref":  "common-definitions.schema.json#/$defs/stableId"
+                                                           },
+                       "authority_at_creation":  {
+                                                     "$ref":  "common-definitions.schema.json#/$defs/creationAuthority"
+                                                 },
+                       "publication_receipt_id":  {
+                                                      "$ref":  "common-definitions.schema.json#/$defs/stableId"
+                                                  },
+                       "published_at":  {
+                                            "type":  "string",
+                                            "format":  "date-time"
+                                        }
+                   },
+    "allOf":  [
+                  {
+                      "if":  {
+                                 "properties":  {
+                                                    "disposition":  {
+                                                                        "enum":  [
+                                                                                     "resolved",
+                                                                                     "deferred",
+                                                                                     "accepted_limitation",
+                                                                                     "rejected"
+                                                                                 ]
+                                                                    }
+                                                },
+                                 "required":  [
+                                                  "disposition"
+                                              ]
+                             },
+                      "then":  {
+                                   "required":  [
+                                                    "disposition_reason"
+                                                ]
+                               }
+                  },
+                  {
+                      "if":  {
+                                 "properties":  {
+                                                    "severity":  {
+                                                                     "enum":  [
+                                                                                  "reassessment_required",
+                                                                                  "blocking"
+                                                                              ]
+                                                                 },
+                                                    "disposition":  {
+                                                                        "const":  "open"
+                                                                    }
+                                                },
+                                 "required":  [
+                                                  "severity",
+                                                  "disposition"
+                                              ]
+                             },
+                      "then":  {
+                                   "required":  [
+                                                    "rerun_question"
+                                                ]
+                               }
+                  },
+                  {
+                      "if":  {
+                                 "properties":  {
+                                                    "authority_at_creation":  {
+                                                                                  "const":  "formal_generation"
+                                                                              }
+                                                },
+                                 "required":  [
+                                                  "authority_at_creation"
+                                              ]
+                             },
+                      "then":  {
+                                   "required":  [
+                                                    "publication_receipt_id",
+                                                    "published_at"
+                                                ]
+                               },
+                      "else":  {
+                                   "not":  {
+                                               "anyOf":  [
+                                                             { "required":  [ "publication_receipt_id" ] },
+                                                             { "required":  [ "published_at" ] }
+                                                         ]
+                                           }
+                               }
+                  }
+              ]
+}

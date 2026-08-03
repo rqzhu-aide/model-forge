@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "source": {
+    "repository": "https://github.com/rqzhu-aide/stat-paper-skills",
+    "revision": "1a32b75dc671266b515816b32fca7244c9fc42be",
+    "note": "Text assets were normalized to LF when incorporated into the greenfield application."
+  },
+  "digest_contract": "sha256 of sorted relative UTF-8 path lengths, paths, byte lengths, and exact file bytes",
+  "skills": {
+    "stat-paper-writing": {
+      "directory": "stat-paper-writing",
+      "content_sha256": "c661e87dd7713712bf7c93a895b7e5d5cf7fd59da0d1f488bbd6ea2f228f14c7",
+      "roles": ["research_lead", "theorist", "data_analyst"]
+    },
+    "stat-paper-reviewer": {
+      "directory": "stat-paper-reviewer",
+      "content_sha256": "bae03e7e4a40a7be3fabcc0946ccbeecf0350b81a3edf501bfa221b2f77d7532",
+      "roles": ["outside_reviewer"]
+    }
+  }
+}

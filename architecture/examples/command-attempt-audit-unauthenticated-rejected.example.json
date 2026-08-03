@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0.0",
+  "event_type": "command_attempt_audit",
+  "audit_sequence": 5,
+  "audit_event_id": "audit.command.unauthenticated.rejected.001",
+  "project_id": "project.demo",
+  "action_type": "cancel_run",
+  "target": {
+    "target_type": "unresolved",
+    "resolution_error_code": "AUTHENTICATION_REQUIRED",
+    "untrusted_presented_target": "run.p3.theory.20260802t140000z"
+  },
+  "raw_request": {
+    "artifact_id": "artifact.command.request.malformed.001",
+    "uri": "artifact://architecture/examples/raw-command-request-malformed.txt",
+    "sha256": "34f102c9e142ee50afc747bb21e220f10ef77dcad76422e680202a2f94eafb84",
+    "media_type": "application/json",
+    "byte_length": 11
+  },
+  "requested_by": {
+    "operating_actor_type": "unauthenticated",
+    "untrusted_presented_identity": "researcher.demo"
+  },
+  "check_stage": "acceptance",
+  "authorization": {
+    "decision": "denied",
+    "authentication_check": "failed"
+  },
+  "result": {
+    "status": "rejected",
+    "command_error": {
+      "schema_version": "1.0.0",
+      "error_id": "error.authentication.cancel.001",
+      "code": "AUTHENTICATION_REQUIRED",
+      "category": "authentication",
+      "http_status": 401,
+      "retryable": true,
+      "rule_id": "MH-59",
+      "object_refs": [
+        "project.demo",
+        "artifact.command.request.malformed.001"
+      ],
+      "field_path": "requested_by",
+      "researcher_message": "The cancellation request could not be authenticated, so the run state did not change.",
+      "smallest_correction": "Authenticate as the researcher or use an active run-specific delegation, then submit a new request.",
+      "occurred_at": "2026-08-02T14:30:00Z"
+    }
+  },
+  "occurred_at": "2026-08-02T14:30:00Z",
+  "prior_audit_root_sha256": "357024ded7d7042eb5fac83b712e1bebf34835417276c15871c7cc3d61504f57",
+  "content_sha256": "938a10eee0dd736e728d2bf358164e2e3a3bf7e8368738864d4d71c0506623b3",
+  "audit_root_sha256": "84ed816ed5f8bf436e4166562d9e9d3512d9ab7bde53cb8ad38548c012c7f0a4"
+}

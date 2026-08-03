@@ -391,10 +391,63 @@ _PUBLICATION_SCHEMA = (
 )
 
 
+_DIAGNOSTIC_SCHEMA = (
+    """
+    CREATE TABLE diagnostic_invocations (
+        invocation_id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        profile_name TEXT NOT NULL,
+        external_execution_id TEXT,
+        status TEXT NOT NULL DEFAULT 'pending'
+            CHECK (status IN ('pending', 'running', 'succeeded', 'failed',
+                              'cancelled', 'timed_out')),
+        exit_code INTEGER,
+        summary TEXT NOT NULL DEFAULT '',
+        diagnostic_text TEXT NOT NULL DEFAULT '',
+        memory_state_before TEXT,
+        memory_state_after TEXT,
+        memory_policy TEXT NOT NULL DEFAULT 'persistent',
+        payload_json TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE INDEX diagnostic_invocations_project
+        ON diagnostic_invocations(project_id, created_at)
+    """,
+    """
+    CREATE INDEX diagnostic_invocations_status
+        ON diagnostic_invocations(status, updated_at)
+    """,
+    """
+    CREATE TABLE diagnostic_fencing_tokens (
+        invocation_id TEXT PRIMARY KEY
+            REFERENCES diagnostic_invocations(invocation_id) ON DELETE CASCADE,
+        token INTEGER NOT NULL,
+        holder TEXT,
+        lease_expires_at TEXT,
+        updated_at TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE profile_execution_locks (
+        profile_name TEXT PRIMARY KEY,
+        invocation_id TEXT NOT NULL
+            REFERENCES diagnostic_invocations(invocation_id) ON DELETE CASCADE,
+        acquired_at TEXT NOT NULL,
+        lease_expires_at TEXT NOT NULL
+    )
+    """,
+)
+
+
 HUB_MIGRATIONS = (
     Migration(1, _CONTROL_SCHEMA, name="control and run storage"),
     Migration(2, _EXECUTION_SCHEMA, name="role execution and submission storage"),
     Migration(3, _PUBLICATION_SCHEMA, name="formal publication and settings storage"),
+    Migration(4, _DIAGNOSTIC_SCHEMA, name="diagnostic invocations, fencing, profile mutex"),
 )
 
 

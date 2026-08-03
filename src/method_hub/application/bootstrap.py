@@ -13,6 +13,8 @@ from ..executors import (
     BubblewrapSettings,
     HermesKanbanExecutor,
     HermesSettings,
+    OneShotExecutor,
+    OneShotExecutorSettings,
     SchemaExampleFakeExecutor,
     profile_exists,
 )
@@ -89,6 +91,22 @@ def build_service(settings: ApplicationSettings) -> MethodHubService:
         _verify_hermes_profiles(settings)
         executor = BubblewrapExecutor(
             BubblewrapSettings(
+                hermes_binary=settings.hermes_executable,
+                hermes_home=settings.hermes_root,
+            )
+        )
+        coordinator = RunCoordinator(
+            settings=settings,
+            specification=specification,
+            repository=repository,
+            artifacts=artifacts,
+            role_resources=resources,
+            executor=executor,
+        )
+    elif settings.executor_kind == "oneshot":
+        _verify_hermes_profiles(settings)
+        executor = OneShotExecutor(
+            OneShotExecutorSettings(
                 hermes_binary=settings.hermes_executable,
                 hermes_home=settings.hermes_root,
             )

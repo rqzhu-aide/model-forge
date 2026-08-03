@@ -12,6 +12,10 @@ specification or decision record before code relies on such a change.
   reconciliation, containment, bounded logs, and diagnostic inspection around
   one real synthetic Hermes invocation. It does not authorize scientific
   publication.
+- [Revised Diagnostic Lane Plan](revised-diagnostic-lane-plan.md) adapts the
+  next block to verified host Hermes behavior: per-project persistent
+  profiles with per-role memory policy, baked SOUL.md, mounted task briefs,
+  and one-shot container execution (Revision 1, corrections C1–C10).
 
 ## Active plans
 

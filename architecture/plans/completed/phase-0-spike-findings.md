@@ -1,8 +1,14 @@
-# Checkpoint 0-pre: Transport Reconnaissance Spike Findings
+# Hermes v0.19.0 Transport Reconnaissance and Initial Connectivity Findings
 
-Status: Complete
+Status: Completed exploratory findings. The full Checkpoint 0-pre evidence
+package and Phase 0 remain open.
 Date: 2026-08-03
 Hermes version: v0.19.0 (2026.7.20), upstream eb527605
+
+Scope note: the repository does not yet contain the required reproducible spike
+script or complete evidence for block and reclaim behavior, backend context
+guards, and exact event formats. This record supports the verified findings
+below, but does not satisfy the full Checkpoint 0-pre or Phase 0 exit gate.
 
 ## Method
 
@@ -127,8 +133,9 @@ terminal closure gives bounded agent-output capture.
 `hermes kanban archive <task_id>` moves the task to `archived` status. It
 does **not** directly stop a running worker -- the dispatcher's stale-claim
 reclaim handles that. For Track A, after archiving we should poll until the
-task reaches `archived` and report it as cancelled. Confirmed cancellation
-requires the status to stabilize at `archived`.
+task reaches `archived` and report archive-state confirmation. This confirms
+the task record only. It does not prove that the worker stopped or that output
+writes became quiescent.
 
 ## Summary of required adapter fixes (Track A)
 
@@ -141,9 +148,9 @@ requires the status to stabilize at `archived`.
 5. Add agent log capture after terminal state (Domain 2, via `log --tail`).
 6. Add environment allowlist instead of `dict(os.environ)`.
 7. Add Hermes profile existence verification before launch.
-8. Add confirmed-cancellation polling (wait for `archived` status).
+8. Add archive-state polling and distinguish it from confirmed worker termination.
 
-## Checkpoint 0G: Real connectivity test -- PASSED
+## Initial Checkpoint 0G connectivity subtest passed; full 0G gate remains open
 
 Date: 2026-08-03
 Hermes version: v0.19.0
@@ -159,8 +166,9 @@ task through the hardened executor in 78.4 seconds. Evidence:
 - **Agent log capture (Domain 2):** worker log captured via
   `hermes kanban log`, showing the agent's `kanban_show`, `read_file`, and
   `write_file` actions.
-- **Bounded output (Domain 1):** control-process output captured without
-  error.
+- **Initial capped output foundation (Domain 1):** the control-process output
+  was captured without error in this finite test. The full bounded-supervisor
+  and infinite-output gates remain open.
 - **Environment allowlist:** task executed successfully with the minimal
   environment.
 - **Profile verification:** `theorist` profile verified before launch.

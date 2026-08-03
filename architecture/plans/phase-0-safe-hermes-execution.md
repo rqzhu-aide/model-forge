@@ -1,9 +1,43 @@
 # Phase 0: Safe Hermes Execution
 
-Status: Implementation instruction — Revision 1
+Status: Active implementation instruction, Revision 2. Exit gate open.
 
 Prepared: 2026-08-03 (original draft)
-Revised: 2026-08-03 (Revision 1, grounded review amendments)
+Revised: 2026-08-03 (Revision 2, one-shot OCI completion topology)
+
+Revision 2 topology note: the controlling completion path is now one-shot
+Hermes inside rootless OCI, as defined in Section 5.4 and the next work block.
+Gateway and diagnostic-board language in the Revision 1 summary is retained
+only as historical Track A rationale. It does not define a completion gate.
+
+Current completion status: Partially implemented. The Phase 0 exit gate
+remains open.
+
+## Current implementation checkpoint
+
+Verified complete:
+
+- transport reconnaissance against Hermes v0.19.0;
+- correction of the development Kanban status and retry mapping;
+- environment filtering, profile preflight, and an initial capped
+  control-command capture foundation;
+- one successful host-based synthetic theorist connectivity run.
+
+The evidence is archived in
+[Completed Hermes Transport Findings](completed/phase-0-spike-findings.md).
+
+Still open:
+
+- containment of the actual agent and its tools;
+- truthful external identity, durable fencing, restart reconciliation, and
+  verified cancellation;
+- bounds on all logs, processes, files, and workspace growth while produced;
+- provider-only networking and complete secret isolation;
+- the loopback diagnostic status and log interface;
+- the complete failure-injection and formal-state evidence package.
+
+The recommended next implementation package is
+[Complete the Non-Publishing Hermes Diagnostic Lane](next-block-hermes-diagnostic-closure.md).
 
 ## Revision 1 summary
 
@@ -13,50 +47,50 @@ verified every claim in Section 2 against the current adapter source, and (b)
 probed the live Hermes kanban interface for the behavior the original draft
 flagged as unverified. The amendments are:
 
-1. **A1 — Worker topology is now a named, gated deliverable.** The kanban
+1. **A1 - Worker topology is now a named, gated deliverable.** The kanban
    dispatcher runs inside the Hermes gateway and spawns workers there. A
    container around the submitting CLI therefore isolates nothing. Section 5.4
    now names the reference topology (dedicated disposable profile plus a
    dedicated gateway inside the rootless container, with its own
    `HERMES_HOME`, subscribed only to the diagnostic board) and Checkpoint 0B
    gains an explicit worker-topology gate.
-2. **A2 — Board-hygiene preflight.** Kanban boards are shared across every
+2. **A2 - Board-hygiene preflight.** Kanban boards are shared across every
    profile and gateway. Preflight must prove that no host gateway dispatches
    the diagnostic board; otherwise a host worker with ambient access executes
    the diagnostic task and all isolation evidence is void (Section 5.1,
    Section 7).
-3. **A3 — Idempotent create confirmed, with an archived-task hole.** Live
+3. **A3 - Idempotent create confirmed, with an archived-task hole.** Live
    `--help` text confirms: if a *non-archived* task with the idempotency key
    exists, its ID is returned instead of creating a duplicate. Because
    `archive` is the current cancellation mechanism, a cancel-then-recover race
    can silently create a second task. Section 5.6 now defines the recovery
    rule for this hole.
-4. **A4 — `--max-runtime` re-queues the task.** Documented dispatcher
+4. **A4 - `--max-runtime` re-queues the task.** Documented dispatcher
    behavior: on timeout the dispatcher SIGTERMs (then SIGKILLs) the worker
    **and re-queues the task**. The current adapter sets `max-runtime` equal to
    the frozen invocation timeout, so a timed-out role can be killed and then
    run again after the harness has sealed a failure. Section 5.7 and the
    acceptance table now treat requeue prevention as a hard requirement.
-5. **A5 — Real status vocabulary.** Live statuses are `{triage, todo, ready,
+5. **A5 - Real status vocabulary.** Live statuses are `{triage, todo, ready,
    running, blocked, done, review, scheduled, archived}`. There is no `failed`
    or `cancelled`; failure surfaces as `blocked` via the circuit breaker. The
    diagnostic state model (Section 5.8) must be built on the real enum.
-6. **A6 — Two output domains separated.** Control-process streams (short-lived
+6. **A6 - Two output domains separated.** Control-process streams (short-lived
    CLI calls) and agent output (the kanban event stream in SQLite) are
    different mechanisms with different bounding strategies (Section 5.3). The
-   transport does expose structured agent events — `hermes kanban tail`,
-   `log`, `runs`, `heartbeat` — so the diagnostic viewer must not invent
+   transport does expose structured agent events - `hermes kanban tail`,
+   `log`, `runs`, `heartbeat` - so the diagnostic viewer must not invent
    streams (Section 5.8).
-7. **A7 — New Checkpoint 0-pre: transport reconnaissance spike.** The five
+7. **A7 - New Checkpoint 0-pre: transport reconnaissance spike.** The five
    open behavioral questions that shape Checkpoints 0B/0D/0E are answered by a
    scripted, disposable-board spike before checkpoint code is written
    (Section 6). Note: Hermes refuses kanban mutations from delegated agent
    child contexts; the spike must run from a plain operator shell, and the
    backend's CLI invocation context must be verified for the same guard.
-8. **A8 — Provisioning repeatability.** The current adapter assumes a board
+8. **A8 - Provisioning repeatability.** The current adapter assumes a board
    named `method-hub` and four role profiles with no in-repo provisioning.
    Phase 0 diagnostic resources (board, profile, container image) must be
-   created by a recorded, repeatable procedure — not unrecorded host state
+   created by a recorded, repeatable procedure - not unrecorded host state
    (Section 4, Section 5.1). This preserves the future WP7 stop-ship
    condition on developer-machine state.
 
@@ -93,13 +127,15 @@ sealing remains a later prerequisite for publishable Hermes work.
 
 ## 2. Relationship to the existing architecture
 
-The current [Hermes executor](../../src/method_hub/executors/hermes.py) is a
-useful development adapter. It already creates a Hermes task with an
-idempotency key, polls task status, reports heartbeats, applies elapsed-time
-limits, and requests cancellation.
+The following description records the pre-fb326de state of the
+[Hermes executor](../../src/method_hub/executors/hermes.py). It is retained as
+historical rationale for Revision 1. The current implementation checkpoint at
+the start of this plan supersedes it.
 
-It is not yet the supported execution boundary. Each original finding is now
-verified against source:
+At that time, the adapter created a Hermes task with an idempotency key, polled
+task status, reported heartbeats, applied elapsed-time limits, and requested
+cancellation. It was not the supported execution boundary. The Revision 1
+findings below were verified against that source state:
 
 - it inherits the host process environment (`dict(os.environ)`,
   `hermes.py:47`);
@@ -128,8 +164,9 @@ The grounded review additionally established:
 - the adapter assumes a board named `method-hub` and four role profiles that
   no in-repo procedure provisions (see A8).
 
-Phase 0 should strengthen this adapter and the shared executor boundary. It
-must reuse the execution, cancellation, and recovery semantics defined by the
+Phase 0 now uses these findings to strengthen the shared executor boundary
+through the one-shot OCI diagnostic path in Section 5.4. It must reuse the
+execution, cancellation, and recovery semantics defined by the
 [run harness](../02-run-harness.md) and the isolation rules in the
 [role and context contract](../08-role-context-and-communication.md), while
 remaining outside the scientific run, submission, and publication lifecycle.
@@ -139,10 +176,10 @@ The active [Operational Completion Plan](operational-completion-plan.md)
 continues to define the production sequence. Phase 0 is a non-publishing
 diagnostic program and therefore does not weaken the requirement that the
 reviewed scientific basis be sealed before any Hermes output can receive
-formal authority. Phase 0 delivers the first tranche of WP1 (completion-plan
-slices 5 and 6) ahead of WP0; the completion plan should record this
-reordering with a cross-link so the two documents do not drift. WP0 remains a
-hard gate for any publishable run.
+formal authority. The completion plan records this diagnostic exception as its
+first recommended implementation slice and links back to the same bounded work
+package. WP0 remains a hard gate for any scientific Hermes run or formal
+publication.
 
 ## 3. Scope
 
@@ -150,7 +187,8 @@ hard gate for any publishable run.
 
 Phase 0 includes:
 
-- Hermes installation, version, transport, board, and profile verification;
+- Hermes one-shot interface, version, rootless runtime, pinned image, and
+  sanitized profile-bundle verification;
 - a dedicated diagnostic invocation path;
 - bounded process supervision;
 - environment and credential minimization;
@@ -159,8 +197,8 @@ Phase 0 includes:
 - durable external-execution identity;
 - heartbeat, timeout, cancellation, and startup reconciliation;
 - a minimal diagnostic status and log viewer;
-- recorded, repeatable provisioning of all diagnostic resources (board,
-  disposable profile, container image);
+- recorded, repeatable provisioning of the pinned image, sanitized disposable
+  profile bundle, and provider-only network boundary;
 - one successful real single-role test;
 - failure-injection and containment tests.
 
@@ -202,12 +240,12 @@ Before Phase 0 implementation begins:
 7. Confirm that credentials required to reach Hermes or its model provider can
    be injected narrowly. They must not be copied into task briefs, manifests,
    logs, artifacts, or diagnostic reports.
-8. Provision the diagnostic kanban board through a recorded procedure, and
-   record which gateways are expected to dispatch it (exactly one: the
-   containerized diagnostic gateway defined in Section 5.4).
-9. Run the Checkpoint 0-pre transport reconnaissance spike (Section 6) and
-   record its findings. Checkpoint design may not assume behavior the spike
-   has not confirmed.
+8. Provision the pinned rootless image and sanitized disposable profile bundle
+   through a recorded procedure.
+9. Retain the completed Kanban transport findings as Track A evidence, then run
+   the new one-shot Hermes semantics spike required by the next work block.
+   Completion-path code may not assume behavior that the one-shot spike has not
+   confirmed.
 
 If a safe disposable profile or isolated test host is unavailable,
 implementation may proceed with mocks, but no real Hermes task should be
@@ -220,20 +258,16 @@ launched.
 Preflight must run before a task is created. It should report a typed,
 researcher-readable result for each required check:
 
-- executable or service endpoint found;
+- rootless OCI runtime and Hermes one-shot interface found;
 - Hermes version supported;
-- configured transport responds;
-- configured board or task namespace is accessible;
-- **board hygiene: no gateway or dispatcher other than the designated
-  diagnostic gateway can claim tasks from the diagnostic board** (see A2);
-- selected profile exists and is usable;
+- pinned image digest and runtime security profile match configuration;
+- selected sanitized profile bundle exists, is usable, and matches its digest;
 - model and provider configuration is present without displaying secrets;
-- required create, inspect, cancel, and idempotency capabilities are available
-  — including the specific behaviors confirmed by the 0-pre spike
-  (idempotent create, requeue policy, cancellation semantics);
-- the backend's CLI invocation context is accepted by Hermes context guards
-  (kanban mutation is refused from delegated agent child contexts; the
-  diagnostic backend must invoke the CLI from an accepted context);
+- runtime create, label lookup, start, inspect, logs, stop, kill, and cleanup
+  capabilities are available;
+- the one-shot task-brief, workspace, profile, output, signal, and exit
+  semantics match the recorded spike;
+- the realized network and execution policies match their reviewed digests;
 - diagnostic workspace permissions and free space are adequate;
 - isolation runtime and capability broker are available;
 - configured limits are internally consistent.
@@ -242,9 +276,9 @@ Preflight must fail closed. A warning may describe an optional capability, but
 a missing safety capability must disable the diagnostic launch action.
 
 Use stable error categories such as unsupported version, missing profile,
-unavailable transport, unsafe workspace, missing isolation, board contested,
-or invalid limits. Exact identifiers may follow the existing error-model
-conventions.
+unsupported runtime or one-shot interface, unsafe workspace, missing
+isolation, policy-digest mismatch, unavailable provider boundary, or invalid
+limits. Exact identifiers may follow the existing error-model conventions.
 
 Profile verification must inspect Hermes itself or its supported configuration
 interface. Checking that a profile name is a nonempty string is not
@@ -288,8 +322,9 @@ diagnostic profile's skill set is pinned by the provisioning procedure.
 
 Phase 0 supervises two distinct output domains. They must not be conflated.
 
-**Domain 1 — control processes.** Short-lived CLI invocations (task create,
-inspect, cancel). Replace unbounded command collection with a supervisor that
+**Domain 1 - runtime control processes.** Short-lived OCI invocations for
+container create, start, inspect, logs, stop, kill, and cleanup. Replace
+unbounded command collection with a supervisor that
 enforces limits while output is being produced. The supervisor must:
 
 - start the control process without an interactive shell;
@@ -310,16 +345,17 @@ enforces limits while output is being produced. The supervisor must:
   actual role invocation;
 - return a structured result rather than interpreting arbitrary prose.
 
-**Domain 2 — agent output.** The actual agent's events and logs live in the
-kanban event stream (SQLite), exposed through `hermes kanban tail`, `log`,
-`runs`, and `heartbeat` — not in the control processes. Bounding and
-redacting this domain is a worker-side and read-side concern:
+**Domain 2 - one-shot agent output.** The actual Hermes process runs inside the
+container. Its stdout, stderr, artifacts, and any structured events established
+by the one-shot spike are agent output. Do not assume that Kanban `tail`, `log`,
+`runs`, or `heartbeat` exists in the one-shot path. Bounding and redacting this
+domain is a runtime-stream and artifact concern:
 
 - read the event stream incrementally with bounded retention;
 - apply the same secret-pattern redaction and control-sequence
   neutralization before persistence or display;
 - enforce a bounded retained event budget per invocation;
-- never reconstruct agent activity from the worker's process environment.
+- never reconstruct agent activity from the process environment or undeclared files.
 
 The implementation may choose an asynchronous subprocess library, a small
 supervisor process, or another tested mechanism. The required result is
@@ -333,17 +369,25 @@ The kanban dispatcher runs inside the Hermes gateway and spawns workers there;
 the actual agent is a gateway-spawned process holding the full profile
 environment, persistent memory, tools, and network access of its host.
 
-**Reference topology (A1).** The Phase 0 execution path runs:
+**Controlling completion topology.** The remaining Phase 0 implementation uses
+one synchronous Hermes one-shot process inside one rootless OCI container. The
+container process is the actual agent boundary. Method Hub persists the real
+container ID and uses runtime create, start, inspect, logs, stop, and kill
+operations for supervision. No Kanban gateway or host dispatcher participates
+in the completion path.
 
-1. one dedicated disposable Hermes profile with its own `HERMES_HOME`;
-2. one dedicated Hermes gateway instance running **inside the rootless
-   container**, subscribed only to the diagnostic board;
-3. the diagnostic board, claimed by no other gateway;
-4. Method Hub's diagnostic backend outside the container, submitting tasks and
-   reading status through the CLI against the shared board.
+Before implementation, verify the exact supported one-shot interface, profile
+selection, task-brief delivery, workspace behavior, output and exit semantics,
+tool loading, provider configuration, and signal handling through the recorded
+spike required by the
+[next work block](next-block-hermes-diagnostic-closure.md). Record or update an
+architecture decision for this topology.
 
-This makes the isolation enforcement point explicit and testable: the actual
-agent and its tool processes execute inside the container, under:
+The Kanban gateway and board findings remain valid for the development Track A
+connectivity adapter only. They do not define Phase 0 completion and cannot be
+used as evidence of worker termination or containment.
+
+The one-shot container runs under:
 
 - read-only root filesystem;
 - private unprivileged user namespace;
@@ -352,26 +396,28 @@ agent and its tool processes execute inside the container, under:
 - one writable role root;
 - read-only, digest-verified declared inputs;
 - no direct Method Hub database, formal-storage, or current-project access;
-- no ambient host home-directory access (the container carries only the
-  disposable `HERMES_HOME`);
+- an allowlisted profile bundle containing only the declared profile, soul,
+  instruction, skills, tools, knowledge resources, and memory policy;
+- no host `HERMES_HOME`, profile memory, history, caches, logs, undeclared
+  skills, credential files, or ambient host home-directory access;
 - no cross-role or sibling-workspace access;
 - no undeclared Unix socket, device, or service access;
 - no network by default.
 
-When model or Hermes transport requires network access, allow only the minimum
-declared endpoint class (the model provider endpoint). Record the effective
-policy without recording credentials.
+When the model provider requires network access, block direct egress and allow
+only the declared provider endpoint through an enforced proxy or equivalent
+boundary. Record the effective policy without recording credentials.
 
 All role reads should pass through the capability boundary or through an exact
 materialized input set produced by that boundary. Path traversal, symbolic
 links, hard links, subprocesses, and alternate path spellings must not broaden
 access.
 
-An alternative topology is permitted only if it identifies where the actual
-agent executes and constrains that execution to the same standard, with tests.
-A local container around only the submitting command does not establish agent
-isolation. If the worker boundary cannot be verified, the connectivity
-checkpoint may pass, but Phase 0 as a whole must remain incomplete.
+An alternative rootless runtime is permitted only if it preserves an
+inspectable durable external identity and the same containment, termination,
+and restart semantics. A container around a Kanban submitting command does not
+establish agent isolation. If the actual worker boundary cannot be verified,
+Phase 0 remains incomplete.
 
 ### 5.5 Workspace and artifact limits
 
@@ -401,14 +447,17 @@ scientific records.
 ### 5.6 Durable identity and no-duplicate recovery
 
 The invocation lifecycle must preserve one durable identity across Method Hub
-and Hermes:
+and the rootless OCI runtime:
 
-1. Persist launch intent before contacting Hermes.
-2. Use a deterministic Hermes idempotency key derived from the invocation
-   identity.
-3. Persist the external Hermes task ID immediately after creation.
-4. Record heartbeats and the last observed external state.
-5. Seal one terminal closure after a confirmed terminal outcome.
+1. Persist launch intent before contacting the runtime.
+2. Create one container under a deterministic invocation label without
+   automatic removal.
+3. Persist the actual container ID immediately after creation and before start.
+4. Verify the realized image, profile bundle, security, network, and execution
+   policy digests immediately before start.
+5. Record heartbeats and the last observed runtime state.
+6. Seal one terminal closure only after a confirmed terminal outcome and
+   quiescent output.
 
 Introduce the minimum lease or fencing mechanism needed to ensure that only
 one Method Hub worker may advance an invocation at a time.
@@ -417,31 +466,31 @@ Startup reconciliation must distinguish at least:
 
 - intent persisted, external creation not attempted;
 - external creation may have occurred, acknowledgement not persisted;
-- external task acknowledged and still running;
-- external task terminal, local closure missing;
+- container acknowledged but not started;
+- container acknowledged and still running;
+- container terminal, local closure missing;
+- termination requested but terminal state or quiescence remains unresolved;
 - local closure already sealed.
 
-**Tested transport decision (A3).** Live Hermes documentation confirms that
-repeating task creation with the same idempotency key returns the original
-task ID instead of creating a duplicate — **for non-archived tasks**. The
-reconciliation rule is therefore:
+**Completion-path reconciliation decision.** The runtime container ID and its
+deterministic invocation label are the only accepted external identities.
 
-- For the create-before-acknowledgement window, re-issue creation with the
-  deterministic idempotency key and adopt the returned task ID. The 0-pre
-  spike must verify this behavior on the supported Hermes version.
-- **Archived-task hole:** if the original task was archived (the current
-  cancellation mechanism archives), re-creation with the same key may create
-  a new task. Recovery must therefore first resolve any task — including
-  archived ones — bound to the invocation identity, and must treat a prior
-  cancellation record as terminal. A cancelled invocation is never revived by
-  reconciliation.
-- If the spike shows lookup-by-key and idempotent re-creation are both
-  unreliable, the invocation remains unresolved and fenced for operator
-  inspection. Recovery must not create another task merely because the
-  external ID is missing locally.
+- If creation may have occurred before acknowledgement, query by the
+  deterministic label and adopt exactly one matching container.
+- If the container was durably acknowledged but not started, restart may start
+  that same container after the realized-policy check passes.
+- If an acknowledged container is absent, seal failure or retain an unresolved
+  fenced state. Never create a replacement.
+- Do not configure automatic container removal before the local closure is
+  durable and its evidence has been collected.
+- Cleanup after closure must be idempotent and must not erase retained
+  diagnostic evidence before its configured retention boundary.
+- If runtime inspection, worker termination, or output quiescence cannot be
+  confirmed, keep the invocation in an unresolved, fenced, nonterminal state.
 
-The RoleExecutor protocol may be extended if reconciliation by external task
-ID alone cannot represent the verified recovery behavior.
+The archived-task idempotency hole remains relevant only to the development
+Kanban adapter. It is one reason that adapter cannot establish the Phase 0
+completion boundary.
 
 Infrastructure recovery may reconnect to the same invocation. It must never
 retry the scientific task as a new invocation. A new role call always requires
@@ -456,37 +505,32 @@ The cancellation path must:
 
 1. record the cancellation request;
 2. fence new work for the invocation;
-3. stop the local control process and its descendants when present;
-4. request cancellation of the external Hermes task through a mechanism whose
-   semantics the 0-pre spike has verified;
-5. poll or otherwise verify the external terminal state;
-6. record whether termination was confirmed;
-7. seal the final diagnostic closure.
+3. request graceful stop of the recorded container;
+4. wait for the fixed grace interval and hard-kill the same container if it
+   remains active;
+5. inspect until the container and its process set are terminal;
+6. verify that output size and modification times are quiescent;
+7. record whether termination and quiescence were confirmed;
+8. seal the final diagnostic closure only after confirmation.
 
-Killing the local Hermes command does not prove that an external or daemon-run
-agent stopped. Sending an archive or cancel request, or observing an archived
-task label, also does not prove termination unless the supported Hermes
-contract guarantees that meaning and an integration test verifies it.
-Confirmed cancellation requires evidence that the actual worker stopped and
-that output writes became quiescent. The final state must distinguish
-confirmed cancellation from an unresolved external task.
+If runtime inspection, process termination, or output quiescence cannot be
+confirmed, the invocation remains unresolved, fenced, and nonterminal. The UI
+must not describe it as successfully cancelled, and recovery must not create a
+replacement container.
 
-**Requeue hazard (A4).** Documented dispatcher behavior: when a task exceeds
-its runtime cap, the dispatcher SIGTERMs (then SIGKILLs) the worker and
-**re-queues the task**. A re-queued task can start a second worker after the
-local invocation has already recorded timeout or failure — a duplicate
-scientific invocation. The timeout protocol must therefore:
+**Track A transport note.** Kanban archive status does not prove worker
+termination. Dispatcher timeout can also requeue a Kanban task. The development
+adapter must retain its no-requeue and archived-task protections, but neither
+behavior is part of the one-shot completion path. The one-shot timeout protocol
+must instead prove that:
 
-- verify on the supported Hermes version how `--max-runtime`, the dispatcher's
-  failure limit, and `--max-retries 0` interact (0-pre spike);
-- prevent re-dispatch of a timed-out diagnostic task, or detect and fence the
-  re-queued instance before it starts work;
-- never treat dispatcher kill-and-requeue as a terminal outcome without
-  evidence that no further worker will start.
+- the recorded container cannot restart automatically;
+- no second container exists for the invocation label;
+- termination and output quiescence satisfy the same cancellation gate.
 
 Timeout uses the same termination protocol. If termination cannot be
 confirmed, the interface must report an unresolved operational condition and
-block any action that could duplicate or conflict with that task.
+block any action that could duplicate or conflict with that invocation.
 
 ### 5.8 Minimal diagnostic interface
 
@@ -496,20 +540,19 @@ not the complete researcher interface planned later.
 The interface must show:
 
 - a prominent diagnostic and non-publishing label;
-- Hermes preflight checks and disabled reasons (including board hygiene);
+- Hermes, rootless-runtime, profile-bundle, network, and quota preflight checks
+  with disabled reasons;
 - selected disposable profile and non-secret model/provider metadata;
 - configured execution limits;
 - one explicit start action;
-- invocation ID and external task ID when available;
-- lifecycle state mapped from the **real kanban status enum** (A5): `triage`,
-  `todo`, `ready`, `running`, `blocked`, `done`, `review`, `scheduled`,
-  `archived` — with documented Method Hub semantics for each, and no reliance
-  on nonexistent `failed`/`cancelled` statuses;
+- invocation ID and actual container ID when available;
+- typed diagnostic lifecycle state, including preflight blocked, creating,
+  acknowledged, running, cancellation requested, terminating, succeeded,
+  failed, cancelled, and unresolved;
 - current activity, heartbeat, and elapsed time;
-- bounded and redacted control-process stdout and stderr (Domain 1);
-- bounded structured agent events from the kanban event stream — `tail`,
-  `log`, `runs`, `heartbeat` (Domain 2) — without inventing streams that
-  Hermes does not provide;
+- bounded and redacted runtime and Hermes stdout and stderr;
+- only the structured runtime or Hermes events verified by the one-shot spike,
+  without inventing an event stream;
 - bounded Method Hub system events;
 - one cancellation action when cancellation is legal;
 - terminal outcome and smallest safe next step;
@@ -526,11 +569,13 @@ explicit development setting enables it. Remote use is outside Phase 0.
 
 Phase 0 should be delivered in small, reviewable checkpoints.
 
-### Checkpoint 0-pre: Transport reconnaissance spike (A7)
+### Historical Track A transport reconnaissance (A7)
 
-Before any checkpoint code is written, answer the behavioral questions that
-shape the design, on a disposable board with tasks parked in a non-dispatching
-status (or assigned to a nonexistent profile) so no real agent runs:
+These questions shaped the development Kanban adapter. The completed findings
+record is intentionally scoped as exploratory because the required script and
+some evidence remain absent. The exploration used a disposable board with
+tasks parked in a non-dispatching status, or assigned to a nonexistent
+profile, so no real agent ran. It asked:
 
 1. Idempotent create: does repeating `create` with the same idempotency key
    return the original task ID? Does it still do so after the original task
@@ -550,10 +595,23 @@ status (or assigned to a nonexistent profile) so no real agent runs:
 
 Run the spike as a recorded script from a plain operator shell (not from an
 agent session). Publish the findings as a short note under
-`architecture/plans/` and cite them in the affected checkpoints.
+`architecture/plans/completed/` and cite them in the affected checkpoints.
 
-Gate: every behavioral assumption in Sections 5.6–5.8 cites either spike
-evidence or a mock marked "unverified — integration test required."
+This material is Track A evidence only and does not control Sections 5.4-5.8.
+
+### Checkpoint 0-pre-B: One-shot Hermes semantics spike
+
+Before completion-path code is written, verify the supported one-shot command
+or API, exact profile selection, sanitized profile layout, task-brief delivery,
+workspace behavior, declared skill and tool loading, provider configuration,
+output and exit semantics, signal handling, descendant processes, and output
+quiescence.
+
+Run the spike through a recorded script on a disposable Linux host and store a
+redacted findings note. Do not infer one-shot behavior from the Kanban adapter.
+
+Gate: every one-shot assumption in Sections 5.4-5.8 cites the spike, supported
+upstream documentation, or a blocking integration test.
 
 ### Checkpoint 0A: Define the diagnostic boundary
 
@@ -566,39 +624,38 @@ Gate: a fake diagnostic invocation completes without changing formal state.
 
 ### Checkpoint 0B: Verify Hermes and profiles
 
-- Implement executable or endpoint discovery.
+- Implement rootless runtime, image, and Hermes one-shot discovery.
 - Establish the supported-version policy.
-- Verify board, transport, profile, and required capabilities.
-- **Verify and document the worker topology (A1):** where the dispatcher runs,
-  where workers are spawned, and at which boundary isolation is enforced.
-- **Verify board hygiene (A2):** no gateway other than the designated
-  diagnostic gateway can claim the diagnostic board.
-- Implement the recorded provisioning procedure for the diagnostic board and
-  disposable profile (A8).
+- Verify the sanitized profile bundle and required runtime capabilities.
+- Verify and document that the one-shot container is the actual agent and tool
+  boundary, with no gateway or host dispatcher involved.
+- Verify the realized image, profile, execution, security, and network policy
+  digests before start.
+- Implement recorded provisioning for the pinned image and disposable profile
+  bundle.
 - Return structured redacted preflight results.
 
-Gate: valid and invalid configurations are distinguished before task creation,
-and the worker-topology note names the isolation enforcement point with test
+Gate: valid and invalid configurations are distinguished before container creation,
+and the topology note names the isolation enforcement point with test
 evidence.
 
 ### Checkpoint 0C: Build the bounded supervisor
 
 - Replace inherited environment handling.
-- Stream and cap control-process output (Domain 1).
-- Add incremental, bounded, redacted reading of the kanban event stream
-  (Domain 2).
-- Add timeout and process-group termination.
+- Stream and cap runtime and Hermes stdout and stderr while produced.
+- Retain only structured events established by the one-shot spike.
+- Add timeout, whole-container termination, and output-quiescence checks.
 - Add secret redaction and structured failure results.
 
 Gate: infinite output, a hung process, and a secret-canary test remain within
-fixed memory, time, and disclosure bounds — in both output domains.
+fixed memory, time, and disclosure bounds.
 
 ### Checkpoint 0D: Enforce the execution workspace
 
-- Constrain the actual agent and tools under the Section 5.4 topology:
-  dedicated disposable profile, containerized diagnostic gateway, single
-  diagnostic board.
+- Constrain the actual agent and tools under the Section 5.4 one-shot topology
+  using a sanitized allowlisted profile bundle.
 - Materialize only declared synthetic inputs.
+- Exclude profile memory, history, caches, logs, undeclared resources, and credentials.
 - Enforce write-root, path, network, and artifact quotas.
 - Produce the final access and artifact inventories.
 
@@ -607,14 +664,19 @@ and digest-verified.
 
 ### Checkpoint 0E: Complete durable supervision
 
-- Persist launch intent and acknowledgement.
-- Verify idempotent external creation, including the archived-task rule (A3).
-- Prevent or fence dispatcher requeue after runtime-cap expiry (A4).
-- Add lease, fencing, heartbeat, and terminal closure.
-- Implement confirmed cancellation and startup reconciliation.
+- Persist launch intent, deterministic invocation label, container
+  acknowledgement, and the actual container ID.
+- Reconcile creation-before-acknowledgement by label and
+  acknowledgement-before-start by reusing the same policy-checked container.
+- Add leases, fencing, heartbeats, and terminal closure.
+- Implement confirmed cancellation, startup reconciliation, and output
+  quiescence checks.
+- Keep ambiguous termination or identity in a fenced unresolved state. Never
+  create a replacement container automatically.
 
-Gate: interruption at every launch boundary produces at most one external task
-and one terminal local closure; a timed-out task never starts a second worker.
+Gate: interruption at every launch boundary produces at most one container
+and one durable closure or unresolved record. Timeout never restarts or
+duplicates the container.
 
 ### Checkpoint 0F: Add the diagnostic viewer
 
@@ -644,25 +706,28 @@ state. It is a transport observation, not the Phase 0 exit gate.
 | Test area | Required case | Required result |
 |---|---|---|
 | Preflight | Hermes absent or unsupported | Launch disabled with a stable reason |
-| Preflight | Host gateway can claim the diagnostic board | Launch disabled with a board-contested reason (A2) |
-| Profile | Profile missing, inaccessible, or incompatible | No external task created |
+| Preflight | Completion path invokes a host gateway or Kanban board | Launch disabled because the actual worker boundary would be outside the recorded container |
+| Profile | Profile missing, inaccessible, incompatible, or digest-mismatched | No container created or started |
 | Environment | Secret canaries in unrelated host variables | Canaries absent from child environment, logs, and artifacts |
 | Memory | Pre-seeded profile-memory canary | Canary absent unless the exact memory resource was declared |
 | Console | Infinite or oversized available log stream | Process stopped within configured memory and byte bounds |
-| Agent events | Oversized kanban event stream | Bounded retained budget enforced with stable truncation reason |
+| Agent events | Oversized one-shot log or verified event stream | Bounded retained budget enforced with stable truncation reason |
 | Time | Hung control command or role | Bounded termination protocol begins and outcome is recorded |
-| Time | Runtime-cap expiry with dispatcher requeue (A4) | No second worker starts; re-queued task fenced or prevented; invocation recorded once |
+| Time | Runtime-cap expiry | Recorded container is terminated, cannot restart automatically, and no second container exists |
 | Workspace | Absolute path, traversal, link, socket, or undeclared output | Access or collection rejected without formal effects |
 | Storage | Oversized file, too many files, or excess total growth | Execution stopped or output rejected within disk bounds |
 | Network | Undeclared destination | Connection denied and attempt recorded without secret data |
 | Launch | Crash before external creation | Safe restart without duplicate work |
-| Launch | Crash after creation but before local acknowledgement | Original task adopted via idempotency key or marked unresolved, never duplicated (A3) |
-| Launch | Reconciliation of an invocation with a prior cancellation record | Cancelled invocation stays terminal; archived-task idempotency hole cannot spawn a new task (A3) |
-| Recovery | Restart while external task runs | Same task reconciled using its durable identity |
-| Cancellation | Cancel before and after acknowledgement | Exactly one terminal outcome and no surviving task |
+| Launch | Crash after creation but before local acknowledgement | Original container adopted by deterministic label or marked unresolved, never duplicated |
+| Launch | Crash after acknowledgement but before start | Same created container is policy-checked and started at most once |
+| Launch | Reconciliation after a cancellation request | Same container remains fenced; no replacement is created |
+| Recovery | Restart while external container runs | Same container reconciled using its durable identity |
+| Cancellation | Cancel before and after acknowledgement | One closure or unresolved state, with no unaccounted container, process, or write activity |
 | Cancellation | External stop cannot be confirmed | Unresolved state shown and duplicate launch blocked |
 | Closure | Malformed or missing declared output | Operational failure with bounded retained diagnostics |
-| UI | Refresh, double click, and stale action | No duplicate task and stable current projection |
+| Retention | Repeated diagnostics exceed aggregate limits | Only expired closed diagnostic material is removed |
+| Gating | Diagnostic executor is configured | No scientific phase action or run becomes enabled |
+| UI | Refresh, double click, and stale action | No duplicate container and stable current projection |
 | Fencing | Two coordinators, lease takeover, then stale-worker resume | Stale token cannot launch, heartbeat, cancel, or close |
 | Authority | Formal scientific state before and after every case | Generations, authority journal, current indexes, method records, and receipts are unchanged |
 
@@ -676,25 +741,30 @@ The Phase 0 pull requests must leave a reviewable evidence package containing:
 
 1. Baseline and final architecture, backend, and frontend test results.
 2. Supported Hermes and isolation-runtime versions.
-3. The 0-pre transport reconnaissance spike note and script.
-4. Redacted preflight report, including board hygiene and worker topology.
-5. The recorded provisioning procedure for board, disposable profile, and
-   container image.
-6. Diagnostic request and execution-policy digest.
-7. Durable launch intent, external acknowledgement, heartbeat sequence, and
-   terminal closure for one successful invocation.
+3. The archived Track A findings plus the one-shot spike note and script.
+4. Redacted preflight report, including runtime, image, profile-bundle, network, and worker-boundary checks.
+5. The recorded provisioning procedure for the container image and sanitized
+   disposable profile bundle.
+6. Diagnostic request, profile-bundle, network, and execution-policy digests.
+7. Durable launch intent, actual container acknowledgement, heartbeat sequence,
+   and terminal closure for one successful invocation.
 8. Bounded log metadata showing retained bytes and any truncation, for both
    output domains.
 9. Input, access, and output inventories with digests.
 10. One confirmed cancellation trace.
-11. One restart-reconciliation trace from a launch-boundary interruption.
-12. One runtime-cap expiry trace proving no second worker started.
-13. Test evidence that escape, quota, secret, and duplicate-launch probes fail
+11. One unresolved-termination trace proving that the invocation remains
+    fenced and nonterminal.
+12. Restart-reconciliation traces for interruption after container creation
+    but before acknowledgement, and after acknowledgement but before start.
+13. One runtime-cap expiry trace proving that the container did not restart
+    and no replacement container was created.
+14. Realized-policy mismatch and aggregate-retention traces.
+15. Test evidence that escape, quota, secret, and duplicate-launch probes fail
     safely.
-14. Inventories proving that formal generations, authority events, current
+16. Inventories proving that formal generations, authority events, current
     indexes, method records, and publication receipts did not change.
     Expected diagnostic execution records must be listed separately.
-15. A short operator note explaining how to provision, enable, run, inspect,
+17. A short operator note explaining how to provision, enable, run, inspect,
     cancel, and disable diagnostic execution.
 
 The evidence package must not contain access tokens, model credentials,
@@ -708,21 +778,30 @@ Phase 0 is complete only when all of the following are true:
 - one real Hermes role succeeds through the complete isolated path;
 - success, failure, timeout, confirmed cancellation, and unresolved
   termination are represented correctly;
-- a runtime-cap expiry never produces a second worker;
+- a runtime-cap expiry cannot restart the recorded container or create a
+  replacement;
 - console and artifact growth are bounded while they are produced, in both
   output domains;
 - the actual agent execution, not only the submitting command, is confined,
   at the topology boundary documented in Checkpoint 0B;
-- the diagnostic board is claimed only by the designated diagnostic gateway;
-- restart recovery never creates a second task for the same invocation,
-  including across the archived-task idempotency hole;
+- the one-shot container is the actual agent and tool boundary, with no host
+  gateway or Kanban dispatcher involved;
+- the realized image, profile, execution, security, and network policy
+  digests are verified before the container starts;
+- restart recovery adopts or reuses only the same uniquely identified
+  container and never creates a replacement;
+- ambiguous identity, termination, or output quiescence remains unresolved,
+  fenced, and nonterminal;
+- aggregate retention bounds repeated diagnostic use without deleting active
+  or unresolved evidence;
 - no secret appears in logs, task material, artifacts, or evidence;
 - the local diagnostic UI exposes enough information to control and diagnose
   the run;
 - all required automated tests pass;
+- diagnostic persistence remains separate from scientific run records;
 - all formal scientific records and authority data remain unchanged, while
   expected diagnostic execution records are complete and accounted for;
-- the executor remains disabled for publishable research runs.
+- no scientific phase action is enabled by the diagnostic executor.
 
 Passing the connectivity checkpoint alone is not Phase 0 completion.
 
@@ -758,8 +837,6 @@ Programmers may choose, based on verified Hermes behavior:
 - lease duration and heartbeat interval;
 - whether a disposable connectivity test and isolated execution test use the
   same profile;
-- an alternative worker topology, provided it names and tests the isolation
-  enforcement point for the actual agent;
 - internal module boundaries.
 
 Any alternative must produce the same observable safety and recovery evidence.
@@ -769,6 +846,9 @@ Configuration values should be explicit and testable, not hidden constants.
 
 Stop and create or update an architecture decision before implementation if
 the actual situation would require:
+
+- changing the one-shot container as the actual agent boundary or adopting an
+  alternative worker topology;
 
 - allowing Hermes direct access to formal storage;
 - weakening the rootless or capability boundary;

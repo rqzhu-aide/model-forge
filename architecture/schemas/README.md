@@ -259,7 +259,7 @@ and smallest correction. It must not claim to prove scientific truth.
 
 ## Examples
 
-The sibling `../examples/` directory contains 57 valid examples covering every
+The sibling `../examples/` directory contains 58 valid examples covering every
 persisted object schema except `common-definitions`, `phase-contract`, and the
 two registry schemas. The five split phase contracts instantiate
 `phase-contract`; `contracts/digest-contracts.json` and

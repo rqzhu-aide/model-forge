@@ -81,6 +81,7 @@ VALID_EXAMPLES = {
     "role-profile.example.json": "role-profile.schema.json",
     "run-cancellation-command.example.json": "run-cancellation-command.schema.json",
     "run-command.example.json": "run-command.schema.json",
+    "run-command-with-sealed-basis.example.json": "run-command.schema.json",
     "run-manifest.example.json": "run-manifest.schema.json",
     "run-state.example.json": "run-state.schema.json",
     "run-submission.example.json": "run-submission.schema.json",

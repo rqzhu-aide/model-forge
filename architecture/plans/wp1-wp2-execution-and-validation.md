@@ -1,15 +1,42 @@
 # WP1 + WP2: Production Execution Boundary and Output Validation
 
-Status: Draft plan (2026-08-03), Revision 1 (2026-08-03)
+Status: Partially implemented scaffolding (audited 2026-08-03). Both exit gates remain open.
+
+## Implementation audit
+
+The current commit adds useful prototypes for Bubblewrap execution, capability
+materialization, network policy, invocation fencing, output adaptation, and
+phase-specific validation. These are foundations, not accepted WP1 or WP2
+deliverables.
+
+WP1 remains open because the prototype has no runtime-resolvable external
+identity, so cancellation and reconciliation cannot work; it mounts the whole
+Hermes home; selected profiles and skills are not applied; allowlist mode
+shares the host network; output is buffered before truncation; and fencing is
+in-memory rather than durable and enforced across coordinators. No real
+Bubblewrap or OCI isolation, restart, cancellation, quota, or network test has
+passed.
+
+WP2 remains open because adapter results are discarded instead of being sealed
+into the submission and publication path; companion artifacts are inferred
+from filenames; some post-execution validation failures do not preserve raw
+output; and several validators inspect fields that do not match the registered
+schemas. The fixtures are architecture examples, not a complete set of actual
+Hermes outputs for every role and mode.
+
+Keep `oci` unavailable to scientific runs. The existing sections below retain
+the intended target design, but their earlier completion labels are superseded
+by this audit and by the Exit Gates.
 
 ## Revision 1 changelog
 
-Reviewed against the current source (289 backend tests passing) and the
-[Phase 0 spike findings](phase-0-spike-findings.md). The "What exists" table
-verified accurate (hardened Hermes adapter, WP0 sealed basis, both role-context
-schemas, output/submission validators, referenced type names). Corrections:
+Revision 1 was reviewed against the pre-`fb326de` source and an
+environment-specific passing backend baseline. It also used the
+[Phase 0 spike findings](completed/phase-0-spike-findings.md). Its inventory is
+retained as design history. The current implementation status is the audit
+above. Revision 1 corrections were:
 
-1. **C1 — Gap-table premise wrong: `reconcile()` IS exercised in recovery.**
+1. **C1 - Gap-table premise wrong: `reconcile()` IS exercised in recovery.**
    `resume_incomplete` (`run_coordinator.py:142`) reschedules every
    nonterminal run; stage execution reaches `execute_or_reconcile`
    (`role_execution.py:67`), which calls `executor.reconcile(external_id)`
@@ -18,36 +45,36 @@ schemas, output/submission validators, referenced type names). Corrections:
    the same invocation) and a **coordinator-level no-rerun guarantee**.
    Deliverable D1.4 is reframed accordingly; building a second reconciliation
    path on the wrong premise would duplicate an existing one.
-2. **C2 — The central WP1 design decision was unspecified: how Hermes runs
+2. **C2 - The central WP1 design decision was unspecified: how Hermes runs
    inside the container.** Spike finding 4 confirmed that containerizing a
    kanban-submitting CLI isolates nothing, because the gateway spawns the
    worker. Section "In-container invocation mechanism" now records the
    decision point and a recommendation (one-shot `hermes -z` inside the
    container), since cancellation, reconciliation, log capture, and profile
    mounting all depend on it.
-3. **C3 — WP4 dependency was silent.** The Operational Completion Plan
+3. **C3 - WP4 dependency was silent.** The Operational Completion Plan
    requires WP4 (reproducible profiles, reviewer isolation) to finish before
    WP2 is accepted. Two items here depend on it: the manifest pinning of
    "role profile + model configuration" (the sealed basis carries profile
    name/version/soul/skills, not model configuration) and WP2's Phase 5
    closed-review-packet validation (needs the reviewer no-memory
    attestation). The implementation sequence now states this.
-4. **C4 — Secret injection and network reality added.** `deny_all` cannot run
-   a real role — the model provider is remote. Real invocations need
+4. **C4 - Secret injection and network reality added.** `deny_all` cannot run
+   a real role - the model provider is remote. Real invocations need
    allowlist mode scoped to the provider endpoint plus runtime injection of
    the minimum API credential, kept out of images, manifests, logs, and
    artifacts (completion-plan WP1 deliverable 9). Added to D1.1/D1.3.
-5. **C5 — D1.4 no longer duplicates durable records.** Launch intent,
+5. **C5 - D1.4 no longer duplicates durable records.** Launch intent,
    acknowledgement, heartbeat, and closure are already persisted
    (`role_execution_*` tables) and already drive recovery. The lease
    deliverable is now scoped to its genuinely new content: fencing token,
    lease expiry, and coordinator-level single-advancement.
-6. **C6 — Golden fixtures unblocked from the OCI executor.** Track A (the
-   hardened kanban adapter, dev-only) already produces real Hermes output —
+6. **C6 - Golden fixtures unblocked from the OCI executor.** Track A (the
+   hardened kanban adapter, dev-only) already produces real Hermes output -
    the 0G connectivity test passed. Output *validity* is executor-agnostic;
    D2.3 fixtures can be captured via Track A while WP1 is in flight, then
    re-confirmed on OCI in Phase C.
-7. **C7 — Minor:** lifecycle row now includes the `prepared` state; the plan
+7. **C7 - Minor:** lifecycle row now includes the `prepared` state; the plan
    now references the spike findings and the Track A/B framing throughout.
 
 ---
@@ -65,38 +92,54 @@ schemas, output/submission validators, referenced type names). Corrections:
 
 ## Current State
 
-### What exists
+### Audited current state
+
+| Area | Current status | Acceptance gap |
+|---|---|---|
+| Development Kanban adapter | Partial, development-only | Synthetic connectivity passed, but archived status does not prove worker termination |
+| Bubblewrap executor | Scaffold only | No runtime-resolvable identity, effective cancellation, reconciliation, or real sandbox test |
+| Capability and network modules | Scaffold only | Broker paths are not used by the role and provider allowlisting is not enforced |
+| Invocation fencing | Scaffold only | State is in memory and is not durable across coordinators |
+| Reviewed basis | Partial | Method-bound role resources and the complete executable profile basis are not sealed fail closed |
+| Output adapters | Scaffold only | Adapted companion artifacts are discarded before submission and publication |
+| Scientific validators | Scaffold only | Several checks do not match the registered schemas and fixtures are not complete actual-Hermes captures |
+
+The development harness, fake executors, generic lifecycle, output planning,
+and structural schema validation remain usable. They do not satisfy the WP1 or
+WP2 exit gates.
+
+### Original Revision 1 inventory, superseded by the audit above
 
 | Component | Status | Location |
 |---|---|---|
-| `RoleExecutor` protocol | ✅ Complete | `executors/protocol.py` — execute/cancel/reconcile + ExecutionObserver |
-| `DeterministicFakeExecutor` | ✅ Complete | `executors/fake.py` — deterministic output from schema examples |
-| `SchemaExampleFakeExecutor` | ✅ Complete | `executors/development.py` — extends fake with architecture examples |
-| `HermesKanbanExecutor` (Track A) | ✅ Hardened (dev-only) | `executors/hermes.py` — bounded streaming subprocess, env allowlist, secret redaction, real status mapping, `--max-retries 1` no-requeue, confirmed cancellation, archived-task hole rule, Domain 2 log capture. Passed the 0G real connectivity test ([spike findings](phase-0-spike-findings.md)) |
-| `OutputPlan` + `OutputSpec` | ✅ Complete | `harness/outputs.py` — contract-derived output planning |
-| `validate_role_outputs` | ✅ Complete | `harness/outputs.py:139` — structural acceptance (path safety, JSON shape, schema validation) |
-| `validate_submission` | ✅ Complete | `harness/submission_validation.py:34` — recheck bytes, provenance, schemas, method identity, phase semantics (`_validate_phase_semantics`, line 312) |
-| `RunCoordinator` lifecycle | ✅ Complete | `application/run_coordinator.py` — created→preparing→prepared→running→submitted→validating→promoting→published (plus cancelled/failed/rejected/conflicted) |
-| `HarnessExecutionServices` | ✅ Complete | `harness/stage_execution.py` — stage execution, role lifecycle, submission assembly |
-| `RoleInvocation` dataclass | ✅ Complete | `executors/protocol.py` — execution_id, workspace, task_brief, expected_output_paths |
-| Role context snapshot schema | ✅ Defined | `schemas/role-context-snapshot.schema.json` — not yet materialized at runtime |
-| Prepared role context schema | ✅ Defined | `schemas/prepared-role-context.schema.json` — not yet materialized at runtime |
-| WP0 sealed basis | ✅ Complete | authority head, input generations, method identity, role resources sealed in command; `STALE_BASIS` registered (`api/errors.py`, MH-49) |
+| `RoleExecutor` protocol | ✅ Complete | `executors/protocol.py` - execute/cancel/reconcile + ExecutionObserver |
+| `DeterministicFakeExecutor` | ✅ Complete | `executors/fake.py` - deterministic output from schema examples |
+| `SchemaExampleFakeExecutor` | ✅ Complete | `executors/development.py` - extends fake with architecture examples |
+| `HermesKanbanExecutor` (Track A) | Partial, development-only | Status and retry handling, environment filtering, profile preflight, and one synthetic run are verified. Archived status does not prove worker termination. See the [spike findings](completed/phase-0-spike-findings.md). |
+| `OutputPlan` + `OutputSpec` | ✅ Complete | `harness/outputs.py` - contract-derived output planning |
+| `validate_role_outputs` | ✅ Complete | `harness/outputs.py:139` - structural acceptance (path safety, JSON shape, schema validation) |
+| `validate_submission` | ✅ Complete | `harness/submission_validation.py:34` - recheck bytes, provenance, schemas, method identity, phase semantics (`_validate_phase_semantics`, line 312) |
+| `RunCoordinator` lifecycle | ✅ Complete | `application/run_coordinator.py` - created→preparing→prepared→running→submitted→validating→promoting→published (plus cancelled/failed/rejected/conflicted) |
+| `HarnessExecutionServices` | ✅ Complete | `harness/stage_execution.py` - stage execution, role lifecycle, submission assembly |
+| `RoleInvocation` dataclass | ✅ Complete | `executors/protocol.py` - execution_id, workspace, task_brief, expected_output_paths |
+| Role context snapshot schema | ✅ Defined | `schemas/role-context-snapshot.schema.json` - not yet materialized at runtime |
+| Prepared role context schema | ✅ Defined | `schemas/prepared-role-context.schema.json` - not yet materialized at runtime |
+| WP0 sealed basis | Partial | Initial command embedding and checks exist, but the complete method-bound role and executable profile basis is not sealed fail closed. |
 | Restart reconciliation | ✅ Complete | `resume_incomplete` → `execute_or_reconcile` → `executor.reconcile` for acknowledged in-flight invocations |
 
-### What does NOT exist
+### Original Revision 1 gap list, superseded by the audit above
 
 | Gap | WP | Impact |
 |---|---|---|
-| OCI container executor | WP1 | No isolation boundary; Track A roles run via the host gateway with ambient host access |
-| Capability broker | WP1 | No manifest-authorized file access; roles can read anything on disk |
-| Network policy enforcement | WP1 | No deny-by-default / allowlist proxy |
-| Invocation fencing + leases | WP1 | Two coordinators could advance the same invocation; no fencing token, no lease expiry |
+| Supported rootless OCI executor | WP1 | The Bubblewrap prototype is not a durable or verified production executor |
+| Enforced capability boundary | WP1 | Materialized inputs are not the paths given to the role and are not protected as read-only capabilities |
+| Network policy enforcement | WP1 | Allowlist mode currently grants the full host network instead of provider-only egress |
+| Durable invocation fencing + leases | WP1 | Two coordinators can advance the same invocation because fencing is process-local |
 | Coordinator-level no-rerun guarantee | WP1 | Recovery reconciles but nothing formalizes "one invocation, at most one external execution, ever" |
-| Per-role output adapters | WP2 | Agent writes free-form files; no structured extraction + artifact binding |
-| Phase-specific scientific validators | WP2 | Only generic structural validation exists |
-| Golden actual-Hermes fixtures | WP2 | No real output fixtures for conformance testing (unblockable via Track A — see C6) |
-| Phase-specific conformance suites | WP2 | Only schema-level structural tests exist |
+| Integrated per-role output adapters | WP2 | Adapted companion artifacts are discarded before submission and publication |
+| Schema-aligned scientific validators | WP2 | Several current checks are no-ops or inspect the wrong registered field shapes |
+| Golden actual-Hermes fixtures | WP2 | No real output fixtures for conformance testing (unblockable via Track A - see C6) |
+| Complete phase-specific conformance suites | WP2 | Existing tests demonstrate plumbing, not all real scientific role obligations |
 
 ---
 
@@ -106,14 +149,14 @@ schemas, output/submission validators, referenced type names). Corrections:
 
 Replace the direct-process Hermes Kanban executor with a rootless OCI container
 executor that isolates each role invocation. The executor must be the only path
-between a frozen role invocation and its workspace — no ambient filesystem,
+between a frozen role invocation and its workspace - no ambient filesystem,
 network, or database access.
 
 Track A (the hardened kanban adapter) remains available as a development-only
 executor. WP1 is Track B: the production isolation boundary. The Phase 0 plan's
 confinement exit criterion is satisfied here, not by Track A.
 
-### In-container invocation mechanism (decision required — C2)
+### In-container invocation mechanism (decision required - C2)
 
 Spike finding 4 established that the kanban dispatcher lives in the gateway and
 spawns workers there, so a container around a kanban-submitting CLI confines
@@ -147,10 +190,10 @@ RunCoordinator
   └─ HarnessExecutionServices
        └─ RoleLifecycleService
             └─ OciExecutor (NEW)
-                 ├─ ContainerRuntime (NEW — podman/crun wrapper)
-                 ├─ CapabilityBroker (NEW — manifest-authorized file access)
-                 ├─ NetworkProxy (NEW — deny-by-default + allowlist)
-                 └─ InvocationFence (NEW — fencing token + lease expiry on existing records)
+                 ├─ ContainerRuntime (NEW - podman/crun wrapper)
+                 ├─ CapabilityBroker (NEW - manifest-authorized file access)
+                 ├─ NetworkProxy (NEW - deny-by-default + allowlist)
+                 └─ InvocationFence (NEW - fencing token + lease expiry on existing records)
 ```
 
 ### Deliverables
@@ -160,21 +203,21 @@ RunCoordinator
 Wraps a rootless OCI runtime (podman + crun). Each role invocation creates one
 ephemeral container with:
 
-- **Read-only root filesystem** — the runtime image is mounted read-only
-- **Private user namespace** — UID mapping with no host privileges
-- **No Linux capabilities** — `--cap-drop=ALL`
-- **No-new-privileges** — `--security-opt=no-new-privileges`
-- **Pinned seccomp policy** — `--security-opt=seccomp=<profile>`
-- **One writable role root** — the invocation workspace, bind-mounted
-- **Container-local `HERMES_HOME`** — carries only the sealed role profile;
+- **Read-only root filesystem** - the runtime image is mounted read-only
+- **Private user namespace** - UID mapping with no host privileges
+- **No Linux capabilities** - `--cap-drop=ALL`
+- **No-new-privileges** - `--security-opt=no-new-privileges`
+- **Pinned seccomp policy** - `--security-opt=seccomp=<profile>`
+- **One writable role root** - the invocation workspace, bind-mounted
+- **Container-local `HERMES_HOME`** - carries only the sealed role profile;
   no ambient host home directory, no other profiles, no host kanban boards
-- **No formal-storage credentials** — no DB path, no artifact store path
-- **No ambient project files** — only the capability broker's materialized inputs
-- **Runtime secret injection (C4)** — the minimum model-provider credential is
+- **No formal-storage credentials** - no DB path, no artifact store path
+- **No ambient project files** - only the capability broker's materialized inputs
+- **Runtime secret injection (C4)** - the minimum model-provider credential is
   injected as an environment variable at container launch. It never appears in
   the image, the manifest, the task brief, logs, artifacts, or formal records.
   Captured output passes the same redaction patterns as the Track A adapter
-  (`executors/hermes.py:86–104`).
+  (`executors/hermes.py:86-104`).
 
 ```python
 @dataclass(frozen=True, slots=True)
@@ -213,7 +256,7 @@ class OciExecutor:
 - Executor profile digest (the OciExecutorSettings content hash)
 - Hermes version (from the image label)
 - Role profile + model configuration (from the sealed basis **plus WP4 profile
-  metadata** — see C3; the sealed basis alone does not carry model config)
+  metadata** - see C3; the sealed basis alone does not carry model config)
 - Resource limits (CPU, memory, PID)
 - Network policy (deny_all or allowlist with proxy config)
 - Process/mount/user/security settings
@@ -288,11 +331,11 @@ reachable from inside the container (host gateway address or a shared
 namespace); the chosen mechanism must be covered by an integration test, not
 assumed.
 
-#### D1.4: Invocation fencing (`harness/invocation_fencing.py`) — rescoped (C1, C5)
+#### D1.4: Invocation fencing (`harness/invocation_fencing.py`) - rescoped (C1, C5)
 
 Recovery reconciliation already exists and works. The new content is fencing
 and a formal no-rerun guarantee, built on the **existing** `role_execution_*`
-durable records (intent, acknowledgement, heartbeat, closure) — not a parallel
+durable records (intent, acknowledgement, heartbeat, closure) - not a parallel
 lease store:
 
 - **Fencing token**: a monotonically increasing token issued per coordinator
@@ -355,18 +398,18 @@ When `executor_kind == "oci"`:
 
 Move from schema-example structural conformance to real phase execution. Each
 role's free-form agent output must be extracted, validated, and bound to formal
-records — without allowing filename inference or prose parsing to create formal
+records - without allowing filename inference or prose parsing to create formal
 content.
 
 ### Architecture
 
 ```
 Role agent produces files in workspace
-  └─ OutputAdapter (NEW — per role × phase × mode)
+  └─ OutputAdapter (NEW - per role × phase × mode)
        ├─ Extract structured output from declared files
        ├─ Bind linked human-readable artifacts (PDFs, markdown, code)
        └─ Produce ValidatedOutput with provenance
-  └─ ScientificValidator (NEW — per phase × mode)
+  └─ ScientificValidator (NEW - per phase × mode)
        ├─ Verify required fields and cross-references
        ├─ Check method identity, input provenance, closure
        ├─ Reject cross-method, stale-version, untraceable output
@@ -400,12 +443,12 @@ class OutputAdapter(Protocol):
 The existing `validate_role_outputs` already handles structural validation (path
 safety, JSON shape, schema conformance). The adapter layer adds:
 
-1. **Linked artifact binding** — when an output references human-readable
+1. **Linked artifact binding** - when an output references human-readable
    companions (e.g., a proof PDF alongside the structured theory record), the
    adapter reads, digests, and registers them
-2. **Field normalization** — ensure mathematical notation, assumptions, and
+2. **Field normalization** - ensure mathematical notation, assumptions, and
    uncertainty are preserved in the structured fields
-3. **Negative-finding preservation** — ensure "method failed under condition X"
+3. **Negative-finding preservation** - ensure "method failed under condition X"
    passes through as a valid scientific outcome
 
 #### D2.2: Phase-specific scientific validators
@@ -414,29 +457,29 @@ The existing `validate_submission` has `_validate_phase_semantics` with basic
 checks (P1 duplicate source identity, P3/P4/P5 method identity). WP2 extends
 this to full phase-specific validation:
 
-**Phase 1 — Literature basis:**
+**Phase 1 - Literature basis:**
 - Deduplication: no stable literature identity repeats
 - Correction: source changes cite their prior generation
 - Cumulative synthesis: synthesis references every included source
 - Coverage: coverage record addresses the declared scope
 
-**Phase 2 — Method development:**
+**Phase 2 - Method development:**
 - Full-catalog: method records cover every declared method
 - Focused-method: exact version + definition digest matches the selected method
 - Lineage: method changes cite their prior version
 
-**Phase 3 — Theory development:**
+**Phase 3 - Theory development:**
 - Complete replacement: theory record covers all declared theorem statements
 - Proof map: every claim in the theory record has a proof or explicit conjecture
 - Assumption preservation: all assumptions from the method record are addressed
 
-**Phase 4 — Empirical development:**
+**Phase 4 - Empirical development:**
 - Evidence applicability: evidence references the exact method version
 - Four-slot atomic update: evidence_index, empirical_synthesis, implementation_record,
   and phase_decision all update together
 - Reproducibility: implementation record contains reproducible protocol
 
-**Phase 5 — Manuscript assembly:**
+**Phase 5 - Manuscript assembly:**
 - Exact aligned basis: manuscript references the exact theory, evidence, and method
 - Closed review packet: all review issues are dispositioned
 - Issue disposition: every open issue has a resolution or explicit deferral
@@ -444,7 +487,7 @@ this to full phase-specific validation:
 
 Note (C3): the Phase 5 closed-review-packet checks can be implemented now, but
 WP2 acceptance for Phase 5 additionally requires WP4's reviewer no-memory
-attestation — the validator cannot certify "closed packet" without executor
+attestation - the validator cannot certify "closed packet" without executor
 evidence that the reviewer session was isolated.
 
 Each validator is a function:
@@ -461,7 +504,7 @@ def validate_p1_literature(
 ) -> None: ...
 ```
 
-#### D2.3: Mutation test fixtures — capture path corrected (C6)
+#### D2.3: Mutation test fixtures - capture path corrected (C6)
 
 Golden fixtures do **not** need to wait for the OCI executor. Track A already
 produces real Hermes output (0G passed), and output validity is
@@ -472,8 +515,8 @@ For each phase mode, create golden fixtures and mutations:
 
 **Golden fixtures (positive):**
 - Complete, valid output from every role in every phase mode
-- Negative results (method fails, evidence contradicts theory) — must pass
-- Inconclusive outcomes (insufficient evidence) — must pass
+- Negative results (method fails, evidence contradicts theory) - must pass
+- Inconclusive outcomes (insufficient evidence) - must pass
 
 **Mutation fixtures (negative):**
 - Remove a required assumption from theory record → reject
@@ -486,7 +529,7 @@ For each phase mode, create golden fixtures and mutations:
 #### D2.4: Raw output preservation
 
 ```python
-# harness/stage_execution.py — RoleLifecycleService
+# harness/stage_execution.py - RoleLifecycleService
 def preserve_raw_output(
     self,
     *,
@@ -520,10 +563,10 @@ def preserve_raw_output(
 ## Implementation Sequence
 
 WP1 and WP2 share a dependency: WP2's fixtures need a real executor, but the
-executor's correctness (WP1) must be verified first. Track A relaxes this —
+executor's correctness (WP1) must be verified first. Track A relaxes this -
 fixture capture and adapter development can proceed against the hardened
-kanban adapter while the OCI boundary is built. **WP4 (reproducible profiles
-and reviewer isolation) starts after WP0 — now complete — and must finish
+kanban adapter while the OCI boundary is built. **WP0 remains partially implemented. WP4
+(reproducible profiles and reviewer isolation) starts after WP0 is complete and must finish
 before WP2 is accepted** (completion-plan dependency order; see C3).
 
 ### Phase A: WP1 core (executor + broker + fencing)

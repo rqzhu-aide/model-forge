@@ -4,6 +4,25 @@ Status: Active implementation plan
 
 Prepared: 2026-08-03
 
+## Current implementation checkpoint
+
+As of commit `fb326de`:
+
+- the sequential development harness and schema-example phase workflows remain
+  available;
+- Hermes v0.19.0 reconnaissance and one host-based synthetic connectivity run
+  are complete;
+- WP0 command sealing, WP1 containment, and WP2 output validation have initial
+  implementations, but none has passed its exit gate;
+- the Web interface has not yet gained the diagnostic log viewer or a complete
+  reviewed-basis display;
+- production scientific execution must remain disabled.
+
+The recommended next bounded package is
+[Complete the Non-Publishing Hermes Diagnostic Lane](next-block-hermes-diagnostic-closure.md).
+It finishes the controllable, inspectable, non-publishing execution path before
+the reviewed-basis and scientific-output gates are closed.
+
 This plan starts from the current Method Hub development baseline. It does not
 repeat the earlier architecture build order. It identifies what remains before
 the system may execute real research work as a supported, recoverable
@@ -59,11 +78,11 @@ Every implementation package in this plan must preserve these rules:
 
 | Area | Current state | Remaining boundary |
 |---|---|---|
-| Architecture package | 37 schemas, 57 valid examples, 16 rejected fixtures, 5 executable phase contracts, and cross-checked role/file guides | Several runtime representations and production attestations remain incomplete |
+| Architecture package | 37 schemas, 58 valid examples, 16 rejected fixtures, 5 executable phase contracts, and cross-checked role/file guides | Several runtime representations and production attestations remain incomplete |
 | Domain and storage | Typed identities, local durable storage, run state, publication, receipts, and deterministic reducers are implemented | Production concurrency, backup, restore, upgrade, and failure-injection evidence are incomplete |
-| Harness | Preparation, sequential stage advancement, closures, submission, validation, publication, cancellation, and restart recovery work with development executors | The exact researcher-reviewed basis is not sealed atomically at command acceptance |
-| Executors | Disabled, fake, and development-only direct Hermes paths exist | No supported rootless OCI executor, capability broker, or durable external-job reconciliation |
-| Scientific phases | All five phase plans run end to end with schema examples | Actual Hermes outputs have not passed production phase adapters and validators |
+| Harness | Preparation, sequential stage advancement, closures, submission, validation, publication, cancellation, and restart recovery work with development executors; an initial command basis is embedded | Method-bound role resources and the complete executable basis are not sealed or verified fail closed |
+| Executors | Disabled, fake, development Kanban, and initial Bubblewrap, capability, and fencing scaffolds exist | No supported rootless OCI executor, verified termination, provider-only network boundary, or durable external-job fencing |
+| Scientific phases | All five phase plans run end to end with schema examples; initial phase-validator modules exist | Validators are not yet schema-aligned or integrated with complete actual-Hermes output and artifact bindings |
 | Web interface | Project navigation, phase tabs, methods, runs, profiles, lifecycle controls, and current-state views exist | Complete role-output inspection, Phase 4 checkpoint display, rich scientific artifacts, and operational administration are incomplete |
 | Profiles and skills | Versioned role resources and recommended skill installation exist | Actual model/provider metadata, secret boundaries, resource drift handling, and reviewer no-memory attestation are incomplete |
 | Security and remote operation | Typed delegation contracts and application command boundaries are specified | Authentication, authorization enforcement, sessions, CSRF protection, and a supported remote client are absent |
@@ -72,7 +91,15 @@ Every implementation package in this plan must preserve these rules:
 
 ## 4. Dependency order
 
-The work must proceed in this order:
+For production scientific execution, WP0 remains the first hard gate in the
+dependency chain below.
+
+The current Phase 0 diagnostic block is a deliberate exception. It may
+implement only the non-publishing containment, reconciliation, and cancellation
+slices of WP1 before WP0. It must use separate diagnostic state and cannot
+enable or create a scientific run.
+
+Outside that diagnostic exception, the work must proceed in this order:
 
 ```text
 WP0 specification and reviewed-basis closure
@@ -637,19 +664,18 @@ Do not enable production execution when any of these remain:
 
 Use small pull requests with one observable gate each:
 
-1. Finish this namespace migration and preserve the passing development baseline.
-2. Add missing runtime schemas and state-specific RunState validation.
-3. Implement atomic reviewed-basis acceptance and preparation.
-4. Add reviewer-session attestation and the dedicated Phase 4 representations.
-5. Run one dummy role through the rootless OCI and capability-broker boundary.
-6. Add durable external-invocation reconciliation and cancellation tests.
-7. Validate one complete Phase 4 actual-Hermes run, then generalize the adapter
+1. Complete the [non-publishing Hermes diagnostic lane](next-block-hermes-diagnostic-closure.md),
+   including rootless containment, durable reconciliation, and cancellation.
+2. Close the exact reviewed-basis gate and add its missing runtime schemas and
+   state-specific validation.
+3. Complete profile metadata, reviewer-session attestation, resource-drift
+   checks, and the dedicated Phase 4 representations.
+4. Validate one complete Phase 4 actual-Hermes run, then generalize the adapter
    pattern to the other phases.
-8. Add the complete run packet and scientific artifact viewer.
-9. Complete profile metadata, resource drift checks, and reviewer isolation.
-10. Add authentication, bounded remote delegation, and parity tests.
-11. Add operational repair, backup/restore, and failure injection.
-12. Package the supported Linux deployment and run the pilot release gates.
+5. Add the complete run packet and scientific artifact viewer.
+6. Add authentication, bounded remote delegation, and parity tests.
+7. Add operational repair, backup/restore, and failure injection.
+8. Package the supported Linux deployment and run the pilot release gates.
 
 Every pull request must state the affected invariant, contract, schema,
 researcher-visible consequence, tests, and rollback behavior. Contract changes

@@ -87,6 +87,13 @@ Done and verified:
   never followed), undeclared files fail, present-but-empty scientific
   fields fail, wrong-basis identity fails, per-file digests, verdicts
   recorded on a sibling table (seal registry untouched). 551 tests green.
+- **WP-E2 complete** (commit `c6ed95f`; subagent verified but hit the cap
+  before committing - validator reviewed and committed): allowlisted
+  promotion - gates (succeeded launch, passed validation, promotable
+  policy, lock), staging of memories/ + state.db only (secrets excluded,
+  digest-verified), atomic replace with last-known-good backups, full
+  rollback even on record-write failure. Block 5 checkpoint tested as an
+  injected-failure matrix. 575 tests green.
 
 Known deviations being corrected: Block 4 landed before Blocks 1-3 (plan
 order violated; tolerated because the executor is self-contained, but Block 1

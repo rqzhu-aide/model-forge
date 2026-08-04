@@ -639,3 +639,32 @@ class TestHermesProbe:
         sealed = assembler.seal_invocation(**_seal_kwargs())
         assert sealed.manifest["hermes"]["executable"] is None
         assert sealed.manifest["hermes"]["version"] is None
+
+
+# --------------------------------------------------------------------------- #
+# Seal rollback (validator fix)                                                #
+# --------------------------------------------------------------------------- #
+
+
+class TestSealRollback:
+    def test_failed_seal_rolls_back_run_directory_and_allows_retry(
+        self,
+        assembler: RunProfileAssembler,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """An injected mid-seal failure must not leave an orphan run directory
+        that permanently blocks retrying the same invocation id."""
+        def _boom(*args: Any, **kwargs: Any) -> None:
+            raise RunSealError("injected assembly failure")
+
+        monkeypatch.setattr(assembler, "_assemble_profile", _boom)
+        with pytest.raises(RunSealError, match="injected assembly failure"):
+            assembler.seal_invocation(**_seal_kwargs())
+
+        run_dir = assembler.run_dir_for("inv-001")
+        assert not run_dir.exists(), "failed seal left an orphan run directory"
+
+        monkeypatch.undo()
+        sealed = assembler.seal_invocation(**_seal_kwargs())
+        assert sealed.run_dir == run_dir
+        assert run_dir.is_dir()

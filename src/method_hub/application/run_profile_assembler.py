@@ -742,49 +742,58 @@ class RunProfileAssembler:
             )
 
         with self.state_lock(project_id, role, invocation_id) as lock:
-            self._create_layout(run_dir)
-            profile_dir = run_dir / "profile"
-            asset_digests = self._assemble_profile(resource, profile_dir)
-            memory_snapshot = self._snapshot_memory(project_id, role, profile_dir, policy)
-            probe = self._hermes_probe(self._hermes_binary)
+            try:
+                self._create_layout(run_dir)
+                profile_dir = run_dir / "profile"
+                asset_digests = self._assemble_profile(resource, profile_dir)
+                memory_snapshot = self._snapshot_memory(project_id, role, profile_dir, policy)
+                probe = self._hermes_probe(self._hermes_binary)
 
-            seal_id = uuid.uuid4().hex
-            sealed_at = isoformat_utc(utc_now())
-            document = self._build_manifest(
-                seal_id=seal_id,
-                invocation_id=invocation_id,
-                project_id=project_id,
-                role=role,
-                phase=phase,
-                method_identity=method_identity,
-                user_choices=user_choices,
-                selected_context_references=selected_context_references,
-                expected_outputs=expected_outputs,
-                resource=resource,
-                asset_digests=asset_digests,
-                memory_snapshot=memory_snapshot,
-                session_snapshot=session_snapshot,
-                run_dir=run_dir,
-                probe=probe,
-                lock=lock,
-                sealed_at=sealed_at,
-            )
-            manifest_sha256 = _digest_document(document)
-            self._write_manifest(run_dir, document, manifest_sha256)
+                seal_id = uuid.uuid4().hex
+                sealed_at = isoformat_utc(utc_now())
+                document = self._build_manifest(
+                    seal_id=seal_id,
+                    invocation_id=invocation_id,
+                    project_id=project_id,
+                    role=role,
+                    phase=phase,
+                    method_identity=method_identity,
+                    user_choices=user_choices,
+                    selected_context_references=selected_context_references,
+                    expected_outputs=expected_outputs,
+                    resource=resource,
+                    asset_digests=asset_digests,
+                    memory_snapshot=memory_snapshot,
+                    session_snapshot=session_snapshot,
+                    run_dir=run_dir,
+                    probe=probe,
+                    lock=lock,
+                    sealed_at=sealed_at,
+                )
+                manifest_sha256 = _digest_document(document)
+                self._write_manifest(run_dir, document, manifest_sha256)
 
-            record = self._store.create_seal(
-                seal_id=seal_id,
-                invocation_id=invocation_id,
-                project_id=project_id,
-                role=role,
-                idempotency_key=idempotency_key,
-                run_dir=str(run_dir),
-                manifest_sha256=manifest_sha256,
-                sealed_at=sealed_at,
-            )
+                record = self._store.create_seal(
+                    seal_id=seal_id,
+                    invocation_id=invocation_id,
+                    project_id=project_id,
+                    role=role,
+                    idempotency_key=idempotency_key,
+                    run_dir=str(run_dir),
+                    manifest_sha256=manifest_sha256,
+                    sealed_at=sealed_at,
+                )
+            except Exception:
+                # Roll back a partially prepared run directory so a failed
+                # seal never permanently blocks a retry of this invocation.
+                shutil.rmtree(run_dir, ignore_errors=True)
+                raise
 
         # The idempotency race loser returns the winner's record.
         if record["seal_id"] != seal_id:
+            # This attempt lost the race after preparing its own directory;
+            # remove it so no unsealed run directory is left behind.
+            shutil.rmtree(run_dir, ignore_errors=True)
             return self._reconstruct(record)
         return SealedRun(
             seal_id=record["seal_id"],

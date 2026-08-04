@@ -59,6 +59,11 @@ Done and verified:
   green. Custom skills are manifest declarations (the catalog carries no
   bundled content). WP-D2 (session snapshots, preflight, determinism
   checkpoint) is next.
+- **WP-D2a complete** (commit `f865717`, zero validation defects): verified
+  SQLite session snapshot procedure - read-only source, shared-lock-held
+  preflight, fail-fast `SessionSnapshotBusy`, integrity-checked copy,
+  quiescence flag, conversation content never parsed. Busy abort composes
+  with the WP-D1 seal rollback. 478 tests green.
 
 Known deviations being corrected: Block 4 landed before Blocks 1-3 (plan
 order violated; tolerated because the executor is self-contained, but Block 1

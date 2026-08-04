@@ -428,6 +428,77 @@ class RunSealStore:
             raise RunSealError(f"Seal {seal_id!r} was not persisted.")
         return record
 
+    # -- launch records (WP-E0) -----------------------------------------
+
+    def create_launch_record(
+        self,
+        *,
+        launch_id: str,
+        seal_id: str,
+        invocation_id: str,
+        launched_at: str,
+    ) -> None:
+        """Insert one launch record in ``running`` state.
+
+        The record is created when the launch intent is recorded, inside
+        the project-role state lock, and closed once by
+        :meth:`close_launch_record` with a terminal status.
+        """
+        with self._db.transaction() as conn:
+            conn.execute(
+                "INSERT INTO run_launch_records "
+                "(launch_id, seal_id, invocation_id, status, launched_at) "
+                "VALUES (?, ?, ?, 'running', ?)",
+                (launch_id, seal_id, invocation_id, launched_at),
+            )
+
+    def record_launch_brief(self, launch_id: str, task_brief_sha256: str) -> None:
+        """Record the materialized task brief digest on a launch record."""
+        with self._db.transaction() as conn:
+            conn.execute(
+                "UPDATE run_launch_records SET task_brief_sha256 = ? "
+                "WHERE launch_id = ?",
+                (task_brief_sha256, launch_id),
+            )
+
+    def close_launch_record(
+        self,
+        launch_id: str,
+        *,
+        status: str,
+        external_execution_id: str | None,
+        exit_code: int | None,
+        closed_at: str,
+    ) -> None:
+        """Close one launch record with its terminal outcome."""
+        with self._db.transaction() as conn:
+            conn.execute(
+                "UPDATE run_launch_records SET status = ?, "
+                "external_execution_id = ?, exit_code = ?, closed_at = ? "
+                "WHERE launch_id = ?",
+                (status, external_execution_id, exit_code, closed_at, launch_id),
+            )
+
+    def get_launch_record(self, launch_id: str) -> dict[str, Any] | None:
+        with self._db.connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM run_launch_records WHERE launch_id = ?",
+                (launch_id,),
+            ).fetchone()
+        return dict(row) if row is not None else None
+
+    def find_launch_record_by_invocation(
+        self, invocation_id: str
+    ) -> dict[str, Any] | None:
+        """Return the most recent launch record for one invocation."""
+        with self._db.connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM run_launch_records WHERE invocation_id = ? "
+                "ORDER BY launched_at DESC LIMIT 1",
+                (invocation_id,),
+            ).fetchone()
+        return dict(row) if row is not None else None
+
     # -- fencing tokens --------------------------------------------------
 
     def issue_fencing_token(

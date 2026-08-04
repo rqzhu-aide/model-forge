@@ -40,6 +40,11 @@ class RoleExecutionResult:
     exit_code: int | None
     summary: str
     diagnostic_text: str = ""
+    #: Bounded, redacted captured stdout/stderr for durable launch logs
+    #: (WP-E0).  Empty when the executor captured no stream output (e.g.
+    #: a pre-launch failure).
+    captured_stdout: str = ""
+    captured_stderr: str = ""
 
 
 class ExecutionObserver(Protocol):

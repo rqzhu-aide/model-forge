@@ -67,9 +67,11 @@ _ENVIRONMENT_ALLOWLIST: frozenset[str] = frozenset(
      "TERM", "TMPDIR"}
 )
 
-#: Regex for redacting secrets from captured output.
+#: Regex for redacting secrets from captured output.  ``sk-`` keys may
+#: contain dashes and underscores (e.g. ``sk-proj-...``), so the class
+#: includes both.
 _SECRET_PATTERNS: tuple[re.Pattern[str], ...] = (
-    re.compile(r"(sk-[a-zA-Z0-9]{20,})"),
+    re.compile(r"(sk-[a-zA-Z0-9_-]{20,})"),
     re.compile(r"(Bearer\s+[a-zA-Z0-9._\-]{20,})"),
     re.compile(
         r"((?:api[_-]?key|token|secret|password)\s*[=:]\s*['\"]?"
@@ -194,6 +196,11 @@ class LocalHermesExecutorSettings:
     hermes_binary: str = _HERMES_BINARY
     #: Hermes home directory (``~/.hermes``).
     hermes_home: Path | None = None
+    #: Emit ``-p <profile>`` when the invocation names a profile.  When
+    #: False the profile argument is never emitted: the invocation runs
+    #: with the Hermes home itself as the active profile (WP-E0 run
+    #: launcher, where the assembled run profile IS the home).
+    use_profile_arg: bool = True
     #: Polling interval for heartbeats.
     poll_interval_seconds: float = _HEARTBEAT_INTERVAL_SECONDS
     #: Maximum captured output size per stream.
@@ -412,6 +419,8 @@ class LocalHermesExecutor:
                         diagnostic_text=_redact(
                             f"{stderr_text}\n--- stdout ---\n{stdout_text}".strip()
                         ),
+                        captured_stdout=_redact(stdout_text),
+                        captured_stderr=_redact(stderr_text),
                     )
 
                 elapsed = time.monotonic() - start_time
@@ -436,6 +445,8 @@ class LocalHermesExecutor:
                             f"--- stderr ---\n{stderr_text}\n"
                             f"--- stdout ---\n{stdout_text}"
                         ),
+                        captured_stdout=_redact(stdout_text),
+                        captured_stderr=_redact(stderr_text),
                     )
 
         except (OSError, subprocess.SubprocessError) as error:
@@ -623,7 +634,7 @@ class LocalHermesExecutor:
         )
 
         command: list[str] = [hermes_bin]
-        if invocation.profile:
+        if invocation.profile and self.settings.use_profile_arg:
             command.extend(["-p", invocation.profile])
         command.extend(["-z", one_shot_prompt])
 

@@ -489,6 +489,33 @@ _RUN_SEAL_SCHEMA = (
 ) + _immutable_triggers("run_profile_seals")
 
 
+#: One supervised launch attempt per row (WP-E0).  Unlike the seal
+#: registry, launch records are intentionally mutable: a row is inserted
+#: with ``status = 'running'`` when the launch intent is recorded and
+#: updated once to a terminal status when the process closes.
+_LAUNCH_RECORD_SCHEMA = (
+    """
+    CREATE TABLE run_launch_records (
+        launch_id TEXT PRIMARY KEY,
+        seal_id TEXT NOT NULL REFERENCES run_profile_seals(seal_id) ON DELETE RESTRICT,
+        invocation_id TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('running', 'succeeded',
+                                              'failed', 'cancelled')),
+        external_execution_id TEXT,
+        exit_code INTEGER,
+        task_brief_sha256 TEXT
+            CHECK (task_brief_sha256 IS NULL OR length(task_brief_sha256) = 64),
+        launched_at TEXT NOT NULL,
+        closed_at TEXT
+    )
+    """,
+    """
+    CREATE INDEX run_launch_records_invocation_time
+        ON run_launch_records(invocation_id, launched_at)
+    """,
+)
+
+
 HUB_MIGRATIONS = (
     Migration(1, _CONTROL_SCHEMA, name="control and run storage"),
     Migration(2, _EXECUTION_SCHEMA, name="role execution and submission storage"),
@@ -503,6 +530,11 @@ HUB_MIGRATIONS = (
         6,
         _RUN_SEAL_SCHEMA,
         name="run profile seals, project-role state locks, run fencing tokens",
+    ),
+    Migration(
+        7,
+        _LAUNCH_RECORD_SCHEMA,
+        name="supervised launch records for sealed-run execution (WP-E0)",
     ),
 )
 

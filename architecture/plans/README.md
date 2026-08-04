@@ -7,10 +7,13 @@ specification or decision record before code relies on such a change.
 
 ## Recommended next block
 
+- [Trusted Local Execution Program](trusted-local-execution-program.md) is
+  the program-level plan: it restructures all remaining Version 1 execution
+  work into dispatchable packages WP-A through WP-I with dependencies,
+  sizes, and acceptance checks. Follow it first.
 - [Trusted Local Hermes Execution Closure](next-block-local-hermes-execution-closure.md)
-  is the controlling Version 1 package. It makes role configuration, per-run
-  profiles, local Hermes supervision, artifact validation, and atomic
-  memory-session promotion one complete user-operated path.
+  defines the six blocks the program dispatches and the acceptance evidence
+  that closes them.
 
 [ADR-012](../decisions/ADR-012-trusted-local-hermes-execution.md) defines the
 boundary: Method Hub is a trusted, single-user local control plane. It provides
@@ -21,8 +24,9 @@ workflow and state integrity, not operating-system isolation from Hermes.
 - [Phase 0: Safe Hermes Execution](phase-0-safe-hermes-execution.md) remains
   open under its Revision 3 trusted-local topology. The local closure plan is
   its controlling implementation package.
-- [Operational Completion Plan](operational-completion-plan.md) remains the
-  overall production-readiness program.
+- [Operational Completion Plan](operational-completion-plan.md) is historical
+  program context; its WP0–WP9 execution framing is superseded by the
+  Trusted Local Execution Program.
 - [Manual Method Hub with Sequential-First Orchestration](manual-sequential-orchestration-implementation-plan.md)
   records the development baseline and research workflow that must be retained.
   Its OCI-specific implementation guidance is superseded for Version 1.

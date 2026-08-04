@@ -6,31 +6,32 @@ Prepared: 2026-08-03
 
 ## Current implementation checkpoint
 
-As of commit `eecc6d1`:
+As of commit `009a50a`:
 
-- the sequential development harness and schema-example phase workflows
-  remain available;
-- Hermes Kanban and host one-shot reconnaissance are complete as bounded
-  observation records;
-- WP0 command sealing, WP1 containment, and WP2 output validation have initial
-  implementations, but none has passed its exit gate;
-- project-profile, one-shot, diagnostic persistence, fencing-token, and
-  profile-lock scaffolds now exist with focused unit coverage;
-- the current one-shot path remains unsafe for scientific use because it is
-  wired into scientific executor selection and lacks exact profile isolation,
-  durable runtime control, enforced fencing, bounds, and real Linux evidence;
-- the Web interface has not yet gained the diagnostic log viewer or a complete
-  reviewed-basis display; and
-- production scientific execution must remain disabled.
+- the sequential development harness and schema-example workflows remain
+  available;
+- WP0 command sealing, WP1 containment, and WP2 output validation have useful
+  partial implementations, but none has passed its exit gate;
+- rootless Podman can execute one hand-built Hermes diagnostic on the tested
+  Linux host;
+- diagnostic lifecycle, project profiles, runtime snapshots, memory policies,
+  fencing, fixed-output validation, an OCI executor, and focused tests now
+  provide substantial scaffolding;
+- the public diagnostic command still does not compose the OCI executor, and
+  the current service and executor lifecycle cannot complete a real invocation
+  together;
+- exact-profile mounting, durable container identity, current-lease fencing,
+  awaited cancellation, memory promotion rules, complete resource bounds,
+  provider-only egress, and secret-safe delivery remain open;
+- the committed H0-B evidence is partial feasibility evidence rather than a
+  complete integrated gate; and
+- the Web interface still lacks the diagnostic status, logs, cancellation,
+  memory, and evidence controls.
 
-The recommended next bounded package is
-[Headless Hermes Runtime Closure](next-block-headless-hermes-runtime-closure.md).
-It closes the controllable non-publishing backend before the local diagnostic
-UI, reviewed-basis gate, and scientific-output gates are completed.
-This plan starts from the current Method Hub development baseline. It does not
-repeat the earlier architecture build order. It identifies what remains before
-the system may execute real research work as a supported, recoverable
-application.
+Production scientific execution remains disabled. The recommended next bounded
+package is [End-to-End OCI Diagnostic Closure](next-block-end-to-end-oci-diagnostic-closure.md).
+It must pass before the local diagnostic UI, WP0 reviewed-basis completion, or
+real Phase 1 through Phase 5 pilots become the active block.
 
 ## 1. Operational version 1 outcome
 

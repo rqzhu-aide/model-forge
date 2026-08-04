@@ -1,131 +1,106 @@
 # H0-B Evidence Index: Rootless OCI Runtime Gate
 
-## Status: PASSED
+## Status: PARTIAL OCI FEASIBILITY EVIDENCE; EXIT GATE OPEN
 
-Date: 2026-08-04
-Commit: (this commit)
+Recorded: 2026-08-04
+Source commit: `009a50a`
 Platform: Linux 7.0.0-27-generic (x86_64)
 Runtime: Podman 5.7.0 (rootless)
-Image: localhost/method-hub-runtime:latest
-       digest: sha256:c93fe9e3d5dd05960b5d0fcf00dd6f8e5d841a6a9f7c802f46211d7d7f5007ac
-Tests: 441 passed, 2 skipped, 0 failed (103.78s)
-       H0-B evidence: 22/22 passed
+Image tag used: `localhost/method-hub-runtime:latest`
+Observed image digest:
+`sha256:c93fe9e3d5dd05960b5d0fcf00dd6f8e5d841a6a9f7c802f46211d7d7f5007ac`
+Reported suite result: 441 passed, 2 skipped, 0 failed
+Reported H0-B test file result: 22 passed
 
-## Evidence matrix
+The reported tests are useful observations, but they do not satisfy the H0-B
+exit gate. Most exercise hand-built Podman commands or isolated components.
+None runs the complete public path
+`diag CLI -> DiagnosticService -> OciExecutor -> Hermes`, and the required
+27-case Linux matrix was not executed.
 
-The same required evidence repeated through the ADR-004 production boundary
-(rootless OCI). Each item corresponds to the H0-A bwrap evidence (E1–E7) but
-through rootless Podman.
+## What the current evidence supports
 
-### P1: Podman launches and mounts correctly
+1. Rootless Podman can start a container on the tested host.
+2. A container can use a read-only image root and dropped capabilities. The
+   OCI executor emits CPU, memory, and process-limit options, but exhaustion
+   enforcement was not verified.
+3. Explicit bind mounts can make one test workspace writable and one identity
+   file read-only.
+4. A hand-built Podman command can run a real Hermes one-shot invocation.
+5. The fixed diagnostic output validator rejects several malformed component
+   cases independently of process exit code.
+6. Basic manual termination and image-digest checks are feasible.
 
-| Test | Evidence |
-|------|----------|
-| P1a | Podman runs a basic command with --read-only --cap-drop ALL --security-opt no-new-privileges |
-| P1b | Workspace directory is mounted read-write (with --userns keep-id) |
-| P1c | SOUL.md is mounted read-only — writing fails |
-| P1d | Container process has zero effective capabilities (CapEff = 0) |
-| P1e | Read-only root filesystem blocks writes to /etc |
+These findings establish OCI feasibility. They do not establish that Method
+Hub's diagnostic composition, exact profile policy, lifecycle, cancellation,
+reconciliation, memory promotion, network policy, secret delivery, and formal
+state isolation work together.
 
-### P2: Real Hermes one-shot in OCI container
+## Scope of the committed P1 through P8 tests
 
-| Test | Evidence |
-|------|----------|
-| P2a | Hermes -z executes inside rootless OCI container, writes 'ok' to result.txt — **the key H0-B evidence** |
+| Group | What was observed | H0-B interpretation |
+|---|---|---|
+| P1 | Direct Podman commands for root, capability, and simple mount behavior | Useful host observation |
+| P2 | Real Hermes through a hand-built command that mounts the full host Hermes home read-write | Connectivity only; exact profile isolation not shown |
+| P3 | Writable state and cross-profile denial through separate hand-built mount arrangements | Does not test the production executor mount set |
+| P4 | Component-level fixed-output validation and canary scanning | Useful validator tests; not integrated execution evidence |
+| P5 | Basic termination commands and a partial executor cancellation check | Does not prove awaited tree termination and output quiescence |
+| P6 | `--network none` blocks access and `--network host` permits access | Does not prove provider-only egress; host networking is unrestricted |
+| P7 | OCI executor component launch and simple reconcile checks | Does not run real Hermes through the diagnostic service |
+| P8 | Image digest retrieval and one mismatch check | Useful foundation; immutable launch provenance remains incomplete |
 
-### P3: Profile mount verification
+## Required claims that are not yet established
 
-| Test | Evidence |
-|------|----------|
-| P3a | state.db in profile directory is writable (C1) |
-| P3b | Cross-profile access blocked — OCI container only sees explicitly bind-mounted paths (stronger isolation than bwrap --ro-bind /) |
-
-### P4: Diagnostic output validation (executor-independent)
-
-| Test | Evidence |
-|------|----------|
-| P4a | Correctly-formatted diagnostic_result.json passes validation |
-| P4b | Wrong brief_sha256 is caught |
-| P4c | Exit code 0 with no output file → failure |
-| P4d | Canary scan detects leaked API key |
-
-### P5: Timeout and cancellation
-
-| Test | Evidence |
-|------|----------|
-| P5a | Long-running process inside OCI is killed via SIGTERM/SIGKILL |
-| P5b | OciExecutor.cancel() returns True for confirmed termination |
-
-### P6: Network isolation
-
-| Test | Evidence |
-|------|----------|
-| P6a | --network none prevents outbound connections |
-| P6b | --network host permits outbound connections |
-
-### P7: OciExecutor integration
-
-| Test | Evidence |
-|------|----------|
-| P7a | OciExecutor launches a container via the RoleExecutor protocol |
-| P7b | reconcile() returns FAILED for a dead process |
-| P7c | cancel() returns True for a nonexistent PID |
-| P7d | _verify_mounts catches missing workspace |
-
-### P8: Image digest pinning (ADR-004)
-
-| Test | Evidence |
-|------|----------|
-| P8a | Runtime image has a verifiable digest |
-| P8b | OciExecutor rejects a mismatched image digest |
-
-## Key findings
-
-### 1. Mount strategy: same-path bind mounting
-
-Unlike bwrap (which can mount the entire host root read-only and overlay
-specific paths), rootless Podman with `--read-only` starts from the image
-layers. Host paths are only accessible through explicit `-v` bind mounts.
-
-The correct approach is **same-path mounting**: bind-mount each host path
-at its own absolute path inside the container. This mirrors the bwrap
-strategy and avoids path-translation issues.
-
-### 2. Hermes venv requires uv Python mount
-
-The Hermes binary is a Python script with a shebang pointing to
-`~/.hermes/hermes-agent/venv/bin/python3`, which symlinks to the
-uv-managed Python at `~/.local/share/uv/python/cpython-3.11.../bin/python3.11`.
-
-For Hermes to run inside the container, both `~/.hermes` and
-`~/.local/share/uv` must be bind-mounted.
-
-### 3. --userns keep-id is required for write access
-
-Rootless Podman maps the container UID to the host UID via `--userns keep-id`.
-Without this flag, volume-mounted files owned by the host user are not
-writable by the container process (which defaults to a mapped subordinate UID).
-
-### 4. OCI provides stronger profile isolation than bwrap
-
-With bwrap's `--ro-bind / /`, the entire host filesystem is visible
-read-only inside the sandbox — including other profiles' directories.
-
-With Podman's `--read-only` root filesystem, only the image layers and
-explicitly bind-mounted paths are visible. Cross-profile access is
-structurally blocked because other profile directories are never mounted.
-This is the ADR-004 production boundary working as designed.
+- The public diagnostic CLI composes and uses `OciExecutor`.
+- A blocked request creates zero containers, and an accepted idempotency key
+  creates exactly one.
+- Scientific execution cannot reach the diagnostic executor.
+- Only the exact selected runtime profile and declared skills are visible.
+- The canonical profile, sibling profiles, and formal scientific storage are
+  absent or read-only as required.
+- The exact container identity and immutable image identity are persisted before
+  Hermes begins work.
+- Every mutation and promotion requires a current fencing token and live lease.
+- Persistent, read-only, and ephemeral memory policies behave as declared.
+- Cancellation, timeout, lease loss, and restart recovery control the same
+  container, never relaunch, and verify quiescence.
+- Output, process, file, workspace, profile, log, and retained-evidence growth
+  are bounded across the complete invocation.
+- The configured provider is reachable while arbitrary Internet, host-local,
+  LAN, and metadata-service access are denied.
+- Credentials are absent from arguments, environment, OCI inspection, logs,
+  crash output, database state, snapshots, and retained evidence.
+- Exit-zero internal failure, incorrect basis, and inconsistent usage are
+  rejected through the integrated path.
+- Formal scientific state is identical before and after every scenario.
 
 ## Exit gate mapping
 
-| Exit gate criterion (plan §7) | H0-B evidence |
-|-------------------------------|---------------|
-| rejected/blocked request → zero processes | P7d |
-| exact selected profile and declared skills | P2a |
-| only declared workspace writable | P1b, P1e |
-| output validated independently of exit code | P4a–P4d |
-| cancellation awaited and reaped | P5a, P5b |
-| provider access works, arbitrary egress fails | P6a, P6b |
-| image digest pinned and verified | P8a, P8b |
-| no credential in process metadata | (canary scan: P4d) |
-| **H0-B passes the complete real Linux matrix through rootless OCI** | **P1–P8** |
+| Parent-plan criterion | Current evidence | Status |
+|---|---|---|
+| Rejected request creates zero external work | Missing-mount component check only | Open |
+| Exact selected profile and skills | Full host Hermes home is mounted in the real-Hermes test | Open |
+| Only declared roots are writable | Simple mount probes use a different command | Open |
+| Canonical profile never directly writable | Current executor mounts the host Hermes home read-write | Open |
+| Durable identity and no relaunch | Launcher PID checks only | Open |
+| Fenced lifecycle and promotion | Not exercised through OCI | Open |
+| Correct memory policies | Not exercised through OCI | Open |
+| Awaited cancellation and quiescence | Basic termination only | Open |
+| Provider works and arbitrary egress fails | `none` versus unrestricted `host` network only | Open |
+| No credential in process metadata | Standalone canary string scan only | Open |
+| Independent outcome validation | Component validator cases only | Open |
+| Formal scientific state unchanged | No retained before-and-after inventory | Open |
+| Complete real Linux matrix | 22 narrower tests, including 2 component executor cases | Open |
+
+## Evidence handling rule
+
+Retain the 22 passing tests as partial feasibility evidence. Do not delete or
+reinterpret them. They may be cited for the narrow observations above, but they
+must not be used to label H0-B, Phase 0, or WP1 complete.
+
+The controlling corrective work is
+[End-to-End OCI Diagnostic Closure](../plans/next-block-end-to-end-oci-diagnostic-closure.md).
+H0-B can be relabeled `PASSED` only after the complete required matrix passes
+without skips through the public diagnostic service and production OCI
+executor, with a machine-readable evidence bundle tied to exact source and
+image digests.

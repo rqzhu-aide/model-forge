@@ -1,8 +1,12 @@
 # Next Work Block: Headless Hermes Runtime Closure
 
-Status: Recommended next implementation block.
+Status: Active parent gate. Exit gate open.
 
-Baseline: commit `eecc6d1`, audited 2026-08-03.
+Baseline: commit `009a50a`, audited 2026-08-04.
+
+Controlling corrective package:
+
+- [End-to-End OCI Diagnostic Closure](next-block-end-to-end-oci-diagnostic-closure.md)
 
 Related plans:
 
@@ -10,6 +14,24 @@ Related plans:
 - [Hermes-specific diagnostic design](revised-diagnostic-lane-plan.md)
 - [Original diagnostic safety baseline](next-block-hermes-diagnostic-closure.md)
 - [Completed host observations](completed/spike-report-s5.0.md)
+
+## Current implementation checkpoint
+
+Commit `009a50a` adds a real OCI executor, runtime-profile and memory-policy
+scaffolding, richer diagnostic state, output validation, resource-limit
+primitives, and useful Linux observations. It also demonstrates that Hermes can
+run in a rootless Podman container on the tested host.
+
+Neither H0-A nor H0-B is accepted. The public diagnostic path still uses the
+Bubblewrap executor, while the new OCI executor is not composed into that path.
+The service and executor disagree about lifecycle ownership, the OCI path
+mounts the complete host Hermes home read-write, and container identity,
+fencing, cancellation, memory promotion, provider-only networking, secret
+delivery, and resource bounds remain incomplete. The committed H0-B tests do
+not exercise the complete public path or the required 27-case matrix.
+
+The corrective package above closes these specific integration and evidence
+gaps without reducing this parent plan's invariants.
 
 ## 1. Target outcome
 
@@ -28,33 +50,23 @@ role. Formal scientific state must be identical before and after the diagnostic.
 The block is complete only when real Linux evidence passes. Unit tests and
 command-construction tests are necessary but not sufficient.
 
-## 2. Why this is the next block
+## 2. Why this gate remains next
 
-Commit `eecc6d1` adds useful scaffolds for project profiles, diagnostic
-records, profile locks, fencing tokens, a one-shot command builder, and
-focused tests. The path is not ready to operate because:
+The current repository contains more implementation than the original
+`eecc6d1` baseline, but the central question is unchanged: can one user-started
+Hermes invocation run inside the production OCI boundary and remain isolated,
+bounded, cancellable, restart-reconcilable, and unable to alter scientific
+state?
 
-- `oneshot` can be selected by the scientific `RunCoordinator`, while the
-  separate `DiagnosticService` is not composed into an application path;
-- Hermes is not given the exact selected profile with `-p`, and the current
-  command exposes the complete Hermes root read-write;
-- memory policies and exact skill selection are not realized;
-- the durable record contains a placeholder before spawn rather than a
-  controllable runtime identity;
-- fencing tokens do not guard state mutations or lock release;
-- cancellation is not awaited or verified, and restart recovery is not safe;
-- output is buffered before truncation and resource limits are incomplete;
-- network allowlist mode shares the host network, and secrets appear in
-  process arguments;
-- exit code 0 is treated as success even when Hermes reports internal
-  failure; and
-- existing tests do not execute the new lane through real Hermes and a real
-  isolation boundary; and
-- three existing process-stream tests assume POSIX commands and process APIs
-  but are not qualified as Linux-only, so the full suite fails on Windows.
+The answer is not yet demonstrated. Hand-built Podman commands establish
+feasibility, while the actual diagnostic CLI, service, lifecycle store, profile
+manager, and OCI executor do not yet operate as one conforming path. Advancing
+to UI polish or scientific pilots would hide rather than close that execution
+boundary.
 
-Closing these gaps is a prerequisite for a trustworthy UI or scientific
-pilot.
+The [end-to-end OCI corrective block](next-block-end-to-end-oci-diagnostic-closure.md)
+is therefore the immediate implementation package. This parent gate remains
+the source of truth for the full evidence standard.
 
 ## 3. Fixed architectural decisions
 
@@ -91,19 +103,16 @@ supplementary working context and must be researcher-visible and
 reconstructible. No assumption, method definition, result, conclusion, or
 user decision may exist only in memory.
 
-Before code relies on persistent project memory, accept an architecture
-decision that specifies:
+[ADR-011](../decisions/ADR-011-per-project-memory-model.md) accepts the
+`persistent`, `read_only`, and `ephemeral` runtime policy for this diagnostic
+lane only. Before implementation relies on it, align the diagnostic schemas,
+examples, digest contracts, and traceability; retain reconstructible before and
+runtime-after snapshots; and prove the policy, retention, user-operation, and
+reviewer-ephemerality scenarios.
 
-- allowed memory content and scientific authority;
-- user inspection, export, clear, and reconfiguration operations;
-- persistent author-role policy;
-- fully ephemeral outside-reviewer policy;
-- behavior when Hermes can browse prior sessions;
-- snapshot, retention, and deletion rules; and
-- the policy-version and profile-revision contract.
-
-Until that decision is accepted, persistent memory may be tested only inside
-this non-publishing lane.
+The existing formal role-memory contract remains authoritative. Until this
+non-publishing gate passes and a later ADR expands scope, diagnostic runtime
+memory cannot become load-bearing for scientific execution.
 
 ### 3.4 Runtime boundary and named gates
 
@@ -111,14 +120,15 @@ Linux is the supported environment for this block. ADR-004 requires rootless
 OCI for production CLI roles. Rootless Podman is therefore the reference
 production boundary.
 
-This block has two named outcomes:
+This block has two named gates. Both remain open at the `009a50a` checkpoint:
 
-1. **H0-A, Bubblewrap diagnostic subgate passed.** This is useful headless
-   containment and control evidence on the verified host, but Phase 0, WP1,
-   and this work block remain open.
-2. **H0-B, rootless OCI runtime gate passed.** The same required evidence is
-   repeated through the ADR-004 production boundary. Only H0-B completes this
-   headless runtime block.
+1. **H0-A, Bubblewrap diagnostic subgate.** Current Bubblewrap observations are
+   partial containment evidence on the verified host. They do not close Phase
+   0, WP1, or this work block.
+2. **H0-B, rootless OCI runtime gate.** Current Podman observations establish
+   feasibility, but the complete evidence must be repeated through the public
+   diagnostic path and ADR-004 production boundary. Only an accepted H0-B gate
+   completes this headless runtime block.
 
 Bubblewrap may be used first when it shortens feedback. A different
 production boundary requires a new or superseding architecture decision.

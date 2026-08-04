@@ -11,6 +11,7 @@ file's implementation order are superseded by the Hermes-specific revision
 and the controlling headless runtime block. Do not implement this file alone.
 Related plans:
 
+- [End-to-End OCI Diagnostic Closure](next-block-end-to-end-oci-diagnostic-closure.md)
 - [Headless Hermes Runtime Closure](next-block-headless-hermes-runtime-closure.md)
 - [Hermes-Specific Diagnostic Revision](revised-diagnostic-lane-plan.md)
 - [Phase 0: Safe Hermes Execution](phase-0-safe-hermes-execution.md)

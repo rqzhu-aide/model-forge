@@ -1,49 +1,50 @@
 # Revised Implementation Plan: Hermes Diagnostic Lane for Method Hub
 
 Status: Active Hermes-specific design record. Exit gate open.
-Implementation checkpoint: commit `eecc6d1`, audited 2026-08-03.
+Implementation checkpoint: commit `009a50a`, audited 2026-08-04.
 This plan adapts the
 [original safety baseline](next-block-hermes-diagnostic-closure.md) to verified
-Hermes behavior. The controlling implementation package is
-[Headless Hermes Runtime Closure](next-block-headless-hermes-runtime-closure.md).
+Hermes behavior. The controlling corrective package is
+[End-to-End OCI Diagnostic Closure](next-block-end-to-end-oci-diagnostic-closure.md).
 
 ## Current implementation audit
 
-Commit `eecc6d1` implements useful foundations:
+Commit `009a50a` implements useful additional foundations:
 
-- basic project-profile creation, credential-file exclusion, SOUL/config
-  writing, memory-policy metadata, and retention helpers;
-- separate diagnostic invocation, fencing-token, and profile-lock tables;
-- a one-shot command builder with task-brief file mounting;
-- a diagnostic service/store scaffold and 38 passing focused unit tests.
+- a rootless OCI executor and pinned-image verification scaffold;
+- runtime-profile snapshot, promotion, quarantine, and memory-policy helpers;
+- expanded diagnostic lifecycle, process-identity, usage, and output contracts;
+- CLI operations for preflight, start, status, logs, cancel, reconcile, memory,
+  and evidence;
+- broader output, resource, network, secret, and real-Linux tests; and
+- a successful hand-built Hermes invocation through Podman on the tested host.
 
-The diagnostic lane is not operationally complete:
+The diagnostic lane is still not operationally complete:
 
-- the unfinished one-shot executor is selectable by the scientific
-  `RunCoordinator`, while `DiagnosticService` has no application, API, or UI
-  path;
-- the command omits exact `-p` profile selection, exposes the whole Hermes
-  root read-write, and does not enforce declared skills or memory policies;
-- the real process identity is not persisted while work is running, so
-  cancellation and restart reconciliation cannot control it reliably;
-- fencing tokens are issued but do not guard mutations, heartbeats, closure,
-  or owner-specific lock release;
-- stdout and stderr are buffered before truncation; process, file, workspace,
-  and aggregate limits are absent;
-- network allowlist mode shares the host network, and injected secrets appear
-  in process arguments;
-- exit code 0 is treated as success even though the spike proves that Hermes
-  may report an internal task failure with exit code 0;
-- no test runs the new service through real Hermes and Bubblewrap or OCI; the
-  committed diagnostic script still exercises the development Kanban path;
-- the required memory-model decision record and contract alignment are absent.
+- the public CLI constructs the Bubblewrap one-shot executor rather than the
+  OCI executor;
+- the scientific `oci` setting incorrectly installs Bubblewrap in the
+  scientific coordinator and must remain disabled;
+- the service enters acknowledged and running states before the executor emits
+  launch intent, so the real callback sequence is invalid;
+- the OCI command ignores the runtime profile and mounts the complete host
+  Hermes home read-write;
+- the actual container identity is not durably acknowledged before work starts;
+- fencing does not atomically require a live lease, heartbeats do not renew the
+  lease, and expired locks can be reclaimed without proving quiescence;
+- all successful memory policies can be promoted, including read-only and
+  ephemeral profiles;
+- cancellation and CLI reconciliation do not prove termination of the same
+  container;
+- output draining, file and retained-state quotas, provider-only networking,
+  and secret-safe delivery remain incomplete; and
+- the H0-B evidence does not run the complete public path or full required
+  matrix.
 
-Project-scoped author memory remains a reasonable design choice only as
-supplementary, researcher-visible working context. Formal records remain the
-scientific authority, the exact memory exposed to an invocation must be
-reconstructible, and the outside reviewer must receive a fully fresh mutable
-profile state. The controlling next block turns these rules into tested
-behavior.
+Per-project Hermes memory remains supplementary working context. It becomes
+load-bearing only after the renamed ADR-011 is aligned with schemas, examples,
+digest contracts, traceability, and real policy evidence. Formal records remain
+the scientific authority.
 
 ## Revision 1 changelog
 
@@ -590,38 +591,37 @@ promote stale state.
 
 ---
 
-## 5. Implementation checkpoint at `eecc6d1`
+## 5. Implementation checkpoint at `009a50a`
 
 The table separates code presence from verified behavior.
 
 | Area | Current state | Required closure |
 |---|---|---|
-| Host one-shot reconnaissance | completed observation record | retain as background evidence; do not treat it as containment proof |
-| Project profile manager | partial scaffold | atomic clean provisioning, exact skills, manifest ownership, policy enforcement, SHA-256 snapshots, safe maintenance and retirement |
-| One-shot executor | command-building scaffold | scientific-path gating, exact profile, isolated runtime view, bounded supervisor, durable identity, outcome validation |
-| Diagnostic database | tables and basic store exist | complete lifecycle, token-guarded mutations, leases, owner-specific lock release, restart reconciliation |
-| Diagnostic service | unit-level scaffold | construct it in a separate application root and expose a headless diagnostic command |
-| Runtime controls | not demonstrated | real Bubblewrap subgate and rootless OCI path consistent with ADR-004 |
-| Memory and session model | proposed, not accepted | architecture decision, exact accessible-state evidence, user inspection controls, full reviewer ephemerality |
-| Tests | 38 focused scaffold tests pass | real Linux execution, failure injection, isolation, memory, cancellation, restart, quota, egress, and secret evidence |
-| Diagnostic UI | not started | defer until the headless diagnostic subgate closes |
+| Host and OCI reconnaissance | Hermes and Podman feasibility observed | retain as partial evidence; do not treat it as an integrated gate |
+| Project and runtime profiles | substantial scaffold | exact skills, synthetic home, policy enforcement, ownership, atomic fenced promotion |
+| OCI executor | component implementation | diagnostic composition, exact mounts, durable container identity, bounded supervision |
+| Diagnostic database | lifecycle, token, lock, identity, and memory tables exist | live-lease atomic mutations, renewal, safe lock reclaim, exact reconciliation |
+| Diagnostic service | broad unit-level scaffold | valid observer lifecycle, manifest preflight, correct memory policy, awaited cancellation |
+| Network and secrets | policy helpers and component tests exist | provider-only enforcement and secret-safe delivery through real OCI |
+| Evidence | 22 OCI-oriented tests pass on the reported host | complete public-path matrix, no skips, retained machine-readable evidence |
+| Diagnostic UI | not started | defer until the headless OCI gate closes |
 
 ## 6. Implementation sequence
 
 ### 6.1 Next bounded block
 
 Implement the
-[Headless Hermes Runtime Closure](next-block-headless-hermes-runtime-closure.md).
-It closes the non-publishing backend subgate in this order:
+[End-to-End OCI Diagnostic Closure](next-block-end-to-end-oci-diagnostic-closure.md).
+It closes the remaining non-publishing backend gap in this order:
 
-1. accept the memory/session and diagnostic-authority decision record;
-2. remove one-shot execution from all scientific executor selection;
-3. provision exact profiles atomically and realize all memory policies;
-4. build the isolated runtime and bounded supervisor;
-5. complete durable lifecycle, fencing, cancellation, and reconciliation;
-6. expose a headless diagnostic command; and
-7. collect interim H0-A evidence if used and the mandatory H0-B rootless OCI
-   evidence.
+1. separate scientific and diagnostic executor composition;
+2. bind preflight to one exact manifest and synthetic profile;
+3. persist real container identity through a create, acknowledge, then start
+   handshake;
+4. enforce current-token and live-lease lifecycle and memory promotion;
+5. complete bounded supervision, cancellation, timeout, and restart recovery;
+6. enforce provider-only egress and secret-safe delivery; and
+7. run the complete Linux matrix through the public diagnostic path.
 
 ### 6.2 Work after the headless runtime gate
 

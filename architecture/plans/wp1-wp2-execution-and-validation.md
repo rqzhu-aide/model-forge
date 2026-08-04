@@ -1,40 +1,35 @@
 # WP1 + WP2: Production Execution Boundary and Output Validation
 
-Status: Partially implemented scaffolding (audited 2026-08-03). Both exit gates remain open.
+Status: Partially implemented scaffolding (audited 2026-08-04). Both exit gates remain open.
 
 ## Implementation audit
 
-At commit `eecc6d1`, the repository contains useful scaffolds for Bubblewrap
-execution, capability materialization, project profiles, one-shot command
-construction, diagnostic persistence, profile locks, fencing tokens, output
-adaptation, and phase-specific validation. These are foundations, not
+At commit `009a50a`, the repository contains useful scaffolding for Bubblewrap
+and rootless OCI execution, capability materialization, project and runtime
+profiles, memory policies, diagnostic persistence, fencing, output adaptation,
+phase-specific validation, and Linux evidence tests. These are foundations, not
 accepted WP1 or WP2 deliverables.
 
-WP1 remains open because no supported runtime path yet combines exact
-project-role profile selection, declared skills, whole-profile memory policy,
-rootless containment, provider-only networking, secret-safe delivery, bounded
-streaming and resources, durable runtime identity, token-guarded lifecycle,
-verified cancellation, and restart reconciliation. The diagnostic script
-still exercises Kanban, and no real Bubblewrap or OCI evidence suite has
-passed.
+WP1 remains open. Most importantly, the OCI executor is not integrated into the
+public diagnostic path, yet the scientific `oci` setting installs Bubblewrap in
+the scientific `RunCoordinator`. The current OCI command mounts the complete
+host Hermes home read-write and lacks durable container identity,
+lease-enforced fencing, awaited cancellation, verified restart reconciliation,
+complete bounds, provider-only egress, and secret-safe delivery. Scientific
+execution must not select Bubblewrap, one-shot, or OCI while this remains true.
 
-The new one-shot implementation must remain unavailable to scientific runs.
-It is currently selectable through application settings and is constructed by
-the scientific `RunCoordinator`, while the separate diagnostic service is not
-composed into an application path. The
-[Headless Hermes Runtime Closure](next-block-headless-hermes-runtime-closure.md)
-must correct that boundary first.
+The [End-to-End OCI Diagnostic Closure](next-block-end-to-end-oci-diagnostic-closure.md)
+must pass first. Its non-publishing evidence will validate the execution
+boundary but will not itself complete WP1.
 
-WP2 remains open because adapter results are discarded instead of being sealed
-into the submission and publication path; companion artifacts are inferred
-from filenames; some post-execution validation failures do not preserve raw
-output; and several validators inspect fields that do not match the registered
-schemas. The fixtures are architecture examples, not a complete set of actual
-Hermes outputs for every role and mode.
+WP2 remains open because real phase outputs are not yet carried through the
+complete adapter, immutable submission, validation, and publication path.
+Companion artifacts and several phase-specific semantic checks still require
+real Hermes fixtures. No scientific pilot should begin until the diagnostic
+boundary and WP0 reviewed basis pass.
 
-Keep both `oci` and `oneshot` unavailable to scientific runs. The existing
-sections below retain the intended target design, but their earlier completion
-labels are superseded by this audit and by the Exit Gates.
+Keep the existing design sections and exit gates below. Earlier implementation
+status labels are subordinate to this audit.
 
 ## Revision 1 changelog
 

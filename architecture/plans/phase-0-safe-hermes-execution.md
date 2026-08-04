@@ -15,45 +15,37 @@ remains open.
 
 ## Current implementation checkpoint
 
-As of commit `eecc6d1`, the Phase 0 exit gate remains open.
+As of commit `009a50a`, Phase 0 remains open.
 
-Verified observations:
+Now demonstrated:
 
-- Hermes v0.19.0 Kanban transport behavior and one host-based synthetic
-  connectivity run;
-- Hermes v0.19.0 host one-shot behavior, usage fields, writable profile
-  footprint, memory and session behavior, file-based task delivery, profile
-  cloning, and provider overrides.
+- host one-shot and Kanban behavior are documented as bounded observations;
+- Hermes can run inside rootless Podman on the tested Linux host;
+- the image can use a read-only root with dropped capabilities, and the OCI
+  executor emits basic CPU, memory, and process-limit options whose exhaustion
+  enforcement remains unverified; and
+- diagnostic lifecycle, fencing, runtime-profile, memory-policy, OCI-executor,
+  output-contract, and evidence-test scaffolds exist.
 
-Implemented foundations, not yet operationally verified:
+Not yet demonstrated through one public operational path:
 
-- initial project-profile provisioning and memory-policy metadata;
-- separate diagnostic, fencing-token, and profile-lock persistence;
-- a one-shot command builder and diagnostic service scaffold; and
-- 38 focused scaffold tests.
+- `diag start -> DiagnosticService -> OciExecutor -> Hermes`;
+- fail-closed manifest and exact selected-profile isolation;
+- durable container identity and single-owner lifecycle transitions;
+- token- and lease-guarded promotion, cancellation, cleanup, and recovery;
+- correct persistent, read-only, and ephemeral memory behavior;
+- continuously drained bounded output and complete resource quotas;
+- provider-only egress and secret-safe credential delivery;
+- the complete real Linux matrix with no skips and unchanged scientific state;
+  and
+- the local diagnostic status, log, cancellation, memory, and evidence
+  interface.
 
-Evidence:
-
-- [Completed Hermes Transport Findings](completed/phase-0-spike-findings.md)
-- [Completed Host One-Shot Observations](completed/spike-report-s5.0.md)
-
-Still open:
-
-- separation of one-shot diagnostics from scientific execution;
-- exact selected-profile, skill, identity, and memory-policy isolation;
-- truthful runtime identity, durable fencing, lease renewal, restart
-  reconciliation, and verified cancellation;
-- bounds on logs, streams, processes, files, workspaces, and retained state;
-- provider-only networking and secret-safe credential delivery;
-- outcome validation independent of process exit code;
-- real Linux isolation and failure-injection evidence; and
-- the loopback diagnostic status and log interface.
-
-The recommended next implementation package is
-[Headless Hermes Runtime Closure](next-block-headless-hermes-runtime-closure.md).
-It closes a non-publishing backend subgate. It does not by itself close Phase
-0, because the user-facing diagnostic interface and its usability evidence
-remain required.
+The H0-B evidence committed at `009a50a` is useful OCI feasibility evidence,
+but it is not accepted as the Phase 0 backend gate. The recommended corrective
+package is [End-to-End OCI Diagnostic Closure](next-block-end-to-end-oci-diagnostic-closure.md).
+After that package passes, the local diagnostic interface remains necessary to
+complete Phase 0 usability evidence.
 
 ## Revision 1 summary
 

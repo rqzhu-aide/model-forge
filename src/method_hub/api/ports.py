@@ -7,17 +7,23 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from .models import (
+    ConfigurationHealthView,
     CreateProjectRequest,
     InstallSkillRequest,
     MethodRow,
     PhaseId,
     PhaseView,
     ProfileConfigurationView,
+    ProvisionResultView,
+    ProvisionRoleRequest,
     PublicationReceiptDocument,
     ProjectBriefView,
     ProjectOverview,
     ProjectSummary,
     ReasonedActionRequest,
+    RoleDefinitionCatalogView,
+    RoleDefinitionView,
+    RoleHealthReportView,
     RunDetail,
     RunEvent,
     RunSummary,
@@ -36,6 +42,7 @@ CommandFamily = Literal[
     "method_lifecycle",
     "save_profile",
     "install_skill",
+    "provision_role",
 ]
 
 
@@ -182,3 +189,17 @@ class MethodHubApplicationService(Protocol):
         *,
         raw_request: RawRequestReceipt,
     ) -> ProfileConfigurationView: ...
+
+    async def get_role_definitions(self) -> RoleDefinitionCatalogView: ...
+
+    async def get_role_definition(self, role_id: str) -> RoleDefinitionView: ...
+
+    async def get_configuration_health(self) -> ConfigurationHealthView: ...
+
+    async def get_role_health(self, role_id: str) -> RoleHealthReportView: ...
+
+    async def provision_role(
+        self,
+        role_id: str,
+        command: ProvisionRoleRequest,
+    ) -> ProvisionResultView: ...

@@ -12,17 +12,23 @@ from pydantic import ValidationError
 
 from .errors import CommandRejected, command_schema_error
 from .models import (
+    ConfigurationHealthView,
     CreateProjectRequest,
     InstallSkillRequest,
     MethodRow,
     PhaseId,
     PhaseView,
     ProfileConfigurationView,
+    ProvisionResultView,
+    ProvisionRoleRequest,
     PublicationReceiptDocument,
     ProjectBriefView,
     ProjectOverview,
     ProjectSummary,
     ReasonedActionRequest,
+    RoleDefinitionCatalogView,
+    RoleDefinitionView,
+    RoleHealthReportView,
     RunDetail,
     RunEvent,
     RunSummary,
@@ -447,5 +453,69 @@ def create_api_router() -> APIRouter:
             command,
             raw_request=raw_request,
         )
+
+    # ------------------------------------------------------------------ #
+    # Block 2: role-definition configuration service endpoints           #
+    # ------------------------------------------------------------------ #
+
+    @router.get(
+        "/configuration/roles",
+        response_model=RoleDefinitionCatalogView,
+        response_model_exclude_none=True,
+    )
+    async def get_role_definitions(
+        service: Service,
+    ) -> RoleDefinitionCatalogView:
+        return await service.get_role_definitions()
+
+    @router.get(
+        "/configuration/roles/{role_id}",
+        response_model=RoleDefinitionView,
+        response_model_exclude_none=True,
+    )
+    async def get_role_definition(
+        role_id: str, service: Service
+    ) -> RoleDefinitionView:
+        return await service.get_role_definition(role_id)
+
+    @router.get(
+        "/configuration/health",
+        response_model=ConfigurationHealthView,
+        response_model_exclude_none=True,
+    )
+    async def get_configuration_health(
+        service: Service,
+    ) -> ConfigurationHealthView:
+        return await service.get_configuration_health()
+
+    @router.get(
+        "/configuration/roles/{role_id}/health",
+        response_model=RoleHealthReportView,
+        response_model_exclude_none=True,
+    )
+    async def get_role_health(
+        role_id: str, service: Service
+    ) -> RoleHealthReportView:
+        return await service.get_role_health(role_id)
+
+    @router.post(
+        "/configuration/roles/{role_id}/provision",
+        response_model=ProvisionResultView,
+        response_model_exclude_none=True,
+        openapi_extra=_body_contract(ProvisionRoleRequest),
+    )
+    async def provision_role(
+        role_id: str,
+        request: Request,
+        service: Service,
+    ) -> ProvisionResultView:
+        command, _ = await _capture_and_parse(
+            request,
+            service,
+            ProvisionRoleRequest,
+            command_family="provision_role",
+            project_id=None,
+        )
+        return await service.provision_role(role_id, command)
 
     return router

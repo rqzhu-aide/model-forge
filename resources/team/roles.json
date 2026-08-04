@@ -7,8 +7,23 @@
       "profile_version": "1.0.0",
       "default_profile": "research_lead",
       "soul_file": "souls/research_lead.md",
+      "base_configuration": {
+        "file": "configs/research_lead.yaml",
+        "format": "yaml"
+      },
+      "library_guidance": {
+        "file": "guidance/research_lead.md"
+      },
       "applicable_phases": ["P1", "P2", "P3", "P4", "P5"],
-      "recommended_skills": ["stat-paper-writing"]
+      "recommended_skills": ["stat-paper-writing"],
+      "custom_skills": [
+        {
+          "skill_id": "mh-contribution-boundary",
+          "name": "Contribution boundary analysis",
+          "description": "Framework for identifying and articulating the exact contribution boundary relative to prior work.",
+          "source": "method-hub/bundled"
+        }
+      ]
     },
     {
       "role_id": "theorist",
@@ -16,8 +31,23 @@
       "profile_version": "1.0.0",
       "default_profile": "theorist",
       "soul_file": "souls/theorist.md",
+      "base_configuration": {
+        "file": "configs/theorist.yaml",
+        "format": "yaml"
+      },
+      "library_guidance": {
+        "file": "guidance/theorist.md"
+      },
       "applicable_phases": ["P1", "P2", "P3", "P4", "P5"],
-      "recommended_skills": ["stat-paper-writing"]
+      "recommended_skills": ["stat-paper-writing"],
+      "custom_skills": [
+        {
+          "skill_id": "mh-proof-dependency",
+          "name": "Proof dependency tracer",
+          "description": "Trace and record formal proof dependencies, identifying the least obvious step and any unresolved gaps.",
+          "source": "method-hub/bundled"
+        }
+      ]
     },
     {
       "role_id": "data_analyst",
@@ -25,8 +55,23 @@
       "profile_version": "1.0.0",
       "default_profile": "data_analyst",
       "soul_file": "souls/data_analyst.md",
+      "base_configuration": {
+        "file": "configs/data_analyst.yaml",
+        "format": "yaml"
+      },
+      "library_guidance": {
+        "file": "guidance/data_analyst.md"
+      },
       "applicable_phases": ["P1", "P2", "P3", "P4", "P5"],
-      "recommended_skills": ["stat-paper-writing"]
+      "recommended_skills": ["stat-paper-writing"],
+      "custom_skills": [
+        {
+          "skill_id": "mh-reproducibility-checklist",
+          "name": "Reproducibility checklist",
+          "description": "Systematic checklist for recording provenance, seeds, environments, commands, and diagnostics.",
+          "source": "method-hub/bundled"
+        }
+      ]
     },
     {
       "role_id": "outside_reviewer",
@@ -34,8 +79,23 @@
       "profile_version": "1.0.0",
       "default_profile": "paper_reviewer",
       "soul_file": "souls/outside_reviewer.md",
+      "base_configuration": {
+        "file": "configs/outside_reviewer.yaml",
+        "format": "yaml"
+      },
+      "library_guidance": {
+        "file": "guidance/outside_reviewer.md"
+      },
       "applicable_phases": ["P5"],
-      "recommended_skills": ["stat-paper-reviewer"]
+      "recommended_skills": ["stat-paper-reviewer"],
+      "custom_skills": [
+        {
+          "skill_id": "mh-review-calibration",
+          "name": "Review severity calibration",
+          "description": "Framework for calibrating the severity and confidence of each review concern against available evidence.",
+          "source": "method-hub/bundled"
+        }
+      ]
     }
   ],
   "skills": [

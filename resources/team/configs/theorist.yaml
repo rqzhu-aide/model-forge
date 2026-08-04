@@ -1,0 +1,14 @@
+# Base Hermes profile configuration for the theorist.
+# Managed by Method Hub configuration. Do not edit inside a run profile.
+
+profile:
+  display_name: Theorist
+  role: theorist
+
+memory:
+  persistence: persistent
+  scope: project
+
+behavior:
+  temperature: 0.3
+  max_tokens: 8192

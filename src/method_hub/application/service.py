@@ -19,11 +19,17 @@ from ..api.models import (
     PhaseId,
     PhaseView,
     ProfileConfigurationView,
+    ProvisionResultView,
+    ProvisionRoleRequest,
     PublicationReceiptDocument,
     ProjectBriefView,
     ProjectOverview,
     ProjectSummary,
     ReasonedActionRequest,
+    RoleDefinitionCatalogView,
+    RoleDefinitionView,
+    RoleHealthReportView,
+    ConfigurationHealthView,
     RunDetail,
     RunEvent,
     RunSummary,
@@ -42,6 +48,13 @@ from ..configuration.profiles import (
     resolve_hermes_root,
 )
 from ..configuration.resources import RoleResourceCatalog
+from ..configuration.role_provisioner import (
+    CustomizationConflict,
+    ProvisioningError,
+    discover_profile_home,
+    hermes_available,
+    provision_role_definition,
+)
 from ..configuration.skill_installer import (
     SkillConflictError,
     SkillInstallationError,
@@ -65,6 +78,13 @@ from .method_lifecycle import MethodLifecycleCommandService
 from .profile_views import build_profile_configuration_view
 from .project_commands import ProjectCommandService
 from .repository_views import RepositoryQueries, row_json
+from .role_views import (
+    build_conflict_detail,
+    build_configuration_health_view,
+    build_role_definition_catalog_view,
+    build_role_definition_view,
+    build_role_health_view,
+)
 from .run_views import CANCELLABLE, run_detail_view, run_event_view, run_summary_view
 from .settings import ApplicationSettings
 from .view_models import ACTIVE_RUN_STATES, ResearchProjectionService, project_summary
@@ -1257,6 +1277,156 @@ class MethodHubService:
             ):
                 return True
         return False
+
+    # ------------------------------------------------------------------ #
+    # Block 2: role-definition configuration service                     #
+    # ------------------------------------------------------------------ #
+
+    def _resolved_hermes_root(self) -> Path:
+        return Path(self.settings.hermes_root or resolve_hermes_root())
+
+    async def get_role_definitions(self) -> RoleDefinitionCatalogView:
+        """Return all four configuration-managed role definitions."""
+        return build_role_definition_catalog_view(self.role_resources)
+
+    async def get_role_definition(self, role_id: str) -> RoleDefinitionView:
+        """Return one role definition by role_id."""
+        try:
+            return build_role_definition_view(self.role_resources, role_id)
+        except ValueError as error:
+            raise _not_found(RepositoryNotFoundError("role", role_id)) from error
+
+    async def get_configuration_health(self) -> ConfigurationHealthView:
+        """Return aggregate health of all role definitions."""
+        root = self._resolved_hermes_root()
+        # Use global effective profiles (settings defaults, no project override).
+        effective = {
+            role: self.settings.profile_for(role) for role in PROFILE_ROLES
+        }
+        return build_configuration_health_view(
+            self.role_resources,
+            root,
+            self.skill_bundle_root,
+            effective,
+        )
+
+    async def get_role_health(self, role_id: str) -> RoleHealthReportView:
+        """Return the health of one role definition."""
+        try:
+            self.role_resources.role(role_id)
+        except ValueError as error:
+            raise _not_found(RepositoryNotFoundError("role", role_id)) from error
+        root = self._resolved_hermes_root()
+        effective = {
+            role: self.settings.profile_for(role) for role in PROFILE_ROLES
+        }
+        return build_role_health_view(
+            self.role_resources,
+            role_id,
+            root,
+            self.skill_bundle_root,
+            effective,
+        )
+
+    async def provision_role(
+        self,
+        role_id: str,
+        command: ProvisionRoleRequest,
+    ) -> ProvisionResultView:
+        """Provision a role definition into its Hermes profile, atomically."""
+        try:
+            resource = self.role_resources.role(role_id)
+        except ValueError as error:
+            raise _not_found(RepositoryNotFoundError("role", role_id)) from error
+
+        root = self._resolved_hermes_root()
+        if not hermes_available(root):
+            raise CommandRejected(
+                new_command_error(
+                    "DEPENDENCY_CLOSURE_INCOMPLETE",
+                    object_refs=[role_id, str(root)],
+                    researcher_message=(
+                        "The Hermes root directory is not available. "
+                        "Install Hermes and configure the correct root path."
+                    ),
+                    smallest_correction=(
+                        "Install Hermes or set METHOD_HUB_HERMES_ROOT and try again."
+                    ),
+                )
+            )
+
+        effective_profile = self.settings.profile_for(role_id)
+        profile_home = discover_profile_home(root, effective_profile)
+        if profile_home is None:
+            raise CommandRejected(
+                new_command_error(
+                    "TARGET_NOT_FOUND",
+                    object_refs=[role_id, effective_profile],
+                    researcher_message=(
+                        f"Hermes profile {effective_profile!r} for role "
+                        f"{role_id!r} does not exist or is not a safe directory."
+                    ),
+                    smallest_correction=(
+                        f"Create the Hermes profile {effective_profile!r} before "
+                        "provisioning this role."
+                    ),
+                )
+            )
+
+        try:
+            result = provision_role_definition(
+                resource=resource,
+                profile_home=profile_home,
+                bundle_root=self.skill_bundle_root,
+                install_skills=command.install_skills,
+                force_overwrite_assets=command.force_overwrite_assets,
+                force_overwrite_skills=command.force_overwrite_skills,
+            )
+        except CustomizationConflict as error:
+            conflict_detail = build_conflict_detail(error)
+            raise CommandRejected(
+                new_command_error(
+                    "CUSTOMIZATION_CONFLICT",
+                    object_refs=[
+                        error.role_id,
+                        error.asset_type,
+                        error.path.name,
+                    ],
+                    researcher_message=(
+                        f"The {conflict_detail.asset_type} file "
+                        f"{conflict_detail.file_name!r} in profile "
+                        f"{effective_profile!r} has been customized and differs "
+                        f"from the configuration-managed reference. "
+                        f"Choose to keep the custom version or overwrite it with "
+                        f"the reference."
+                    ),
+                    smallest_correction=(
+                        "Resolve the conflict explicitly: keep the customized "
+                        "file or force-overwrite it with the reference, then "
+                        "provision again."
+                    ),
+                )
+            ) from error
+        except ProvisioningError as error:
+            raise CommandRejected(
+                new_command_error(
+                    "ROLE_PROVISIONING_FAILED",
+                    object_refs=[role_id, str(profile_home)],
+                    researcher_message=str(error),
+                    smallest_correction=(
+                        "All partial changes were rolled back. Inspect the "
+                        "profile directory and try again."
+                    ),
+                )
+            ) from error
+
+        return ProvisionResultView(
+            role_id=role_id,
+            profile_name=effective_profile,
+            assets_written=list(result.assets_written),
+            skills_installed=[s.skill_id for s in result.skills_installed],
+            rolled_back=result.rolled_back,
+        )
 
     def _attach_raw_request(
         self, project_id: str, receipt: RawRequestReceipt

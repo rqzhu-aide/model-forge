@@ -1,0 +1,15 @@
+# Base Hermes profile configuration for the outside reviewer.
+# Managed by Method Hub configuration. Do not edit inside a run profile.
+# The reviewer starts fresh — no persistent project memory.
+
+profile:
+  display_name: Outside reviewer
+  role: outside_reviewer
+
+memory:
+  persistence: fresh
+  scope: isolated
+
+behavior:
+  temperature: 0.3
+  max_tokens: 8192

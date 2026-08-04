@@ -31,6 +31,8 @@ CommandErrorCode = Literal[
     "DEPENDENCY_CLOSURE_INCOMPLETE",
     "NO_STATE_CHANGE",
     "PUBLICATION_CONFLICT",
+    "CUSTOMIZATION_CONFLICT",
+    "ROLE_PROVISIONING_FAILED",
 ]
 ErrorCategory = Literal[
     "authentication",
@@ -68,6 +70,8 @@ ERROR_RULES: dict[CommandErrorCode, ErrorRule] = {
     "DEPENDENCY_CLOSURE_INCOMPLETE": ErrorRule("dependency", 422, True, "MH-59"),
     "NO_STATE_CHANGE": ErrorRule("transition", 409, False, "MH-47"),
     "PUBLICATION_CONFLICT": ErrorRule("concurrency", 409, True, "MH-56"),
+    "CUSTOMIZATION_CONFLICT": ErrorRule("transition", 409, False, "MH-49"),
+    "ROLE_PROVISIONING_FAILED": ErrorRule("transition", 500, True, "MH-59"),
 }
 
 

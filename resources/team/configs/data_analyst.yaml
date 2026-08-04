@@ -1,0 +1,14 @@
+# Base Hermes profile configuration for the data analyst.
+# Managed by Method Hub configuration. Do not edit inside a run profile.
+
+profile:
+  display_name: Data analyst
+  role: data_analyst
+
+memory:
+  persistence: persistent
+  scope: project
+
+behavior:
+  temperature: 0.2
+  max_tokens: 8192

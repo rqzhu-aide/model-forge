@@ -581,6 +581,150 @@ class InstallSkillRequest(StrictModel):
     action_descriptor_id: NonEmptyString
 
 
+# --------------------------------------------------------------------------- #
+# Block 2: Role-definition configuration service models
+# --------------------------------------------------------------------------- #
+
+
+class SkillRecommendationView(StrictModel):
+    skill_id: NonEmptyString
+    name: NonEmptyString
+    description: str
+    source: NonEmptyString
+    recommended_version: NonEmptyString
+
+
+class CustomSkillView(StrictModel):
+    skill_id: NonEmptyString
+    name: NonEmptyString
+    description: str
+    source: NonEmptyString
+
+
+class BaseConfigurationView(StrictModel):
+    file_name: NonEmptyString
+    format: Literal["yaml", "json"]
+    content_sha256: Sha256String
+
+
+class LibraryGuidanceView(StrictModel):
+    file_name: NonEmptyString
+    content_sha256: Sha256String
+
+
+class RoleDefinitionView(StrictModel):
+    """Complete role definition: SOUL, configuration, skills, guidance."""
+
+    role_id: NonEmptyString
+    display_name: NonEmptyString
+    profile_version: NonEmptyString
+    default_profile: NonEmptyString
+    applicable_phases: list[PhaseId]
+    soul_text: str
+    soul_sha256: Sha256String
+    base_configuration: BaseConfigurationView
+    recommended_skills: list[SkillRecommendationView]
+    custom_skills: list[CustomSkillView]
+    library_guidance: LibraryGuidanceView
+
+
+class RoleDefinitionCatalogView(StrictModel):
+    """All four role definitions."""
+
+    roles: list[RoleDefinitionView]
+
+
+class AssetStatusView(StrictModel):
+    asset_type: Literal[
+        "soul", "base_configuration", "library_guidance", "skill"
+    ]
+    file_name: NonEmptyString
+    status: Literal["present", "missing", "customized", "unavailable"]
+    expected_sha256: Sha256String
+    actual_sha256: Sha256String | None = None
+    source: NonEmptyString | None = None
+    recommended_version: NonEmptyString | None = None
+    detail: str
+
+
+class RoleHealthReportView(StrictModel):
+    role_id: NonEmptyString
+    display_name: NonEmptyString
+    profile_available: bool
+    profile_name: NonEmptyString | None = None
+    overall_status: Literal["healthy", "incomplete", "customized", "unavailable"]
+    soul_status: AssetStatusView
+    configuration_status: AssetStatusView
+    guidance_status: AssetStatusView
+    skill_statuses: list[AssetStatusView]
+    conditions: list[
+        Literal[
+            "healthy",
+            "hermes_missing",
+            "profile_missing",
+            "soul_customized",
+            "soul_missing",
+            "config_customized",
+            "config_missing",
+            "skill_mismatch",
+            "skill_missing",
+        ]
+    ]
+    detail: str
+
+
+class ConfigurationHealthView(StrictModel):
+    """Aggregate health across all role definitions."""
+
+    hermes_root: NonEmptyString
+    hermes_available: bool
+    roles: list[RoleHealthReportView]
+    overall_status: Literal["healthy", "incomplete", "customized", "unavailable"]
+    conditions: list[
+        Literal[
+            "healthy",
+            "hermes_missing",
+            "profile_missing",
+            "soul_customized",
+            "soul_missing",
+            "config_customized",
+            "config_missing",
+            "skill_mismatch",
+            "skill_missing",
+        ]
+    ]
+
+
+class ProvisionRoleRequest(StrictModel):
+    action_descriptor_id: NonEmptyString | None = None
+    install_skills: bool = True
+    force_overwrite_assets: bool = False
+    force_overwrite_skills: bool = False
+
+
+class ProvisionResultView(StrictModel):
+    role_id: NonEmptyString
+    profile_name: NonEmptyString
+    assets_written: list[NonEmptyString]
+    skills_installed: list[NonEmptyString]
+    rolled_back: bool
+
+
+class ConflictDetailView(StrictModel):
+    """Details of a customization conflict surfaced to the user."""
+
+    role_id: NonEmptyString
+    asset_type: Literal[
+        "soul", "base_configuration", "library_guidance", "skill"
+    ]
+    file_name: NonEmptyString
+    expected_sha256: Sha256String
+    actual_sha256: Sha256String
+    resolution_options: list[
+        Literal["keep_custom", "overwrite_with_reference"]
+    ]
+
+
 # Rebuild models that refer to classes declared later in this module.
 MethodRow.model_rebuild()
 ProjectOverview.model_rebuild()

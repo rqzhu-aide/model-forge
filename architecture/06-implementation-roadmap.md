@@ -96,7 +96,8 @@ Implement:
   mode-scoped harness-prepared contexts;
 - immutable prepared-role contexts, invocation starts, invocation closures, and
   run submissions with registered RFC 8785 digests; each invocation start also
-  binds the rootless OCI executor-profile artifact and runtime image manifest;
+  binds the pinned trusted-local executor binding (executor profile, Hermes
+  executable identity, working roots, process-control policy);
 - frozen role-context snapshots with deterministic budgets and access ledgers;
 - schema and cross-object semantic validation.
 
@@ -112,9 +113,10 @@ Implement:
 - safe project and run paths;
 - a capability-based storage broker that gives role processes no formal-storage
   credentials and enforces role-specific run-local read and write boundaries;
-- a rootless OCI Linux executor with private user, process, and mount namespaces,
-  read-only root filesystem, no capabilities, pinned seccomp profile, exact
-  role-root mount, broker-only storage, and absent or allowlist-proxied egress;
+- a trusted-local Linux executor that invokes the installed Hermes executable
+  directly, without a shell, with an explicit argument vector, environment,
+  working directory, invocation profile, and workspace, supervised as a local
+  process group;
 - content-addressed immutable artifact references;
 - separate namespaces for immutable formal generations, append-only authority
   events, rebuildable record-state projections, and current indexes;
@@ -173,9 +175,9 @@ Implement:
   `ContractSequentialOrchestrator` that advances sealed execution groups in
   order while preserving contract-declared parallel isolation;
 - per-stage creation of immutable `PreparedRoleContext` and `RoleInvocationStart`
-  records before execution, including verification that the realized rootless OCI
-  container matches the frozen executor profile and image digest, followed by one
-  immutable terminal `RoleInvocationClosure`;
+  records before execution, including verification that the realized local
+  process matches the frozen trusted-local executor binding and Hermes executable
+  identity, followed by one immutable terminal `RoleInvocationClosure`;
 - downstream-stage gates that dereference successful upstream closures and exact
   accepted output artifacts;
 - immutable `RunSubmission` creation only after the complete selected role plan

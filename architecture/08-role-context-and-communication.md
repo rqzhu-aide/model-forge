@@ -129,27 +129,25 @@ capability before resolving an artifact.
 
 ### 4.3 Process boundary
 
-Prompt wording is not an access boundary. The version 1 Linux executor runs each
-CLI-capable role in a separate rootless OCI container. The container uses private
-user, process, and mount namespaces; a read-only root filesystem; no Linux
-capabilities; `no_new_privileges`; and the pinned seccomp policy in its immutable
-executor-profile artifact. The only writable mount is the exact role root. Pinned
-runtime resources are read-only, and the capability broker is reached through one
-private Unix socket. Project storage, formal storage, other role roots, host
-credentials, and the host process namespace are never mounted.
+Prompt wording is not an access boundary. The version 1 executor invokes the
+installed Hermes executable directly, without a shell, with an explicit argument
+vector, environment, working directory, invocation profile, and workspace. The
+host is trusted: Method Hub does not claim that Hermes or its tools are prevented
+from reading other files, using the host network, inspecting processes, or
+exercising the researcher's operating-system permissions (ADR-012). Method Hub
+supplies only declared inputs and paths and can prove which inputs it supplied;
+that is workflow discipline, not an operating-system security guarantee. The
+capability broker is reached through the frozen broker transport, and every
+`RoleInvocationStart` binds the pinned trusted-local executor binding (executor
+profile, Hermes executable identity, working roots, and process-control policy)
+used for that process. A mismatch blocks the start.
 
-Network egress is either absent or forced through the broker-managed allowlist
-proxy named by the frozen capability grant. Direct container egress is denied.
-Every `RoleInvocationStart` binds the exact OCI image-manifest digest and executor
-profile artifact used for that process. A mismatch blocks the start.
-
-Linux release tests must attempt path traversal, symlink escape, mount escape,
-environment-secret read, process inspection, undeclared network access, direct
-project-store access, and cross-role workspace access. Windows and other
-platforms remain unsupported until an executor profile passes the same tests. An
-executor without the rootless OCI boundary is allowed only when its callable
-interfaces cannot access the host filesystem, network, environment, process
-table, command line, or external storage.
+Linux release tests must verify exact run-profile construction, declared input
+and path supply, process-tree supervision and termination, and cross-role
+workspace separation. Windows and other platforms remain unsupported until
+process-tree termination, path, file-locking, and session-snapshot behavior pass
+equivalent tests. Operating-system isolation, filesystem denial, and
+provider-only network enforcement are deferred optional hardening (ADR-012).
 
 ## 5. Context assembly
 

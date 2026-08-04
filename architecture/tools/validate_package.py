@@ -890,18 +890,28 @@ def validate_role_invocation_lifecycle() -> list[str]:
 
     for invocation in (start, downstream):
         executor = invocation["executor_binding"]
-        grants = invocation["capability_grants"]
-        expected_egress = (
-            "none" if grants["network_policy"] == "none" else "allowlist_proxy"
-        )
-        if executor["network_egress"] != expected_egress:
-            errors.append("role start executor egress differs from its capability grant")
-        if executor["project_store_mounted"] or executor["formal_store_mounted"]:
-            errors.append("role start exposes authoritative storage to the role process")
+        if executor["backend"] != "trusted_local":
+            errors.append("role start executor backend is not trusted_local")
+        process_control = executor["process_control"]
+        if process_control["supervision"] != "local_process_group":
+            errors.append("role start process supervision is not local_process_group")
+        if process_control["termination"] != "sigterm_then_sigkill":
+            errors.append("role start process termination is not sigterm_then_sigkill")
+        if process_control["quiescence_required"] is not True:
+            errors.append("role start does not require verified quiescence")
+        working_roots = executor["working_roots"]
+        run_profile = working_roots["run_profile"]
+        workspace = working_roots["workspace"]
+        if not isinstance(run_profile, str) or not run_profile.strip():
+            errors.append("role start run profile working root is missing or empty")
+        if not isinstance(workspace, str) or not workspace.strip():
+            errors.append("role start workspace working root is missing or empty")
+        if run_profile == workspace:
+            errors.append("role start run profile is also the workspace")
     pinned_executor_fields = {
         "executor_profile_id",
         "executor_profile_artifact",
-        "runtime_image_artifact",
+        "hermes_executable",
         "backend",
     }
     if any(

@@ -213,7 +213,7 @@ This architecture does not prescribe:
 
 - A particular agent model or inference provider.
 - A particular database or object store.
-- Cross-platform execution in version 1. Linux is the conformance platform for CLI-capable role isolation; another operating system may be added only after it passes the same broker and process-escape tests.
+- Cross-platform execution in version 1. Linux is the conformance platform for trusted-local execution; another operating system may be added only after it passes the same broker, process-tree termination, path, file-locking, and session-snapshot tests. Operating-system isolation is deferred optional hardening (ADR-012).
 - Automatic judgment that a theorem is correct or an empirical conclusion is true.
 - Automatic progression through phases.
 - A single linear research path. Phases 3 and 4 may proceed independently after a suitable Phase 2 method record exists.

@@ -1,107 +1,107 @@
 {
-    "schema_version":  "1.0.0",
-    "run_id":  "run.p4.preliminary.20260801t140000z",
-    "current_state":  "published",
-    "events":  [
-                   {
-                       "event_id":  "event.run.created.001",
-                       "to":  "created",
-                       "at":  "2026-08-01T14:00:00Z",
-                       "actor":  "user",
-                       "reason":  "The researcher submitted the Phase 4 command.",
-                       "sequence":  1,
-                       "prior_event_sha256":  "0000000000000000000000000000000000000000000000000000000000000000",
-                       "event_sha256":  "fadbd13272e374814a867d2fd044fdb5f2404756fd3086e7bb1d7b32e1ba22e9"
-                   },
-                   {
-                       "event_id":  "event.run.preparing.001",
-                       "from":  "created",
-                       "to":  "preparing",
-                       "at":  "2026-08-01T14:00:01Z",
-                       "actor":  "system",
-                       "reason":  "The harness began resolving current records and role profiles.",
-                       "sequence":  2,
-                       "prior_event_sha256":  "fadbd13272e374814a867d2fd044fdb5f2404756fd3086e7bb1d7b32e1ba22e9",
-                       "event_sha256":  "276b8164f623b0b2856177c4507da42de54567180c893f8bdc30ef29f6cd2e63"
-                   },
-                   {
-                       "event_id":  "event.run.prepared.001",
-                       "from":  "preparing",
-                       "to":  "prepared",
-                       "at":  "2026-08-01T14:00:02Z",
-                       "actor":  "system",
-                       "reason":  "The harness sealed the immutable run manifest.",
-                       "sequence":  3,
-                       "prior_event_sha256":  "276b8164f623b0b2856177c4507da42de54567180c893f8bdc30ef29f6cd2e63",
-                       "event_sha256":  "ee7e2d29f86d1bfb0ab22c71ead00e502a0f352ea86a0cbf69bf156845afcec5"
-                   },
-                   {
-                       "event_id":  "event.run.running.001",
-                       "from":  "prepared",
-                       "to":  "running",
-                       "at":  "2026-08-01T14:00:03Z",
-                       "actor":  "system",
-                       "reason":  "All required inputs and role environments passed preflight checks.",
-                       "sequence":  4,
-                       "prior_event_sha256":  "ee7e2d29f86d1bfb0ab22c71ead00e502a0f352ea86a0cbf69bf156845afcec5",
-                       "event_sha256":  "f186c46497939126cb1b26272e65a52592dd31cea0a7d332925283a3de441bac"
-                   },
-                   {
-                       "event_id":  "event.run.submitted.001",
-                       "from":  "running",
-                       "to":  "submitted",
-                       "at":  "2026-08-01T15:10:00Z",
-                       "actor":  "research_lead",
-                       "reason":  "The complete Phase 4 candidate package was closed for validation.",
-                       "sequence":  5,
-                       "prior_event_sha256":  "f186c46497939126cb1b26272e65a52592dd31cea0a7d332925283a3de441bac",
-                       "event_sha256":  "4033ec72dbd0c45d57bfcd63f83c8b61c5149d9f9a2a4bc1be1997b3329336e5",
-                       "evidence_artifact":  {
-                                                 "artifact_id":  "artifact.run_submission.p4.001",
-                                                 "uri":  "run://run.p4.preliminary.20260801t140000z/artifact/artifact.run_submission.p4.001",
-                                                 "sha256":  "911b9f2e44ffde6927d5116f2eced709fefd71d5e1b2f3a20034af73a61c5f2f",
-                                                 "media_type":  "application/json"
-                                             }
-                   },
-                   {
-                       "event_id":  "event.run.validating.001",
-                       "from":  "submitted",
-                       "to":  "validating",
-                       "at":  "2026-08-01T15:10:01Z",
-                       "actor":  "system",
-                       "reason":  "The harness began schema, provenance, alignment, and promotion checks.",
-                       "sequence":  6,
-                       "prior_event_sha256":  "4033ec72dbd0c45d57bfcd63f83c8b61c5149d9f9a2a4bc1be1997b3329336e5",
-                       "event_sha256":  "dfcdb82e4dd46357552da2b79f1e14e9265b704b7463a7d80d9d647a1658fe10"
-                   },
-                   {
-                       "event_id":  "event.run.promoting.001",
-                       "from":  "validating",
-                       "to":  "promoting",
-                       "at":  "2026-08-01T15:10:03Z",
-                       "actor":  "system",
-                       "reason":  "All blocking validation checks passed.",
-                       "sequence":  7,
-                       "prior_event_sha256":  "dfcdb82e4dd46357552da2b79f1e14e9265b704b7463a7d80d9d647a1658fe10",
-                       "event_sha256":  "c75727ccc95ee942e6df26127587fde88f7d9d33f7e711f127b37591a006449f"
-                   },
-                   {
-                       "event_id":  "event.run.published.001",
-                       "from":  "promoting",
-                       "to":  "published",
-                       "at":  "2026-08-01T15:10:04Z",
-                       "actor":  "system",
-                       "reason":  "The atomic publication transaction committed.",
-                       "sequence":  8,
-                       "prior_event_sha256":  "c75727ccc95ee942e6df26127587fde88f7d9d33f7e711f127b37591a006449f",
-                       "event_sha256":  "a896acce32dec1de1c3500701132e495229745e12b6861a2e827333c45bf3da5"
-                   }
-               ],
-    "publication_receipt_id":  "publication.p4.001",
-    "updated_at":  "2026-08-01T15:10:04Z",
-    "project_id":  "project.demo",
-    "manifest_sha256":  "ff82f75fd52e338e96a9ea1d1cc59c2399a52c218934b6d298f3cf6e37d82d12",
-    "journal_root_sha256":  "a896acce32dec1de1c3500701132e495229745e12b6861a2e827333c45bf3da5",
-    "submission_id":  "submission.p4.001",
-    "submission_sha256":  "911b9f2e44ffde6927d5116f2eced709fefd71d5e1b2f3a20034af73a61c5f2f"
+  "schema_version": "1.0.0",
+  "run_id": "run.p4.preliminary.20260801t140000z",
+  "current_state": "published",
+  "events": [
+    {
+      "event_id": "event.run.created.001",
+      "to": "created",
+      "at": "2026-08-01T14:00:00Z",
+      "actor": "user",
+      "reason": "The researcher submitted the Phase 4 command.",
+      "sequence": 1,
+      "prior_event_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "event_sha256": "fadbd13272e374814a867d2fd044fdb5f2404756fd3086e7bb1d7b32e1ba22e9"
+    },
+    {
+      "event_id": "event.run.preparing.001",
+      "from": "created",
+      "to": "preparing",
+      "at": "2026-08-01T14:00:01Z",
+      "actor": "system",
+      "reason": "The harness began resolving current records and role profiles.",
+      "sequence": 2,
+      "prior_event_sha256": "fadbd13272e374814a867d2fd044fdb5f2404756fd3086e7bb1d7b32e1ba22e9",
+      "event_sha256": "276b8164f623b0b2856177c4507da42de54567180c893f8bdc30ef29f6cd2e63"
+    },
+    {
+      "event_id": "event.run.prepared.001",
+      "from": "preparing",
+      "to": "prepared",
+      "at": "2026-08-01T14:00:02Z",
+      "actor": "system",
+      "reason": "The harness sealed the immutable run manifest.",
+      "sequence": 3,
+      "prior_event_sha256": "276b8164f623b0b2856177c4507da42de54567180c893f8bdc30ef29f6cd2e63",
+      "event_sha256": "ee7e2d29f86d1bfb0ab22c71ead00e502a0f352ea86a0cbf69bf156845afcec5"
+    },
+    {
+      "event_id": "event.run.running.001",
+      "from": "prepared",
+      "to": "running",
+      "at": "2026-08-01T14:00:03Z",
+      "actor": "system",
+      "reason": "All required inputs and role environments passed preflight checks.",
+      "sequence": 4,
+      "prior_event_sha256": "ee7e2d29f86d1bfb0ab22c71ead00e502a0f352ea86a0cbf69bf156845afcec5",
+      "event_sha256": "f186c46497939126cb1b26272e65a52592dd31cea0a7d332925283a3de441bac"
+    },
+    {
+      "event_id": "event.run.submitted.001",
+      "from": "running",
+      "to": "submitted",
+      "at": "2026-08-01T15:10:00Z",
+      "actor": "research_lead",
+      "reason": "The complete Phase 4 candidate package was closed for validation.",
+      "sequence": 5,
+      "prior_event_sha256": "f186c46497939126cb1b26272e65a52592dd31cea0a7d332925283a3de441bac",
+      "event_sha256": "087b9a0040d6ed8c2dd53a1a87fc5936cf6b3ecb8e8467877f023dff97969769",
+      "evidence_artifact": {
+        "artifact_id": "artifact.run_submission.p4.001",
+        "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.run_submission.p4.001",
+        "sha256": "1bcc44c2dc646bbd54595ba4048f0602092ebdb312fe279dbd968856d649270e",
+        "media_type": "application/json"
+      }
+    },
+    {
+      "event_id": "event.run.validating.001",
+      "from": "submitted",
+      "to": "validating",
+      "at": "2026-08-01T15:10:01Z",
+      "actor": "system",
+      "reason": "The harness began schema, provenance, alignment, and promotion checks.",
+      "sequence": 6,
+      "prior_event_sha256": "087b9a0040d6ed8c2dd53a1a87fc5936cf6b3ecb8e8467877f023dff97969769",
+      "event_sha256": "433e6abc58ce64aa6f07c9348e37af45fef1db986e849f53c50773427d542864"
+    },
+    {
+      "event_id": "event.run.promoting.001",
+      "from": "validating",
+      "to": "promoting",
+      "at": "2026-08-01T15:10:03Z",
+      "actor": "system",
+      "reason": "All blocking validation checks passed.",
+      "sequence": 7,
+      "prior_event_sha256": "433e6abc58ce64aa6f07c9348e37af45fef1db986e849f53c50773427d542864",
+      "event_sha256": "bf706aea17304aace846b1154391731f2ad82b3eef2123495a5b5bac8a8db204"
+    },
+    {
+      "event_id": "event.run.published.001",
+      "from": "promoting",
+      "to": "published",
+      "at": "2026-08-01T15:10:04Z",
+      "actor": "system",
+      "reason": "The atomic publication transaction committed.",
+      "sequence": 8,
+      "prior_event_sha256": "bf706aea17304aace846b1154391731f2ad82b3eef2123495a5b5bac8a8db204",
+      "event_sha256": "75150e6e23e82075b5f77a9f80e71937f47619f18480534cbcca76b71ede284c"
+    }
+  ],
+  "publication_receipt_id": "publication.p4.001",
+  "updated_at": "2026-08-01T15:10:04Z",
+  "project_id": "project.demo",
+  "manifest_sha256": "ff82f75fd52e338e96a9ea1d1cc59c2399a52c218934b6d298f3cf6e37d82d12",
+  "journal_root_sha256": "75150e6e23e82075b5f77a9f80e71937f47619f18480534cbcca76b71ede284c",
+  "submission_id": "submission.p4.001",
+  "submission_sha256": "1bcc44c2dc646bbd54595ba4048f0602092ebdb312fe279dbd968856d649270e"
 }

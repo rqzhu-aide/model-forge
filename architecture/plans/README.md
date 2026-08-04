@@ -25,7 +25,7 @@ workflow and state integrity, not operating-system isolation from Hermes.
   open under its Revision 3 trusted-local topology. The local closure plan is
   its controlling implementation package.
 - [Operational Completion Plan](operational-completion-plan.md) is historical
-  program context; its WP0–WP9 execution framing is superseded by the
+  program context; its WP0-WP9 execution framing is superseded by the
   Trusted Local Execution Program.
 - [Manual Method Hub with Sequential-First Orchestration](manual-sequential-orchestration-implementation-plan.md)
   records the development baseline and research workflow that must be retained.
@@ -40,7 +40,7 @@ workflow and state integrity, not operating-system isolation from Hermes.
 
 OCI source and tests were removed from the working tree on 2026-08-04 (ADR-012
 Amendment 1); git history preserves them. The documents below remain as
-historical design records and optional future hardening references only — no
+historical design records and optional future hardening references only - no
 Version 1 work depends on them.
 
 - [End-to-End OCI Diagnostic Closure](next-block-end-to-end-oci-diagnostic-closure.md)

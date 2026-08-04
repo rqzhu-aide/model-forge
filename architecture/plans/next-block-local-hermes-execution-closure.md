@@ -3,7 +3,7 @@
 Status: Recommended Version 1 implementation block, Revision 1.
 
 Baseline: commit `a08604d`, planned 2026-08-04.
-Revision 1: 2026-08-04 — OCI removal executed; see the Revision 1 changelog
+Revision 1: 2026-08-04 - OCI removal executed; see the Revision 1 changelog
 at the end of this document.
 
 Architecture decision:
@@ -307,7 +307,7 @@ Replace or simplify:
   redaction, PID-based external identity, heartbeat polling, and before/after
   memory digests. The Block 4 work is stripping the interim `bwrap` wrapper,
   adding durable process identity, restart reconciliation, and verified
-  process-tree quiescence — not writing a runner from scratch.
+  process-tree quiescence - not writing a runner from scratch.
 
 OCI source and tests were removed from the working tree in Revision 1 (git
 history preserves them). The diagnostic lane is interim-wired to
@@ -380,7 +380,7 @@ execution already provides those protections.
 ## Revision 1 changelog (2026-08-04)
 
 Amendments from validating this plan against the working tree at `17c1833`.
-A1 and A2 are corrections to the original text; A3–A5 record decisions made
+A1 and A2 are corrections to the original text; A3-A5 record decisions made
 with the researcher.
 
 - **A1 (correction).** The original §6 item "remove the unsafe scientific
@@ -403,7 +403,7 @@ with the researcher.
   `test_real_linux_evidence.py`, `test_network_secrets.py`. Git history
   preserves them; the evidence index and OCI plan documents remain as
   historical records only. At removal time the H0-B evidence suite was
-  already red (5 failures from the slice 2–7 runtime-profile requirement
+  already red (5 failures from the slice 2-7 runtime-profile requirement
   drift), confirming the code was not being kept viable.
 - **A4 (decision).** The diagnostic lane composition root
   (`diagnostics/composition.py`) is interim-wired to `OneShotExecutor` and
@@ -419,6 +419,6 @@ with the researcher.
   and fixture coverage is unchanged.
 
 Post-revision state: 386 backend tests green (was 435 with 5 OCI failures
-before removal). Remaining Block 1 contract work — schemas, examples,
-rejected fixtures, and digest contracts that still carry OCI fields — is
+before removal). Remaining Block 1 contract work - schemas, examples,
+rejected fixtures, and digest contracts that still carry OCI fields - is
 unchanged and still required before code depends on the new runtime.

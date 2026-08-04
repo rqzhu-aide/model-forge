@@ -1,207 +1,207 @@
 {
-    "schema_version":  "1.0.0",
-    "submission_id":  "submission.p4.001",
-    "run_id":  "run.p4.preliminary.20260801t140000z",
-    "project_id":  "project.demo",
-    "phase":  "P4",
-    "mode":  "p4.preliminary",
-    "manifest_binding":  {
-                             "artifact":  {
-                                              "artifact_id":  "artifact.run_manifest.p4.001",
-                                              "uri":  "run://run.p4.preliminary.20260801t140000z/artifact/artifact.run_manifest.p4.001",
-                                              "sha256":  "ff82f75fd52e338e96a9ea1d1cc59c2399a52c218934b6d298f3cf6e37d82d12",
-                                              "media_type":  "application/json"
-                                          },
-                             "manifest_sha256":  "ff82f75fd52e338e96a9ea1d1cc59c2399a52c218934b6d298f3cf6e37d82d12"
-                         },
-    "closure_chain":  [
-                          {
-                              "sequence":  1,
-                              "stage_id":  "p4.analyst",
-                              "role":  "data_analyst",
-                              "invocation_start_id":  "invocation_start.p4.analyst.001",
-                              "start_sha256":  "754adfedcb93337a98a5051644514dae0ddcd846d96726e1cd310cba083e86f1",
-                              "invocation_closure_id":  "invocation_closure.p4.analyst.001",
-                              "closure_artifact":  {
-                                                       "artifact_id":  "artifact.invocation_closure.p4.analyst.001",
-                                                       "uri":  "run://run.p4.preliminary.20260801t140000z/artifact/artifact.invocation_closure.p4.analyst.001",
-                                                       "sha256":  "58c85d3613cdeefd0c84bbaed948ef2f4b98fd3bafe2ed9d875fc517674094c6",
-                                                       "media_type":  "application/json"
-                                                   },
-                              "closure_sha256":  "58c85d3613cdeefd0c84bbaed948ef2f4b98fd3bafe2ed9d875fc517674094c6",
-                              "terminal_status":  "succeeded"
-                          },
-                          {
-                              "sequence":  2,
-                              "stage_id":  "p4.theorist",
-                              "role":  "theorist",
-                              "invocation_start_id":  "invocation_start.p4.theorist.001",
-                              "start_sha256":  "2de24da4e705a2f833aaaf8dfc48ae8dd1cb032430008b646b07200ff38ce5fb",
-                              "invocation_closure_id":  "invocation_closure.p4.theorist.001",
-                              "closure_artifact":  {
-                                                       "artifact_id":  "artifact.invocation_closure.p4.theorist.001",
-                                                       "uri":  "run://run.p4.preliminary.20260801t140000z/artifact/artifact.invocation_closure.p4.theorist.001",
-                                                       "sha256":  "6161616161616161616161616161616161616161616161616161616161616161",
-                                                       "media_type":  "application/json"
-                                                   },
-                              "closure_sha256":  "6161616161616161616161616161616161616161616161616161616161616161",
-                              "terminal_status":  "succeeded"
-                          },
-                          {
-                              "sequence":  3,
-                              "stage_id":  "p4.lead",
-                              "role":  "research_lead",
-                              "invocation_start_id":  "invocation_start.p4.lead.001",
-                              "start_sha256":  "6262626262626262626262626262626262626262626262626262626262626262",
-                              "invocation_closure_id":  "invocation_closure.p4.lead.001",
-                              "closure_artifact":  {
-                                                       "artifact_id":  "artifact.invocation_closure.p4.lead.001",
-                                                       "uri":  "run://run.p4.preliminary.20260801t140000z/artifact/artifact.invocation_closure.p4.lead.001",
-                                                       "sha256":  "6363636363636363636363636363636363636363636363636363636363636363",
-                                                       "media_type":  "application/json"
-                                                   },
-                              "closure_sha256":  "6363636363636363636363636363636363636363636363636363636363636363",
-                              "terminal_status":  "succeeded"
-                          }
-                      ],
-    "lead_closure":  {
-                         "invocation_closure_id":  "invocation_closure.p4.lead.001",
-                         "closure_sha256":  "6363636363636363636363636363636363636363636363636363636363636363"
-                     },
-    "submitted_artifacts":  [
-                                {
-                                    "output_id":  "output.protocol",
-                                    "contract_output_id":  "p4.protocol",
-                                    "source_invocation_closure_id":  "invocation_closure.p4.analyst.001",
-                                    "source_closure_sha256":  "58c85d3613cdeefd0c84bbaed948ef2f4b98fd3bafe2ed9d875fc517674094c6",
-                                    "artifact":  {
-                                                     "artifact_id":  "artifact.p4.protocol.accepted.001",
-                                                     "uri":  "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.protocol.accepted.001",
-                                                     "sha256":  "4141414141414141414141414141414141414141414141414141414141414141",
-                                                     "media_type":  "application/json"
-                                                 }
-                                },
-                                {
-                                    "output_id":  "output.preliminary_evidence",
-                                    "contract_output_id":  "p4.evidence",
-                                    "source_invocation_closure_id":  "invocation_closure.p4.analyst.001",
-                                    "source_closure_sha256":  "58c85d3613cdeefd0c84bbaed948ef2f4b98fd3bafe2ed9d875fc517674094c6",
-                                    "artifact":  {
-                                                     "artifact_id":  "artifact.p4.evidence.accepted.001",
-                                                     "uri":  "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.evidence.accepted.001",
-                                                     "sha256":  "4242424242424242424242424242424242424242424242424242424242424242",
-                                                     "media_type":  "application/json"
-                                                 }
-                                },
-                                {
-                                    "output_id":  "output.analyst_synthesis",
-                                    "contract_output_id":  "p4.analyst_synthesis",
-                                    "source_invocation_closure_id":  "invocation_closure.p4.analyst.001",
-                                    "source_closure_sha256":  "58c85d3613cdeefd0c84bbaed948ef2f4b98fd3bafe2ed9d875fc517674094c6",
-                                    "artifact":  {
-                                                     "artifact_id":  "artifact.p4.analyst_synthesis.accepted.001",
-                                                     "uri":  "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.analyst_synthesis.accepted.001",
-                                                     "sha256":  "4343434343434343434343434343434343434343434343434343434343434343",
-                                                     "media_type":  "application/json"
-                                                 }
-                                },
-                                {
-                                    "output_id":  "output.analyst_handoff",
-                                    "contract_output_id":  "p4.analyst_handoff",
-                                    "source_invocation_closure_id":  "invocation_closure.p4.analyst.001",
-                                    "source_closure_sha256":  "58c85d3613cdeefd0c84bbaed948ef2f4b98fd3bafe2ed9d875fc517674094c6",
-                                    "artifact":  {
-                                                     "artifact_id":  "artifact.analyst_handoff.accepted.001",
-                                                     "uri":  "run://run.p4.preliminary.20260801t140000z/artifact/artifact.analyst_handoff.accepted.001",
-                                                     "sha256":  "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-                                                     "media_type":  "application/json"
-                                                 }
-                                },
-                                {
-                                    "output_id":  "output.theory_check",
-                                    "contract_output_id":  "p4.theory_audit",
-                                    "source_invocation_closure_id":  "invocation_closure.p4.theorist.001",
-                                    "source_closure_sha256":  "6161616161616161616161616161616161616161616161616161616161616161",
-                                    "artifact":  {
-                                                     "artifact_id":  "artifact.p4.theory_check.accepted.001",
-                                                     "uri":  "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.theory_check.accepted.001",
-                                                     "sha256":  "5353535353535353535353535353535353535353535353535353535353535353",
-                                                     "media_type":  "application/json"
-                                                 }
-                                },
-                                {
-                                    "output_id":  "output.theorist_handoff",
-                                    "contract_output_id":  "p4.theory_handoff",
-                                    "source_invocation_closure_id":  "invocation_closure.p4.theorist.001",
-                                    "source_closure_sha256":  "6161616161616161616161616161616161616161616161616161616161616161",
-                                    "artifact":  {
-                                                     "artifact_id":  "artifact.p4.theorist_handoff.accepted.001",
-                                                     "uri":  "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.theorist_handoff.accepted.001",
-                                                     "sha256":  "5454545454545454545454545454545454545454545454545454545454545454",
-                                                     "media_type":  "application/json"
-                                                 }
-                                },
-                                {
-                                    "output_id":  "output.empirical_evidence_index",
-                                    "contract_output_id":  "p4.empirical_index_candidate",
-                                    "source_invocation_closure_id":  "invocation_closure.p4.lead.001",
-                                    "source_closure_sha256":  "6363636363636363636363636363636363636363636363636363636363636363",
-                                    "artifact":  {
-                                                     "artifact_id":  "artifact.p4.empirical_index.accepted.001",
-                                                     "uri":  "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.empirical_index.accepted.001",
-                                                     "sha256":  "5555555555555555555555555555555555555555555555555555555555555555",
-                                                     "media_type":  "application/json"
-                                                 }
-                                },
-                                {
-                                    "output_id":  "output.empirical_synthesis",
-                                    "contract_output_id":  "p4.empirical_synthesis_candidate",
-                                    "source_invocation_closure_id":  "invocation_closure.p4.lead.001",
-                                    "source_closure_sha256":  "6363636363636363636363636363636363636363636363636363636363636363",
-                                    "artifact":  {
-                                                     "artifact_id":  "artifact.p4.empirical_synthesis.accepted.001",
-                                                     "uri":  "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.empirical_synthesis.accepted.001",
-                                                     "sha256":  "5656565656565656565656565656565656565656565656565656565656565656",
-                                                     "media_type":  "application/json"
-                                                 }
-                                },
-                                {
-                                    "output_id":  "output.implementation_record",
-                                    "contract_output_id":  "p4.implementation_record_candidate",
-                                    "source_invocation_closure_id":  "invocation_closure.p4.lead.001",
-                                    "source_closure_sha256":  "6363636363636363636363636363636363636363636363636363636363636363",
-                                    "artifact":  {
-                                                     "artifact_id":  "artifact.p4.implementation_record.accepted.001",
-                                                     "uri":  "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.implementation_record.accepted.001",
-                                                     "sha256":  "5757575757575757575757575757575757575757575757575757575757575757",
-                                                     "media_type":  "application/json"
-                                                 }
-                                },
-                                {
-                                    "output_id":  "output.attention_items",
-                                    "contract_output_id":  "p4.attention_items",
-                                    "source_invocation_closure_id":  "invocation_closure.p4.lead.001",
-                                    "source_closure_sha256":  "6363636363636363636363636363636363636363636363636363636363636363",
-                                    "artifact":  {
-                                                     "artifact_id":  "artifact.p4.attention_items.accepted.001",
-                                                     "uri":  "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.attention_items.accepted.001",
-                                                     "sha256":  "5858585858585858585858585858585858585858585858585858585858585858",
-                                                     "media_type":  "application/json"
-                                                 }
-                                },
-                                {
-                                    "output_id":  "output.phase_decision",
-                                    "contract_output_id":  "p4.decision",
-                                    "source_invocation_closure_id":  "invocation_closure.p4.lead.001",
-                                    "source_closure_sha256":  "6363636363636363636363636363636363636363636363636363636363636363",
-                                    "artifact":  {
-                                                     "artifact_id":  "artifact.p4.phase_decision.accepted.001",
-                                                     "uri":  "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.phase_decision.accepted.001",
-                                                     "sha256":  "5959595959595959595959595959595959595959595959595959595959595959",
-                                                     "media_type":  "application/json"
-                                                 }
-                                }
-                            ],
-    "submitted_at":  "2026-08-01T15:10:00Z",
-    "submission_sha256":  "911b9f2e44ffde6927d5116f2eced709fefd71d5e1b2f3a20034af73a61c5f2f"
+  "schema_version": "1.0.0",
+  "submission_id": "submission.p4.001",
+  "run_id": "run.p4.preliminary.20260801t140000z",
+  "project_id": "project.demo",
+  "phase": "P4",
+  "mode": "p4.preliminary",
+  "manifest_binding": {
+    "artifact": {
+      "artifact_id": "artifact.run_manifest.p4.001",
+      "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.run_manifest.p4.001",
+      "sha256": "ff82f75fd52e338e96a9ea1d1cc59c2399a52c218934b6d298f3cf6e37d82d12",
+      "media_type": "application/json"
+    },
+    "manifest_sha256": "ff82f75fd52e338e96a9ea1d1cc59c2399a52c218934b6d298f3cf6e37d82d12"
+  },
+  "closure_chain": [
+    {
+      "sequence": 1,
+      "stage_id": "p4.analyst",
+      "role": "data_analyst",
+      "invocation_start_id": "invocation_start.p4.analyst.001",
+      "start_sha256": "a877a316927369c3552566002e72eee8b697fd859b1319a509fa49551ab57d7c",
+      "invocation_closure_id": "invocation_closure.p4.analyst.001",
+      "closure_artifact": {
+        "artifact_id": "artifact.invocation_closure.p4.analyst.001",
+        "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.invocation_closure.p4.analyst.001",
+        "sha256": "58c85d3613cdeefd0c84bbaed948ef2f4b98fd3bafe2ed9d875fc517674094c6",
+        "media_type": "application/json"
+      },
+      "closure_sha256": "8d57323f721e0c532181a44dd401315b3c3cb502d8a6e49b627b7d5752b5d21b",
+      "terminal_status": "succeeded"
+    },
+    {
+      "sequence": 2,
+      "stage_id": "p4.theorist",
+      "role": "theorist",
+      "invocation_start_id": "invocation_start.p4.theorist.001",
+      "start_sha256": "42b5654c3f8d9419ef7e65beb75ac67a0d4da4203971ecea87c7223fdd133ce8",
+      "invocation_closure_id": "invocation_closure.p4.theorist.001",
+      "closure_artifact": {
+        "artifact_id": "artifact.invocation_closure.p4.theorist.001",
+        "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.invocation_closure.p4.theorist.001",
+        "sha256": "6161616161616161616161616161616161616161616161616161616161616161",
+        "media_type": "application/json"
+      },
+      "closure_sha256": "6161616161616161616161616161616161616161616161616161616161616161",
+      "terminal_status": "succeeded"
+    },
+    {
+      "sequence": 3,
+      "stage_id": "p4.lead",
+      "role": "research_lead",
+      "invocation_start_id": "invocation_start.p4.lead.001",
+      "start_sha256": "6262626262626262626262626262626262626262626262626262626262626262",
+      "invocation_closure_id": "invocation_closure.p4.lead.001",
+      "closure_artifact": {
+        "artifact_id": "artifact.invocation_closure.p4.lead.001",
+        "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.invocation_closure.p4.lead.001",
+        "sha256": "6363636363636363636363636363636363636363636363636363636363636363",
+        "media_type": "application/json"
+      },
+      "closure_sha256": "6363636363636363636363636363636363636363636363636363636363636363",
+      "terminal_status": "succeeded"
+    }
+  ],
+  "lead_closure": {
+    "invocation_closure_id": "invocation_closure.p4.lead.001",
+    "closure_sha256": "6363636363636363636363636363636363636363636363636363636363636363"
+  },
+  "submitted_artifacts": [
+    {
+      "output_id": "output.protocol",
+      "contract_output_id": "p4.protocol",
+      "source_invocation_closure_id": "invocation_closure.p4.analyst.001",
+      "source_closure_sha256": "8d57323f721e0c532181a44dd401315b3c3cb502d8a6e49b627b7d5752b5d21b",
+      "artifact": {
+        "artifact_id": "artifact.p4.protocol.accepted.001",
+        "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.protocol.accepted.001",
+        "sha256": "4141414141414141414141414141414141414141414141414141414141414141",
+        "media_type": "application/json"
+      }
+    },
+    {
+      "output_id": "output.preliminary_evidence",
+      "contract_output_id": "p4.evidence",
+      "source_invocation_closure_id": "invocation_closure.p4.analyst.001",
+      "source_closure_sha256": "8d57323f721e0c532181a44dd401315b3c3cb502d8a6e49b627b7d5752b5d21b",
+      "artifact": {
+        "artifact_id": "artifact.p4.evidence.accepted.001",
+        "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.evidence.accepted.001",
+        "sha256": "4242424242424242424242424242424242424242424242424242424242424242",
+        "media_type": "application/json"
+      }
+    },
+    {
+      "output_id": "output.analyst_synthesis",
+      "contract_output_id": "p4.analyst_synthesis",
+      "source_invocation_closure_id": "invocation_closure.p4.analyst.001",
+      "source_closure_sha256": "8d57323f721e0c532181a44dd401315b3c3cb502d8a6e49b627b7d5752b5d21b",
+      "artifact": {
+        "artifact_id": "artifact.p4.analyst_synthesis.accepted.001",
+        "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.analyst_synthesis.accepted.001",
+        "sha256": "4343434343434343434343434343434343434343434343434343434343434343",
+        "media_type": "application/json"
+      }
+    },
+    {
+      "output_id": "output.analyst_handoff",
+      "contract_output_id": "p4.analyst_handoff",
+      "source_invocation_closure_id": "invocation_closure.p4.analyst.001",
+      "source_closure_sha256": "8d57323f721e0c532181a44dd401315b3c3cb502d8a6e49b627b7d5752b5d21b",
+      "artifact": {
+        "artifact_id": "artifact.analyst_handoff.accepted.001",
+        "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.analyst_handoff.accepted.001",
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "media_type": "application/json"
+      }
+    },
+    {
+      "output_id": "output.theory_check",
+      "contract_output_id": "p4.theory_audit",
+      "source_invocation_closure_id": "invocation_closure.p4.theorist.001",
+      "source_closure_sha256": "6161616161616161616161616161616161616161616161616161616161616161",
+      "artifact": {
+        "artifact_id": "artifact.p4.theory_check.accepted.001",
+        "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.theory_check.accepted.001",
+        "sha256": "5353535353535353535353535353535353535353535353535353535353535353",
+        "media_type": "application/json"
+      }
+    },
+    {
+      "output_id": "output.theorist_handoff",
+      "contract_output_id": "p4.theory_handoff",
+      "source_invocation_closure_id": "invocation_closure.p4.theorist.001",
+      "source_closure_sha256": "6161616161616161616161616161616161616161616161616161616161616161",
+      "artifact": {
+        "artifact_id": "artifact.p4.theorist_handoff.accepted.001",
+        "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.theorist_handoff.accepted.001",
+        "sha256": "5454545454545454545454545454545454545454545454545454545454545454",
+        "media_type": "application/json"
+      }
+    },
+    {
+      "output_id": "output.empirical_evidence_index",
+      "contract_output_id": "p4.empirical_index_candidate",
+      "source_invocation_closure_id": "invocation_closure.p4.lead.001",
+      "source_closure_sha256": "6363636363636363636363636363636363636363636363636363636363636363",
+      "artifact": {
+        "artifact_id": "artifact.p4.empirical_index.accepted.001",
+        "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.empirical_index.accepted.001",
+        "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+        "media_type": "application/json"
+      }
+    },
+    {
+      "output_id": "output.empirical_synthesis",
+      "contract_output_id": "p4.empirical_synthesis_candidate",
+      "source_invocation_closure_id": "invocation_closure.p4.lead.001",
+      "source_closure_sha256": "6363636363636363636363636363636363636363636363636363636363636363",
+      "artifact": {
+        "artifact_id": "artifact.p4.empirical_synthesis.accepted.001",
+        "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.empirical_synthesis.accepted.001",
+        "sha256": "5656565656565656565656565656565656565656565656565656565656565656",
+        "media_type": "application/json"
+      }
+    },
+    {
+      "output_id": "output.implementation_record",
+      "contract_output_id": "p4.implementation_record_candidate",
+      "source_invocation_closure_id": "invocation_closure.p4.lead.001",
+      "source_closure_sha256": "6363636363636363636363636363636363636363636363636363636363636363",
+      "artifact": {
+        "artifact_id": "artifact.p4.implementation_record.accepted.001",
+        "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.implementation_record.accepted.001",
+        "sha256": "5757575757575757575757575757575757575757575757575757575757575757",
+        "media_type": "application/json"
+      }
+    },
+    {
+      "output_id": "output.attention_items",
+      "contract_output_id": "p4.attention_items",
+      "source_invocation_closure_id": "invocation_closure.p4.lead.001",
+      "source_closure_sha256": "6363636363636363636363636363636363636363636363636363636363636363",
+      "artifact": {
+        "artifact_id": "artifact.p4.attention_items.accepted.001",
+        "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.attention_items.accepted.001",
+        "sha256": "5858585858585858585858585858585858585858585858585858585858585858",
+        "media_type": "application/json"
+      }
+    },
+    {
+      "output_id": "output.phase_decision",
+      "contract_output_id": "p4.decision",
+      "source_invocation_closure_id": "invocation_closure.p4.lead.001",
+      "source_closure_sha256": "6363636363636363636363636363636363636363636363636363636363636363",
+      "artifact": {
+        "artifact_id": "artifact.p4.phase_decision.accepted.001",
+        "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.phase_decision.accepted.001",
+        "sha256": "5959595959595959595959595959595959595959595959595959595959595959",
+        "media_type": "application/json"
+      }
+    }
+  ],
+  "submitted_at": "2026-08-01T15:10:00Z",
+  "submission_sha256": "1bcc44c2dc646bbd54595ba4048f0602092ebdb312fe279dbd968856d649270e"
 }

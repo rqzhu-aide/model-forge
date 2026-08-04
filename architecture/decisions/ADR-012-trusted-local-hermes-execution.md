@@ -175,7 +175,7 @@ OCI code. Removed: `executors/oci.py`, `executors/bubblewrap.py`,
 suites. The scientific `executor_kind="oci"` branch in
 `application/bootstrap.py` (already unreachable) was deleted, and the
 diagnostic lane was interim-wired to the one-shot local executor. This
-amendment changes only the disposition of OCI source — every invariant,
+amendment changes only the disposition of OCI source - every invariant,
 contract, and schema consequence above stands. Details and test counts are in
 the Revision 1 changelog of
 `architecture/plans/next-block-local-hermes-execution-closure.md`.

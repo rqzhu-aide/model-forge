@@ -499,6 +499,44 @@ class RunSealStore:
             ).fetchone()
         return dict(row) if row is not None else None
 
+    # -- validation reports (WP-E1) ------------------------------------
+
+    def record_validation_report(
+        self,
+        *,
+        launch_id: str,
+        invocation_id: str,
+        seal_id: str,
+        verdict: str,
+        report_json: str,
+        validated_at: str,
+    ) -> None:
+        """Record one output-validation verdict for a closed launch.
+
+        Re-validating the same launch replaces the stored report.  The
+        seal registry is never modified by validation.
+        """
+        with self._db.transaction() as conn:
+            conn.execute(
+                "INSERT INTO run_validation_reports "
+                "(launch_id, invocation_id, seal_id, verdict, report_json, "
+                " validated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(launch_id) DO UPDATE SET "
+                " verdict = excluded.verdict, "
+                " report_json = excluded.report_json, "
+                " validated_at = excluded.validated_at",
+                (launch_id, invocation_id, seal_id, verdict, report_json, validated_at),
+            )
+
+    def get_validation_report(self, launch_id: str) -> dict[str, Any] | None:
+        with self._db.connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM run_validation_reports WHERE launch_id = ?",
+                (launch_id,),
+            ).fetchone()
+        return dict(row) if row is not None else None
+
     # -- fencing tokens --------------------------------------------------
 
     def issue_fencing_token(

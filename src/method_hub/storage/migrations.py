@@ -489,6 +489,26 @@ _RUN_SEAL_SCHEMA = (
 ) + _immutable_triggers("run_profile_seals")
 
 
+#: One post-execution output validation report per launch (WP-E1).  The
+#: verdict is recorded after quiescence; the full report JSON preserves
+#: the raw-output inventory and per-check evidence.  This is a sibling
+#: table — the immutable seal registry is never touched by validation.
+_VALIDATION_REPORT_SCHEMA = (
+    """
+    CREATE TABLE run_validation_reports (
+        launch_id TEXT PRIMARY KEY
+            REFERENCES run_launch_records(launch_id) ON DELETE RESTRICT,
+        invocation_id TEXT NOT NULL,
+        seal_id TEXT NOT NULL REFERENCES run_profile_seals(seal_id)
+            ON DELETE RESTRICT,
+        verdict TEXT NOT NULL CHECK (verdict IN ('pass', 'fail')),
+        report_json TEXT NOT NULL,
+        validated_at TEXT NOT NULL
+    )
+    """,
+)
+
+
 #: One supervised launch attempt per row (WP-E0).  Unlike the seal
 #: registry, launch records are intentionally mutable: a row is inserted
 #: with ``status = 'running'`` when the launch intent is recorded and
@@ -535,6 +555,11 @@ HUB_MIGRATIONS = (
         7,
         _LAUNCH_RECORD_SCHEMA,
         name="supervised launch records for sealed-run execution (WP-E0)",
+    ),
+    Migration(
+        8,
+        _VALIDATION_REPORT_SCHEMA,
+        name="post-execution output validation reports (WP-E1)",
     ),
 )
 

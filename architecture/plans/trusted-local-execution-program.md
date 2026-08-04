@@ -74,6 +74,13 @@ Done and verified:
   byte-identical run profiles (state.db included) and manifests equal
   after an explicit, narrow exception list; negative control detects
   drift. 518 tests green. **Block 3 is CLOSED.**
+- **WP-E0 complete** (commit `c2a7868`; two-pass: implementation hit the
+  iteration cap, code reviewed sound, small completion pass finished it):
+  supervised launch wiring - seal -> state lock -> preflight gate -> brief
+  materialization -> LocalHermesExecutor with HERMES_HOME=run profile and
+  no -p arg (backward-compatible `use_profile_arg`), bounded logs,
+  launch-record lifecycle, widened `sk-` redaction for modern keys.
+  524 tests green.
 
 Known deviations being corrected: Block 4 landed before Blocks 1-3 (plan
 order violated; tolerated because the executor is self-contained, but Block 1

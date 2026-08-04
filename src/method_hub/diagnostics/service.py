@@ -292,14 +292,27 @@ class DiagnosticService:
                 result, request, token.token
             )
 
-            # 8b. Promote or quarantine runtime snapshot (H0.3).
+            # 8b. Promote or quarantine runtime snapshot (H0.3, Slice 4).
+            # Memory policy enforcement:
+            # - persistent: promote on validated success ONLY.
+            # - read_only: NEVER promote — discard all mutations.
+            # - ephemeral: NEVER promote — discard all mutations.
+            # - Failed/cancelled/timed_out/lease-lost: ALWAYS quarantine.
             if snapshot is not None:
                 if status == DiagnosticState.SUCCEEDED.value:
-                    try:
-                        self._rpm.promote_snapshot(snapshot)
-                    except SnapshotError as se:
-                        status = DiagnosticState.FAILED.value
-                        summary = f"Promotion failed: {se}"
+                    if request.memory_policy is MemoryPolicy.PERSISTENT:
+                        # Verify token and lease are still current before promoting.
+                        try:
+                            self._store.validate_fencing_token(
+                                invocation_id, token.token
+                            )
+                            self._rpm.promote_snapshot(snapshot)
+                        except (FencingError, SnapshotError) as se:
+                            status = DiagnosticState.FAILED.value
+                            summary = f"Promotion rejected: {se}"
+                    else:
+                        # read_only / ephemeral: discard mutations.
+                        self._rpm.cleanup_snapshot(snapshot)
                 else:
                     try:
                         self._rpm.quarantine_snapshot(
@@ -317,6 +330,20 @@ class DiagnosticService:
                 summary=summary,
                 diagnostic_text=result.diagnostic_text,
                 expected_token=token.token,
+            )
+
+            # 9. Record evidence package (Slice 7).
+            brief_sha = hashlib.sha256(
+                request.task_brief.read_bytes()
+            ).hexdigest()
+            self._store.record_evidence(
+                invocation_id,
+                image_tag="method-hub-runtime:latest",
+                brief_sha256=brief_sha,
+                config_digest=snapshot.config_digest_before if snapshot else None,
+                memory_digest_before=snapshot.memory_digest_before if snapshot else None,
+                outcome=status,
+                exit_code=result.exit_code,
             )
 
             return DiagnosticResult(

@@ -456,6 +456,11 @@ HUB_MIGRATIONS = (
     Migration(2, _EXECUTION_SCHEMA, name="role execution and submission storage"),
     Migration(3, _PUBLICATION_SCHEMA, name="formal publication and settings storage"),
     Migration(4, _DIAGNOSTIC_SCHEMA, name="diagnostic invocations, fencing, profile mutex"),
+    Migration(
+        5,
+        ("ALTER TABLE diagnostic_invocations ADD COLUMN evidence_json TEXT",),
+        name="Slice 7: evidence package (image digest, brief sha, config digest)",
+    ),
 )
 
 

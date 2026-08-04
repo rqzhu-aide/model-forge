@@ -363,6 +363,44 @@ class DiagnosticStore:
                 params,
             )
 
+    def record_evidence(
+        self,
+        invocation_id: str,
+        *,
+        image_digest: str | None = None,
+        image_tag: str | None = None,
+        brief_sha256: str | None = None,
+        config_digest: str | None = None,
+        memory_digest_before: str | None = None,
+        memory_digest_after: str | None = None,
+        outcome: str | None = None,
+        exit_code: int | None = None,
+    ) -> None:
+        """Record the evidence package for an invocation (Slice 7).
+
+        Ties the outcome to the exact code, image, and configuration
+        that produced it.
+        """
+        evidence = {
+            "image_tag": image_tag,
+            "image_digest": image_digest,
+            "brief_sha256": brief_sha256,
+            "config_digest": config_digest,
+            "memory_digest_before": memory_digest_before,
+            "memory_digest_after": memory_digest_after,
+            "outcome": outcome,
+            "exit_code": exit_code,
+            "recorded_at": utc_now_iso(),
+        }
+        now = utc_now_iso()
+        with self._db.transaction() as conn:
+            conn.execute(
+                "UPDATE diagnostic_invocations "
+                "SET evidence_json = ?, updated_at = ? "
+                "WHERE invocation_id = ?",
+                (json.dumps(evidence), now, invocation_id),
+            )
+
     # ------------------------------------------------------------------ #
     # Fencing tokens (S5.7)                                              #
     # ------------------------------------------------------------------ #

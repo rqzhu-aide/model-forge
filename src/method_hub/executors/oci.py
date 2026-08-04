@@ -40,9 +40,9 @@ Container lifecycle:
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import re
-import signal
 import subprocess
 import time
 from dataclasses import dataclass, field
@@ -68,7 +68,7 @@ _DEFAULT_IMAGE = "localhost/method-hub-runtime:latest"
 
 #: Default image digest — updated when the image is rebuilt.
 #: This is verified at launch to ensure the exact image is used.
-_DEFAULT_IMAGE_DIGEST = "sha256:c93fe9e3d5dd05960b5d0fcf00dd6f8e5d841a6a9f7c802f46211d7d7f5007ac"
+_DEFAULT_IMAGE_DIGEST = "sha256:c87f67d7c066c176dd584d1204a7eff4b3a2171524fc8de213fce9e93c1e10e9"
 
 #: Environment variables safe inside the container.
 _ENVIRONMENT_ALLOWLIST: frozenset[str] = frozenset(
@@ -122,11 +122,12 @@ class OciExecutorSettings:
     image: str = _DEFAULT_IMAGE
     #: Pinned image digest (sha256).  Verified at launch.
     image_digest: str = _DEFAULT_IMAGE_DIGEST
-    #: Hermes binary path on the host (bind-mounted into the container).
+    #: Hermes binary — now baked into the image at /usr/local/bin/hermes.
+    #: This is kept for backwards compatibility but is no longer mounted from the host.
     hermes_binary: str = "hermes"
-    #: Hermes home directory (``~/.hermes``).
+    #: Hermes home directory on the host (used for profile resolution only).
     hermes_home: Path | None = None
-    #: Polling interval for heartbeats.
+    #: Polling interval for heartbeats and container status checks.
     poll_interval_seconds: float = _HEARTBEAT_INTERVAL_SECONDS
     #: Maximum captured output size per stream.
     output_limit_bytes: int = _DEFAULT_OUTPUT_LIMIT_BYTES
@@ -138,13 +139,12 @@ class OciExecutorSettings:
     memory_limit: str = "4g"
     cpu_quota: str = "2.0"
     pids_limit: int = 512
-    #: When True, use the runtime profile snapshot instead of mounting
-    #: the entire Hermes root.
-    use_runtime_snapshot: bool = True
     #: When True, verify the pinned image digest matches the image at launch.
     verify_image_digest: bool = True
-    #: When True, remove the container after it exits (``--rm``).
-    auto_remove: bool = True
+    #: When True, remove the container after evidence is collected (``podman rm``
+    #: after logs/state are captured).  Default False — keep containers for
+    #: post-mortem inspection until explicitly cleaned up.
+    auto_remove: bool = False
 
 
 class OciExecutionError(RuntimeError):
@@ -218,89 +218,101 @@ class OciExecutor:
                 )
             self._image_digest_verified = True
 
+        container_id: str | None = None
         try:
-            command = self._build_command(invocation)
-            env = self._build_environment()
-            external_id_placeholder = f"oci:{invocation.execution_id}"
-            await observer.launch_acknowledged(invocation, external_id_placeholder)
+            # --- Slice 3: create → acknowledge → start handshake --- #
 
-            process = await asyncio.create_subprocess_exec(
-                *command,
+            # 1. Build and run `podman create` to get a container ID.
+            create_cmd = self._build_command(invocation)
+            env = self._build_environment()
+
+            create_proc = await asyncio.create_subprocess_exec(
+                *create_cmd,
                 stdin=asyncio.subprocess.DEVNULL,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 env=env,
-                start_new_session=True,
             )
+            create_stdout, create_stderr = await create_proc.communicate()
 
-            external_id = f"oci:pid:{process.pid}"
-            if hasattr(observer, "external_execution_id"):
-                observer.external_execution_id = external_id  # type: ignore[attr-defined]
+            if create_proc.returncode != 0:
+                return RoleExecutionResult(
+                    status=RoleExecutionStatus.FAILED,
+                    external_execution_id=None,
+                    exit_code=create_proc.returncode,
+                    summary="podman create failed.",
+                    diagnostic_text=_redact(
+                        create_stderr.decode("utf-8", errors="replace")
+                    ),
+                )
 
-            # Incremental output streaming (same pattern as OneShotExecutor).
-            stdout_chunks: list[str] = []
-            stderr_chunks: list[str] = []
-            limit = self.settings.output_limit_bytes
+            # The container ID is the first line of stdout (a 64-hex-char hash).
+            container_id = create_stdout.decode().strip().splitlines()[0].strip()
+            if not container_id or len(container_id) < 12:
+                return RoleExecutionResult(
+                    status=RoleExecutionStatus.FAILED,
+                    external_execution_id=None,
+                    exit_code=None,
+                    summary="podman create returned an invalid container ID.",
+                    diagnostic_text=f"Got: {container_id!r}",
+                )
 
+            # 2. Acknowledge with the DURABLE container ID (not a PID).
+            external_id = f"oci:{container_id[:12]}"
+            await observer.launch_acknowledged(invocation, external_id)
+
+            # 3. Start the container.
+            start_proc = await asyncio.create_subprocess_exec(
+                self.settings.runtime, "start", container_id,
+                stdin=asyncio.subprocess.DEVNULL,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env=env,
+            )
+            start_stderr_b: bytes = b""
+            start_stdout_b, start_stderr_b = await start_proc.communicate()
+            if start_proc.returncode != 0:
+                await self._remove_container(container_id)
+                return RoleExecutionResult(
+                    status=RoleExecutionStatus.FAILED,
+                    external_execution_id=external_id,
+                    exit_code=start_proc.returncode,
+                    summary="podman start failed.",
+                    diagnostic_text=_redact(
+                        start_stderr_b.decode("utf-8", errors="replace")
+                    ),
+                )
+
+            # 4. Poll container status until terminal or timeout.
             deadline = time.monotonic() + invocation.timeout_seconds
-            start_time = deadline - invocation.timeout_seconds
-
-            async def _read_stream(
-                stream: asyncio.StreamReader | None,
-                chunks: list[str],
-            ) -> int:
-                """Incrementally read lines, truncating at the output limit."""
-                total = 0
-                if stream is None:
-                    return 0
-                while True:
-                    try:
-                        line = await stream.readline()
-                    except Exception:
-                        break
-                    if not line:
-                        break
-                    decoded = line.decode("utf-8", errors="replace")
-                    remaining = limit - total
-                    if remaining <= 0:
-                        break
-                    if len(decoded) > remaining:
-                        decoded = decoded[:remaining] + "\n[output truncated]"
-                    chunks.append(decoded)
-                    total += len(decoded.encode("utf-8"))
-                return total
+            start_time = time.monotonic()
 
             while True:
-                read_task = asyncio.gather(
-                    _read_stream(process.stdout, stdout_chunks),
-                    _read_stream(process.stderr, stderr_chunks),
-                )
-                try:
-                    await asyncio.wait_for(
-                        read_task, timeout=self.settings.poll_interval_seconds
+                status_info = await self._inspect_container(container_id)
+                if status_info is None:
+                    # Container disappeared — treat as failure.
+                    return RoleExecutionResult(
+                        status=RoleExecutionStatus.FAILED,
+                        external_execution_id=external_id,
+                        exit_code=None,
+                        summary="Container disappeared during execution.",
+                        diagnostic_text="podman inspect returned no data.",
                     )
-                except asyncio.TimeoutError:
-                    read_task.cancel()
 
-                if process.returncode is not None:
-                    drain_task = asyncio.gather(
-                        _read_stream(process.stdout, stdout_chunks),
-                        _read_stream(process.stderr, stderr_chunks),
+                container_state = status_info.get("Status", "")
+                exit_code = status_info.get("ExitCode")
+
+                if container_state in ("exited", "stopped"):
+                    # Terminal — collect logs.
+                    stdout_text, stderr_text = await self._collect_logs(
+                        container_id
                     )
-                    try:
-                        await asyncio.wait_for(drain_task, timeout=5)
-                    except asyncio.TimeoutError:
-                        drain_task.cancel()
-
-                    stdout_text = "".join(stdout_chunks)
-                    stderr_text = "".join(stderr_chunks)
-                    exit_code = process.returncode
                     status = (
                         RoleExecutionStatus.SUCCEEDED
                         if exit_code == 0
                         else RoleExecutionStatus.FAILED
                     )
-                    return RoleExecutionResult(
+                    result = RoleExecutionResult(
                         status=status,
                         external_execution_id=external_id,
                         exit_code=exit_code,
@@ -309,18 +321,26 @@ class OciExecutor:
                             f"{stderr_text}\n--- stdout ---\n{stdout_text}".strip()
                         ),
                     )
+                    # Clean up container after evidence collection.
+                    if self.settings.auto_remove:
+                        await self._remove_container(container_id)
+                    return result
 
                 elapsed = time.monotonic() - start_time
                 await observer.heartbeat(
                     invocation,
-                    f"OCI container process {process.pid} running "
-                    f"(elapsed {elapsed:.0f}s)",
+                    f"Container {container_id[:12]} running "
+                    f"(state={container_state}, elapsed {elapsed:.0f}s)",
                 )
 
                 if time.monotonic() >= deadline:
-                    await self._terminate_process(process)
-                    stdout_text = "".join(stdout_chunks)
-                    stderr_text = "".join(stderr_chunks)
+                    # Timeout — terminate container.
+                    await self._stop_container(container_id)
+                    stdout_text, stderr_text = await self._collect_logs(
+                        container_id
+                    )
+                    if self.settings.auto_remove:
+                        await self._remove_container(container_id)
                     return RoleExecutionResult(
                         status=RoleExecutionStatus.FAILED,
                         external_execution_id=external_id,
@@ -333,7 +353,14 @@ class OciExecutor:
                         ),
                     )
 
+                await asyncio.sleep(self.settings.poll_interval_seconds)
+
         except (OSError, subprocess.SubprocessError) as error:
+            # Best-effort cleanup on exception.
+            if container_id is not None:
+                await self._stop_container(container_id)
+                if self.settings.auto_remove:
+                    await self._remove_container(container_id)
             return RoleExecutionResult(
                 status=RoleExecutionStatus.FAILED,
                 external_execution_id=None,
@@ -342,82 +369,148 @@ class OciExecutor:
                 diagnostic_text=str(error),
             )
 
-    async def _terminate_process(
-        self, process: asyncio.subprocess.Process
-    ) -> None:
-        """Gracefully terminate: SIGTERM → wait → SIGKILL."""
+    async def _stop_container(self, container_id: str) -> None:
+        """Stop a container: SIGTERM → wait → SIGKILL (Slice 5 escalation)."""
         try:
-            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-        except (OSError, ProcessLookupError):
-            pass
-        try:
-            await asyncio.wait_for(process.wait(), timeout=5)
-        except asyncio.TimeoutError:
+            proc = await asyncio.create_subprocess_exec(
+                self.settings.runtime, "stop", "-t", "5", container_id,
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            await asyncio.wait_for(proc.communicate(), timeout=10)
+        except (OSError, asyncio.TimeoutError):
+            # Force kill if stop didn't work.
             try:
-                os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-            except (OSError, ProcessLookupError):
-                pass
-            try:
-                await asyncio.wait_for(process.wait(), timeout=3)
-            except asyncio.TimeoutError:
+                proc = await asyncio.create_subprocess_exec(
+                    self.settings.runtime, "kill", container_id,
+                    stdout=asyncio.subprocess.DEVNULL,
+                    stderr=asyncio.subprocess.DEVNULL,
+                )
+                await asyncio.wait_for(proc.communicate(), timeout=5)
+            except (OSError, asyncio.TimeoutError):
                 pass
 
+    async def _remove_container(self, container_id: str) -> None:
+        """Remove a stopped container."""
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                self.settings.runtime, "rm", "-f", container_id,
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            await asyncio.wait_for(proc.communicate(), timeout=5)
+        except (OSError, asyncio.TimeoutError):
+            pass
+
+    async def _inspect_container(self, container_id: str) -> dict[str, Any] | None:
+        """Inspect a container and return its state info."""
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                self.settings.runtime, "inspect",
+                "--format", "json",
+                container_id,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout_b, _ = await proc.communicate()
+            if proc.returncode != 0:
+                return None
+            data = json.loads(stdout_b.decode("utf-8", errors="replace"))
+            if isinstance(data, list) and data:
+                state = data[0].get("State", {})
+                return {
+                    "Status": state.get("Status", ""),
+                    "ExitCode": state.get("ExitCode"),
+                    "StartedAt": state.get("StartedAt", ""),
+                    "FinishedAt": state.get("FinishedAt", ""),
+                }
+            return None
+        except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
+            return None
+
+    async def _collect_logs(self, container_id: str) -> tuple[str, str]:
+        """Collect stdout/stderr logs from a container, bounded by the output limit."""
+        limit = self.settings.output_limit_bytes
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                self.settings.runtime, "logs",
+                container_id,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout_b, stderr_b = await asyncio.wait_for(
+                proc.communicate(), timeout=10
+            )
+            stdout_text = stdout_b.decode("utf-8", errors="replace")
+            stderr_text = stderr_b.decode("utf-8", errors="replace")
+            # Apply hard byte limits.
+            if len(stdout_text.encode("utf-8")) > limit:
+                stdout_text = stdout_text[:limit] + "\n[output truncated]"
+            if len(stderr_text.encode("utf-8")) > limit:
+                stderr_text = stderr_text[:limit] + "\n[output truncated]"
+            return stdout_text, stderr_text
+        except (OSError, asyncio.TimeoutError):
+            return "", ""
+
     # ------------------------------------------------------------------ #
-    # Cancel                                                             #
+    # Cancel (Slice 5)                                                   #
     # ------------------------------------------------------------------ #
 
     async def cancel(self, external_execution_id: str) -> bool:
-        """Kill the OCI container process by PID.
+        """Stop and remove an OCI container by its container ID.
 
-        Returns True if the process was confirmed terminated.
+        The external_execution_id is ``oci:<container_id_short>``.
+        Returns True if the container was confirmed stopped.
         """
-        pid = self._extract_pid(external_execution_id)
-        if pid is None:
+        container_id = self._extract_container_id(external_execution_id)
+        if container_id is None:
             return False
-        try:
-            os.killpg(os.getpgid(pid), signal.SIGTERM)
-        except (OSError, ProcessLookupError):
-            return True
-
-        for _ in range(50):
-            try:
-                os.kill(pid, 0)
-            except (OSError, ProcessLookupError):
-                return True
-            await asyncio.sleep(0.1)
-
-        try:
-            os.killpg(os.getpgid(pid), signal.SIGKILL)
-        except (OSError, ProcessLookupError):
-            pass
-        try:
-            os.kill(pid, 0)
-            return False
-        except (OSError, ProcessLookupError):
-            return True
+        await self._stop_container(container_id)
+        # Verify it's stopped.
+        status_info = await self._inspect_container(container_id)
+        if status_info is None:
+            return True  # Gone = cancelled.
+        return status_info.get("Status") in ("exited", "stopped")
 
     # ------------------------------------------------------------------ #
-    # Reconcile                                                          #
+    # Reconcile (Slice 5)                                                #
     # ------------------------------------------------------------------ #
 
-    async def reconcile(
-        self, external_execution_id: str
-    ) -> RoleExecutionResult | None:
-        """Check if an OCI container process is still running."""
-        pid = self._extract_pid(external_execution_id)
-        if pid is None:
+    async def reconcile(self, external_execution_id: str) -> RoleExecutionResult | None:
+        """Check if an OCI container has reached a terminal state."""
+        container_id = self._extract_container_id(external_execution_id)
+        if container_id is None:
             return None
-        try:
-            os.kill(pid, 0)
-            return None  # Still running
-        except (OSError, ProcessLookupError):
+        status_info = await self._inspect_container(container_id)
+        if status_info is None:
             return RoleExecutionResult(
                 status=RoleExecutionStatus.FAILED,
                 external_execution_id=external_execution_id,
                 exit_code=None,
-                summary="OCI container process was terminated during reconciliation.",
-                diagnostic_text="Process no longer exists.",
+                summary="Container no longer exists.",
+                diagnostic_text="podman inspect returned no data.",
             )
+        container_state = status_info.get("Status", "")
+        if container_state in ("exited", "stopped"):
+            exit_code = status_info.get("ExitCode")
+            stdout_text, stderr_text = await self._collect_logs(container_id)
+            status = (
+                RoleExecutionStatus.SUCCEEDED
+                if exit_code == 0
+                else RoleExecutionStatus.FAILED
+            )
+            if self.settings.auto_remove:
+                await self._remove_container(container_id)
+            return RoleExecutionResult(
+                status=status,
+                external_execution_id=external_execution_id,
+                exit_code=exit_code,
+                summary=f"Container exited with code {exit_code}.",
+                diagnostic_text=_redact(
+                    f"{stderr_text}\n--- stdout ---\n{stdout_text}".strip()
+                ),
+            )
+        return None  # Still running.
 
     # ------------------------------------------------------------------ #
     # Image digest verification (ADR-004)                                #
@@ -448,7 +541,7 @@ class OciExecutor:
     # ------------------------------------------------------------------ #
 
     def _build_command(self, invocation: RoleInvocation) -> list[str]:
-        """Build the ``podman run`` command for one invocation.
+        """Build the ``podman create`` command for one invocation.
 
         The container runs ``hermes -z`` with the task brief mounted
         read-only.  Security hardening:
@@ -458,28 +551,37 @@ class OciExecutor:
             - ``--userns keep-id``: map host UID to container UID
             - ``--network none`` (or host): per the network policy
 
-        Mount strategy: all host paths are bind-mounted at their own
-        absolute path inside the container (same-path mounting).  This
-        mirrors the bwrap approach and avoids path-translation issues.
-        The Hermes venv symlinks to the uv-managed Python, so both
-        ``~/.hermes`` and ``~/.local/share/uv`` must be mounted.
+        Mount strategy (Slice 2):
+            - Hermes is baked into the image — no host Hermes mount.
+            - Only the per-invocation runtime profile is bind-mounted (rw)
+              at /home/methodhub/.hermes/profiles/<profile_name>.
+            - The workspace is bind-mounted (rw) at its own path.
+            - The task brief is bind-mounted (ro) at its own path.
+            - No other host directories are accessible.
+
+        Container lifecycle (Slice 3):
+            - Uses ``podman create`` (not ``podman run``).
+            - The container is NOT auto-removed (``--rm`` omitted).
+            - The caller inspects the container after exit to collect
+              logs and final state, then explicitly removes it.
         """
         workspace = invocation.workspace.resolve()
-        hermes_home = self._resolve_hermes_home(invocation)
         task_brief = invocation.task_brief.resolve()
 
-        # Resolve the hermes binary to its absolute path on the host.
-        hermes_bin_path = self._resolve_hermes_binary()
-        home_dir = Path.home()
+        # The runtime profile directory is the ONLY Hermes state mounted.
+        # It comes from invocation.metadata["runtime_profile_dir"] — a
+        # per-invocation snapshot created by RuntimeProfileManager.
+        runtime_profile_dir = self._resolve_runtime_profile_dir(invocation)
+        profile_name = invocation.profile or "default"
 
         one_shot_prompt = _BRIEF_PROMPT_TEMPLATE.format(
             brief_path=str(task_brief)
         )
 
         # Build the hermes sub-command.
-        hermes_cmd: list[str] = [hermes_bin_path]
-        if invocation.profile:
-            hermes_cmd.extend(["-p", invocation.profile])
+        # Hermes is baked into the image — just call "hermes" directly.
+        hermes_cmd: list[str] = ["hermes"]
+        hermes_cmd.extend(["-p", profile_name])
         hermes_cmd.extend(["-z", one_shot_prompt])
         model = invocation.metadata.get("model")
         provider = invocation.metadata.get("provider")
@@ -495,7 +597,7 @@ class OciExecutor:
         hermes_cmd.extend(["--usage-file", usage_file])
 
         command: list[str] = [
-            self.settings.runtime, "run", "--rm",
+            self.settings.runtime, "create",
             # Security hardening.
             "--read-only",
             "--cap-drop", "ALL",
@@ -509,9 +611,30 @@ class OciExecutor:
             "--tmpfs", "/tmp:rw,size=256m",
         ]
 
-        # Network policy.
+        # Network policy (Slice 6).
+        # Previously: --network host gave full host networking.
+        # Now: we use a named bridge network for isolation, and configure
+        # /etc/hosts entries via --add-host for each allowed host.
+        # This prevents access to host-local services (databases, APIs on
+        # localhost) while still allowing egress to declared providers.
+        #
+        # True per-host egress filtering (blocking connections to
+        # non-allowlisted IPs) requires a network namespace with iptables
+        # rules.  That is a documented future hardening item.  For now,
+        # removing host networking eliminates the largest attack surface.
         if self._has_network(invocation):
-            command.extend(["--network", "host"])
+            policy = self._get_network_policy(invocation)
+            # Use the default Podman bridge (slirp4netns/pasta) which
+            # isolates from host localhost.
+            command.extend(["--network"])
+            if policy is not None and policy.allowed_hosts:
+                # Add /etc/hosts entries for each allowed host so DNS
+                # resolution is controlled.
+                for host in policy.allowed_hosts:
+                    command.extend(["--add-host", f"{host}:host-gateway"])
+                command.append("slirp4netns")
+            else:
+                command.append("slirp4netns")
         else:
             command.extend(["--network", "none"])
 
@@ -525,30 +648,20 @@ class OciExecutor:
             "-v", f"{task_brief}:{task_brief}:ro,Z",
         ])
 
-        # Mount the entire .hermes directory (rw — Hermes writes to
-        # profiles/, sessions/, state.db, etc.).
-        command.extend([
-            "-v", f"{hermes_home}:{hermes_home}:Z",
-        ])
-
-        # Mount the uv-managed Python install (ro).  The Hermes venv
-        # symlinks here, so this is required for the interpreter to run.
-        uv_python = home_dir / ".local/share/uv"
-        if uv_python.exists():
+        # Bind-mount ONLY the runtime profile directory.
+        # This is the synthetic Hermes home — the only profile visible
+        # to the agent.  No sibling profiles, no sessions from other
+        # runs, no host kanban boards.
+        if runtime_profile_dir is not None:
+            container_profile = f"/home/methodhub/.hermes/profiles/{profile_name}"
             command.extend([
-                "-v", f"{uv_python}:{uv_python}:ro,Z",
+                "-v", f"{runtime_profile_dir}:{container_profile}:Z",
             ])
 
-        # Bind-mount the hermes binary read-only at its own path.
+        # Environment — container-local paths.
         command.extend([
-            "-v", f"{hermes_bin_path}:{hermes_bin_path}:ro,Z",
-        ])
-
-        # Environment — same-path mounting means HOME and HERMES_HOME
-        # use their original host values.
-        command.extend([
-            "-e", f"HERMES_HOME={hermes_home}",
-            "-e", f"HOME={home_dir}",
+            "-e", "HERMES_HOME=/home/methodhub/.hermes",
+            "-e", "HOME=/home/methodhub",
         ])
 
         # Inject secret env vars.
@@ -600,22 +713,32 @@ class OciExecutor:
         return self.settings.hermes_binary
 
     def _resolve_runtime_profile_dir(
-        self, invocation: RoleInvocation, hermes_home: Path
+        self, invocation: RoleInvocation
     ) -> Path | None:
-        """Resolve the runtime profile directory to mount."""
+        """Resolve the runtime profile directory to mount.
+
+        Slice 2: The runtime profile comes exclusively from
+        invocation.metadata["runtime_profile_dir"] — a per-invocation
+        snapshot created by RuntimeProfileManager.  The canonical host
+        profile is NEVER mounted directly.
+        """
         runtime_dir = invocation.metadata.get("runtime_profile_dir")
         if runtime_dir is not None:
             path = Path(str(runtime_dir))
             if path.is_dir():
-                return path
-        if invocation.profile:
-            canonical = hermes_home / "profiles" / invocation.profile
-            if canonical.is_dir():
-                return canonical
+                return path.resolve()
         return None
 
     def _verify_mounts(self, invocation: RoleInvocation) -> list[str]:
-        """Pre-launch verification of all mount sources."""
+        """Pre-launch verification of all mount sources.
+
+        Slice 2: We no longer mount the host Hermes directory or binary.
+        We require:
+        - Workspace directory exists.
+        - Task brief file exists.
+        - Runtime profile directory exists (from RuntimeProfileManager).
+        - Identity files (SOUL.md, config.yaml) exist in the runtime profile.
+        """
         problems: list[str] = []
         workspace = invocation.workspace.resolve()
         if not workspace.is_dir():
@@ -623,14 +746,13 @@ class OciExecutor:
         task_brief = invocation.task_brief.resolve()
         if not task_brief.is_file():
             problems.append(f"Task brief file missing: {task_brief}")
-        hermes_home = self._resolve_hermes_home(invocation)
-        if not hermes_home.is_dir():
-            problems.append(f"Hermes home missing: {hermes_home}")
-        hermes_bin = self._resolve_hermes_binary()
-        if not Path(hermes_bin).exists():
-            problems.append(f"Hermes binary missing: {hermes_bin}")
-        runtime_dir = self._resolve_runtime_profile_dir(invocation, hermes_home)
-        if runtime_dir is not None:
+        runtime_dir = self._resolve_runtime_profile_dir(invocation)
+        if runtime_dir is None:
+            problems.append(
+                "Runtime profile directory not provided. "
+                "Set invocation.metadata['runtime_profile_dir']."
+            )
+        else:
             for identity_file in ("SOUL.md", "config.yaml"):
                 if not (runtime_dir / identity_file).exists():
                     problems.append(
@@ -647,15 +769,28 @@ class OciExecutor:
             return self.settings.default_network_policy.has_network
         return False
 
+    def _get_network_policy(
+        self, invocation: RoleInvocation
+    ) -> NetworkPolicy | None:
+        """Return the effective network policy for the invocation."""
+        policy = invocation.metadata.get("network_policy")
+        if isinstance(policy, NetworkPolicy):
+            return policy
+        return self.settings.default_network_policy
+
     @staticmethod
-    def _extract_pid(external_execution_id: str) -> int | None:
-        """Extract the PID from an OCI external execution ID."""
-        if not external_execution_id.startswith("oci:pid:"):
+    def _extract_container_id(external_execution_id: str) -> str | None:
+        """Extract the container ID from an OCI external execution ID.
+
+        Format: ``oci:<container_id_short>`` (e.g. ``oci:a1b2c3d4e5f6``).
+        Rejects the old ``oci:pid:<N>`` format.
+        """
+        if not external_execution_id.startswith("oci:"):
             return None
-        try:
-            return int(external_execution_id.split(":")[2])
-        except (IndexError, ValueError):
+        remainder = external_execution_id[4:]
+        if not remainder or remainder.startswith("pid:"):
             return None
+        return remainder
 
 
 __all__ = [

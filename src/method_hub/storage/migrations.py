@@ -509,6 +509,37 @@ _VALIDATION_REPORT_SCHEMA = (
 )
 
 
+#: One allowlisted memory/session promotion per row (WP-E2).  Written only
+#: after a successful, validated run under the project-role state lock; the
+#: row proves what happened (per-target before/after digests and backup
+#: paths).  Full receipts with input/output detail are WP-E3.
+_PROMOTION_RECORD_SCHEMA = (
+    """
+    CREATE TABLE run_promotion_records (
+        record_id TEXT PRIMARY KEY,
+        seal_id TEXT NOT NULL REFERENCES run_profile_seals(seal_id)
+            ON DELETE RESTRICT,
+        invocation_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        promoted_at TEXT NOT NULL,
+        before_digest TEXT NOT NULL,
+        after_digest TEXT NOT NULL,
+        backup_paths TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('succeeded', 'failed'))
+    )
+    """,
+    """
+    CREATE INDEX run_promotion_records_invocation_time
+        ON run_promotion_records(invocation_id, promoted_at)
+    """,
+    """
+    CREATE INDEX run_promotion_records_project_role
+        ON run_promotion_records(project_id, role, promoted_at)
+    """,
+)
+
+
 #: One supervised launch attempt per row (WP-E0).  Unlike the seal
 #: registry, launch records are intentionally mutable: a row is inserted
 #: with ``status = 'running'`` when the launch intent is recorded and
@@ -560,6 +591,11 @@ HUB_MIGRATIONS = (
         8,
         _VALIDATION_REPORT_SCHEMA,
         name="post-execution output validation reports (WP-E1)",
+    ),
+    Migration(
+        9,
+        _PROMOTION_RECORD_SCHEMA,
+        name="allowlisted memory/session promotion records (WP-E2)",
     ),
 )
 

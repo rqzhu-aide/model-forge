@@ -537,6 +537,93 @@ class RunSealStore:
             ).fetchone()
         return dict(row) if row is not None else None
 
+    # -- promotion records (WP-E2) --------------------------------------
+
+    def record_promotion(
+        self,
+        *,
+        record_id: str,
+        seal_id: str,
+        invocation_id: str,
+        project_id: str,
+        role: str,
+        promoted_at: str,
+        before_digest: str,
+        after_digest: str,
+        backup_paths: str,
+        status: str,
+    ) -> None:
+        """Record one allowlisted memory/session promotion (WP-E2).
+
+        Written only after a successful, validated run under the project-role
+        state lock.  ``before_digest``/``after_digest``/``backup_paths`` are
+        JSON documents keyed by promotion target.
+        """
+        with self._db.transaction() as conn:
+            conn.execute(
+                "INSERT INTO run_promotion_records "
+                "(record_id, seal_id, invocation_id, project_id, role, "
+                " promoted_at, before_digest, after_digest, backup_paths, "
+                " status) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    record_id,
+                    seal_id,
+                    invocation_id,
+                    project_id,
+                    role,
+                    promoted_at,
+                    before_digest,
+                    after_digest,
+                    backup_paths,
+                    status,
+                ),
+            )
+
+    def get_promotion_record(self, record_id: str) -> dict[str, Any] | None:
+        with self._db.connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM run_promotion_records WHERE record_id = ?",
+                (record_id,),
+            ).fetchone()
+        return dict(row) if row is not None else None
+
+    def find_promotion_record_by_invocation(
+        self, invocation_id: str
+    ) -> dict[str, Any] | None:
+        """Return the most recent promotion record for one invocation."""
+        with self._db.connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM run_promotion_records WHERE invocation_id = ? "
+                "ORDER BY promoted_at DESC LIMIT 1",
+                (invocation_id,),
+            ).fetchone()
+        return dict(row) if row is not None else None
+
+    def list_promotion_records(
+        self,
+        *,
+        project_id: str | None = None,
+        role: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        query = "SELECT * FROM run_promotion_records"
+        clauses: list[str] = []
+        params: list[Any] = []
+        if project_id is not None:
+            clauses.append("project_id = ?")
+            params.append(project_id)
+        if role is not None:
+            clauses.append("role = ?")
+            params.append(role)
+        if clauses:
+            query += " WHERE " + " AND ".join(clauses)
+        query += " ORDER BY promoted_at DESC LIMIT ?"
+        params.append(limit)
+        with self._db.connect() as conn:
+            rows = conn.execute(query, params).fetchall()
+        return [dict(row) for row in rows]
+
     # -- fencing tokens --------------------------------------------------
 
     def issue_fencing_token(

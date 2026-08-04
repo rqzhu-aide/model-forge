@@ -69,6 +69,11 @@ Done and verified:
   digests, paths/permissions, free space, lock ownership, task brief,
   output contract with escape rejection), read-only, report-only, 37 tests
   with positive and negative cases each. 515 tests green.
+- **WP-D2c complete** (commit `2c991eb`, zero validation defects): Block 3
+  determinism checkpoint - two seals of the same basis produce
+  byte-identical run profiles (state.db included) and manifests equal
+  after an explicit, narrow exception list; negative control detects
+  drift. 518 tests green. **Block 3 is CLOSED.**
 
 Known deviations being corrected: Block 4 landed before Blocks 1-3 (plan
 order violated; tolerated because the executor is self-contained, but Block 1
@@ -186,18 +191,54 @@ Acceptance: equivalence test green; any nondeterminism found is reported,
 not silently normalized.
 Depends on: WP-D2a, WP-D2b.
 
-### WP-E - Block 5: validate, record, promote (developer, large)
+### WP-E - Block 5: validate, record, promote (split for size)
 
-Scope: post-quiescence validation through the real run path (names, safe
-paths, schemas, nonempty scientific fields, companions, run/method identity,
-phase consistency); memory-before/runtime-after inventories; allowlisted
-memory/session staging (never SOUL/skills/config/credentials/logs/caches);
-atomic pointer advance with last-known-good preservation; promotion receipts;
-retention rules; failure/cancel/timeout/invalid/stale/unresolved runs change
-no current state.
+### WP-E0 - launch wiring (subagent, small-medium)
+
+Scope: connect the pieces into one supervised launch path: take a sealed
+invocation (WP-D1), reacquire the state lock, require a passing preflight
+(WP-D2b), materialize the task brief into the run directory, and launch
+through `LocalHermesExecutor` with the assembled run profile as the Hermes
+home, streaming bounded logs into logs/ and recording launch intent and
+durable identity. No output validation (E1) and no promotion (E2) yet.
+Must resolve and document how the assembled profile becomes a valid Hermes
+home for `hermes -z` (profile shape vs HERMES_HOME semantics), verified
+with a stub binary.
+Acceptance: a sealed run launches a stub hermes end to end under the lock;
+preflight failure blocks launch; logs land in logs/ bounded; suite green.
+Depends on: WP-D2b.
+
+### WP-E1 - output validation (subagent, small)
+
+Scope: post-quiescence validation through the real run path: expected
+output inventory and names, safe paths, required schemas, nonempty
+scientific fields, declared companions, run and method identity, phase-
+specific consistency. Exit code zero alone is never sufficient. Preserve
+raw run directory and bounded diagnostics before adaptation.
+Acceptance: exit-zero with missing/malformed/wrong-basis/undeclared
+outputs fails validation and changes no state; suite green.
+Depends on: WP-E0.
+
+### WP-E2 - allowlisted promotion (subagent, medium)
+
+Scope: memory-before and runtime-after inventories; stage only allowlisted
+memory files and the safe session snapshot (never SOUL, skills, base
+configuration, credentials, logs, caches); verify lock and command heads;
+atomically advance current pointers with last-known-good preservation;
+failed/cancelled/timed-out/invalid/stale/unresolved runs change nothing.
 Acceptance: Block 5 checkpoint - injected failure at any promotion step
-leaves previous formal and project-role state usable; suite green.
-Depends on: WP-D.
+leaves the previous formal and project-role state usable; suite green.
+Depends on: WP-E1.
+
+### WP-E3 - receipts and retention (subagent, small)
+
+Scope: compact promotion receipts (input snapshot, output digests,
+validation results, promoted state, previous current state); explicit
+retention rules for old run profiles, logs, sessions, snapshots; never
+prune active or unresolved evidence.
+Acceptance: receipt contents verified; retention prunes only expired,
+resolved, non-current evidence; suite green.
+Depends on: WP-E2.
 
 ### WP-F - Block 6: Web operation surface (developer, medium)
 

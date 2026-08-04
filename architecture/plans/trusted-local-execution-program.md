@@ -64,6 +64,11 @@ Done and verified:
   preflight, fail-fast `SessionSnapshotBusy`, integrity-checked copy,
   quiescence flag, conversation content never parsed. Busy abort composes
   with the WP-D1 seal rollback. 478 tests green.
+- **WP-D2b complete** (commit `e915804`, zero validation defects): run
+  preflight service - 8 named checks (hermes version drift, asset and state
+  digests, paths/permissions, free space, lock ownership, task brief,
+  output contract with escape rejection), read-only, report-only, 37 tests
+  with positive and negative cases each. 515 tests green.
 
 Known deviations being corrected: Block 4 landed before Blocks 1-3 (plan
 order violated; tolerated because the executor is self-contained, but Block 1

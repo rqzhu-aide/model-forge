@@ -50,6 +50,15 @@ Done and verified:
   aligned with the trusted-local binding, the stale example digest cascade
   left by WP-A repaired (start -> closure -> submission -> downstream ->
   run-state -> receipts), and the architecture package validator exits 0.
+- **WP-D1 complete** (commit `1d19a90` + validator fix): run-profile
+  assembler core - DB-backed state lock with fencing tokens and leases,
+  run directory layout, byte-exact profile assembly from the WP-C role
+  definition with per-asset digests, policy-driven memory snapshot
+  (reviewer always fresh), fail-closed credential exclusion, immutable
+  JCS-digested manifest, idempotent sealing, and seal rollback. 471 tests
+  green. Custom skills are manifest declarations (the catalog carries no
+  bundled content). WP-D2 (session snapshots, preflight, determinism
+  checkpoint) is next.
 
 Known deviations being corrected: Block 4 landed before Blocks 1-3 (plan
 order violated; tolerated because the executor is self-contained, but Block 1

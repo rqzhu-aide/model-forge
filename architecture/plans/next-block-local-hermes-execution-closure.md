@@ -1,8 +1,10 @@
 # Next Work Block: Trusted Local Hermes Execution Closure
 
-Status: Recommended Version 1 implementation block.
+Status: Recommended Version 1 implementation block, Revision 1.
 
 Baseline: commit `a08604d`, planned 2026-08-04.
+Revision 1: 2026-08-04 — OCI removal executed; see the Revision 1 changelog
+at the end of this document.
 
 Architecture decision:
 
@@ -296,12 +298,20 @@ Replace or simplify:
   recorded Hermes executable and version;
 - remove container mount, provider-only egress, image-build, and OCI secret
   delivery from Version 1 gates;
-- remove the unsafe scientific `executor_kind="oci"` mapping;
 - route diagnostics and scientific role invocations through the same local
   preparation and supervision services, while keeping their publication
   authorities separate; and
-- keep OCI source and tests clearly experimental or move them to a deferred
-  hardening area after the local path reaches parity.
+- build `LocalHermesExecutor` from `executors/oneshot.py`, which already
+  implements one-shot `hermes -z` launch (the process IS the agent),
+  file-mounted task briefs, bounded streamed output with a live cap, secret
+  redaction, PID-based external identity, heartbeat polling, and before/after
+  memory digests. The Block 4 work is stripping the interim `bwrap` wrapper,
+  adding durable process identity, restart reconciliation, and verified
+  process-tree quiescence — not writing a runner from scratch.
+
+OCI source and tests were removed from the working tree in Revision 1 (git
+history preserves them). The diagnostic lane is interim-wired to
+`OneShotExecutor` until Block 4 lands.
 
 Do not rewrite functioning phase contracts or role order. Phase 3 remains
 `theorist -> data analyst -> research lead`, Phase 4 remains
@@ -366,3 +376,49 @@ before Method Hub is called operational.
 If any of the first five become requirements, revisit the optional OCI design
 under a new bounded hardening plan. Do not silently claim that trusted local
 execution already provides those protections.
+
+## Revision 1 changelog (2026-08-04)
+
+Amendments from validating this plan against the working tree at `17c1833`.
+A1 and A2 are corrections to the original text; A3–A5 record decisions made
+with the researcher.
+
+- **A1 (correction).** The original §6 item "remove the unsafe scientific
+  `executor_kind="oci"` mapping" was stale. That mapping was already
+  neutralized: `application/settings.py` restricts `executor_kind` to
+  `disabled`/`fake`/`hermes_kanban`, `api/models.py` mirrors the restriction,
+  and `application/bootstrap.py` fail-closed on `oci`. The only remaining
+  work was deleting the now-unreachable bootstrap branch, done in this
+  revision.
+- **A2 (correction).** Block 4 originally implied writing a runner from
+  scratch and §6 omitted `executors/oneshot.py`. The one-shot executor
+  already provides most supervised-runner primitives (synchronous
+  `hermes -z`, mounted brief, bounded redacted output, PID identity,
+  heartbeat, memory digests). §6 now names it as the Block 4 base.
+- **A3 (decision).** OCI code and its tests are REMOVED from the working
+  tree, not retained as experimental: `executors/oci.py`,
+  `executors/bubblewrap.py`, `oci/Containerfile`,
+  `diagnostics/network_secrets.py`, and tests `test_h0b_oci_evidence.py`,
+  `test_slice1_composition.py`, `test_slice2_7_integration.py`,
+  `test_real_linux_evidence.py`, `test_network_secrets.py`. Git history
+  preserves them; the evidence index and OCI plan documents remain as
+  historical records only. At removal time the H0-B evidence suite was
+  already red (5 failures from the slice 2–7 runtime-profile requirement
+  drift), confirming the code was not being kept viable.
+- **A4 (decision).** The diagnostic lane composition root
+  (`diagnostics/composition.py`) is interim-wired to `OneShotExecutor` and
+  its preflight checks `bwrap` instead of Podman. The lane stays dev-only;
+  Block 4 replaces this interim wiring with `LocalHermesExecutor`.
+  `diagnostics/contracts.py` `ProcessIdentity.runtime` keeps historical
+  `"oci"` values readable.
+- **A5 (conformance).** `OneShotExecutor.cancel` now conforms to the
+  `RoleExecutor` protocol (`-> None`); the previous `-> bool` return was
+  unused by `DiagnosticService` and only surfaced a protocol mismatch. The
+  `test_wp1_wp2_integration.py` Bubblewrap command-construction cases were
+  removed with the executor; its broker, fencing, adapter, network-policy,
+  and fixture coverage is unchanged.
+
+Post-revision state: 386 backend tests green (was 435 with 5 OCI failures
+before removal). Remaining Block 1 contract work — schemas, examples,
+rejected fixtures, and digest contracts that still carry OCI fields — is
+unchanged and still required before code depends on the new runtime.

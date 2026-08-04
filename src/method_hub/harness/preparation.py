@@ -4,7 +4,7 @@ The architecture package still tracks the richer normative RunManifest schema
 as a hardening milestone. This module freezes every choice needed by the simple
 sequential runtime now, including the engine-neutral orchestration binding.
 Production Hermes execution remains disabled until the normative manifest and
-rootless OCI executor boundary are complete.
+the trusted local execution boundary (ADR-012) are complete.
 """
 
 from __future__ import annotations

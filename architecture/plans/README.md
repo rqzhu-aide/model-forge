@@ -34,6 +34,11 @@ workflow and state integrity, not operating-system isolation from Hermes.
 
 ## Historical and deferred records
 
+OCI source and tests were removed from the working tree on 2026-08-04 (ADR-012
+Amendment 1); git history preserves them. The documents below remain as
+historical design records and optional future hardening references only — no
+Version 1 work depends on them.
+
 - [End-to-End OCI Diagnostic Closure](next-block-end-to-end-oci-diagnostic-closure.md)
   is deferred optional hardening for multi-user, remote, unattended, or
   untrusted-tool operation.

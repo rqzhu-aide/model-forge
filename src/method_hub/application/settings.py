@@ -55,7 +55,7 @@ class ApplicationSettings(BaseSettings):
         if self.executor_kind == "hermes_kanban" and not self.development_mode:
             raise ValueError(
                 "Direct Hermes Kanban execution is development-only until the "
-                "rootless OCI capability boundary is complete."
+                "trusted local execution boundary (ADR-012) is complete."
             )
         if self.host not in {"127.0.0.1", "::1", "localhost"} and not self.development_mode:
             raise ValueError(

@@ -1,6 +1,5 @@
 """Role-execution adapters. Executors never receive formal publication access."""
 
-from .bubblewrap import BubblewrapExecutor, BubblewrapSettings
 from .development import SchemaExampleFakeExecutor
 from .fake import DeterministicFakeExecutor
 from .hermes import (
@@ -10,6 +9,7 @@ from .hermes import (
     profile_home,
     resolve_hermes_root,
 )
+from .local_hermes import LocalHermesExecutor, LocalHermesExecutorSettings
 from .oneshot import OneShotExecutor, OneShotExecutorSettings
 from .protocol import (
     ExecutionObserver,
@@ -20,12 +20,12 @@ from .protocol import (
 )
 
 __all__ = [
-    "BubblewrapExecutor",
-    "BubblewrapSettings",
     "DeterministicFakeExecutor",
     "ExecutionObserver",
     "HermesKanbanExecutor",
     "HermesSettings",
+    "LocalHermesExecutor",
+    "LocalHermesExecutorSettings",
     "OneShotExecutor",
     "OneShotExecutorSettings",
     "RoleExecutionResult",

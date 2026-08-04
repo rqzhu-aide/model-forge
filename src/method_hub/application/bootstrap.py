@@ -9,8 +9,6 @@ from fastapi import FastAPI
 from ..api import create_app
 from ..configuration.resources import RoleResourceCatalog
 from ..executors import (
-    BubblewrapExecutor,
-    BubblewrapSettings,
     HermesKanbanExecutor,
     HermesSettings,
     SchemaExampleFakeExecutor,
@@ -84,13 +82,6 @@ def build_service(settings: ApplicationSettings) -> MethodHubService:
             artifacts=artifacts,
             role_resources=resources,
             executor=executor,
-        )
-    elif settings.executor_kind == "oci":
-        raise ValueError(
-            "The 'oci' executor kind is not available for scientific execution. "
-            "Use the diagnostic lane (METHOD_HUB_DIAGNOSTIC_ENABLED=true) for "
-            "rootless OCI execution. Scientific OCI integration is deferred "
-            "to WP1 Phase 2."
         )
     return MethodHubService(
         settings=settings,

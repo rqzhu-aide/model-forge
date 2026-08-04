@@ -6,9 +6,8 @@ These tests verify that:
 3. Raw output is preserved on failure
 4. InvocationFencer is active during run coordination
 5. NetworkPolicy modes work correctly
-6. BubblewrapExecutor constructs valid sandbox commands
-7. Golden fixtures are schema-valid
-8. Mutation fixtures are properly labelled
+6. Golden fixtures are schema-valid
+7. Mutation fixtures are properly labelled
 """
 
 from __future__ import annotations
@@ -23,7 +22,6 @@ import pytest
 
 from method_hub.capabilities.broker import CapabilityBroker
 from method_hub.capabilities.network import NetworkPolicy, NetworkPolicyError
-from method_hub.executors.bubblewrap import BubblewrapExecutor, BubblewrapSettings
 from method_hub.executors.protocol import RoleInvocation, RoleExecutionStatus
 from method_hub.harness.execution_records import FrozenInputPath
 from method_hub.harness.invocation_fencing import InvocationFencer
@@ -72,108 +70,7 @@ class TestNetworkPolicy:
 
 
 # ---------------------------------------------------------------------------
-# 2. BubblewrapExecutor command construction
-# ---------------------------------------------------------------------------
-
-class TestBubblewrapExecutor:
-    def test_build_command_includes_security_flags(self, tmp_path: Path) -> None:
-        """The bwrap command must include unshare-all, cap-drop, no-new-privileges."""
-        workspace = tmp_path / "workspace"
-        workspace.mkdir()
-        task_brief = workspace / "task.md"
-        task_brief.write_text("Do the task.")
-
-        invocation = RoleInvocation(
-            execution_id="exec-test-001",
-            invocation_id="inv-test-001",
-            run_id="run-001",
-            project_id="proj-001",
-            phase="P1",
-            mode="p1.literature_update",
-            stage_id="p1.discovery",
-            role="research_lead",
-            profile="research_lead",
-            workspace=workspace,
-            task_brief=task_brief,
-            expected_output_paths=(workspace / "output.json",),
-        )
-        executor = BubblewrapExecutor(BubblewrapSettings())
-        command = executor._build_command(invocation)
-
-        # Verify security hardening flags
-        cmd_str = " ".join(command)
-        assert "--unshare-all" in cmd_str
-        assert "--cap-drop" in cmd_str
-        assert "ALL" in cmd_str
-        assert "--no-new-privileges" in cmd_str
-        assert "--die-with-parent" in cmd_str
-        # Network namespace
-        assert "--unshare-net" in cmd_str  # deny_all by default
-
-    def test_build_command_with_network_allowlist(self, tmp_path: Path) -> None:
-        """When a network policy is present, --share-net is used."""
-        workspace = tmp_path / "workspace"
-        workspace.mkdir()
-        task_brief = workspace / "task.md"
-        task_brief.write_text("Do the task.")
-
-        policy = NetworkPolicy.allowlist(hosts=("api.example.com",), ports=(443,))
-        invocation = RoleInvocation(
-            execution_id="exec-test-002",
-            invocation_id="inv-test-002",
-            run_id="run-002",
-            project_id="proj-001",
-            phase="P1",
-            mode="p1.literature_update",
-            stage_id="p1.discovery",
-            role="research_lead",
-            profile="research_lead",
-            workspace=workspace,
-            task_brief=task_brief,
-            expected_output_paths=(workspace / "output.json",),
-            metadata={"network_policy": policy},
-        )
-        executor = BubblewrapExecutor(BubblewrapSettings())
-        command = executor._build_command(invocation)
-        cmd_str = " ".join(command)
-        assert "--share-net" in cmd_str
-        assert "--unshare-net" not in cmd_str
-
-    def test_secret_env_injection(self, tmp_path: Path) -> None:
-        """Secret env vars reach the child but are not in the command line."""
-        workspace = tmp_path / "workspace"
-        workspace.mkdir()
-        task_brief = workspace / "task.md"
-        task_brief.write_text("Do the task.")
-
-        invocation = RoleInvocation(
-            execution_id="exec-test-003",
-            invocation_id="inv-test-003",
-            run_id="run-003",
-            project_id="proj-001",
-            phase="P1",
-            mode="p1.literature_update",
-            stage_id="p1.discovery",
-            role="research_lead",
-            profile="research_lead",
-            workspace=workspace,
-            task_brief=task_brief,
-            expected_output_paths=(workspace / "output.json",),
-        )
-        executor = BubblewrapExecutor(
-            BubblewrapSettings(secret_env={"OPENAI_API_KEY": "sk-test-secret-1234567890"})
-        )
-        env = executor._build_environment(invocation)
-        assert env["OPENAI_API_KEY"] == "sk-test-secret-1234567890"
-
-        # The secret must NOT appear in the command line
-        command = executor._build_command(invocation)
-        cmd_str = " ".join(command)
-        assert "sk-test-secret-1234567890" not in cmd_str
-
-
-# ---------------------------------------------------------------------------
-# 3. Wiring verification: broker materializes inputs during execution
+# 2. Wiring verification: broker materializes inputs during execution
 # ---------------------------------------------------------------------------
 
 class TestWiringCapabilityBroker:
@@ -216,7 +113,7 @@ class TestWiringCapabilityBroker:
 
 
 # ---------------------------------------------------------------------------
-# 4. Wiring verification: adapter captures linked artifacts
+# 3. Wiring verification: adapter captures linked artifacts
 # ---------------------------------------------------------------------------
 
 class TestWiringOutputAdapter:
@@ -265,7 +162,7 @@ class TestWiringOutputAdapter:
 
 
 # ---------------------------------------------------------------------------
-# 5. Golden fixture validation
+# 4. Golden fixture validation
 # ---------------------------------------------------------------------------
 
 class TestGoldenFixtures:
@@ -291,7 +188,7 @@ class TestGoldenFixtures:
 
 
 # ---------------------------------------------------------------------------
-# 6. Mutation fixture validation
+# 5. Mutation fixture validation
 # ---------------------------------------------------------------------------
 
 class TestMutationFixtures:
@@ -307,3 +204,4 @@ class TestMutationFixtures:
             data = json.loads(fixture_path.read_text())
             assert data.get("mutation") is not None
             assert entry["expected"] == "reject"
+

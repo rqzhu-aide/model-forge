@@ -304,12 +304,12 @@ class MemorySnapshot:
 class ProcessIdentity:
     """Durable runtime identity for one diagnostic execution.
 
-    For Bubblewrap: boot_id, PID, proc start ticks, executable identity,
-    process group, and an invocation marker.
-    For OCI: exact container ID and image digest.
+    Trusted local execution (ADR-012): boot_id, PID, proc start ticks,
+    executable identity, process group, and an invocation marker.
+    Historical records may carry OCI container IDs and image digests.
     """
 
-    runtime: str  # "bwrap" or "oci"
+    runtime: str  # executor runtime label, e.g. "bwrap"; historical: "oci"
     external_id: str  # e.g. "oneshot:pid:12345"
     pid: int | None = None
     boot_id: str | None = None

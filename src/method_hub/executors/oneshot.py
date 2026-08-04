@@ -6,8 +6,8 @@ executor that:
 * **Mounts the task brief as a file**, not as a CLI argument — avoids
   ``ARG_MAX`` limits, ``ps`` visibility, and process metadata leaks.
 * **Records memory-state digests** before and after each invocation (C3).
-* **Uses a pluggable container runtime** — ``bwrap`` today, ``podman`` when
-  available (C8).
+* **Runs a local containment wrapper** — ``bwrap`` today; the trusted-local
+  closure (ADR-012, Block 4) replaces this with direct supervised execution.
 * **Tracks real process PIDs** — the PID is the external execution ID.
 
 The one-shot ``hermes -z`` mode is synchronous: the process IS the agent.
@@ -87,7 +87,8 @@ class OneShotExecutorSettings:
 
     hermes_binary: str = _HERMES_BINARY
     hermes_home: Path | None = None
-    #: Container runtime: ``"bwrap"`` (current) or ``"podman"`` (planned).
+    #: Container runtime: ``"bwrap"`` (interim; removed by trusted-local
+    #: Block 4 in favour of direct supervised execution).
     container_runtime: str = "bwrap"
     bwrap_binary: str = _BWRAP_BINARY
     poll_interval_seconds: float = _HEARTBEAT_INTERVAL_SECONDS
@@ -313,28 +314,29 @@ class OneShotExecutor:
     # Cancel                                                             #
     # ------------------------------------------------------------------ #
 
-    async def cancel(self, external_execution_id: str) -> bool:
+    async def cancel(self, external_execution_id: str) -> None:
         """Kill the one-shot process by PID extracted from the external ID.
 
         H0.5: Verified cancellation — sends SIGTERM, waits for exit
-        confirmation, then SIGKILL if needed.  Returns True if the
-        process was confirmed terminated.
+        confirmation, then SIGKILL if needed. Conforms to the
+        :class:`RoleExecutor` protocol (no return value); callers learn the
+        terminal state through reconciliation and closure records.
         """
         pid = self._extract_pid(external_execution_id)
         if pid is None:
-            return False
+            return
         # Send SIGTERM to the process group.
         try:
             os.killpg(os.getpgid(pid), signal.SIGTERM)
         except (OSError, ProcessLookupError):
-            return True  # Already dead.
+            return  # Already dead.
 
         # Wait up to 5 seconds for the process to exit.
         for _ in range(50):
             try:
                 os.kill(pid, 0)
             except (OSError, ProcessLookupError):
-                return True  # Confirmed dead.
+                return  # Confirmed dead.
             await asyncio.sleep(0.1)
 
         # Process didn't exit on SIGTERM — escalate to SIGKILL.
@@ -342,12 +344,6 @@ class OneShotExecutor:
             os.killpg(os.getpgid(pid), signal.SIGKILL)
         except (OSError, ProcessLookupError):
             pass
-        # Confirm.
-        try:
-            os.kill(pid, 0)
-            return False  # Still alive after SIGKILL — error.
-        except (OSError, ProcessLookupError):
-            return True
 
     # ------------------------------------------------------------------ #
     # Reconcile                                                          #

@@ -1,21 +1,17 @@
-"""Diagnostic composition root: constructs the OCI diagnostic lane.
+"""Diagnostic composition root: constructs the local diagnostic lane.
 
 This is the single entry point that builds the integrated diagnostic path:
 
-    DiagnosticStore → DiagnosticService → OciExecutor → Podman container
+    DiagnosticStore → DiagnosticService → LocalHermesExecutor → local Hermes
 
-Slice 1 of the end-to-end OCI diagnostic closure plan.  The composition root
-ensures that every diagnostic command (start, cancel, reconcile) uses the same
-correctly-wired service instance.
-
-Scientific execution cannot reach this executor — the scientific ``oci`` setting
-is removed from bootstrap.py and the diagnostic composition is separately gated
-by ``diagnostic_enabled``.
+Under ADR-012 the OCI executor is removed. The lane runs the supervised
+local Hermes executor (Block 4). Scientific execution cannot reach this
+executor — scientific executor kinds are restricted by ``ApplicationSettings``
+and the diagnostic composition is separately gated by ``diagnostic_enabled``.
 """
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
 from ..application.settings import ApplicationSettings
@@ -23,7 +19,7 @@ from ..configuration.profiles import resolve_hermes_root
 from ..diagnostics.runtime_profiles import RuntimeProfileManager
 from ..diagnostics.service import DiagnosticService
 from ..diagnostics.store import DiagnosticStore
-from ..executors.oci import OciExecutor, OciExecutorSettings
+from ..executors.local_hermes import LocalHermesExecutor, LocalHermesExecutorSettings
 from ..profiles.project_profiles import ProjectProfileManager
 from ..storage.database import Database
 from ..storage.paths import WorkspacePaths
@@ -39,7 +35,7 @@ def build_diagnostic_service(
     *,
     force_enabled: bool = False,
 ) -> DiagnosticService:
-    """Construct the diagnostic service wired to the OciExecutor.
+    """Construct the diagnostic service wired to the LocalHermesExecutor.
 
     Args:
         settings: Application settings (data_root, hermes_root, etc.)
@@ -71,16 +67,8 @@ def build_diagnostic_service(
     pm = ProjectProfileManager(hermes_root=hermes_root)
     rpm = RuntimeProfileManager(hermes_root)
 
-    # Verify Podman is available before constructing the executor.
-    podman_bin = shutil.which("podman")
-    if podman_bin is None:
-        raise RuntimeError(
-            "Podman binary not found in PATH. Install Podman for rootless "
-            "OCI diagnostic execution."
-        )
-
-    executor = OciExecutor(
-        OciExecutorSettings(
+    executor = LocalHermesExecutor(
+        LocalHermesExecutorSettings(
             hermes_home=hermes_root,
             hermes_binary=settings.hermes_executable,
         )
@@ -100,7 +88,6 @@ def open_diagnostic_store(settings: ApplicationSettings) -> DiagnosticStore:
     This does NOT require diagnostic_enabled — status, logs, cancel,
     reconcile, and evidence inspection must remain available.
     """
-    hermes_root = settings.hermes_root or resolve_hermes_root()
     workspace = WorkspacePaths(settings.data_root, create=True)
     db_path = workspace.root / "method-hub.sqlite3"
     db = Database(db_path, migrations=HUB_MIGRATIONS)

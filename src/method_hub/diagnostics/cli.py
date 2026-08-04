@@ -1,7 +1,7 @@
 """Diagnostic CLI: headless operation of the diagnostic lane (H0.8).
 
 Commands:
-    preflight    — verify Hermes, bwrap, profiles, and configuration.
+    preflight    — verify Hermes executable, version, and profiles.
     start        — launch a diagnostic invocation.
     status       — show one or all diagnostic invocations.
     logs         — show diagnostic output for an invocation.
@@ -17,6 +17,7 @@ import argparse
 import asyncio
 import json
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Sequence
@@ -25,7 +26,6 @@ from ..application.settings import ApplicationSettings
 from ..configuration.profiles import resolve_hermes_root
 from ..diagnostics.contracts import DiagnosticState, TERMINAL_DIAGNOSTIC_STATES
 from ..diagnostics.runtime_profiles import RuntimeProfileManager
-from ..diagnostics.network_secrets import PROVIDER_EGRESS, provider_network_policy
 from ..diagnostics.service import DiagnosticRequest, DiagnosticService
 from ..diagnostics.store import DiagnosticStore
 from ..profiles.project_profiles import (
@@ -46,7 +46,7 @@ def _add_diagnostic_parser(subparsers: argparse._SubParsersAction) -> None:
 
     # preflight
     preflight = diag_sub.add_parser(
-        "preflight", help="Verify Hermes, bwrap, and profiles."
+        "preflight", help="Verify Hermes executable and profiles."
     )
     preflight.add_argument(
         "--hermes-root", type=Path, default=None, help="Hermes home directory."
@@ -143,26 +143,27 @@ def _run_diag_command(args: argparse.Namespace, settings: ApplicationSettings) -
 
 
 def _diag_preflight(hermes_root: Path) -> int:
-    """Verify Hermes binary, Podman, bwrap, and profile directory exist."""
+    """Verify Hermes executable, version, and profile directory exist."""
     problems: list[str] = []
 
     hermes_bin = shutil.which("hermes")
     if hermes_bin:
         print(f"  ✓ hermes found: {hermes_bin}")
+        # Record the Hermes version (ADR-012: no image rebuild, just record it).
+        try:
+            version_result = subprocess.run(
+                [hermes_bin, "--version"],
+                capture_output=True, text=True, timeout=10,
+            )
+            if version_result.returncode == 0:
+                version_line = version_result.stdout.strip().splitlines()[0]
+                print(f"  ✓ Hermes version: {version_line}")
+            else:
+                print("  ⚠ Could not determine Hermes version")
+        except (OSError, subprocess.SubprocessError):
+            print("  ⚠ Could not determine Hermes version")
     else:
         problems.append("hermes binary not found in PATH")
-
-    podman_bin = shutil.which("podman")
-    if podman_bin:
-        print(f"  ✓ podman found: {podman_bin}")
-    else:
-        problems.append("podman binary not found in PATH (required for OCI execution)")
-
-    bwrap_bin = shutil.which("bwrap")
-    if bwrap_bin:
-        print(f"  ✓ bwrap found: {bwrap_bin} (interim boundary only)")
-    else:
-        print("  - bwrap not found (optional — OCI is the production boundary)")
 
     if hermes_root.is_dir():
         print(f"  ✓ Hermes home: {hermes_root}")
@@ -176,10 +177,6 @@ def _diag_preflight(hermes_root: Path) -> int:
             problems.append(f"Profiles directory missing: {profiles_dir}")
     else:
         problems.append(f"Hermes home directory missing: {hermes_root}")
-
-    print(f"\nProvider egress endpoints:")
-    for name, endpoint in PROVIDER_EGRESS.items():
-        print(f"  {name}: {endpoint.host}:{endpoint.port}")
 
     if problems:
         print(f"\n✗ {len(problems)} problem(s) found:", file=sys.stderr)

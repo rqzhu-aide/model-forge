@@ -1,13 +1,14 @@
 """Network policy: deny-by-default with optional host allowlist.
 
 The policy is declarative — it describes what *should* be reachable.  The
-executor (bubblewrap or OCI) enforces it at runtime by configuring the
-sandbox network namespace.  In deny-all mode the sandbox gets a private
-network namespace with no interfaces.  In allowlist mode the sandbox gets
-a loopback + a proxied connection to each declared host.
+executor (currently the one-shot bwrap wrapper) enforces it at runtime by
+configuring the sandbox network namespace.  In deny-all mode the sandbox gets
+a private network namespace with no interfaces.  In allowlist mode the
+sandbox gets a loopback + a proxied connection to each declared host.
 
-The policy is sealed into the manifest and recorded in the invocation
-document, so the exact network posture is auditable.
+Under ADR-012 network enforcement is workflow discipline, not a security
+guarantee; it is sealed into the manifest and recorded in the invocation
+document so the exact declared posture is auditable.
 """
 
 from __future__ import annotations

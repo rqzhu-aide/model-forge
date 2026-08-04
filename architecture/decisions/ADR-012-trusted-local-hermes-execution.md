@@ -110,10 +110,12 @@ testing, and support surface before the research workflow itself is complete.
    available immutable identity. A changed Hermes version is shown to the user
    and becomes part of the next run manifest.
 
-9. **OCI is deferred optional hardening.** Existing OCI code and evidence may be
-   retained as experimental work. OCI is not a Version 1 prerequisite, default
-   executor, Phase 0 gate, or scientific execution gate. A later ADR may enable
-   it for multi-user, remote, unattended, or untrusted-tool operation.
+9. **OCI is deferred optional hardening.** OCI code and tests were removed
+   from the working tree on 2026-08-04 (Amendment 1); git history preserves
+   them and the evidence documents remain as historical records. OCI is not
+   a Version 1 prerequisite, default executor, Phase 0 gate, or scientific
+   execution gate. A later ADR may enable it for multi-user, remote,
+   unattended, or untrusted-tool operation.
 
 10. **Linux remains the supported Version 1 platform.** Windows may be added
     after process-tree termination, path, file-locking, and session-snapshot
@@ -164,3 +166,16 @@ fresh reviewer state, invalid output, cancellation, timeout, restart
 reconciliation, stale locks, failed promotion, Hermes version changes, bounded
 logs, and safe session snapshots. OCI escape and network-isolation scenarios
 move to an optional post-Version 1 hardening package.
+
+## Amendment 1 (2026-08-04): OCI code removed from the working tree
+
+The researcher directed full removal rather than retention of experimental
+OCI code. Removed: `executors/oci.py`, `executors/bubblewrap.py`,
+`oci/Containerfile`, `diagnostics/network_secrets.py`, and the five OCI test
+suites. The scientific `executor_kind="oci"` branch in
+`application/bootstrap.py` (already unreachable) was deleted, and the
+diagnostic lane was interim-wired to the one-shot local executor. This
+amendment changes only the disposition of OCI source — every invariant,
+contract, and schema consequence above stands. Details and test counts are in
+the Revision 1 changelog of
+`architecture/plans/next-block-local-hermes-execution-closure.md`.

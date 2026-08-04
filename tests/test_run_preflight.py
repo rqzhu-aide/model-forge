@@ -231,6 +231,60 @@ class TestHermesExecutable:
         assert check.status == FAIL
         assert "no longer exists" in check.detail
 
+    def _seal_with_real_format_version(
+        self, tmp_path, database, catalog, hermes_root, recorded: str, probed: str
+    ) -> tuple[RunProfileAssembler, Any]:
+        exe = _make_fake_hermes(tmp_path, version=probed)
+        assembler = RunProfileAssembler(
+            data_root=tmp_path / "data",
+            role_resources=catalog,
+            database=database,
+            bundle_root=SKILL_BUNDLE,
+            hermes_root=hermes_root,
+            hermes_binary=str(exe),
+            hermes_probe=lambda binary: HermesProbe(str(exe), recorded),
+        )
+        return assembler, assembler.seal_invocation(**_seal_kwargs())
+
+    def test_update_check_noise_is_not_drift(
+        self, tmp_path: Path, database: Database, catalog: RoleResourceCatalog,
+        hermes_root: Path,
+    ) -> None:
+        """hermes --version embeds update-check state (upstream head hash and
+        an "Update available" notice) that varies between probes without the
+        binary changing; drift detection keys on the stable build identity
+        (ELD pilot finding)."""
+        recorded = (
+            "Hermes Agent v0.19.0 (2026.7.20) · upstream 43717123\n"
+            "Install directory: /home/tez/.hermes/hermes-agent\n"
+            "Update available: 2763 commits behind"
+        )
+        probed = (
+            "Hermes Agent v0.19.0 (2026.7.20) · upstream 36cb5ae5\n"
+            "Install directory: /home/tez/.hermes/hermes-agent\n"
+        )
+        assembler, sealed = self._seal_with_real_format_version(
+            tmp_path, database, catalog, hermes_root, recorded, probed
+        )
+        report = run_preflight(assembler, sealed)  # real subprocess probe
+        check = _report_check(report, "hermes_executable")
+        assert check.status == PASS
+        assert "v0.19.0" in check.detail
+
+    def test_build_version_change_is_drift(
+        self, tmp_path: Path, database: Database, catalog: RoleResourceCatalog,
+        hermes_root: Path,
+    ) -> None:
+        recorded = "Hermes Agent v0.19.0 (2026.7.20) · upstream 43717123"
+        probed = "Hermes Agent v0.20.0 (2026.8.1) · upstream 36cb5ae5"
+        assembler, sealed = self._seal_with_real_format_version(
+            tmp_path, database, catalog, hermes_root, recorded, probed
+        )
+        report = run_preflight(assembler, sealed)
+        check = _report_check(report, "hermes_executable")
+        assert check.status == FAIL
+        assert "v0.19.0" in check.detail and "v0.20.0" in check.detail
+
 
 # --------------------------------------------------------------------------- #
 # Role asset digests                                                           #

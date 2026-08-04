@@ -48,6 +48,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
@@ -154,6 +155,21 @@ def _warn(name: str, detail: str) -> PreflightCheck:
 # --------------------------------------------------------------------------- #
 
 
+#: Stable executable identity in a ``hermes --version`` output: the build
+#: version and date.  The output also embeds update-check state (the
+#: upstream head hash and an "Update available" notice) that can change
+#: between probes without the installed binary changing, so exact-string
+#: comparison produces false drift failures (found in the ELD pilot).
+_VERSION_IDENTITY_RE = re.compile(r"^(Hermes Agent v\S+ \([^)]+\))", re.MULTILINE)
+
+
+def _version_identity(version: str) -> str | None:
+    """Extract the stable build identity, or None when the output does not
+    follow the real Hermes format (e.g. test probe doubles)."""
+    match = _VERSION_IDENTITY_RE.search(version)
+    return match.group(1) if match else None
+
+
 def _check_hermes_executable(
     sealed: SealedRun, probe: Callable[[str], HermesProbe]
 ) -> PreflightCheck:
@@ -176,6 +192,20 @@ def _check_hermes_executable(
         return _fail(
             "hermes_executable",
             f"executable present at {path} but did not answer the --version probe",
+        )
+    # Drift detection keys on the stable build identity when both versions
+    # follow the real Hermes format; otherwise exact equality (test doubles).
+    recorded_identity = _version_identity(recorded_version or "")
+    probed_identity = _version_identity(probed.version)
+    if recorded_identity is not None and probed_identity is not None:
+        if probed_identity == recorded_identity:
+            return _pass(
+                "hermes_executable", f"hermes {recorded_identity} at {path}"
+            )
+        return _fail(
+            "hermes_executable",
+            f"hermes build changed: recorded {recorded_identity!r}, "
+            f"now {probed_identity!r} at {path}",
         )
     if probed.version == recorded_version:
         return _pass(

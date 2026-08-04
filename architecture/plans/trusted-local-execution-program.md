@@ -94,6 +94,13 @@ Done and verified:
   digest-verified), atomic replace with last-known-good backups, full
   rollback even on record-write failure. Block 5 checkpoint tested as an
   injected-failure matrix. 575 tests green.
+- **WP-E3 complete** (commit `5a7a7ae`; subagent capped before final
+  verification - validator fixed a wrong backup-name regex and one
+  fixture, then committed): deterministic idempotent promotion receipts
+  with JCS sidecars; dry-run-by-default retention with a hard never-prune
+  list and tamper reporting. 590 tests green. **Block 5 is CLOSED** -
+  the runtime loop seal -> preflight -> launch -> validate -> promote is
+  fully implemented.
 
 Known deviations being corrected: Block 4 landed before Blocks 1-3 (plan
 order violated; tolerated because the executor is self-contained, but Block 1

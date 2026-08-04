@@ -1213,6 +1213,11 @@ class TestDiagnosticService:
         brief_sha = hashlib.sha256(brief.read_bytes()).hexdigest()
 
         async def mock_execute(invocation, observer):
+            # Drive the observer through the lifecycle to match what
+            # a real executor does (Slice 1: observer-driven transitions).
+            await observer.launch_intent(invocation)
+            await observer.launch_acknowledged(invocation, "oci:test:123")
+            await observer.heartbeat(invocation, "running")
             output = workspace / "diagnostic_result.json"
             output.write_text(json.dumps({
                 "status": "ok",

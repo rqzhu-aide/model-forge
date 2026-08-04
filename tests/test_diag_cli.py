@@ -86,8 +86,9 @@ class TestCLIReconcile:
         db_path = tmp_path / "test.sqlite3"
         db = Database(db_path, migrations=HUB_MIGRATIONS)
         db.initialize()
+        store = DiagnosticStore(db)
 
-        result = _diag_reconcile(db_path)
+        result = _diag_reconcile(store)
         captured = capsys.readouterr()
         assert result == 0
         assert "No non-terminal" in captured.out
@@ -115,7 +116,7 @@ class TestCLIReconcile:
         for s in ("preflight", "creating", "launch_acknowledged", "running"):
             store.update_status("inv-stuck", status=s)
 
-        result = _diag_reconcile(db_path)
+        result = _diag_reconcile(store)
         captured = capsys.readouterr()
         assert result == 0
         assert "inv-stuck" in captured.out

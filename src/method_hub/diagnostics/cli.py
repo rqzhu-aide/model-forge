@@ -33,7 +33,7 @@ from ..profiles.project_profiles import (
     ProjectProfileManager,
     RoleProfileSpec,
 )
-from ..storage.database import Database
+from ..storage.database import Database  # noqa: F401 (re-exported by some callers)
 
 
 def _add_diagnostic_parser(subparsers: argparse._SubParsersAction) -> None:
@@ -103,36 +103,31 @@ def _add_diagnostic_parser(subparsers: argparse._SubParsersAction) -> None:
     )
 
 
-def _open_db(db_path: Path) -> "Database":
-    """Open the Hub database with all migrations applied."""
-    from ..storage.migrations import HUB_MIGRATIONS
-    db = Database(db_path, migrations=HUB_MIGRATIONS)
-    db.initialize()
-    return db
-
-
 def _run_diag_command(args: argparse.Namespace, settings: ApplicationSettings) -> int:
     """Dispatch a ``diag`` subcommand."""
 
     hermes_root = getattr(args, "hermes_root", None) or settings.hermes_root or resolve_hermes_root()
 
-    # The diagnostic DB lives alongside the main Hub DB.
-    from ..storage.paths import WorkspacePaths
-    workspace = WorkspacePaths(settings.data_root, create=True)
-    db_path = workspace.root / "method-hub.sqlite3"
-
     if args.diag_command == "preflight":
         return _diag_preflight(hermes_root)
     elif args.diag_command == "start":
-        return _diag_start(args, hermes_root, db_path)
+        return _diag_start(args, settings)
     elif args.diag_command == "status":
-        return _diag_status(args, db_path)
+        from ..diagnostics.composition import open_diagnostic_store
+        store = open_diagnostic_store(settings)
+        return _diag_status(args, store)
     elif args.diag_command == "logs":
-        return _diag_logs(args, db_path)
+        from ..diagnostics.composition import open_diagnostic_store
+        store = open_diagnostic_store(settings)
+        return _diag_logs(args, store)
     elif args.diag_command == "cancel":
-        return _diag_cancel(args, db_path)
+        from ..diagnostics.composition import open_diagnostic_store
+        store = open_diagnostic_store(settings)
+        return _diag_cancel(args, store)
     elif args.diag_command == "reconcile":
-        return _diag_reconcile(db_path)
+        from ..diagnostics.composition import open_diagnostic_store
+        store = open_diagnostic_store(settings)
+        return _diag_reconcile(store)
     elif args.diag_command == "memory":
         return _diag_memory(args, hermes_root)
     elif args.diag_command == "evidence":
@@ -148,7 +143,7 @@ def _run_diag_command(args: argparse.Namespace, settings: ApplicationSettings) -
 
 
 def _diag_preflight(hermes_root: Path) -> int:
-    """Verify Hermes binary, bwrap, and profile directory exist."""
+    """Verify Hermes binary, Podman, bwrap, and profile directory exist."""
     problems: list[str] = []
 
     hermes_bin = shutil.which("hermes")
@@ -157,11 +152,17 @@ def _diag_preflight(hermes_root: Path) -> int:
     else:
         problems.append("hermes binary not found in PATH")
 
+    podman_bin = shutil.which("podman")
+    if podman_bin:
+        print(f"  ✓ podman found: {podman_bin}")
+    else:
+        problems.append("podman binary not found in PATH (required for OCI execution)")
+
     bwrap_bin = shutil.which("bwrap")
     if bwrap_bin:
-        print(f"  ✓ bwrap found: {bwrap_bin}")
+        print(f"  ✓ bwrap found: {bwrap_bin} (interim boundary only)")
     else:
-        problems.append("bwrap binary not found in PATH")
+        print("  - bwrap not found (optional — OCI is the production boundary)")
 
     if hermes_root.is_dir():
         print(f"  ✓ Hermes home: {hermes_root}")
@@ -191,22 +192,16 @@ def _diag_preflight(hermes_root: Path) -> int:
 
 
 def _diag_start(
-    args: argparse.Namespace, hermes_root: Path, db_path: Path
+    args: argparse.Namespace, settings: ApplicationSettings
 ) -> int:
     """Launch a diagnostic invocation."""
-    from ..executors.oneshot import OneShotExecutor, OneShotExecutorSettings
+    from ..diagnostics.composition import build_diagnostic_service, DiagnosticNotEnabled
 
-    db = _open_db(db_path)
-    store = DiagnosticStore(db)
-    pm = ProjectProfileManager(hermes_root=hermes_root)
-    rpm = RuntimeProfileManager(hermes_root)
-    executor = OneShotExecutor(
-        OneShotExecutorSettings(hermes_home=hermes_root)
-    )
-    service = DiagnosticService(
-        store=store, executor=executor, profile_manager=pm,
-        runtime_profile_manager=rpm,
-    )
+    try:
+        service = build_diagnostic_service(settings)
+    except DiagnosticNotEnabled as e:
+        print(str(e), file=sys.stderr)
+        return 1
 
     request = DiagnosticRequest(
         project_id=args.project_id,
@@ -235,11 +230,8 @@ def _diag_start(
     return 1
 
 
-def _diag_status(args: argparse.Namespace, db_path: Path) -> int:
+def _diag_status(args: argparse.Namespace, store: DiagnosticStore) -> int:
     """Show invocation status."""
-    db = _open_db(db_path)
-    store = DiagnosticStore(db)
-
     if args.invocation_id:
         inv = store.get_invocation(args.invocation_id)
         if inv is None:
@@ -267,10 +259,8 @@ def _diag_status(args: argparse.Namespace, db_path: Path) -> int:
     return 0
 
 
-def _diag_logs(args: argparse.Namespace, db_path: Path) -> int:
+def _diag_logs(args: argparse.Namespace, store: DiagnosticStore) -> int:
     """Show diagnostic output for an invocation."""
-    db = _open_db(db_path)
-    store = DiagnosticStore(db)
     inv = store.get_invocation(args.invocation_id)
     if inv is None:
         print(f"Invocation {args.invocation_id} not found.", file=sys.stderr)
@@ -279,10 +269,8 @@ def _diag_logs(args: argparse.Namespace, db_path: Path) -> int:
     return 0
 
 
-def _diag_cancel(args: argparse.Namespace, db_path: Path) -> int:
+def _diag_cancel(args: argparse.Namespace, store: DiagnosticStore) -> int:
     """Cancel a running diagnostic invocation."""
-    db = _open_db(db_path)
-    store = DiagnosticStore(db)
 
     # For cancellation we need the service, which needs the executor.
     # But we can do it at the store level for simplicity.
@@ -317,10 +305,8 @@ def _diag_cancel(args: argparse.Namespace, db_path: Path) -> int:
         return 1
 
 
-def _diag_reconcile(db_path: Path) -> int:
+def _diag_reconcile(store: DiagnosticStore) -> int:
     """Reconcile non-terminal invocations."""
-    db = _open_db(db_path)
-    store = DiagnosticStore(db)
 
     nonterminal = store.list_nonterminal_invocations()
     if not nonterminal:

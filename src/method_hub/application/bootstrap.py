@@ -86,20 +86,11 @@ def build_service(settings: ApplicationSettings) -> MethodHubService:
             executor=executor,
         )
     elif settings.executor_kind == "oci":
-        _verify_hermes_profiles(settings)
-        executor = BubblewrapExecutor(
-            BubblewrapSettings(
-                hermes_binary=settings.hermes_executable,
-                hermes_home=settings.hermes_root,
-            )
-        )
-        coordinator = RunCoordinator(
-            settings=settings,
-            specification=specification,
-            repository=repository,
-            artifacts=artifacts,
-            role_resources=resources,
-            executor=executor,
+        raise ValueError(
+            "The 'oci' executor kind is not available for scientific execution. "
+            "Use the diagnostic lane (METHOD_HUB_DIAGNOSTIC_ENABLED=true) for "
+            "rootless OCI execution. Scientific OCI integration is deferred "
+            "to WP1 Phase 2."
         )
     return MethodHubService(
         settings=settings,

@@ -32,6 +32,7 @@ from ..executors.protocol import (
     ExecutionObserver,
     RoleExecutionResult,
     RoleExecutionStatus,
+    RoleExecutor,
     RoleInvocation,
 )
 from ..profiles.project_profiles import (
@@ -96,7 +97,12 @@ class DiagnosticResult:
 
 
 class _DiagnosticObserver:
-    """ExecutionObserver that records process identity and heartbeats."""
+    """ExecutionObserver that records process identity and heartbeats.
+
+    The observer drives all lifecycle transitions after launch_intent:
+    - launch_acknowledged → LAUNCH_ACKNOWLEDGED when the container is created
+    - first heartbeat → RUNNING when the container starts producing output
+    """
 
     def __init__(
         self,
@@ -109,11 +115,12 @@ class _DiagnosticObserver:
         self._token = token
         self.external_execution_id: str | None = None
         self._heartbeat_seq = 0
+        self._running_marked = False
 
     async def launch_intent(self, invocation: RoleInvocation) -> None:
         self._store.update_status(
             self._invocation_id,
-            status=DiagnosticState.CREATING.value,
+            status=DiagnosticState.PREFLIGHT.value,
             expected_token=self._token,
         )
 
@@ -123,13 +130,26 @@ class _DiagnosticObserver:
         self.external_execution_id = external_execution_id
         self._store.update_status(
             self._invocation_id,
-            status=DiagnosticState.LAUNCH_ACKNOWLEDGED.value,
+            status=DiagnosticState.CREATING.value,
             external_execution_id=external_execution_id,
+            expected_token=self._token,
+        )
+        # Transition through LAUNCH_ACKNOWLEDGED to RUNNING.
+        self._store.update_status(
+            self._invocation_id,
+            status=DiagnosticState.LAUNCH_ACKNOWLEDGED.value,
             expected_token=self._token,
         )
 
     async def heartbeat(self, invocation: RoleInvocation, activity: str) -> None:
         self._heartbeat_seq += 1
+        if not self._running_marked:
+            self._store.update_status(
+                self._invocation_id,
+                status=DiagnosticState.RUNNING.value,
+                expected_token=self._token,
+            )
+            self._running_marked = True
 
 
 class DiagnosticService:
@@ -145,7 +165,7 @@ class DiagnosticService:
         self,
         *,
         store: DiagnosticStore,
-        executor: OneShotExecutor,
+        executor: RoleExecutor,
         profile_manager: ProjectProfileManager,
         runtime_profile_manager: RuntimeProfileManager | None = None,
     ) -> None:
@@ -243,29 +263,17 @@ class DiagnosticService:
                 memory_policy=request.memory_policy,
             )
 
-        # 6. Transition through the full state machine and execute.
+        # 6. Execute via the executor. The observer drives all state
+        # transitions from PREFLIGHT → CREATING → LAUNCH_ACKNOWLEDGED → RUNNING.
         try:
-            self._store.update_status(
-                invocation_id,
-                status=DiagnosticState.CREATING.value,
-                expected_token=token.token,
-            )
             role_invocation = self._build_invocation(invocation_id, request, snapshot)
             observer = _DiagnosticObserver(
                 self._store, invocation_id, token.token
             )
-            # Walk through launch_acknowledged → running before execute.
-            self._store.update_status(
-                invocation_id,
-                status=DiagnosticState.LAUNCH_ACKNOWLEDGED.value,
-                external_execution_id=f"oneshot:{invocation_id}",
-                expected_token=token.token,
-            )
-            self._store.update_status(
-                invocation_id,
-                status=DiagnosticState.RUNNING.value,
-                expected_token=token.token,
-            )
+            # The observer drives all state transitions via callbacks.
+            # The service does NOT pre-mark launch_acknowledged or running —
+            # the executor's observer handles those when the container
+            # is actually created and started (Slice 3: create→ack→start).
             result = await self._executor.execute(role_invocation, observer)
 
             # 7. Record memory-state after (C3).

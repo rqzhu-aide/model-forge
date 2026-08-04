@@ -1,11 +1,14 @@
-"""WP-D1 tests: run-profile assembler core (Block 3, first half).
+"""WP-D1 + WP-D2a tests: run-profile assembler core (Block 3, first half).
 
 Covers: project-role state lock conflict and stale-owner rejection;
 run directory layout; byte-for-byte profile assembly with recorded
 digests; fresh vs persistent memory policy (reviewer always fresh);
 credential exclusion everywhere in the run directory; the immutable
-manifest with every required field and a stable digest; and idempotent
-double-sealing.  Uses tmp_path fixtures — no real Hermes required.
+manifest with every required field and a stable digest; idempotent
+double-sealing; and the verified SQLite session snapshot procedure
+(read-only online backup, busy-source abort with seal rollback, empty
+session state for fresh policy and the outside reviewer).  Uses
+tmp_path fixtures — no real Hermes required.
 """
 
 from __future__ import annotations
@@ -29,10 +32,17 @@ from method_hub.application.run_profile_assembler import (
     RunSealError,
     RunSealStore,
     SealedRun,
+    SessionSnapshotBusy,
+    SessionSnapshotError,
     StateFencingError,
     StateLockHeld,
     _copy_tree_excluding,
     resolve_memory_policy,
+)
+from method_hub.application.session_snapshots import (
+    SESSION_SNAPSHOT_EMPTY,
+    SESSION_SNAPSHOT_PROCEDURE,
+    snapshot_session_db,
 )
 from method_hub.configuration.resources import RoleResourceCatalog
 from method_hub.configuration.skill_installer import directory_sha256
@@ -401,12 +411,16 @@ class TestMemorySnapshot:
         assert snapshot["identity"] == "fresh"
         assert list((sealed.run_dir / "profile" / "memories").iterdir()) == []
 
-    def test_session_snapshot_reserved_in_manifest(
+    def test_session_snapshot_empty_without_canonical_store(
         self, assembler: RunProfileAssembler
     ) -> None:
         sealed = assembler.seal_invocation(**_seal_kwargs())
         assert "session_snapshot" in sealed.manifest
-        assert sealed.manifest["session_snapshot"] is None
+        # No canonical project-role state.db exists: empty session state.
+        assert sealed.manifest["session_snapshot"] == {
+            "procedure": "none",
+            "identity": "fresh",
+        }
 
 
 # --------------------------------------------------------------------------- #
@@ -668,3 +682,185 @@ class TestSealRollback:
         sealed = assembler.seal_invocation(**_seal_kwargs())
         assert sealed.run_dir == run_dir
         assert run_dir.is_dir()
+
+
+# --------------------------------------------------------------------------- #
+# Session snapshot procedure (WP-D2a)                                          #
+# --------------------------------------------------------------------------- #
+
+
+def _create_state_db(profile_dir: Path, *, rows: int = 3) -> Path:
+    """Build a small real Hermes-like session store in *profile_dir*.
+
+    Mirrors the real Hermes schema shape (``sessions`` + ``messages``
+    tables; see ~/.hermes/profiles/*/state.db) in default rollback-journal
+    mode so a busy source can be produced by holding a write lock.
+    """
+    profile_dir.mkdir(parents=True, exist_ok=True)
+    db_path = profile_dir / "state.db"
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute(
+            "CREATE TABLE sessions (id TEXT PRIMARY KEY, title TEXT, source TEXT)"
+        )
+        conn.executemany(
+            "INSERT INTO sessions (id, title, source) VALUES (?, ?, ?)",
+            [(f"s{i}", f"Session {i}", "cli") for i in range(rows)],
+        )
+        conn.execute(
+            "CREATE TABLE messages (id INTEGER PRIMARY KEY, "
+            "session_id TEXT, content TEXT)"
+        )
+        conn.executemany(
+            "INSERT INTO messages (session_id, content) VALUES (?, ?)",
+            [("s0", f"conversation content {i}") for i in range(2)],
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return db_path
+
+
+class TestSessionSnapshot:
+    def test_snapshot_copies_all_rows_and_passes_integrity(
+        self, assembler: RunProfileAssembler, hermes_root: Path
+    ) -> None:
+        profile = _project_profile_dir(hermes_root, "proj-001", "theorist")
+        source = _create_state_db(profile, rows=4)
+        sealed = assembler.seal_invocation(**_seal_kwargs())
+
+        copy = sealed.run_dir / "profile" / "state.db"
+        assert copy.is_file()
+        # Raw db/wal/shm files are never copied into the run directory.
+        for sidecar in ("state.db-wal", "state.db-shm"):
+            assert not list(sealed.run_dir.rglob(sidecar)), sidecar
+
+        with sqlite3.connect(f"{copy.as_uri()}?mode=ro", uri=True) as conn:
+            assert conn.execute("PRAGMA integrity_check").fetchall() == [("ok",)]
+            assert conn.execute("SELECT count(*) FROM sessions").fetchone()[0] == 4
+            assert conn.execute("SELECT count(*) FROM messages").fetchone()[0] == 2
+        with sqlite3.connect(f"{source.as_uri()}?mode=ro", uri=True) as src:
+            expected = src.execute(
+                "SELECT id, title FROM sessions ORDER BY id"
+            ).fetchall()
+        with sqlite3.connect(f"{copy.as_uri()}?mode=ro", uri=True) as dst:
+            copied = dst.execute(
+                "SELECT id, title FROM sessions ORDER BY id"
+            ).fetchall()
+        assert copied == expected
+
+        record = sealed.manifest["session_snapshot"]
+        assert record["procedure"] == SESSION_SNAPSHOT_PROCEDURE
+        assert record["source"] == str(source)
+        assert record["quiescent"] is True
+        assert record["sha256"] == hashlib.sha256(copy.read_bytes()).hexdigest()
+        assert record["bytes"] == copy.stat().st_size
+
+    def test_manifest_digest_matches_copy_on_disk(
+        self, assembler: RunProfileAssembler, hermes_root: Path
+    ) -> None:
+        profile = _project_profile_dir(hermes_root, "proj-001", "theorist")
+        _create_state_db(profile, rows=2)
+        sealed = assembler.seal_invocation(**_seal_kwargs())
+        copy = sealed.run_dir / "profile" / "state.db"
+        record = sealed.manifest["session_snapshot"]
+        assert record["sha256"] == hashlib.sha256(copy.read_bytes()).hexdigest()
+
+    def test_busy_source_fails_fast_and_seal_rolls_back(
+        self, assembler: RunProfileAssembler, hermes_root: Path
+    ) -> None:
+        profile = _project_profile_dir(hermes_root, "proj-001", "theorist")
+        source = _create_state_db(profile, rows=2)
+        holder = sqlite3.connect(source)
+        try:
+            holder.execute("BEGIN EXCLUSIVE")
+            holder.execute(
+                "INSERT INTO sessions (id, title, source) "
+                "VALUES ('s-live', 'pending', 'cli')"
+            )
+            with pytest.raises(SessionSnapshotBusy, match="busy"):
+                assembler.seal_invocation(**_seal_kwargs())
+        finally:
+            holder.rollback()
+            holder.close()
+
+        # WP-D1 rollback removed the partial run directory.
+        run_dir = assembler.run_dir_for("inv-001")
+        assert not run_dir.exists(), "busy seal left an orphan run directory"
+        # Recoverable: once the writer releases, the same invocation seals.
+        sealed = assembler.seal_invocation(**_seal_kwargs())
+        assert sealed.run_dir == run_dir
+        assert run_dir.is_dir()
+
+    def test_outside_reviewer_always_gets_empty_session_state(
+        self, assembler: RunProfileAssembler, hermes_root: Path
+    ) -> None:
+        profile = _project_profile_dir(hermes_root, "proj-001", "outside_reviewer")
+        _create_state_db(profile, rows=2)
+        sealed = assembler.seal_invocation(
+            **_seal_kwargs(
+                invocation_id="inv-review",
+                idempotency_key="key-review",
+                role="outside_reviewer",
+                memory_policy=MemoryPolicy.PERSISTENT,
+            )
+        )
+        assert sealed.manifest["session_snapshot"] == dict(SESSION_SNAPSHOT_EMPTY)
+        assert not (sealed.run_dir / "profile" / "state.db").exists()
+
+    def test_fresh_policy_gets_empty_session_state(
+        self, assembler: RunProfileAssembler, hermes_root: Path
+    ) -> None:
+        profile = _project_profile_dir(hermes_root, "proj-001", "theorist")
+        _create_state_db(profile, rows=2)
+        sealed = assembler.seal_invocation(
+            **_seal_kwargs(
+                invocation_id="inv-fresh",
+                idempotency_key="key-fresh",
+                memory_policy=MemoryPolicy.EPHEMERAL,
+            )
+        )
+        assert sealed.manifest["session_snapshot"] == dict(SESSION_SNAPSHOT_EMPTY)
+        assert not (sealed.run_dir / "profile" / "state.db").exists()
+
+    def test_quiescence_flag_false_when_wal_sidecars_present(
+        self, assembler: RunProfileAssembler, hermes_root: Path
+    ) -> None:
+        profile = _project_profile_dir(hermes_root, "proj-001", "theorist")
+        profile.mkdir(parents=True, exist_ok=True)
+        db_path = profile / "state.db"
+        conn = sqlite3.connect(db_path)
+        try:
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute(
+                "CREATE TABLE sessions (id TEXT PRIMARY KEY, title TEXT)"
+            )
+            conn.execute("INSERT INTO sessions VALUES ('s1', 'Session 1')")
+            conn.commit()
+            # Keep the connection open so state.db-wal/-shm exist at
+            # snapshot time; the online backup still reads committed state.
+            assert (profile / "state.db-wal").exists()
+            sealed = assembler.seal_invocation(**_seal_kwargs())
+            record = sealed.manifest["session_snapshot"]
+            assert record["procedure"] == SESSION_SNAPSHOT_PROCEDURE
+            assert record["quiescent"] is False
+            copy = sealed.run_dir / "profile" / "state.db"
+            with sqlite3.connect(f"{copy.as_uri()}?mode=ro", uri=True) as verify:
+                assert (
+                    verify.execute("SELECT count(*) FROM sessions").fetchone()[0]
+                    == 1
+                )
+        finally:
+            conn.close()
+
+    def test_snapshot_procedure_direct(self, tmp_path: Path) -> None:
+        source = _create_state_db(tmp_path / "src", rows=3)
+        dest = tmp_path / "out" / "state.db"
+        snapshot = snapshot_session_db(source, dest)
+        assert snapshot.procedure == SESSION_SNAPSHOT_PROCEDURE
+        assert snapshot.quiescent is True
+        assert snapshot.sha256 == hashlib.sha256(dest.read_bytes()).hexdigest()
+        assert snapshot.bytes_count == dest.stat().st_size
+        # A second snapshot into the same destination is refused.
+        with pytest.raises(SessionSnapshotError):
+            snapshot_session_db(source, dest)

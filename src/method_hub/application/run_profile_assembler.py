@@ -25,9 +25,14 @@ Responsibilities:
   profile is never the canonical source and never writes back.
 * **Memory snapshot** — the selected project-role memory is copied per
   the declared persistence policy; a first run or fresh mode gets clean
-  memory; the outside reviewer always defaults to fresh.  Session
-  snapshot handling is out of scope for WP-D1 (reserved in the manifest
-  schema for WP-D2).
+  memory; the outside reviewer always defaults to fresh.
+* **Session snapshot** — for persistent/read-only policies the canonical
+  project-role ``state.db`` is snapshotted into the run profile through
+  the verified SQLite online backup procedure (WP-D2a): read-only source,
+  zero-wait refusal when the store is busy, integrity-checked copy with a
+  recorded sha256.  Fresh/ephemeral policy (and therefore always the
+  outside reviewer) records empty session state.  Conversation content is
+  never parsed, printed, or logged.
 * **Credential hygiene** — provider credentials, tokens, and other
   secret material (``.env``, ``auth.json``, ``credential_pool``, ...)
   are never copied into the run profile, manifest, or run directory.
@@ -67,6 +72,12 @@ from ..profiles.project_profiles import (
     CREDENTIAL_FILES,
     MemoryPolicy,
     project_role_profile_name,
+)
+from .session_snapshots import (
+    SESSION_SNAPSHOT_EMPTY,
+    SessionSnapshotBusy,
+    SessionSnapshotError,
+    snapshot_session_db,
 )
 from ..storage.database import Database
 
@@ -711,14 +722,14 @@ class RunProfileAssembler:
         selected_context_references: Sequence[Mapping[str, Any]] = (),
         expected_outputs: Sequence[Mapping[str, Any]] = (),
         memory_policy: MemoryPolicy | str | None = None,
-        session_snapshot: Mapping[str, Any] | None = None,
     ) -> SealedRun:
         """Seal one idempotent invocation into a prepared run directory.
 
         The first call with a given *idempotency_key* creates the run
         directory, assembles the profile, snapshots memory, writes the
-        immutable manifest, and records the seal.  Later calls with the
-        same key return the existing sealed record untouched.
+        snapshots session state, writes the immutable manifest, and
+        records the seal.  Later calls with the same key return the
+        existing sealed record untouched.
         """
         _validate_identifier(invocation_id, "invocation_id")
         _validate_identifier(idempotency_key, "idempotency_key")
@@ -747,6 +758,9 @@ class RunProfileAssembler:
                 profile_dir = run_dir / "profile"
                 asset_digests = self._assemble_profile(resource, profile_dir)
                 memory_snapshot = self._snapshot_memory(project_id, role, profile_dir, policy)
+                session_snapshot = self._snapshot_session(
+                    project_id, role, profile_dir, policy
+                )
                 probe = self._hermes_probe(self._hermes_binary)
 
                 seal_id = uuid.uuid4().hex
@@ -919,6 +933,31 @@ class RunProfileAssembler:
             "source": None,
         }
 
+    def _snapshot_session(
+        self,
+        project_id: str,
+        role: str,
+        profile_dir: Path,
+        policy: MemoryPolicy,
+    ) -> dict[str, Any]:
+        """Realize the session snapshot per the resolved persistence policy.
+
+        Persistent/read-only roles receive a verified SQLite online backup
+        of the canonical project-role ``state.db`` when one exists; a
+        first run, fresh/ephemeral policy, and the outside reviewer
+        (always fresh) record empty session state.  A busy source raises
+        :class:`SessionSnapshotBusy`, aborting the seal — the WP-D1
+        rollback removes the partially prepared run directory.
+        """
+        if policy is MemoryPolicy.EPHEMERAL:
+            return dict(SESSION_SNAPSHOT_EMPTY)
+        source_dir = self._project_role_profile_dir(project_id, role)
+        source = source_dir / "state.db" if source_dir is not None else None
+        if source is None or not source.is_file() or source.is_symlink():
+            return dict(SESSION_SNAPSHOT_EMPTY)
+        snapshot = snapshot_session_db(source, profile_dir / "state.db")
+        return snapshot.to_manifest()
+
     def _build_manifest(
         self,
         *,
@@ -934,7 +973,7 @@ class RunProfileAssembler:
         resource: RoleResource,
         asset_digests: Mapping[str, str],
         memory_snapshot: Mapping[str, Any],
-        session_snapshot: Mapping[str, Any] | None,
+        session_snapshot: Mapping[str, Any],
         run_dir: Path,
         probe: HermesProbe,
         lock: StateLock,
@@ -981,10 +1020,7 @@ class RunProfileAssembler:
                 ],
             },
             "memory_snapshot": dict(memory_snapshot),
-            # Reserved for WP-D2: safe session snapshot handling.
-            "session_snapshot": (
-                thaw_json(session_snapshot) if session_snapshot is not None else None
-            ),
+            "session_snapshot": dict(session_snapshot),
             "state_lock": {
                 "profile_name": lock.profile_name,
                 "token": lock.token,
@@ -1061,6 +1097,8 @@ __all__ = [
     "RunSealStore",
     "SECRET_FILE_NAMES",
     "SealedRun",
+    "SessionSnapshotBusy",
+    "SessionSnapshotError",
     "StateFencingError",
     "StateLock",
     "StateLockHeld",

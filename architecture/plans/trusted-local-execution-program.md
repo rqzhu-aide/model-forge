@@ -81,6 +81,12 @@ Done and verified:
   no -p arg (backward-compatible `use_profile_arg`), bounded logs,
   launch-record lifecycle, widened `sk-` redaction for modern keys.
   524 tests green.
+- **WP-E1 complete** (commit `077808d`, zero validation defects):
+  post-execution output validation - terminal-launch guard (post-
+  quiescence), raw-output inventory before judgment (symlinks recorded,
+  never followed), undeclared files fail, present-but-empty scientific
+  fields fail, wrong-basis identity fails, per-file digests, verdicts
+  recorded on a sibling table (seal registry untouched). 551 tests green.
 
 Known deviations being corrected: Block 4 landed before Blocks 1-3 (plan
 order violated; tolerated because the executor is self-contained, but Block 1

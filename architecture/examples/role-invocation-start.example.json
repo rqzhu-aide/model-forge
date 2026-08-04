@@ -161,30 +161,36 @@
                                      "prepared_at":  "2026-08-01T14:00:00Z"
                                  },
     "executor_binding":  {
-                             "executor_profile_id":  "executor.linux.rootless_oci.v1",
+                             "executor_profile_id":  "executor.linux.trusted_local.v1",
                              "executor_profile_artifact":  {
-                                                               "artifact_id":  "artifact.executor.linux.rootless_oci.v1",
-                                                               "uri":  "artifact://artifact.executor.linux.rootless_oci.v1",
+                                                               "artifact_id":  "artifact.executor.linux.trusted_local.v1",
+                                                               "uri":  "artifact://artifact.executor.linux.trusted_local.v1",
                                                                "sha256":  "6464646464646464646464646464646464646464646464646464646464646464",
                                                                "media_type":  "application/json"
                                                            },
-                             "runtime_image_artifact":  {
-                                                            "artifact_id":  "artifact.runtime.research_roles.2026_08",
-                                                            "uri":  "artifact://artifact.runtime.research_roles.2026_08",
-                                                            "sha256":  "6565656565656565656565656565656565656565656565656565656565656565",
-                                                            "media_type":  "application/vnd.oci.image.manifest.v1+json"
-                                                        },
-                             "backend":  "rootless_oci",
-                             "user_namespace":  "private",
-                             "pid_namespace":  "private",
-                             "mount_namespace":  "private",
-                             "root_filesystem":  "read_only",
-                             "linux_capabilities":  "none",
-                             "no_new_privileges":  true,
-                             "broker_transport":  "unix_socket",
-                             "network_egress":  "allowlist_proxy",
-                             "project_store_mounted":  false,
-                             "formal_store_mounted":  false
+                             "backend":  "trusted_local",
+                             "hermes_executable":  {
+                                                               "path":  "/home/researcher/.local/bin/hermes",
+                                                               "version":  "hermes 1.0.0",
+                                                               "sha256":  "7474747474747474747474747474747474747474747474747474747474747474"
+                                                           },
+                             "role_definition_revision":  3,
+                             "project_state_snapshot":  {
+                                                               "artifact_id":  "artifact.project_role_state.theorist.2026_08_04",
+                                                               "uri":  "artifact://artifact.project_role_state.theorist.2026_08_04",
+                                                               "sha256":  "7070707070707070707070707070707070707070707070707070707070707070",
+                                                               "media_type":  "application/json"
+                                                           },
+                             "working_roots":  {
+                                                               "run_profile":  "/var/lib/method-hub/runs/run-001/profile",
+                                                               "workspace":  "/var/lib/method-hub/runs/run-001/workspace"
+                                                           },
+                             "process_control":  {
+                                                               "supervision":  "local_process_group",
+                                                               "termination":  "sigterm_then_sigkill",
+                                                               "quiescence_required":  true
+                                                           },
+                             "broker_transport":  "unix_socket"
                          },
     "capability_grants":  {
                               "capability_set_id":  "capability_set.p4.analyst.001",

@@ -440,66 +440,93 @@
                                           "required":  [
                                                            "executor_profile_id",
                                                            "executor_profile_artifact",
-                                                           "runtime_image_artifact",
                                                            "backend",
-                                                           "user_namespace",
-                                                           "pid_namespace",
-                                                           "mount_namespace",
-                                                           "root_filesystem",
-                                                           "linux_capabilities",
-                                                           "no_new_privileges",
-                                                           "broker_transport",
-                                                           "network_egress",
-                                                           "project_store_mounted",
-                                                           "formal_store_mounted"
+                                                           "hermes_executable",
+                                                           "role_definition_revision",
+                                                           "project_state_snapshot",
+                                                           "working_roots",
+                                                           "process_control",
+                                                           "broker_transport"
                                                        ],
                                           "properties":  {
                                                              "executor_profile_id":  {
                                                                                          "$ref":  "common-definitions.schema.json#/$defs/stableId"
                                                                                      },
                                                              "executor_profile_artifact":  {
-                                                                                               "$ref":  "common-definitions.schema.json#/$defs/artifactPointer"
-                                                                                           },
-                                                             "runtime_image_artifact":  {
-                                                                                            "$ref":  "common-definitions.schema.json#/$defs/artifactPointer"
-                                                                                        },
+                                                                                         "$ref":  "common-definitions.schema.json#/$defs/artifactPointer"
+                                                                                     },
                                                              "backend":  {
-                                                                             "const":  "rootless_oci"
-                                                                         },
-                                                             "user_namespace":  {
-                                                                                    "const":  "private"
-                                                                                },
-                                                             "pid_namespace":  {
-                                                                                   "const":  "private"
-                                                                               },
-                                                             "mount_namespace":  {
-                                                                                     "const":  "private"
+                                                                                         "const":  "trusted_local"
+                                                                        },
+                                                             "hermes_executable":  {
+                                                                                         "type":  "object",
+                                                                                         "additionalProperties":  false,
+                                                                                         "required":  [
+                                                                                                          "path",
+                                                                                                          "version"
+                                                                                                     ],
+                                                                                         "properties":  {
+                                                                                                                     "path":  {
+                                                                                                                                                 "type":  "string",
+                                                                                                                                                 "minLength":  1
+                                                                                                                             },
+                                                                                                                     "version":  {
+                                                                                                                                                 "type":  "string",
+                                                                                                                                                 "minLength":  1
+                                                                                                                               },
+                                                                                                                     "sha256":  {
+                                                                                                                                                 "$ref":  "common-definitions.schema.json#/$defs/sha256"
+                                                                                                                               }
+                                                                                                       }
                                                                                  },
-                                                             "root_filesystem":  {
-                                                                                     "const":  "read_only"
-                                                                                 },
-                                                             "linux_capabilities":  {
-                                                                                        "const":  "none"
-                                                                                    },
-                                                             "no_new_privileges":  {
-                                                                                       "const":  true
-                                                                                   },
-                                                             "broker_transport":  {
-                                                                                      "const":  "unix_socket"
-                                                                                  },
-                                                             "network_egress":  {
-                                                                                    "type":  "string",
-                                                                                    "enum":  [
-                                                                                                 "none",
-                                                                                                 "allowlist_proxy"
-                                                                                             ]
-                                                                                },
-                                                             "project_store_mounted":  {
-                                                                                           "const":  false
+                                                             "role_definition_revision":  {
+                                                                                         "type":  "integer",
+                                                                                         "minimum":  1
                                                                                        },
-                                                             "formal_store_mounted":  {
-                                                                                          "const":  false
-                                                                                      }
+                                                             "project_state_snapshot":  {
+                                                                                         "$ref":  "common-definitions.schema.json#/$defs/artifactPointer"
+                                                                                      },
+                                                             "working_roots":  {
+                                                                                         "type":  "object",
+                                                                                         "additionalProperties":  false,
+                                                                                         "required":  [
+                                                                                                          "run_profile",
+                                                                                                          "workspace"
+                                                                                                     ],
+                                                                                         "properties":  {
+                                                                                                                     "run_profile":  {
+                                                                                                                                                 "type":  "string",
+                                                                                                                                                 "minLength":  1
+                                                                                                                                    },
+                                                                                                                     "workspace":  {
+                                                                                                                                                 "type":  "string",
+                                                                                                                                                 "minLength":  1
+                                                                                                                                  }
+                                                                                                       }
+                                                                             },
+                                                             "process_control":  {
+                                                                                         "type":  "object",
+                                                                                         "additionalProperties":  false,
+                                                                                         "required":  [
+                                                                                                          "supervision",
+                                                                                                          "termination",
+                                                                                                          "quiescence_required"
+                                                                                                     ],
+                                                                                         "properties":  {
+                                                                                                                     "supervision":  {
+                                                                                                                                                 "const":  "local_process_group"
+                                                                                                                                    },
+                                                                                                                     "termination":  {
+                                                                                                                                                 "const":  "sigterm_then_sigkill"
+                                                                                                                                    },
+                                                                                                                     "quiescence_required":  {
+                                                                                                                                                 "const":  true
+                                                                                                                                            }
+                                                                                                       }
+                                                                               },
+                                                             "broker_transport":  {
+                                                                                         "const":  "unix_socket"
+                                                                                }
                                                          }
                                       }
               }

@@ -66,7 +66,7 @@ change.
 `prepared-role-context.example.json` freezes the realized pre-execution context.
 `role-invocation-start.example.json` binds that context to the copied manifest
 role plan, exact inputs and output contracts, capabilities, write root, and
-rootless OCI executor. `role-context-snapshot.example.json` closes the complete
+trusted local Hermes executor. `role-context-snapshot.example.json` closes the complete
 capacity and broker-access account. `role-invocation-closure.example.json` binds
 the successful analyst outcome and accepted outputs; the downstream theorist
 start consumes those exact accepted artifacts. `run-submission.example.json`

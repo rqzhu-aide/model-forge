@@ -179,8 +179,9 @@ overflow is explicit and cannot be hidden by silent truncation.
 
 Immediately before execution, `PreparedRoleContext` fixes the materialized
 context and `RoleInvocationStart` copies the matching manifest role-plan entry.
-The start record also binds the supported rootless OCI executor profile and
-runtime image manifest. After execution, `RoleInvocationClosure` fixes the final
+The start record also binds the trusted local Hermes executor profile, the
+installed Hermes executable identity and version, and the project-state
+snapshot. After execution, `RoleInvocationClosure` fixes the final
 access-ledger head, terminal status, accepted outputs, and handoffs. Downstream
 roles can read only successful upstream closures and their exact accepted
 artifacts. `RunSubmission` is created only after the full selected role plan

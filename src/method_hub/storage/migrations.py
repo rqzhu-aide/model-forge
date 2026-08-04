@@ -451,6 +451,44 @@ _DIAGNOSTIC_SCHEMA = (
 )
 
 
+_RUN_SEAL_SCHEMA = (
+    """
+    CREATE TABLE run_profile_seals (
+        seal_id TEXT PRIMARY KEY,
+        invocation_id TEXT NOT NULL UNIQUE,
+        project_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        idempotency_key TEXT NOT NULL UNIQUE,
+        run_dir TEXT NOT NULL,
+        manifest_sha256 TEXT NOT NULL CHECK (length(manifest_sha256) = 64),
+        sealed_at TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE INDEX run_profile_seals_project_role
+        ON run_profile_seals(project_id, role, sealed_at)
+    """,
+    """
+    CREATE TABLE project_role_state_locks (
+        profile_name TEXT PRIMARY KEY,
+        invocation_id TEXT NOT NULL,
+        token INTEGER NOT NULL,
+        acquired_at TEXT NOT NULL,
+        lease_expires_at TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE run_fencing_tokens (
+        invocation_id TEXT PRIMARY KEY,
+        token INTEGER NOT NULL,
+        holder TEXT,
+        lease_expires_at TEXT,
+        updated_at TEXT NOT NULL
+    )
+    """,
+) + _immutable_triggers("run_profile_seals")
+
+
 HUB_MIGRATIONS = (
     Migration(1, _CONTROL_SCHEMA, name="control and run storage"),
     Migration(2, _EXECUTION_SCHEMA, name="role execution and submission storage"),
@@ -460,6 +498,11 @@ HUB_MIGRATIONS = (
         5,
         ("ALTER TABLE diagnostic_invocations ADD COLUMN evidence_json TEXT",),
         name="Slice 7: evidence package (image digest, brief sha, config digest)",
+    ),
+    Migration(
+        6,
+        _RUN_SEAL_SCHEMA,
+        name="run profile seals, project-role state locks, run fencing tokens",
     ),
 )
 

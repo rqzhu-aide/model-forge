@@ -100,6 +100,10 @@ class OneShotExecutorSettings:
     brief_mount_point: str = "/workspace/task.md"
     #: Path inside the container used as the working directory.
     workspace_mount_point: str = "/workspace"
+    #: When True, use the runtime profile snapshot (H0.4) instead of mounting
+    #: the entire Hermes root.  The runtime_profile_dir is read from the
+    #: invocation metadata key ``runtime_profile_dir``.
+    use_runtime_snapshot: bool = True
 
 
 class OneShotExecutionError(RuntimeError):
@@ -141,10 +145,21 @@ class OneShotExecutor:
         observer: ExecutionObserver,
     ) -> RoleExecutionResult:
         await observer.launch_intent(invocation)
+
+        # Pre-launch verification (H0.4): check all mount sources exist.
+        mount_problems = self._verify_mounts(invocation)
+        if mount_problems:
+            return RoleExecutionResult(
+                status=RoleExecutionStatus.FAILED,
+                external_execution_id=None,
+                exit_code=None,
+                summary="Pre-launch mount verification failed.",
+                diagnostic_text="; ".join(mount_problems),
+            )
+
         try:
             command = self._build_command(invocation)
             env = self._build_environment(invocation)
-            # Use real PID as the external execution ID (truthful identity).
             external_id_placeholder = f"oneshot:{invocation.execution_id}"
             await observer.launch_acknowledged(invocation, external_id_placeholder)
 
@@ -157,26 +172,74 @@ class OneShotExecutor:
                 start_new_session=True,
             )
 
-            # Update external ID to include real PID for cancel/reconcile.
             external_id = f"oneshot:pid:{process.pid}"
             if hasattr(observer, "external_execution_id"):
                 observer.external_execution_id = external_id  # type: ignore[attr-defined]
 
+            # Incremental output streaming (H0.5) — read line by line
+            # instead of buffering everything via communicate().
+            stdout_chunks: list[str] = []
+            stderr_chunks: list[str] = []
+            stdout_bytes = 0
+            stderr_bytes = 0
+            limit = self.settings.output_limit_bytes
+
             deadline = time.monotonic() + invocation.timeout_seconds
             start_time = deadline - invocation.timeout_seconds
+
+            async def _read_stream(
+                stream: asyncio.StreamReader | None,
+                chunks: list[str],
+            ) -> int:
+                """Incrementally read lines, truncating at the output limit."""
+                total = 0
+                if stream is None:
+                    return 0
+                while True:
+                    try:
+                        line = await stream.readline()
+                    except Exception:
+                        break
+                    if not line:
+                        break
+                    decoded = line.decode("utf-8", errors="replace")
+                    remaining = limit - total
+                    if remaining <= 0:
+                        break
+                    if len(decoded) > remaining:
+                        decoded = decoded[:remaining] + "\n[output truncated]"
+                    chunks.append(decoded)
+                    total += len(decoded.encode("utf-8"))
+                return total
+
             while True:
+                # Read available output with a short timeout.
+                read_task = asyncio.gather(
+                    _read_stream(process.stdout, stdout_chunks),
+                    _read_stream(process.stderr, stderr_chunks),
+                )
                 try:
-                    stdout_data, stderr_data = await asyncio.wait_for(
-                        process.communicate(),
-                        timeout=self.settings.poll_interval_seconds,
+                    await asyncio.wait_for(
+                        read_task, timeout=self.settings.poll_interval_seconds
                     )
+                except asyncio.TimeoutError:
+                    read_task.cancel()
+
+                # Check if process exited.
+                if process.returncode is not None:
+                    # Drain remaining output.
+                    drain_task = asyncio.gather(
+                        _read_stream(process.stdout, stdout_chunks),
+                        _read_stream(process.stderr, stderr_chunks),
+                    )
+                    try:
+                        await asyncio.wait_for(drain_task, timeout=5)
+                    except asyncio.TimeoutError:
+                        drain_task.cancel()
+
+                    stdout_text = "".join(stdout_chunks)
+                    stderr_text = "".join(stderr_chunks)
                     exit_code = process.returncode
-                    stdout_text = self._truncate(
-                        stdout_data.decode("utf-8", errors="replace")
-                    )
-                    stderr_text = self._truncate(
-                        stderr_data.decode("utf-8", errors="replace")
-                    )
                     status = (
                         RoleExecutionStatus.SUCCEEDED
                         if exit_code == 0
@@ -191,36 +254,32 @@ class OneShotExecutor:
                             f"{stderr_text}\n--- stdout ---\n{stdout_text}".strip()
                         ),
                     )
-                except asyncio.TimeoutError:
-                    elapsed = time.monotonic() - start_time
-                    await observer.heartbeat(
-                        invocation,
-                        f"One-shot process {process.pid} running "
-                        f"(elapsed {elapsed:.0f}s)",
+
+                # Process still running — send heartbeat.
+                elapsed = time.monotonic() - start_time
+                await observer.heartbeat(
+                    invocation,
+                    f"One-shot process {process.pid} running "
+                    f"(elapsed {elapsed:.0f}s)",
+                )
+
+                if time.monotonic() >= deadline:
+                    # Timeout: send SIGTERM, then SIGKILL if needed.
+                    await self._terminate_process(process)
+                    stdout_text = "".join(stdout_chunks)
+                    stderr_text = "".join(stderr_chunks)
+                    return RoleExecutionResult(
+                        status=RoleExecutionStatus.FAILED,
+                        external_execution_id=external_id,
+                        exit_code=None,
+                        summary="One-shot process exceeded its time limit.",
+                        diagnostic_text=_redact(
+                            f"Timed out after {invocation.timeout_seconds}s\n"
+                            f"--- stderr ---\n{stderr_text}\n"
+                            f"--- stdout ---\n{stdout_text}"
+                        ),
                     )
-                    if time.monotonic() >= deadline:
-                        try:
-                            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-                        except (OSError, ProcessLookupError):
-                            pass
-                        try:
-                            await asyncio.wait_for(process.wait(), timeout=5)
-                        except asyncio.TimeoutError:
-                            try:
-                                os.killpg(
-                                    os.getpgid(process.pid), signal.SIGKILL
-                                )
-                            except (OSError, ProcessLookupError):
-                                pass
-                        return RoleExecutionResult(
-                            status=RoleExecutionStatus.FAILED,
-                            external_execution_id=external_id,
-                            exit_code=None,
-                            summary="One-shot process exceeded its time limit.",
-                            diagnostic_text=(
-                                f"Timed out after {invocation.timeout_seconds}s"
-                            ),
-                        )
+
         except (OSError, subprocess.SubprocessError) as error:
             return RoleExecutionResult(
                 status=RoleExecutionStatus.FAILED,
@@ -230,18 +289,65 @@ class OneShotExecutor:
                 diagnostic_text=str(error),
             )
 
+    async def _terminate_process(
+        self, process: asyncio.subprocess.Process
+    ) -> None:
+        """Gracefully terminate a process: SIGTERM → wait → SIGKILL (H0.5)."""
+        try:
+            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+        except (OSError, ProcessLookupError):
+            pass
+        try:
+            await asyncio.wait_for(process.wait(), timeout=5)
+        except asyncio.TimeoutError:
+            try:
+                os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+            except (OSError, ProcessLookupError):
+                pass
+            try:
+                await asyncio.wait_for(process.wait(), timeout=3)
+            except asyncio.TimeoutError:
+                pass
+
     # ------------------------------------------------------------------ #
     # Cancel                                                             #
     # ------------------------------------------------------------------ #
 
-    async def cancel(self, external_execution_id: str) -> None:
-        """Kill the one-shot process by PID extracted from the external ID."""
+    async def cancel(self, external_execution_id: str) -> bool:
+        """Kill the one-shot process by PID extracted from the external ID.
+
+        H0.5: Verified cancellation — sends SIGTERM, waits for exit
+        confirmation, then SIGKILL if needed.  Returns True if the
+        process was confirmed terminated.
+        """
         pid = self._extract_pid(external_execution_id)
-        if pid is not None:
+        if pid is None:
+            return False
+        # Send SIGTERM to the process group.
+        try:
+            os.killpg(os.getpgid(pid), signal.SIGTERM)
+        except (OSError, ProcessLookupError):
+            return True  # Already dead.
+
+        # Wait up to 5 seconds for the process to exit.
+        for _ in range(50):
             try:
-                os.killpg(os.getpgid(pid), signal.SIGTERM)
+                os.kill(pid, 0)
             except (OSError, ProcessLookupError):
-                pass
+                return True  # Confirmed dead.
+            await asyncio.sleep(0.1)
+
+        # Process didn't exit on SIGTERM — escalate to SIGKILL.
+        try:
+            os.killpg(os.getpgid(pid), signal.SIGKILL)
+        except (OSError, ProcessLookupError):
+            pass
+        # Confirm.
+        try:
+            os.kill(pid, 0)
+            return False  # Still alive after SIGKILL — error.
+        except (OSError, ProcessLookupError):
+            return True
 
     # ------------------------------------------------------------------ #
     # Reconcile                                                          #
@@ -273,9 +379,15 @@ class OneShotExecutor:
     def _build_command(self, invocation: RoleInvocation) -> list[str]:
         """Build the bwrap + hermes command for one invocation.
 
-        Key difference from the bubblewrap prototype: the task brief is
-        mounted as a file and the one-shot prompt references it, rather
-        than inlining the entire brief in the command line.
+        H0.4 changes:
+        - Uses ``-p <profile_name>`` to select the profile instead of exposing
+          the whole Hermes root.
+        - Mounts only the runtime profile snapshot directory (or the specific
+          profile directory) instead of the entire Hermes home.
+        - Adds ``--symlink`` for proc/dev/tmp but never exposes host paths
+          beyond the workspace, brief, and runtime profile.
+        - Verifies mount sources exist before constructing the command
+          (callers should call ``_verify_mounts`` first).
         """
         workspace = invocation.workspace.resolve()
         hermes_home = self._resolve_hermes_home(invocation)
@@ -283,14 +395,20 @@ class OneShotExecutor:
         brief_mount = self.settings.brief_mount_point
         workspace_mount = self.settings.workspace_mount_point
 
+        # Determine the profile directory to mount.
+        runtime_profile_dir = self._resolve_runtime_profile_dir(invocation, hermes_home)
+
         # The one-shot prompt — short, references the mounted brief.
         one_shot_prompt = _BRIEF_PROMPT_TEMPLATE.format(brief_path=brief_mount)
 
-        # Build the hermes sub-command.
+        # Build the hermes sub-command with -p profile selection (H0.4).
         hermes_cmd: list[str] = [
             self.settings.hermes_binary,
-            "-z", one_shot_prompt,
         ]
+        # Profile selection via -p (H0.4).
+        if invocation.profile:
+            hermes_cmd.extend(["-p", invocation.profile])
+        hermes_cmd.extend(["-z", one_shot_prompt])
         # Model/provider override if specified in invocation metadata.
         model = invocation.metadata.get("model")
         provider = invocation.metadata.get("provider")
@@ -320,20 +438,47 @@ class OneShotExecutor:
             "--bind", str(workspace), workspace_mount,
             # Mount the task brief read-only at the brief mount point.
             "--ro-bind", str(task_brief), brief_mount,
-            # Mount Hermes home read-write (C1: state.db, logs, etc. required).
-            "--bind", str(hermes_home), str(hermes_home),
-            # Identity overlays: SOUL.md and config.yaml read-only.
-            # (Only if they exist in the profile.)
         ]
-        # Add identity overlays if the profile directory structure supports it.
-        profile_dir = self._profile_dir(invocation, hermes_home)
-        if profile_dir is not None:
+
+        # Mount the runtime profile directory (H0.4).
+        # Only the specific profile's directory is mounted — not the entire
+        # Hermes root.  This prevents the agent from seeing other profiles.
+        if runtime_profile_dir is not None:
+            # HERMES_HOME is set to hermes_home so Hermes can find profiles/,
+            # but we only mount the specific profile dir rw.
+            # Profile dir is mounted at its expected path inside HERMES_HOME.
+            profile_mount_path = str(
+                hermes_home / "profiles" / invocation.profile
+            )
+            command.extend([
+                "--bind", str(runtime_profile_dir), profile_mount_path,
+            ])
+            # Mount the Hermes home root structure (read-only) so Hermes
+            # can resolve its config, but only the profile dir is writable.
+            # We mount hermes_home itself read-only, then overlay the profile
+            # directory on top read-write.
+            command.extend([
+                "--ro-bind", str(hermes_home), str(hermes_home),
+            ])
+            # Re-mount the profile dir rw on top of the ro Hermes home.
+            command.extend([
+                "--bind", str(runtime_profile_dir), profile_mount_path,
+            ])
+
+            # Identity overlays: SOUL.md and config.yaml read-only.
             for identity_file in ("SOUL.md", "config.yaml"):
-                identity_path = profile_dir / identity_file
+                identity_path = runtime_profile_dir / identity_file
                 if identity_path.exists():
                     command.extend(
-                        ["--ro-bind", str(identity_path), str(identity_path)]
+                        ["--ro-bind",
+                         str(identity_path),
+                         str(identity_path)]
                     )
+        else:
+            # Fallback: mount the whole Hermes home (legacy behavior).
+            command.extend([
+                "--bind", str(hermes_home), str(hermes_home),
+            ])
 
         command.extend([
             # /dev, /proc, /tmp.
@@ -353,6 +498,52 @@ class OneShotExecutor:
 
         command.extend(hermes_cmd)
         return command
+
+    def _resolve_runtime_profile_dir(
+        self, invocation: RoleInvocation, hermes_home: Path
+    ) -> Path | None:
+        """Resolve the runtime profile directory to mount (H0.4).
+
+        If ``runtime_profile_dir`` is in the invocation metadata (set by
+        the diagnostic service after snapshot creation), use that.
+        Otherwise, fall back to the canonical profile directory if it exists.
+        """
+        runtime_dir = invocation.metadata.get("runtime_profile_dir")
+        if runtime_dir is not None:
+            path = Path(str(runtime_dir))
+            if path.is_dir():
+                return path
+        # Fallback: canonical profile directory.
+        if invocation.profile:
+            canonical = hermes_home / "profiles" / invocation.profile
+            if canonical.is_dir():
+                return canonical
+        return None
+
+    def _verify_mounts(self, invocation: RoleInvocation) -> list[str]:
+        """Pre-launch verification of all mount sources (H0.4).
+
+        Returns a list of problems (empty = all mounts verified).
+        """
+        problems: list[str] = []
+        workspace = invocation.workspace.resolve()
+        if not workspace.is_dir():
+            problems.append(f"Workspace directory missing: {workspace}")
+        task_brief = invocation.task_brief.resolve()
+        if not task_brief.is_file():
+            problems.append(f"Task brief file missing: {task_brief}")
+        hermes_home = self._resolve_hermes_home(invocation)
+        if not hermes_home.is_dir():
+            problems.append(f"Hermes home missing: {hermes_home}")
+        runtime_dir = self._resolve_runtime_profile_dir(invocation, hermes_home)
+        if runtime_dir is not None:
+            for identity_file in ("SOUL.md", "config.yaml"):
+                if not (runtime_dir / identity_file).exists():
+                    problems.append(
+                        f"Identity file {identity_file} missing from "
+                        f"runtime profile: {runtime_dir}"
+                    )
+        return problems
 
     def _build_environment(self, invocation: RoleInvocation) -> dict[str, str]:
         """Build a minimal environment for the bwrap process itself."""

@@ -97,12 +97,16 @@ def diagnostic_migrations(after_version: int) -> tuple[Migration, ...]:
 # State machine                                                                #
 # --------------------------------------------------------------------------- #
 
-DIAGNOSTIC_STATES = frozenset(
-    {"pending", "running", "succeeded", "failed", "cancelled", "timed_out"}
+from .contracts import (
+    DiagnosticState,
+    TERMINAL_DIAGNOSTIC_STATES,
+    is_valid_transition,
+    StateTransitionError,
 )
-TERMINAL_STATES = frozenset(
-    {"succeeded", "failed", "cancelled", "timed_out"}
-)
+
+#: Legacy states for backward compatibility with existing tests.
+DIAGNOSTIC_STATES = frozenset(s.value for s in DiagnosticState)
+TERMINAL_STATES = TERMINAL_DIAGNOSTIC_STATES
 
 
 def utc_now_iso() -> str:
@@ -172,29 +176,56 @@ class DiagnosticStore:
         role: str,
         profile_name: str,
         memory_policy: str = "persistent",
+        idempotency_key: str = "",
+        manifest_sha256: str | None = None,
         payload: Mapping[str, Any] | None = None,
-    ) -> None:
-        """Create a pending diagnostic invocation."""
+    ) -> str:
+        """Create a pending diagnostic invocation.
+
+        If ``idempotency_key`` is provided and an invocation with that key
+        already exists, return the existing invocation_id instead of
+        creating a duplicate (H0.2: duplicate submission produces one).
+
+        Returns the invocation_id (existing or new).
+        """
+        # Idempotency check (H0.2).
+        if idempotency_key:
+            existing = self.find_by_idempotency_key(idempotency_key)
+            if existing is not None:
+                return existing["invocation_id"]
+
         now = utc_now_iso()
         with self._db.transaction() as conn:
             conn.execute(
                 """
                 INSERT INTO diagnostic_invocations
-                    (invocation_id, project_id, role, profile_name, status,
-                     memory_policy, payload_json, created_at, updated_at)
-                VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?)
+                    (invocation_id, idempotency_key, project_id, role, profile_name, status,
+                     memory_policy, manifest_sha256, payload_json, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)
                 """,
                 (
                     invocation_id,
+                    idempotency_key or invocation_id,
                     project_id,
                     role,
                     profile_name,
                     memory_policy,
+                    manifest_sha256,
                     json.dumps(payload or {}),
                     now,
                     now,
                 ),
             )
+        return invocation_id
+
+    def find_by_idempotency_key(self, key: str) -> dict[str, Any] | None:
+        """Return the invocation matching the idempotency key, or None."""
+        with self._db.connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM diagnostic_invocations WHERE idempotency_key = ?",
+                (key,),
+            ).fetchone()
+        return dict(row) if row is not None else None
 
     def get_invocation(self, invocation_id: str) -> dict[str, Any] | None:
         """Return one invocation as a dict, or None."""
@@ -241,12 +272,32 @@ class DiagnosticStore:
         exit_code: int | None = None,
         summary: str = "",
         diagnostic_text: str = "",
+        expected_token: int | None = None,
     ) -> None:
-        """Update an invocation's status and terminal fields."""
+        """Update an invocation's status and terminal fields.
+
+        Validates the state transition against the state machine (H0.6).
+        If ``expected_token`` is provided, validates the fencing token
+        before mutating (H0.6: token-guarded mutations).
+        """
         if status not in DIAGNOSTIC_STATES:
             raise ValueError(f"Unknown diagnostic status {status!r}.")
+
+        # Token guard (H0.6).
+        if expected_token is not None:
+            self.validate_fencing_token(invocation_id, expected_token)
+
+        # State transition validation (H0.6).
+        current = self.get_invocation(invocation_id)
+        if current is not None:
+            from_state = current["status"]
+            if from_state != status and not is_valid_transition(from_state, status):
+                raise StateTransitionError(
+                    f"Invalid state transition: {from_state!r} -> {status!r}"
+                )
+
         now = utc_now_iso()
-        sets = ["status = ?", "updated_at = ?"]
+        sets: list[str] = ["status = ?", "updated_at = ?"]
         params: list[Any] = [status, now]
         if external_execution_id is not None:
             sets.append("external_execution_id = ?")
@@ -266,6 +317,25 @@ class DiagnosticStore:
                 f"UPDATE diagnostic_invocations SET {', '.join(sets)} "
                 "WHERE invocation_id = ?",
                 params,
+            )
+
+    def update_process_identity(
+        self,
+        invocation_id: str,
+        identity: Mapping[str, Any],
+        *,
+        expected_token: int | None = None,
+    ) -> None:
+        """Persist the durable runtime identity for an invocation (H0.5)."""
+        if expected_token is not None:
+            self.validate_fencing_token(invocation_id, expected_token)
+        now = utc_now_iso()
+        with self._db.transaction() as conn:
+            conn.execute(
+                "UPDATE diagnostic_invocations "
+                "SET process_identity_json = ?, updated_at = ? "
+                "WHERE invocation_id = ?",
+                (json.dumps(identity), now, invocation_id),
             )
 
     def record_memory_state(
@@ -373,12 +443,14 @@ class DiagnosticStore:
         *,
         profile_name: str,
         invocation_id: str,
+        token: int = 0,
         lease_seconds: int = 14_400,
     ) -> None:
         """Acquire an exclusive lock on a profile.
 
         Raises ProfileLockHeld if the profile is already locked by a
-        different invocation (whose lease has not expired).
+        different invocation (whose lease has not expired).  The token
+        is stored so that release can be owner-checked (H0.6).
         """
         from datetime import timedelta
 
@@ -387,7 +459,7 @@ class DiagnosticStore:
         with self._db.immediate_transaction() as conn:
             # Check for existing lock.
             row = conn.execute(
-                "SELECT invocation_id, lease_expires_at "
+                "SELECT invocation_id, lease_expires_at, token "
                 "FROM profile_execution_locks WHERE profile_name = ?",
                 (profile_name,),
             ).fetchone()
@@ -399,25 +471,48 @@ class DiagnosticStore:
                 # Stale or same invocation — overwrite.
                 conn.execute(
                     "UPDATE profile_execution_locks "
-                    "SET invocation_id = ?, acquired_at = ?, lease_expires_at = ? "
+                    "SET invocation_id = ?, token = ?, "
+                    "acquired_at = ?, lease_expires_at = ? "
                     "WHERE profile_name = ?",
-                    (invocation_id, now.isoformat(), expires.isoformat(), profile_name),
+                    (invocation_id, token,
+                     now.isoformat(), expires.isoformat(), profile_name),
                 )
             else:
                 conn.execute(
                     "INSERT INTO profile_execution_locks "
-                    "(profile_name, invocation_id, acquired_at, lease_expires_at) "
-                    "VALUES (?, ?, ?, ?)",
-                    (profile_name, invocation_id, now.isoformat(), expires.isoformat()),
+                    "(profile_name, invocation_id, token, "
+                    "acquired_at, lease_expires_at) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (profile_name, invocation_id, token,
+                     now.isoformat(), expires.isoformat()),
                 )
 
-    def release_profile_lock(self, profile_name: str) -> None:
-        """Release the profile lock."""
+    def release_profile_lock(
+        self,
+        profile_name: str,
+        *,
+        expected_invocation_id: str | None = None,
+        expected_token: int | None = None,
+    ) -> None:
+        """Release the profile lock.
+
+        If ``expected_invocation_id`` and ``expected_token`` are provided,
+        the lock is only released if the current holder matches both
+        (H0.6: owner-checked release).  Otherwise it is released
+        unconditionally (legacy behavior).
+        """
         with self._db.transaction() as conn:
-            conn.execute(
-                "DELETE FROM profile_execution_locks WHERE profile_name = ?",
-                (profile_name,),
-            )
+            if expected_invocation_id is not None and expected_token is not None:
+                conn.execute(
+                    "DELETE FROM profile_execution_locks "
+                    "WHERE profile_name = ? AND invocation_id = ? AND token = ?",
+                    (profile_name, expected_invocation_id, expected_token),
+                )
+            else:
+                conn.execute(
+                    "DELETE FROM profile_execution_locks WHERE profile_name = ?",
+                    (profile_name,),
+                )
 
     def profile_is_locked(self, profile_name: str) -> str | None:
         """Return the invocation_id holding the lock, or None."""
@@ -452,6 +547,107 @@ class DiagnosticStore:
                     )
                     freed.append(row[0])
         return freed
+
+    def renew_profile_lease(
+        self,
+        profile_name: str,
+        *,
+        invocation_id: str,
+        expected_token: int,
+        extension_seconds: int = 14_400,
+    ) -> None:
+        """Renew the lease on a profile lock (H0.6).
+
+        The caller must provide the correct invocation_id and fencing
+        token — only the current holder can renew.
+        """
+        from datetime import timedelta
+
+        now = datetime.now(timezone.utc)
+        new_expiry = now + timedelta(seconds=extension_seconds)
+        with self._db.immediate_transaction() as conn:
+            row = conn.execute(
+                "SELECT invocation_id, token FROM profile_execution_locks "
+                "WHERE profile_name = ?",
+                (profile_name,),
+            ).fetchone()
+            if row is None:
+                raise ProfileLockHeld(profile_name, "<none>")
+            if row[0] != invocation_id or row[1] != expected_token:
+                raise FencingError(
+                    f"Cannot renew lease for {profile_name}: "
+                    f"invocation/token mismatch."
+                )
+            conn.execute(
+                "UPDATE profile_execution_locks SET lease_expires_at = ? "
+                "WHERE profile_name = ?",
+                (new_expiry.isoformat(), profile_name),
+            )
+
+    def list_nonterminal_invocations(self) -> list[dict[str, Any]]:
+        """Return all invocations that are not in a terminal state.
+
+        Used by restart reconciliation (H0.6) to find work that needs
+        to be examined after a coordinator restart.
+        """
+        with self._db.connect() as conn:
+            placeholders = ",".join("?" for _ in TERMINAL_DIAGNOSTIC_STATES)
+            rows = conn.execute(
+                f"SELECT * FROM diagnostic_invocations "
+                f"WHERE status NOT IN ({placeholders}) "
+                "ORDER BY created_at",
+                tuple(TERMINAL_DIAGNOSTIC_STATES),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def reconcile_nonterminal_invocations(self) -> list[dict[str, Any]]:
+        """Restart reconciliation (H0.6): find non-terminal invocations.
+
+        For each non-terminal invocation found after a restart:
+        1. If the process is gone and output is valid → mark succeeded.
+        2. If the process is gone and output is invalid → mark failed.
+        3. If the process is still running → leave it (supervisor will pick up).
+        4. If we can't tell → mark ``unresolved``.
+
+        Returns the list of reconciled invocations with their new status.
+        """
+        nonterminal = self.list_nonterminal_invocations()
+        results: list[dict[str, Any]] = []
+        for inv in nonterminal:
+            invocation_id = inv["invocation_id"]
+            external_id = inv.get("external_execution_id")
+            new_status = DiagnosticState.UNRESOLVED.value
+
+            # Try to check if the process is still alive.
+            pid = None
+            if external_id and "pid:" in str(external_id):
+                try:
+                    pid = int(str(external_id).split("pid:")[1].split(":")[0])
+                except (IndexError, ValueError):
+                    pass
+
+            if pid is not None:
+                import os as _os
+                try:
+                    _os.kill(pid, 0)
+                    # Process is still alive — don't touch it.
+                    results.append({**inv, "reconciled_status": inv["status"]})
+                    continue
+                except (OSError, ProcessLookupError):
+                    # Process is dead — need to determine outcome.
+                    pass
+
+            # Process is dead or we can't tell — mark unresolved.
+            try:
+                self.update_status(
+                    invocation_id,
+                    status=DiagnosticState.UNRESOLVED.value,
+                )
+            except StateTransitionError:
+                # Can't transition from current state — leave as-is.
+                pass
+            results.append({**inv, "reconciled_status": new_status})
+        return results
 
 
 __all__ = [

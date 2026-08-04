@@ -395,22 +395,29 @@ _DIAGNOSTIC_SCHEMA = (
     """
     CREATE TABLE diagnostic_invocations (
         invocation_id TEXT PRIMARY KEY,
+        idempotency_key TEXT NOT NULL DEFAULT '',
         project_id TEXT NOT NULL,
         role TEXT NOT NULL,
         profile_name TEXT NOT NULL,
         external_execution_id TEXT,
+        process_identity_json TEXT,
         status TEXT NOT NULL DEFAULT 'pending'
-            CHECK (status IN ('pending', 'running', 'succeeded', 'failed',
-                              'cancelled', 'timed_out')),
+            CHECK (status IN ('pending', 'preflight', 'creating',
+                              'launch_acknowledged', 'running', 'closing',
+                              'cancel_requested', 'timeout_requested',
+                              'terminating', 'succeeded', 'failed',
+                              'cancelled', 'timed_out', 'unresolved')),
         exit_code INTEGER,
         summary TEXT NOT NULL DEFAULT '',
         diagnostic_text TEXT NOT NULL DEFAULT '',
         memory_state_before TEXT,
         memory_state_after TEXT,
         memory_policy TEXT NOT NULL DEFAULT 'persistent',
+        manifest_sha256 TEXT,
         payload_json TEXT NOT NULL DEFAULT '{}',
         created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        UNIQUE (idempotency_key)
     )
     """,
     """
@@ -436,6 +443,7 @@ _DIAGNOSTIC_SCHEMA = (
         profile_name TEXT PRIMARY KEY,
         invocation_id TEXT NOT NULL
             REFERENCES diagnostic_invocations(invocation_id) ON DELETE CASCADE,
+        token INTEGER NOT NULL,
         acquired_at TEXT NOT NULL,
         lease_expires_at TEXT NOT NULL
     )

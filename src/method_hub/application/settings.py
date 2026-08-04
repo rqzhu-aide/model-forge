@@ -21,8 +21,12 @@ class ApplicationSettings(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 8765
     user_id: str = "researcher.local"
-    executor_kind: Literal["disabled", "fake", "hermes_kanban", "oci", "oneshot"] = "disabled"
+    executor_kind: Literal["disabled", "fake", "hermes_kanban", "oci"] = "disabled"
     development_mode: bool = False
+    #: Diagnostic lane feature flag (H0.2).  Defaults off.  When True,
+    #: the diagnostic composition root is available but scientific execution
+    #: is unaffected and cannot select the one-shot executor.
+    diagnostic_enabled: bool = False
     hermes_executable: str = "hermes"
     hermes_board: str = "method-hub"
     hermes_root: Path | None = None

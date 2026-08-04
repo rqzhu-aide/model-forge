@@ -13,6 +13,7 @@ Covers the plan's key requirements:
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
 import shutil
@@ -662,6 +663,10 @@ class TestDiagnosticStore:
             role="theorist",
             profile_name="proj-001-theorist",
         )
+        # Full state machine path:
+        # pending → preflight → creating → launch_acknowledged → running → closing → succeeded
+        for s in ("preflight", "creating", "launch_acknowledged", "running", "closing"):
+            store.update_status("inv-test", status=s)
         store.update_status(
             "inv-test",
             status="succeeded",
@@ -672,6 +677,147 @@ class TestDiagnosticStore:
         assert inv["status"] == "succeeded"
         assert inv["exit_code"] == 0
         assert inv["summary"] == "OK"
+
+    def test_invalid_transition_rejected(
+        self, store: DiagnosticStore
+    ) -> None:
+        """H0.6: invalid state transitions must be rejected."""
+        from method_hub.diagnostics.contracts import StateTransitionError
+
+        store.create_invocation(
+            invocation_id="inv-bad",
+            project_id="proj-001",
+            role="theorist",
+            profile_name="proj-001-theorist",
+        )
+        with pytest.raises(StateTransitionError):
+            # pending -> succeeded is NOT a valid direct transition.
+            store.update_status("inv-bad", status="succeeded")
+
+    def test_token_guarded_mutation(
+        self, store: DiagnosticStore
+    ) -> None:
+        """H0.6: update_status with wrong token must fail."""
+        from method_hub.diagnostics.contracts import StateTransitionError
+
+        store.create_invocation(
+            invocation_id="inv-tok",
+            project_id="proj-001",
+            role="theorist",
+            profile_name="proj-001-theorist",
+        )
+        token = store.issue_fencing_token("inv-tok")
+        # Correct token: should work.
+        store.update_status(
+            "inv-tok", status="preflight", expected_token=token.token
+        )
+        # Wrong token: should fail.
+        with pytest.raises(FencingError):
+            store.update_status(
+                "inv-tok", status="creating", expected_token=token.token + 999
+            )
+
+    def test_lease_renewal(
+        self, store: DiagnosticStore
+    ) -> None:
+        """H0.6: lease renewal requires correct invocation + token."""
+        store.create_invocation(
+            invocation_id="inv-lease",
+            project_id="proj-001",
+            role="theorist",
+            profile_name="proj-001-theorist",
+        )
+        token = store.issue_fencing_token("inv-lease")
+        store.acquire_profile_lock(
+            profile_name="proj-001-theorist",
+            invocation_id="inv-lease",
+            token=token.token,
+        )
+        # Renew with correct credentials.
+        store.renew_profile_lease(
+            "proj-001-theorist",
+            invocation_id="inv-lease",
+            expected_token=token.token,
+        )
+        # Renew with wrong token should fail.
+        with pytest.raises(FencingError):
+            store.renew_profile_lease(
+                "proj-001-theorist",
+                invocation_id="inv-lease",
+                expected_token=token.token + 1,
+            )
+
+    def test_restart_reconciliation(
+        self, store: DiagnosticStore
+    ) -> None:
+        """H0.6: non-terminal invocations are found after restart."""
+        store.create_invocation(
+            invocation_id="inv-restart-1",
+            project_id="proj-001",
+            role="theorist",
+            profile_name="proj-001-theorist",
+        )
+        store.create_invocation(
+            invocation_id="inv-restart-2",
+            project_id="proj-001",
+            role="theorist",
+            profile_name="proj-001-theorist",
+        )
+        # Walk inv-restart-1 to running, then leave it.
+        for s in ("preflight", "creating", "launch_acknowledged", "running"):
+            store.update_status("inv-restart-1", status=s)
+        # Walk inv-restart-2 to succeeded (terminal).
+        for s in ("preflight", "creating", "launch_acknowledged", "running", "closing", "succeeded"):
+            store.update_status("inv-restart-2", status=s)
+
+        # Reconcile: inv-restart-1 is non-terminal, inv-restart-2 is terminal.
+        nonterminal = store.list_nonterminal_invocations()
+        assert len(nonterminal) == 1
+        assert nonterminal[0]["invocation_id"] == "inv-restart-1"
+
+    def test_idempotent_create(
+        self, store: DiagnosticStore
+    ) -> None:
+        """H0.2: duplicate idempotency key returns existing invocation."""
+        store.create_invocation(
+            invocation_id="inv-idem-1",
+            idempotency_key="key-abc",
+            project_id="proj-001",
+            role="theorist",
+            profile_name="proj-001-theorist",
+        )
+        returned = store.create_invocation(
+            invocation_id="inv-idem-2",
+            idempotency_key="key-abc",  # Same key.
+            project_id="proj-001",
+            role="theorist",
+            profile_name="proj-001-theorist",
+        )
+        assert returned == "inv-idem-1"  # Returns existing, not new.
+
+    def test_owner_checked_release(
+        self, store: DiagnosticStore
+    ) -> None:
+        """H0.6: profile lock release is owner-checked."""
+        store.create_invocation(
+            invocation_id="inv-owner-1",
+            project_id="proj-001",
+            role="theorist",
+            profile_name="proj-001-theorist",
+        )
+        token1 = store.issue_fencing_token("inv-owner-1")
+        store.acquire_profile_lock(
+            profile_name="proj-001-theorist",
+            invocation_id="inv-owner-1",
+            token=token1.token,
+        )
+        # Release with correct owner + token.
+        store.release_profile_lock(
+            "proj-001-theorist",
+            expected_invocation_id="inv-owner-1",
+            expected_token=token1.token,
+        )
+        assert store.profile_is_locked("proj-001-theorist") is None
 
     def test_record_memory_state(
         self, store: DiagnosticStore
@@ -706,8 +852,10 @@ class TestDiagnosticStore:
         all_inv = store.list_invocations()
         assert len(all_inv) == 5
 
+        # Walk first 3 through the full state machine to succeeded.
         for i in range(3):
-            store.update_status(f"inv-{i:03d}", status="succeeded")
+            for s in ("preflight", "creating", "launch_acknowledged", "running", "closing", "succeeded"):
+                store.update_status(f"inv-{i:03d}", status=s)
         succeeded = store.list_invocations(status="succeeded")
         assert len(succeeded) == 3
 
@@ -848,6 +996,148 @@ class TestOneShotCommand:
         assert OneShotExecutor._extract_pid("oneshot:pid:abc") is None
         assert OneShotExecutor._extract_pid("bwrap:something") is None
 
+    def test_profile_flag_in_command(
+        self, tmp_path: Path
+    ) -> None:
+        """H0.4: ``-p <profile>`` flag selects the profile."""
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        brief = tmp_path / "brief.md"
+        brief.write_text("# Brief")
+
+        hermes_home = tmp_path / "hermes"
+        profile_dir = hermes_home / "profiles" / "my-profile"
+        profile_dir.mkdir(parents=True)
+        (profile_dir / "SOUL.md").write_text("# Soul")
+        (profile_dir / "config.yaml").write_text("model: {}")
+
+        invocation = RoleInvocation(
+            execution_id="exec-001",
+            invocation_id="inv-001",
+            run_id="run-001",
+            project_id="proj-001",
+            phase="diagnostic",
+            mode="oneshot",
+            stage_id="diag",
+            role="theorist",
+            profile="my-profile",
+            workspace=workspace,
+            task_brief=brief,
+            expected_output_paths=(),
+        )
+        executor = OneShotExecutor(
+            OneShotExecutorSettings(hermes_home=hermes_home)
+        )
+        command = executor._build_command(invocation)
+        assert "-p" in command
+        p_index = command.index("-p")
+        assert command[p_index + 1] == "my-profile"
+
+    def test_runtime_profile_dir_metadata_used(
+        self, tmp_path: Path
+    ) -> None:
+        """H0.4: runtime_profile_dir metadata overrides canonical profile path."""
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        brief = tmp_path / "brief.md"
+        brief.write_text("# Brief")
+
+        hermes_home = tmp_path / "hermes"
+        runtime_dir = tmp_path / "runtime-snapshot"
+        runtime_dir.mkdir()
+        (runtime_dir / "SOUL.md").write_text("# Runtime Soul")
+        (runtime_dir / "config.yaml").write_text("model: {}")
+
+        invocation = RoleInvocation(
+            execution_id="exec-001",
+            invocation_id="inv-001",
+            run_id="run-001",
+            project_id="proj-001",
+            phase="diagnostic",
+            mode="oneshot",
+            stage_id="diag",
+            role="theorist",
+            profile="my-profile",
+            workspace=workspace,
+            task_brief=brief,
+            expected_output_paths=(),
+            metadata={"runtime_profile_dir": str(runtime_dir)},
+        )
+        executor = OneShotExecutor(
+            OneShotExecutorSettings(hermes_home=hermes_home)
+        )
+        command = executor._build_command(invocation)
+        command_str = " ".join(command)
+
+        # The runtime snapshot directory should be in the bind mounts.
+        assert str(runtime_dir) in command_str
+
+    def test_mount_verification_passes(
+        self, tmp_path: Path
+    ) -> None:
+        """H0.4: _verify_mounts returns empty when all mounts exist."""
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        brief = tmp_path / "brief.md"
+        brief.write_text("# Brief")
+
+        hermes_home = tmp_path / "hermes"
+        profile_dir = hermes_home / "profiles" / "test-profile"
+        profile_dir.mkdir(parents=True)
+        (profile_dir / "SOUL.md").write_text("# Soul")
+        (profile_dir / "config.yaml").write_text("model: {}")
+
+        invocation = RoleInvocation(
+            execution_id="exec-001",
+            invocation_id="inv-001",
+            run_id="run-001",
+            project_id="proj-001",
+            phase="diagnostic",
+            mode="oneshot",
+            stage_id="diag",
+            role="theorist",
+            profile="test-profile",
+            workspace=workspace,
+            task_brief=brief,
+            expected_output_paths=(),
+        )
+        executor = OneShotExecutor(
+            OneShotExecutorSettings(hermes_home=hermes_home)
+        )
+        problems = executor._verify_mounts(invocation)
+        assert problems == []
+
+    def test_mount_verification_fails_on_missing_brief(
+        self, tmp_path: Path
+    ) -> None:
+        """H0.4: _verify_mounts detects missing task brief."""
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        brief = tmp_path / "brief.md"  # NOT created.
+
+        hermes_home = tmp_path / "hermes"
+        hermes_home.mkdir()
+
+        invocation = RoleInvocation(
+            execution_id="exec-001",
+            invocation_id="inv-001",
+            run_id="run-001",
+            project_id="proj-001",
+            phase="diagnostic",
+            mode="oneshot",
+            stage_id="diag",
+            role="theorist",
+            profile="test-profile",
+            workspace=workspace,
+            task_brief=brief,
+            expected_output_paths=(),
+        )
+        executor = OneShotExecutor(
+            OneShotExecutorSettings(hermes_home=hermes_home)
+        )
+        problems = executor._verify_mounts(invocation)
+        assert any("Task brief" in p for p in problems)
+
 
 # --------------------------------------------------------------------------- #
 # OneShotExecutor memory-state recording (C3)                                  #
@@ -877,15 +1167,16 @@ class TestOneShotMemoryState:
 
 
 class TestBootstrapOneshot:
-    def test_oneshot_executor_kind_accepted(self) -> None:
-        """The 'oneshot' executor kind is a valid setting."""
+    def test_oneshot_executor_kind_rejected(self) -> None:
+        """H0.2: 'oneshot' is NOT a valid scientific executor kind."""
         from method_hub.application.settings import ApplicationSettings
+        from pydantic import ValidationError
 
-        settings = ApplicationSettings(
-            executor_kind="oneshot",
-            development_mode=True,
-        )
-        assert settings.executor_kind == "oneshot"
+        with pytest.raises(ValidationError):
+            ApplicationSettings(
+                executor_kind="oneshot",
+                development_mode=True,
+            )
 
 
 # --------------------------------------------------------------------------- #
@@ -912,24 +1203,37 @@ class TestDiagnosticService:
             ),
         )
 
+        workspace = hermes_root / "diag-workspace"
+        workspace.mkdir()
+        brief = workspace / "task.md"
+        brief.write_text("# Diagnostic brief")
+
+        # Mock executor must write the expected diagnostic output file
+        # so the independent validation (H0.5) passes.
+        brief_sha = hashlib.sha256(brief.read_bytes()).hexdigest()
+
+        async def mock_execute(invocation, observer):
+            output = workspace / "diagnostic_result.json"
+            output.write_text(json.dumps({
+                "status": "ok",
+                "brief_sha256": brief_sha,
+                "agent_profile": "diag-proj-theorist",
+            }))
+            return RoleExecutionResult(
+                status=RoleExecutionStatus.SUCCEEDED,
+                external_execution_id="oneshot:pid:99999",
+                exit_code=0,
+                summary="OK",
+            )
+
         mock_executor = AsyncMock(spec=OneShotExecutor)
-        mock_executor.execute.return_value = RoleExecutionResult(
-            status=RoleExecutionStatus.SUCCEEDED,
-            external_execution_id="oneshot:pid:99999",
-            exit_code=0,
-            summary="OK",
-        )
+        mock_executor.execute.side_effect = mock_execute
 
         service = DiagnosticService(
             store=store,
             executor=mock_executor,
             profile_manager=pm,
         )
-
-        workspace = hermes_root / "diag-workspace"
-        workspace.mkdir()
-        brief = workspace / "task.md"
-        brief.write_text("# Diagnostic brief")
 
         request = DiagnosticRequest(
             project_id="diag-proj",

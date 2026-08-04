@@ -8,6 +8,7 @@ import uvicorn
 
 from .application.bootstrap import build_application
 from .application.settings import ApplicationSettings
+from .diagnostics.cli import _add_diagnostic_parser, _run_diag_command
 from .specification import SpecificationPackage
 
 
@@ -18,6 +19,7 @@ def _parser() -> argparse.ArgumentParser:
     serve.add_argument("--host", default=None)
     serve.add_argument("--port", type=int, default=None)
     subcommands.add_parser("validate", help="Validate the architecture package.")
+    _add_diagnostic_parser(subcommands)
     return parser
 
 
@@ -31,6 +33,8 @@ def main(argv: list[str] | None = None) -> int:
             f"{len(package.schemas.schema_names)} schemas."
         )
         return 0
+    if arguments.command == "diag":
+        return _run_diag_command(arguments, settings)
     configured = settings.model_dump()
     configured["host"] = arguments.host or settings.host
     configured["port"] = arguments.port or settings.port

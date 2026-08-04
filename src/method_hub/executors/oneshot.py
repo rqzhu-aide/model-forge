@@ -398,8 +398,11 @@ class OneShotExecutor:
         # Determine the profile directory to mount.
         runtime_profile_dir = self._resolve_runtime_profile_dir(invocation, hermes_home)
 
-        # The one-shot prompt — short, references the mounted brief.
-        one_shot_prompt = _BRIEF_PROMPT_TEMPLATE.format(brief_path=brief_mount)
+        # The one-shot prompt — references the mounted brief by its
+        # absolute host path (since we bind to the same path inside).
+        one_shot_prompt = _BRIEF_PROMPT_TEMPLATE.format(
+            brief_path=str(task_brief)
+        )
 
         # Build the hermes sub-command with -p profile selection (H0.4).
         hermes_cmd: list[str] = [
@@ -422,7 +425,7 @@ class OneShotExecutor:
                 ["--skills", ",".join(invocation.preloaded_skills)]
             )
         # Usage report.
-        usage_file = str(Path(workspace_mount) / "usage.json")
+        usage_file = str(workspace / "usage.json")
         hermes_cmd.extend(["--usage-file", usage_file])
 
         command: list[str] = [
@@ -432,13 +435,28 @@ class OneShotExecutor:
             "--share-net" if self._has_network(invocation) else "--unshare-net",
             "--new-session",
             "--die-with-parent",
-            "--cap-drop", "ALL",
-            "--no-new-privileges",
-            # Mount the workspace read-write.
-            "--bind", str(workspace), workspace_mount,
-            # Mount the task brief read-only at the brief mount point.
-            "--ro-bind", str(task_brief), brief_mount,
         ]
+        # --cap-drop and --no-new-privileges are not supported in all bwrap
+        # versions (e.g. 0.11.1 on Ubuntu 26.04).  Include them conditionally
+        # based on a runtime capability check.
+        if self._bwrap_supports_cap_drop():
+            command.extend(["--cap-drop", "ALL"])
+        # Mount the root filesystem read-only first — all subsequent
+        # mounts overlay this base.  This ordering is critical: mounts
+        # that appear AFTER --ro-bind / / can override specific paths.
+        command.extend([
+            "--ro-bind", "/", "/",
+        ])
+        # Mount the workspace read-write at its own absolute path.
+        # Binding to the same path avoids needing to create new directories
+        # on the read-only root.
+        command.extend([
+            "--bind", str(workspace), str(workspace),
+        ])
+        # Mount the task brief read-only.
+        command.extend([
+            "--ro-bind", str(task_brief), str(task_brief),
+        ])
 
         # Mount the runtime profile directory (H0.4).
         # Only the specific profile's directory is mounted — not the entire
@@ -450,17 +468,11 @@ class OneShotExecutor:
             profile_mount_path = str(
                 hermes_home / "profiles" / invocation.profile
             )
-            command.extend([
-                "--bind", str(runtime_profile_dir), profile_mount_path,
-            ])
-            # Mount the Hermes home root structure (read-only) so Hermes
-            # can resolve its config, but only the profile dir is writable.
-            # We mount hermes_home itself read-only, then overlay the profile
-            # directory on top read-write.
+            # Mount Hermes home read-only so Hermes can resolve its config.
             command.extend([
                 "--ro-bind", str(hermes_home), str(hermes_home),
             ])
-            # Re-mount the profile dir rw on top of the ro Hermes home.
+            # Mount the profile directory read-write on top.
             command.extend([
                 "--bind", str(runtime_profile_dir), profile_mount_path,
             ])
@@ -480,16 +492,16 @@ class OneShotExecutor:
                 "--bind", str(hermes_home), str(hermes_home),
             ])
 
+        # /dev, /proc, /tmp — these must come AFTER --ro-bind / / so they
+        # create fresh namespaces on top of the read-only root.
         command.extend([
-            # /dev, /proc, /tmp.
             "--dev", "/dev",
             "--proc", "/proc",
             "--tmpfs", "/tmp",
-            # Hostname and working directory.
             "--hostname", invocation.execution_id[:12],
-            "--chdir", workspace_mount,
+            "--chdir", str(workspace),
             # Environment.
-            "--setenv", "HOME", workspace_mount,
+            "--setenv", "HOME", str(Path.home()),
             "--setenv", "HERMES_HOME", str(hermes_home),
         ])
         # Inject secret env into the child via bwrap --setenv.
@@ -498,6 +510,26 @@ class OneShotExecutor:
 
         command.extend(hermes_cmd)
         return command
+
+    _bwrap_cap_drop_checked: bool = False
+    _bwrap_cap_drop_supported: bool = False
+
+    def _bwrap_supports_cap_drop(self) -> bool:
+        """Check if the installed bwrap supports --cap-drop (E5 evidence)."""
+        if not OneShotExecutor._bwrap_cap_drop_checked:
+            import subprocess
+            try:
+                result = subprocess.run(
+                    [self.settings.bwrap_binary, "--help"],
+                    capture_output=True, text=True, timeout=5,
+                )
+                OneShotExecutor._bwrap_cap_drop_supported = (
+                    "--cap-drop" in result.stdout
+                )
+            except (OSError, subprocess.SubprocessError):
+                OneShotExecutor._bwrap_cap_drop_supported = False
+            OneShotExecutor._bwrap_cap_drop_checked = True
+        return OneShotExecutor._bwrap_cap_drop_supported
 
     def _resolve_runtime_profile_dir(
         self, invocation: RoleInvocation, hermes_home: Path

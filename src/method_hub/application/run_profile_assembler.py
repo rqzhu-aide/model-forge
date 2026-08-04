@@ -499,6 +499,23 @@ class RunSealStore:
             ).fetchone()
         return dict(row) if row is not None else None
 
+    def list_launch_records_by_invocation(
+        self, invocation_id: str
+    ) -> list[dict[str, Any]]:
+        """Return ALL launch records for one invocation, oldest first.
+
+        Read-only retention support (WP-E3): deciding whether a run
+        directory may be pruned requires every launch record of the
+        invocation to be terminal, not just the most recent one.
+        """
+        with self._db.connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM run_launch_records WHERE invocation_id = ? "
+                "ORDER BY launched_at ASC",
+                (invocation_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     # -- validation reports (WP-E1) ------------------------------------
 
     def record_validation_report(

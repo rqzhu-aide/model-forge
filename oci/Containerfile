@@ -1,0 +1,50 @@
+# Method Hub OCI runtime image (H0-B)
+#
+# This image provides a minimal, pinned execution environment for rootless OCI
+# role invocations.  It contains only:
+#
+#   - Python 3.12 runtime
+#   - Required system libraries for Hermes (libc, libffi, libssl)
+#   - A non-root user ``methodhub`` (UID 1000) for the agent process
+#
+# The Hermes install, profile directory, and workspace are bind-mounted at
+# runtime — nothing is baked into the image.  This keeps the image stable
+# across Hermes version changes and ensures the pinned digest binds only the
+# runtime layer (Python + system libs), as required by ADR-004.
+#
+# Build:
+#   podman build -t method-hub-runtime:latest -f oci/Containerfile .
+#
+# The image digest must be recorded in the manifest and verified at launch.
+
+FROM python:3.12-slim
+
+# Install only the minimal system dependencies Hermes needs.
+# - ca-certificates: TLS for model-provider API calls
+# - libffi-dev: cffi (used by cryptography, pynacl)
+# - libssl-dev: TLS
+# - procps: /proc utilities for the agent's own process inspection
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        libffi-dev \
+        libssl-dev \
+        procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create a non-root user.  Podman rootless already maps UIDs, but the
+# container process should run as a non-root UID for defense-in-depth.
+RUN useradd --create-home --uid 1000 --shell /bin/bash methodhub
+
+# The workspace, Hermes install, and profile are bind-mounted at runtime.
+# We only create the mount points here.
+RUN mkdir -p /workspace /opt/hermes /home/methodhub/.hermes && \
+    chown methodhub:methodhub /workspace /home/methodhub/.hermes
+
+WORKDIR /workspace
+
+# Default user — the executor overrides this via --user when needed.
+USER methodhub
+
+# Default entrypoint is a shell; the executor specifies the real command.
+CMD ["/bin/bash"]

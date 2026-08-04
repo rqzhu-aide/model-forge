@@ -33,10 +33,14 @@ Done and verified:
   SIGTERM→SIGKILL process-group termination, diagnostic lane rewired.
 - Worker audit of OCI leftovers in schemas/examples (`~/oci-schema-audit.md`,
   independently verified accurate).
-
-In flight (developer): Block 4 hardening — cumulative output cap, chunked
-stream reads, `cwd=workspace`, end-to-end synthetic tests, interim
-`oneshot.py` removal.
+- Block 4 hardening (commit `5c1d399`, probe-verified): cumulative output
+  cap with drain-and-discard, chunked stream reads, `cwd=workspace`, five
+  end-to-end synthetic tests (success, flood, over-long line, cancel kills
+  grandchild, timeout), interim `oneshot.py` removed. 404 tests green.
+- **WP-A complete** (commit `5857865`, independently validated): the
+  `trusted_local` executor binding is now in
+  `role-invocation-start.schema.json` with both examples conforming (positive
+  and negative schema checks verified through the repo SchemaCatalog).
 
 Known deviations being corrected: Block 4 landed before Blocks 1–3 (plan
 order violated; tolerated because the executor is self-contained, but Block 1
@@ -77,15 +81,20 @@ updated schema through the existing specification-package tests; no remaining
 `rootless_oci`/namespace fields outside historical docs.
 Depends on: nothing (audit complete).
 
-### WP-B — Block 1 remainder: numbered architecture docs (worker, small)
+### WP-B — Block 1 remainder: numbered architecture docs + validation tool (worker, small)
 
 Scope: apply ADR-012 wording to `00-system-principles.md` (1 hit),
 `02-run-harness.md` (1 hit), `06-implementation-roadmap.md` (3 hits),
 `08-role-context-and-communication.md` (3 hits) — replace enforced-isolation
 claims with the trusted-local boundary. Preserve frozen-context, immutable
-record, user-control, reviewer-packet, and publication invariants.
-Acceptance: no doc claims OS-level isolation from Hermes; all changes
-reviewed diff-by-diff; suite unaffected (docs only).
+record, user-control, reviewer-packet, and publication invariants. Also fix
+`architecture/tools/validate_package.py` (found during WP-A): its
+`validate_role_invocation_lifecycle` still checks OCI binding fields
+(`network_egress` at line 897) and crashes on post-WP-A examples — align its
+checks with the `trusted_local` binding and verify the tool runs cleanly
+against the full architecture package.
+Acceptance: no doc claims OS-level isolation from Hermes; the validation
+tool passes against the package; all changes reviewed diff-by-diff.
 Depends on: WP-A (so wording matches the new binding).
 
 ### WP-C — Block 2: role configuration service (developer, large)

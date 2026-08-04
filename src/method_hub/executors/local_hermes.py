@@ -98,6 +98,28 @@ def _redact(text: str) -> str:
     return redacted
 
 
+#: Read chunk size for bounded stream reading.  Using read(N) instead of
+#: readline() avoids LimitOverrunError on over-long lines (F2).
+_CHUNK_SIZE = 65536
+
+
+class _StreamCapture:
+    """Mutable per-stream capture state for cumulative output bounds.
+
+    Tracks the number of bytes actually stored (``captured``) and whether
+    the ``[output truncated]`` marker has already been appended.  Bytes
+    beyond the cap are drained from the pipe but discarded so the child
+    process never blocks on a full pipe (F1).
+    """
+
+    __slots__ = ("captured", "truncated", "buffer")
+
+    def __init__(self) -> None:
+        self.captured: int = 0
+        self.truncated: bool = False
+        self.buffer: list[str] = []
+
+
 # --------------------------------------------------------------------------- #
 # Process identity                                                            #
 # --------------------------------------------------------------------------- #
@@ -265,12 +287,14 @@ class LocalHermesExecutor:
             await observer.launch_acknowledged(invocation, external_id_placeholder)
 
             # Launch the process directly (no shell, no bwrap).
+            workspace_cwd = invocation.workspace.resolve()
             process = await asyncio.create_subprocess_exec(
                 *command,
                 stdin=asyncio.subprocess.DEVNULL,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 env=env,
+                cwd=str(workspace_cwd),  # F3: run in the run workspace.
                 start_new_session=True,  # Creates a new process group.
             )
 
@@ -285,43 +309,71 @@ class LocalHermesExecutor:
             )
             external_id = self._format_external_id(identity)
 
-            # Incremental output streaming.
-            stdout_chunks: list[str] = []
-            stderr_chunks: list[str] = []
+            # Incremental output streaming.  F1: a single cumulative cap per
+            # stream is enforced across the whole execute() call.  F2: bounded
+            # chunk reads (read(N)) make line length irrelevant.
             limit = self.settings.output_limit_bytes
+            stdout_cap = _StreamCapture()
+            stderr_cap = _StreamCapture()
 
             deadline = time.monotonic() + invocation.timeout_seconds
             start_time = time.monotonic()
 
             async def _read_stream(
                 stream: asyncio.StreamReader | None,
-                chunks: list[str],
-            ) -> int:
-                """Incrementally read lines, truncating at the output limit."""
-                total = 0
+                cap: _StreamCapture,
+            ) -> None:
+                """Read bounded chunks; store up to limit, drain the rest.
+
+                Uses read(CHUNK) instead of readline() so over-long lines
+                (F2) do not raise LimitOverrunError.  The cumulative cap
+                (F1) is enforced via the ``cap`` state object: once it is
+                reached, remaining bytes are drained from the pipe and
+                discarded so the child never blocks on a full pipe, and a
+                single ``[output truncated]`` marker is appended once.
+                """
                 if stream is None:
-                    return 0
+                    return
+                marker = "\n[output truncated]"
                 while True:
                     try:
-                        line = await stream.readline()
+                        chunk = await stream.read(_CHUNK_SIZE)
+                    except asyncio.LimitOverrunError:
+                        # StreamReader internal buffer exceeded — should not
+                        # happen with read(N), but drain defensively.
+                        continue
                     except Exception:
                         break
-                    if not line:
+                    if not chunk:
                         break
-                    decoded = line.decode("utf-8", errors="replace")
-                    remaining = limit - total
-                    if remaining <= 0:
-                        break
-                    if len(decoded) > remaining:
-                        decoded = decoded[:remaining] + "\n[output truncated]"
-                    chunks.append(decoded)
-                    total += len(decoded.encode("utf-8"))
-                return total
+                    if cap.truncated:
+                        # Cap already reached — discard bytes but keep
+                        # draining so the child does not block on a full pipe.
+                        continue
+                    remaining = limit - cap.captured
+                    if remaining <= len(marker.encode()):
+                        # No room for more data — append marker once, then
+                        # keep draining the rest of the pipe.
+                        cap.buffer.append(marker)
+                        cap.captured += len(marker.encode())
+                        cap.truncated = True
+                        continue
+                    # Store as many bytes as we can, reserving room for the
+                    # marker if this chunk crosses the boundary.
+                    room = remaining - len(marker.encode())
+                    store = chunk[:room]
+                    cap.buffer.append(store.decode("utf-8", errors="replace"))
+                    cap.captured += len(store)
+                    if len(chunk) > room:
+                        # Chunk crossed the cap boundary.
+                        cap.buffer.append(marker)
+                        cap.captured += len(marker.encode())
+                        cap.truncated = True
 
             while True:
                 read_task = asyncio.gather(
-                    _read_stream(process.stdout, stdout_chunks),
-                    _read_stream(process.stderr, stderr_chunks),
+                    _read_stream(process.stdout, stdout_cap),
+                    _read_stream(process.stderr, stderr_cap),
                 )
                 try:
                     await asyncio.wait_for(
@@ -333,16 +385,16 @@ class LocalHermesExecutor:
                 if process.returncode is not None:
                     # Process exited — drain remaining output.
                     drain_task = asyncio.gather(
-                        _read_stream(process.stdout, stdout_chunks),
-                        _read_stream(process.stderr, stderr_chunks),
+                        _read_stream(process.stdout, stdout_cap),
+                        _read_stream(process.stderr, stderr_cap),
                     )
                     try:
                         await asyncio.wait_for(drain_task, timeout=5)
                     except asyncio.TimeoutError:
                         drain_task.cancel()
 
-                    stdout_text = "".join(stdout_chunks)
-                    stderr_text = "".join(stderr_chunks)
+                    stdout_text = "".join(stdout_cap.buffer)
+                    stderr_text = "".join(stderr_cap.buffer)
                     exit_code = process.returncode
                     status = (
                         RoleExecutionStatus.SUCCEEDED
@@ -372,8 +424,8 @@ class LocalHermesExecutor:
                 if time.monotonic() >= deadline:
                     # Timeout — terminate the full process tree.
                     await self._terminate_process_tree(process)
-                    stdout_text = "".join(stdout_chunks)
-                    stderr_text = "".join(stderr_chunks)
+                    stdout_text = "".join(stdout_cap.buffer)
+                    stderr_text = "".join(stderr_cap.buffer)
                     return RoleExecutionResult(
                         status=RoleExecutionStatus.FAILED,
                         external_execution_id=external_id,

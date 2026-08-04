@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 
-from ..executors.oneshot import OneShotExecutor
+from ..executors.local_hermes import LocalHermesExecutor
 from ..executors.protocol import (
     ExecutionObserver,
     RoleExecutionResult,
@@ -490,7 +490,7 @@ class DiagnosticService:
         """Record memory-state digests for a profile (C3)."""
         hermes_root = self._pm.hermes_root
         profile_dir = hermes_root / "profiles" / profile_name
-        return OneShotExecutor.record_memory_state(profile_dir)
+        return LocalHermesExecutor.record_memory_state(profile_dir)
 
     def _evaluate_result(
         self,

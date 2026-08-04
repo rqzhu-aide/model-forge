@@ -333,9 +333,9 @@ def _diag_memory(args: argparse.Namespace, hermes_root: Path) -> int:
         print(f"Profile {args.profile_name} not found.", file=sys.stderr)
         return 1
 
-    from ..executors.oneshot import OneShotExecutor
+    from ..executors.local_hermes import LocalHermesExecutor
 
-    state = OneShotExecutor.record_memory_state(profile_dir)
+    state = LocalHermesExecutor.record_memory_state(profile_dir)
     print(f"Profile: {args.profile_name}")
     print(f"  Directory: {profile_dir}")
     for key, value in state.items():

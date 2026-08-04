@@ -10,7 +10,6 @@ from .hermes import (
     resolve_hermes_root,
 )
 from .local_hermes import LocalHermesExecutor, LocalHermesExecutorSettings
-from .oneshot import OneShotExecutor, OneShotExecutorSettings
 from .protocol import (
     ExecutionObserver,
     RoleExecutionResult,
@@ -26,8 +25,6 @@ __all__ = [
     "HermesSettings",
     "LocalHermesExecutor",
     "LocalHermesExecutorSettings",
-    "OneShotExecutor",
-    "OneShotExecutorSettings",
     "RoleExecutionResult",
     "RoleExecutionStatus",
     "RoleExecutor",

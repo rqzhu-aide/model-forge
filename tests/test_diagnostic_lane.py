@@ -34,9 +34,9 @@ from method_hub.diagnostics.service import (
     DiagnosticResult,
     DiagnosticService,
 )
-from method_hub.executors.oneshot import (
-    OneShotExecutor,
-    OneShotExecutorSettings,
+from method_hub.executors.local_hermes import (
+    LocalHermesExecutor,
+    LocalHermesExecutorSettings,
 )
 from method_hub.executors.protocol import (
     ExecutionObserver,
@@ -861,15 +861,15 @@ class TestDiagnosticStore:
 
 
 # --------------------------------------------------------------------------- #
-# OneShotExecutor command construction                                         #
+# LocalHermesExecutor command construction                                     #
 # --------------------------------------------------------------------------- #
 
 
-class TestOneShotCommand:
-    def test_brief_mounted_as_file_not_inline(
+class TestLocalHermesCommand:
+    def test_brief_referenced_as_path_not_inline(
         self, tmp_path: Path
     ) -> None:
-        """The task brief is mounted as a file, NOT inlined in the command."""
+        """The task brief path is referenced in the -z prompt, NOT inlined."""
         workspace = tmp_path / "workspace"
         workspace.mkdir()
         brief = tmp_path / "brief.md"
@@ -881,7 +881,7 @@ class TestOneShotCommand:
             run_id="run-001",
             project_id="proj-001",
             phase="diagnostic",
-            mode="oneshot",
+            mode="headless",
             stage_id="diag",
             role="theorist",
             profile="proj-001-theorist",
@@ -889,72 +889,25 @@ class TestOneShotCommand:
             task_brief=brief,
             expected_output_paths=(),
         )
-        executor = OneShotExecutor(
-            OneShotExecutorSettings(hermes_home=tmp_path / "hermes")
+        executor = LocalHermesExecutor(
+            LocalHermesExecutorSettings(hermes_home=tmp_path / "hermes")
         )
-        command = executor._build_command(invocation)
+        command = executor._build_command(invocation, "hermes")
 
         # The brief content must NOT appear in the command line.
         command_str = " ".join(command)
         assert "Very long task brief content" not in command_str
 
-        # The brief must be mounted as a read-only bind.
-        assert "--ro-bind" in command_str
-        assert str(brief) in command_str
-
-        # The one-shot prompt must reference the brief path, not contain the content.
+        # The one-shot prompt must reference the brief path.
         z_index = command.index("-z")
         prompt = command[z_index + 1]
-        assert "task.md" in prompt or "brief" in prompt.lower()
+        assert "brief" in prompt.lower() or "task" in prompt.lower()
         assert "Very long" not in prompt
 
-    def test_identity_files_read_only_overlay(
+    def test_no_bwrap_in_command(
         self, tmp_path: Path
     ) -> None:
-        """C1: SOUL.md and config.yaml are mounted read-only."""
-        workspace = tmp_path / "workspace"
-        workspace.mkdir()
-        brief = tmp_path / "brief.md"
-        brief.write_text("# Brief")
-
-        hermes_home = tmp_path / "hermes"
-        profile_dir = hermes_home / "profiles" / "test-profile"
-        profile_dir.mkdir(parents=True)
-        (profile_dir / "SOUL.md").write_text("# Soul")
-        (profile_dir / "config.yaml").write_text("model: {}")
-
-        invocation = RoleInvocation(
-            execution_id="exec-001",
-            invocation_id="inv-001",
-            run_id="run-001",
-            project_id="proj-001",
-            phase="diagnostic",
-            mode="oneshot",
-            stage_id="diag",
-            role="theorist",
-            profile="test-profile",
-            workspace=workspace,
-            task_brief=brief,
-            expected_output_paths=(),
-        )
-        executor = OneShotExecutor(
-            OneShotExecutorSettings(hermes_home=hermes_home)
-        )
-        command = executor._build_command(invocation)
-        command_str = " ".join(command)
-
-        # SOUL.md should appear in a --ro-bind.
-        ro_binds = [
-            command[i + 2]
-            for i in range(len(command))
-            if command[i] == "--ro-bind" and i + 2 < len(command)
-        ]
-        assert any("SOUL.md" in p for p in ro_binds)
-
-    def test_secret_env_injected_via_setenv(
-        self, tmp_path: Path
-    ) -> None:
-        """C7: secrets are injected via bwrap --setenv, not host env."""
+        """LocalHermesExecutor command has no bwrap wrapper."""
         workspace = tmp_path / "workspace"
         workspace.mkdir()
         brief = tmp_path / "brief.md"
@@ -966,7 +919,7 @@ class TestOneShotCommand:
             run_id="run-001",
             project_id="proj-001",
             phase="diagnostic",
-            mode="oneshot",
+            mode="headless",
             stage_id="diag",
             role="theorist",
             profile="test-profile",
@@ -974,42 +927,30 @@ class TestOneShotCommand:
             task_brief=brief,
             expected_output_paths=(),
         )
-        executor = OneShotExecutor(
-            OneShotExecutorSettings(
-                hermes_home=tmp_path / "hermes",
-                secret_env={"API_KEY": "sk-secret123456789012"},
-            )
+        executor = LocalHermesExecutor(
+            LocalHermesExecutorSettings(hermes_home=tmp_path / "hermes")
         )
-        command = executor._build_command(invocation)
-        command_str = " ".join(command)
+        command = executor._build_command(invocation, "hermes")
 
-        # The secret should be injected via --setenv, not visible in the host env.
-        env = executor._build_environment(invocation)
-        assert "API_KEY" not in env  # Not in host env.
-
-        # But should be in the bwrap command via --setenv.
-        assert "--setenv" in command_str
-        assert "API_KEY" in command_str
+        # The first element must be the hermes binary, not bwrap.
+        assert command[0] == "hermes"
+        assert "bwrap" not in command
+        assert "--unshare-all" not in command
+        assert "--ro-bind" not in command
 
     def test_pid_extraction_from_external_id(self) -> None:
-        assert OneShotExecutor._extract_pid("oneshot:pid:12345") == 12345
-        assert OneShotExecutor._extract_pid("oneshot:pid:abc") is None
-        assert OneShotExecutor._extract_pid("bwrap:something") is None
+        assert LocalHermesExecutor._extract_pid("local:pid:12345:st:0:mk:x") == 12345
+        assert LocalHermesExecutor._extract_pid("local:pid:abc") is None
+        assert LocalHermesExecutor._extract_pid("oneshot:pid:12345") is None
 
     def test_profile_flag_in_command(
         self, tmp_path: Path
     ) -> None:
-        """H0.4: ``-p <profile>`` flag selects the profile."""
+        """``-p <profile>`` flag selects the profile."""
         workspace = tmp_path / "workspace"
         workspace.mkdir()
         brief = tmp_path / "brief.md"
         brief.write_text("# Brief")
-
-        hermes_home = tmp_path / "hermes"
-        profile_dir = hermes_home / "profiles" / "my-profile"
-        profile_dir.mkdir(parents=True)
-        (profile_dir / "SOUL.md").write_text("# Soul")
-        (profile_dir / "config.yaml").write_text("model: {}")
 
         invocation = RoleInvocation(
             execution_id="exec-001",
@@ -1017,7 +958,7 @@ class TestOneShotCommand:
             run_id="run-001",
             project_id="proj-001",
             phase="diagnostic",
-            mode="oneshot",
+            mode="headless",
             stage_id="diag",
             role="theorist",
             profile="my-profile",
@@ -1025,67 +966,22 @@ class TestOneShotCommand:
             task_brief=brief,
             expected_output_paths=(),
         )
-        executor = OneShotExecutor(
-            OneShotExecutorSettings(hermes_home=hermes_home)
+        executor = LocalHermesExecutor(
+            LocalHermesExecutorSettings(hermes_home=tmp_path / "hermes")
         )
-        command = executor._build_command(invocation)
+        command = executor._build_command(invocation, "hermes")
         assert "-p" in command
         p_index = command.index("-p")
         assert command[p_index + 1] == "my-profile"
 
-    def test_runtime_profile_dir_metadata_used(
-        self, tmp_path: Path
-    ) -> None:
-        """H0.4: runtime_profile_dir metadata overrides canonical profile path."""
-        workspace = tmp_path / "workspace"
-        workspace.mkdir()
-        brief = tmp_path / "brief.md"
-        brief.write_text("# Brief")
-
-        hermes_home = tmp_path / "hermes"
-        runtime_dir = tmp_path / "runtime-snapshot"
-        runtime_dir.mkdir()
-        (runtime_dir / "SOUL.md").write_text("# Runtime Soul")
-        (runtime_dir / "config.yaml").write_text("model: {}")
-
-        invocation = RoleInvocation(
-            execution_id="exec-001",
-            invocation_id="inv-001",
-            run_id="run-001",
-            project_id="proj-001",
-            phase="diagnostic",
-            mode="oneshot",
-            stage_id="diag",
-            role="theorist",
-            profile="my-profile",
-            workspace=workspace,
-            task_brief=brief,
-            expected_output_paths=(),
-            metadata={"runtime_profile_dir": str(runtime_dir)},
-        )
-        executor = OneShotExecutor(
-            OneShotExecutorSettings(hermes_home=hermes_home)
-        )
-        command = executor._build_command(invocation)
-        command_str = " ".join(command)
-
-        # The runtime snapshot directory should be in the bind mounts.
-        assert str(runtime_dir) in command_str
-
     def test_mount_verification_passes(
         self, tmp_path: Path
     ) -> None:
-        """H0.4: _verify_mounts returns empty when all mounts exist."""
+        """_verify_mounts returns empty when all mounts exist."""
         workspace = tmp_path / "workspace"
         workspace.mkdir()
         brief = tmp_path / "brief.md"
         brief.write_text("# Brief")
-
-        hermes_home = tmp_path / "hermes"
-        profile_dir = hermes_home / "profiles" / "test-profile"
-        profile_dir.mkdir(parents=True)
-        (profile_dir / "SOUL.md").write_text("# Soul")
-        (profile_dir / "config.yaml").write_text("model: {}")
 
         invocation = RoleInvocation(
             execution_id="exec-001",
@@ -1093,7 +989,7 @@ class TestOneShotCommand:
             run_id="run-001",
             project_id="proj-001",
             phase="diagnostic",
-            mode="oneshot",
+            mode="headless",
             stage_id="diag",
             role="theorist",
             profile="test-profile",
@@ -1101,8 +997,8 @@ class TestOneShotCommand:
             task_brief=brief,
             expected_output_paths=(),
         )
-        executor = OneShotExecutor(
-            OneShotExecutorSettings(hermes_home=hermes_home)
+        executor = LocalHermesExecutor(
+            LocalHermesExecutorSettings(hermes_home=tmp_path / "hermes")
         )
         problems = executor._verify_mounts(invocation)
         assert problems == []
@@ -1110,13 +1006,10 @@ class TestOneShotCommand:
     def test_mount_verification_fails_on_missing_brief(
         self, tmp_path: Path
     ) -> None:
-        """H0.4: _verify_mounts detects missing task brief."""
+        """_verify_mounts detects missing task brief."""
         workspace = tmp_path / "workspace"
         workspace.mkdir()
         brief = tmp_path / "brief.md"  # NOT created.
-
-        hermes_home = tmp_path / "hermes"
-        hermes_home.mkdir()
 
         invocation = RoleInvocation(
             execution_id="exec-001",
@@ -1124,7 +1017,7 @@ class TestOneShotCommand:
             run_id="run-001",
             project_id="proj-001",
             phase="diagnostic",
-            mode="oneshot",
+            mode="headless",
             stage_id="diag",
             role="theorist",
             profile="test-profile",
@@ -1132,19 +1025,19 @@ class TestOneShotCommand:
             task_brief=brief,
             expected_output_paths=(),
         )
-        executor = OneShotExecutor(
-            OneShotExecutorSettings(hermes_home=hermes_home)
+        executor = LocalHermesExecutor(
+            LocalHermesExecutorSettings(hermes_home=tmp_path / "hermes")
         )
         problems = executor._verify_mounts(invocation)
         assert any("Task brief" in p for p in problems)
 
 
 # --------------------------------------------------------------------------- #
-# OneShotExecutor memory-state recording (C3)                                  #
+# LocalHermesExecutor memory-state recording (C3)                              #
 # --------------------------------------------------------------------------- #
 
 
-class TestOneShotMemoryState:
+class TestLocalHermesMemoryState:
     def test_record_memory_state(
         self, tmp_path: Path
     ) -> None:
@@ -1155,7 +1048,7 @@ class TestOneShotMemoryState:
         (memories / "MEMORY.md").write_text("# Memory content")
         (memories / "USER.md").write_text("# User content")
 
-        result = OneShotExecutor.record_memory_state(profile_dir)
+        result = LocalHermesExecutor.record_memory_state(profile_dir)
         assert result["memory_sha256"] is not None
         assert result["user_sha256"] is not None
         assert len(result["memory_sha256"]) == 64  # SHA-256 hex.
@@ -1231,7 +1124,7 @@ class TestDiagnosticService:
                 summary="OK",
             )
 
-        mock_executor = AsyncMock(spec=OneShotExecutor)
+        mock_executor = AsyncMock(spec=LocalHermesExecutor)
         mock_executor.execute.side_effect = mock_execute
 
         service = DiagnosticService(
@@ -1292,7 +1185,7 @@ class TestDiagnosticService:
             invocation_id="inv-blocking",
         )
 
-        mock_executor = AsyncMock(spec=OneShotExecutor)
+        mock_executor = AsyncMock(spec=LocalHermesExecutor)
         mock_executor.execute.return_value = RoleExecutionResult(
             status=RoleExecutionStatus.SUCCEEDED,
             external_execution_id="x",

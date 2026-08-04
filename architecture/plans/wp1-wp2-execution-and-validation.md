@@ -4,18 +4,26 @@ Status: Partially implemented scaffolding (audited 2026-08-03). Both exit gates 
 
 ## Implementation audit
 
-The current commit adds useful prototypes for Bubblewrap execution, capability
-materialization, network policy, invocation fencing, output adaptation, and
-phase-specific validation. These are foundations, not accepted WP1 or WP2
-deliverables.
+At commit `eecc6d1`, the repository contains useful scaffolds for Bubblewrap
+execution, capability materialization, project profiles, one-shot command
+construction, diagnostic persistence, profile locks, fencing tokens, output
+adaptation, and phase-specific validation. These are foundations, not
+accepted WP1 or WP2 deliverables.
 
-WP1 remains open because the prototype has no runtime-resolvable external
-identity, so cancellation and reconciliation cannot work; it mounts the whole
-Hermes home; selected profiles and skills are not applied; allowlist mode
-shares the host network; output is buffered before truncation; and fencing is
-in-memory rather than durable and enforced across coordinators. No real
-Bubblewrap or OCI isolation, restart, cancellation, quota, or network test has
+WP1 remains open because no supported runtime path yet combines exact
+project-role profile selection, declared skills, whole-profile memory policy,
+rootless containment, provider-only networking, secret-safe delivery, bounded
+streaming and resources, durable runtime identity, token-guarded lifecycle,
+verified cancellation, and restart reconciliation. The diagnostic script
+still exercises Kanban, and no real Bubblewrap or OCI evidence suite has
 passed.
+
+The new one-shot implementation must remain unavailable to scientific runs.
+It is currently selectable through application settings and is constructed by
+the scientific `RunCoordinator`, while the separate diagnostic service is not
+composed into an application path. The
+[Headless Hermes Runtime Closure](next-block-headless-hermes-runtime-closure.md)
+must correct that boundary first.
 
 WP2 remains open because adapter results are discarded instead of being sealed
 into the submission and publication path; companion artifacts are inferred
@@ -24,9 +32,9 @@ output; and several validators inspect fields that do not match the registered
 schemas. The fixtures are architecture examples, not a complete set of actual
 Hermes outputs for every role and mode.
 
-Keep `oci` unavailable to scientific runs. The existing sections below retain
-the intended target design, but their earlier completion labels are superseded
-by this audit and by the Exit Gates.
+Keep both `oci` and `oneshot` unavailable to scientific runs. The existing
+sections below retain the intended target design, but their earlier completion
+labels are superseded by this audit and by the Exit Gates.
 
 ## Revision 1 changelog
 

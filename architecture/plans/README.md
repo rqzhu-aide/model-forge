@@ -7,33 +7,40 @@ specification or decision record before code relies on such a change.
 
 ## Recommended next block
 
-- [Complete the Non-Publishing Hermes Diagnostic Lane](next-block-hermes-diagnostic-closure.md)
-  is the next bounded implementation package. It closes cancellation,
-  reconciliation, containment, bounded logs, and diagnostic inspection around
-  one real synthetic Hermes invocation. It does not authorize scientific
-  publication.
-- [Revised Diagnostic Lane Plan](revised-diagnostic-lane-plan.md) adapts the
-  next block to verified host Hermes behavior: per-project persistent
-  profiles with per-role memory policy, baked SOUL.md, mounted task briefs,
-  and one-shot container execution (Revision 1, corrections C1–C10).
+- [Headless Hermes Runtime Closure](next-block-headless-hermes-runtime-closure.md)
+  is the controlling next implementation package. It turns the new profile,
+  one-shot, diagnostic-store, and fencing scaffolds into one real Linux
+  diagnostic invocation that is isolated, bounded, cancellable,
+  restart-reconcilable, and unable to enter scientific state.
 
-## Active plans
+## Active plans and design records
 
+- [Revised Diagnostic Lane Plan](revised-diagnostic-lane-plan.md) is the
+  Hermes-specific design adaptation and implementation checkpoint. It defines
+  exact profile isolation, mounted task briefs, and one-shot execution, and
+  proposes a role-specific memory policy that still requires an architecture
+  decision. Its exit gate remains open.
+- [Original Diagnostic Closure Plan](next-block-hermes-diagnostic-closure.md)
+  remains the strict safety and evidence baseline. Its earlier disposable
+  profile details are superseded by the Hermes-specific design record and the
+  controlling next block.
 - [Operational Completion Plan](operational-completion-plan.md) remains the
   production-readiness program.
 - [Manual Method Hub with Sequential-First Orchestration](manual-sequential-orchestration-implementation-plan.md)
   records the implemented development baseline and the remaining production
   boundary.
 - [Phase 0: Safe Hermes Execution](phase-0-safe-hermes-execution.md) remains
-  open. Transport reconnaissance and one host-based connectivity test are
-  complete, but isolation, durable termination, recovery, quotas, and the
-  diagnostic interface have not passed their exit gates.
+  open. Transport and one-shot reconnaissance plus useful filesystem,
+  database, and unit-test scaffolds are complete. Real containment, bounded
+  supervision, durable control, memory-policy enforcement, and evidence have
+  not passed their exit gates.
 - [WP0: Reviewed-Basis Closure](wp0-reviewed-basis-closure.md) is partially
   implemented. The command-sealing scaffold exists, but the complete role and
   scientific basis is not yet sealed and verified fail closed.
 - [WP1 and WP2: Execution and Validation](wp1-wp2-execution-and-validation.md)
-  contains useful executor, capability, fencing, adapter, and validator
-  scaffolds. Neither work package has passed its exit gate.
+  contains useful executor, capability, profile, diagnostic persistence,
+  fencing, adapter, and validator scaffolds. Neither work package has passed
+  its exit gate.
 
 ## Completed records
 

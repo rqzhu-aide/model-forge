@@ -1,9 +1,49 @@
 # Revised Implementation Plan: Hermes Diagnostic Lane for Method Hub
 
-Status: Revised plan (2026-08-03), Revision 1 (2026-08-03), adapting the
-programmer's
-[next-block-hermes-diagnostic-closure.md](next-block-hermes-diagnostic-closure.md)
-to the actual Hermes system on this host.
+Status: Active Hermes-specific design record. Exit gate open.
+Implementation checkpoint: commit `eecc6d1`, audited 2026-08-03.
+This plan adapts the
+[original safety baseline](next-block-hermes-diagnostic-closure.md) to verified
+Hermes behavior. The controlling implementation package is
+[Headless Hermes Runtime Closure](next-block-headless-hermes-runtime-closure.md).
+
+## Current implementation audit
+
+Commit `eecc6d1` implements useful foundations:
+
+- basic project-profile creation, credential-file exclusion, SOUL/config
+  writing, memory-policy metadata, and retention helpers;
+- separate diagnostic invocation, fencing-token, and profile-lock tables;
+- a one-shot command builder with task-brief file mounting;
+- a diagnostic service/store scaffold and 38 passing focused unit tests.
+
+The diagnostic lane is not operationally complete:
+
+- the unfinished one-shot executor is selectable by the scientific
+  `RunCoordinator`, while `DiagnosticService` has no application, API, or UI
+  path;
+- the command omits exact `-p` profile selection, exposes the whole Hermes
+  root read-write, and does not enforce declared skills or memory policies;
+- the real process identity is not persisted while work is running, so
+  cancellation and restart reconciliation cannot control it reliably;
+- fencing tokens are issued but do not guard mutations, heartbeats, closure,
+  or owner-specific lock release;
+- stdout and stderr are buffered before truncation; process, file, workspace,
+  and aggregate limits are absent;
+- network allowlist mode shares the host network, and injected secrets appear
+  in process arguments;
+- exit code 0 is treated as success even though the spike proves that Hermes
+  may report an internal task failure with exit code 0;
+- no test runs the new service through real Hermes and Bubblewrap or OCI; the
+  committed diagnostic script still exercises the development Kanban path;
+- the required memory-model decision record and contract alignment are absent.
+
+Project-scoped author memory remains a reasonable design choice only as
+supplementary, researcher-visible working context. Formal records remain the
+scientific authority, the exact memory exposed to an invocation must be
+reconstructible, and the outside reviewer must receive a fully fresh mutable
+profile state. The controlling next block turns these rules into tested
+behavior.
 
 ## Revision 1 changelog
 
@@ -12,49 +52,51 @@ mounted task brief) are verified against Hermes v0.19.0 and kept. This revision
 corrects six technical errors and adds four requirements for clean, sustainable
 per-project memory:
 
-1. **C1 — The split-mount strategy in §3.4 will break Hermes.** A one-shot run
+1. **C1 - The split-mount strategy in §3.4 will break Hermes.** A one-shot run
    writes far more than `memories/` and `sessions/`: `state.db` (session and
    kanban state, opened on every run), `logs/`, `checkpoints/`, and `cache/`.
    Mounting the profile base read-only with only two writable subdirectories
    will fail or degrade every invocation. The mount strategy is inverted: the
    profile is writable; the *identity files* (`SOUL.md`, `config.yaml`,
    `skills/`) are bind-mounted read-only over it.
-2. **C2 — No growth policy existed for profile state.** Measured on this host,
+2. **C2 - No growth policy existed for profile state.** Measured on this host,
    one active profile accumulated 390 sessions (121 MB), 34 MB logs, 20 MB
    checkpoints, and a 292 MB `state.db` in about three months. Four profiles
    per project across many projects is unsustainable without bounds. Section
    2.7 adds retention budgets and pruning, reusing Hermes' own tooling.
-3. **C3 — Memory must be digest-recorded, and §2.6 overstated its role.**
+3. **C3 - Memory must be digest-recorded, and §2.6 overstated its role.**
    "This replaces the need for explicit context-passing" contradicts the
    authority model: the sealed basis and frozen prepared contexts remain the
-   auditable channel. Memory is supplementary working context whose state must
-   be recorded per invocation (sha256 of `MEMORY.md`/`USER.md`) so every run's
-   full context basis remains reproducible.
-4. **C4 — Per-role memory policy added; the reviewer conflict resolved.**
+   auditable channel. Memory is supplementary working context. Each invocation
+   must record its digest, but a digest only identifies the state. An immutable
+   content-addressed snapshot is required to reconstruct what the role could
+   read.
+4. **C4 - Per-role memory policy added; the reviewer conflict resolved.**
    Persistent reviewer memory violates the outside-reviewer closed-packet
    requirement (architecture 08 §5.4; WP4). Each role profile now carries an
    explicit `memory_policy` (`persistent` / `read_only` / `ephemeral`);
-   `paper_reviewer` defaults to `ephemeral`.
-5. **C5 — Concurrency mutex per profile.** The architecture permits concurrent
+   the `outside_reviewer` role, normally mapped to the `paper_reviewer`
+   profile, defaults to `ephemeral`.
+5. **C5 - Concurrency mutex per profile.** The architecture permits concurrent
    runs on disjoint targets; two concurrent runs sharing one role profile race
    on `state.db` and `MEMORY.md`. Profile-level execution fencing is now
    required.
-6. **C6 — `HTTPS_PROXY=localhost:9090` is wrong under netns isolation.**
+6. **C6 - `HTTPS_PROXY=localhost:9090` is wrong under netns isolation.**
    Inside a private network namespace, localhost is the container's loopback.
    Section 3.5 now specifies reachable proxy topologies per runtime and adds
    the mechanism to the spike checklist.
-7. **C7 — One credential rule.** The original draft said credentials were
+7. **C7 - One credential rule.** The original draft said credentials were
    "injected at setup" (§1.3), "fixed at creation" (§2.5), and "injected at
    runtime, not mounted" (§3.4). One rule now: secrets never persist in the
    project profile. Note that `hermes profile create --clone-from` copies the
-   source `.env` — provisioning must scrub it.
-8. **C8 — Executor naming aligned with code.** `executors/bubblewrap.py`
+   source `.env` - provisioning must scrub it.
+8. **C8 - Executor naming aligned with code.** `executors/bubblewrap.py`
    already implements the one-shot decision; this plan extends it with a
    Podman backend rather than replacing it.
-9. **C9 — Spike checklist extended** with the write-footprint enumeration,
+9. **C9 - Spike checklist extended** with the write-footprint enumeration,
    read-only identity files, memory-tool availability in one-shot mode, and
    provider override resolution.
-10. **C10 — ADR required.** Per-project persistent memory changes the
+10. **C10 - ADR required.** Per-project persistent memory changes the
     role-context model accepted in architecture 08 (frozen per-run context
     snapshots). The plans README forbids code relying on an invariant change
     before the decision record exists.
@@ -63,17 +105,16 @@ per-project memory:
 
 ## What changed from the programmer's plan
 
-The programmer's plan is architecturally sound. These revisions adapt it to
-verified Hermes runtime behavior and correct three assumptions:
+The main adaptations are directionally sound, subject to the memory decision
+record and the operational gates below. They correct three assumptions:
 
 1. **Profile isolation is per-project, not per-invocation.** Each project
-   maintains its own Hermes profiles with persistent memory and sessions.
-   Role memory accumulates across runs within a project — this is a feature,
-   not a leak. The "sanitized disposable profile bundle" model is replaced
-   with project-scoped profile directories. (Scope note: for the *diagnostic*
-   lane, persistence is exercised but not load-bearing — the diagnostic exit
-   gate does not depend on memory accumulation. The per-project architecture
-   is the production profile model feeding WP1/WP4; see C10.)
+   may maintain its own Hermes role profiles. Persistent author memory and
+   prior-session access remain provisional until the C10 decision is accepted.
+   Formal project records remain the only scientific authority, and memory
+   must not silently supply a claim or assumption. For the diagnostic lane,
+   persistence is exercised but not load-bearing. The exit gate does not
+   depend on accumulated content.
 2. **SOUL.md is baked into the profile, not re-injected per run.** The role
    identity (SOUL.md) is written to the profile once at project or profile
    setup time via `hermes profile` commands or direct file management. It is
@@ -92,19 +133,19 @@ verified Hermes runtime behavior and correct three assumptions:
 | Item | Verified value |
 |---|---|
 | Hermes version | v0.19.0 (2026.7.20), `/home/tez/.local/bin/hermes` |
-| Profile mechanism | `-p PROFILE` / `--profile` selects profile (argv pre-parse in `main.py:499–581`, sets `HERMES_HOME`); each profile has own `config.yaml`, `SOUL.md`, `skills/`, `memories/`, `sessions/`, `.env` |
-| Profile name rules | `^[a-z0-9][a-z0-9_-]*$` (`service_manager.py:29`) — hyphens and underscores allowed; `<project_id>-<role>` is valid |
-| Profile creation | `hermes profile create <name> --clone-from <base> --no-alias` (flags verified); **cloning copies the source `.env` — scrub after clone (C7)** |
-| One-shot mode | `hermes -z "prompt"` — synchronous, stdout-only final response, exits with process code |
+| Profile mechanism | `-p PROFILE` / `--profile` selects profile (argv pre-parse in `main.py:499-581`, sets `HERMES_HOME`); each profile has own `config.yaml`, `SOUL.md`, `skills/`, `memories/`, `sessions/`, `.env` |
+| Profile name rules | `^[a-z0-9][a-z0-9_-]*$` (`service_manager.py:29`) - hyphens and underscores allowed; `<project_id>-<role>` is valid |
+| Profile creation | `hermes profile create <name> --clone-from <base> --no-alias` copies `.env`; this is an observed Hermes behavior, not the Method Hub provisioning design |
+| One-shot mode | `hermes -z "prompt"` - synchronous, stdout-only final response, exits with process code |
 | Profile switching | Changes model/provider config correctly (theorist→deepseek, developer→glm-5.2) |
 | Skills | `--skills name1,name2` / `-s` preloads skills; skills live in `~/.hermes/profiles/<name>/skills/` |
-| Memory | `~/.hermes/profiles/<name>/memories/MEMORY.md` + `USER.md` — persists across `-z` invocations |
-| Sessions | `~/.hermes/profiles/<name>/sessions/` — each `-z` run creates a new session file |
+| Memory | `~/.hermes/profiles/<name>/memories/MEMORY.md` + `USER.md` - persists across `-z` invocations |
+| Sessions | Each `-z` run creates a new session recorded in `state.db`; `sessions/` contains request-dump files rather than the authoritative session record |
 | Usage report | `--usage-file PATH` writes JSON cost report (one-shot only) |
 | Egress proxy | `hermes egress` (iron-proxy) subcommand exists; disabled by default; not installed on this host |
-| Kanban | `hermes kanban` — gateway-spawned workers, NOT suitable for containment |
+| Kanban | `hermes kanban` - gateway-spawned workers, NOT suitable for containment |
 | Container runtime | `bwrap` v0.11.1 available at `/usr/bin/bwrap`; **Podman not installed** |
-| State footprint (measured) | One active profile over ~3 months: 390 session files (121 MB), logs 34 MB, checkpoints 20 MB, `state.db` 292 MB |
+| State footprint (measured) | One active profile over about three months: 390 session-related request-dump files (121 MB), logs 34 MB, checkpoints 20 MB, `state.db` 292 MB |
 
 ### 1.2 Why kanban is unsuitable for production execution
 
@@ -112,14 +153,16 @@ The kanban path (`hermes kanban create --assignee PROFILE`) submits a task to
 a shared board. The Hermes gateway dispatches the actual worker as a separate
 process outside any sandbox we create. This means:
 
-- **No containment** — the gateway worker runs with full host access
-- **No truthful identity** — `archived` status ≠ worker terminated
-- **Requeue risk** — `--max-runtime` timeout can re-dispatch the task
-- **Shared boards** — cross-project contamination risk
+- **No containment** - the gateway worker runs with full host access
+- **No truthful identity** - `archived` status ≠ worker terminated
+- **Requeue risk** - `--max-runtime` timeout can re-dispatch the task
+- **Shared boards** - cross-project contamination risk
 
-The one-shot path (`hermes -z`) is synchronous: the process IS the agent. Its
-PID (or container ID) is a truthful execution identity. The hardened kanban
-adapter remains a development connectivity tool only.
+The one-shot path (`hermes -z`) is synchronous, so the supervised process is
+the agent entrypoint rather than a detached Kanban submission. Reliable
+control still requires a durable identity that resists PID reuse and supports
+restart reconciliation. The Kanban adapter remains a development connectivity
+tool only.
 
 ### 1.3 Profile directory structure
 
@@ -128,27 +171,30 @@ adapter remains a development connectivity tool only.
 ├── SOUL.md           ← Role identity / system prompt (baked once, not per-run)
 ├── config.yaml       ← Model, provider, toolsets, agent settings
 ├── .env              ← ABSENT in project profiles (C7: runtime injection only)
-├── auth.json         ← Credential pool state — not provisioned into project profiles
+├── auth.json         ← Credential pool state - not provisioned into project profiles
 ├── skills/           ← Installed skills (per-profile)
-├── memories/         ← MEMORY.md + USER.md — persistent across invocations
-├── sessions/         ← Session history (accumulates — bounded per §2.7)
+├── memories/         ← MEMORY.md + USER.md - persistent across invocations
+├── sessions/         ← Request dumps; authoritative sessions are in state.db
 ├── checkpoints/      ← Context compression snapshots (bounded per §2.7)
 ├── logs/             ← Gateway and agent logs (bounded per §2.7)
 ├── cache/            ← Model cache
-├── state.db          ← Kanban and session state (written on every run — see C1)
+├── state.db          ← Kanban and session state (written on every run - see C1)
 └── ...
 ```
 
 ---
 
-## 2. Profile architecture: per-project, persistent memory
+## 2. Proposed profile architecture: per-project memory policy
 
 ### 2.1 Design decision
 
-Each Method Hub project gets its own set of Hermes profiles. Memory and
-sessions persist across runs within the same project. This is the correct
-behavior for a research team — the theorist should remember what it concluded
-in Phase 1 when it works on Phase 3.
+Each Method Hub project gets its own set of Hermes profiles. Author-role
+working memory and session state may persist across runs in that project.
+This can improve continuity, but it is not scientific authority. Formal
+records must independently carry every conclusion, assumption, and decision
+needed by a later phase. The exact memory exposed to a run must be visible and
+reconstructible. The outside reviewer receives fresh mutable state and only
+the declared review packet.
 
 ### 2.2 Profile naming convention
 
@@ -170,63 +216,71 @@ Examples:
 
 | Stage | When | What happens |
 |---|---|---|
-| **Create** | Project creation or first run | `hermes profile create <project_id>-<role> --clone-from <base_role> --no-alias` — copies SOUL.md, config.yaml, skills from the base role template; **then scrub `.env`/`auth.json` (C7)** |
-| **Configure** | Profile creation | Write project-specific SOUL.md (role identity + project context), set model/provider in config.yaml, set the role's `memory_policy` (C4) |
-| **Accumulate** | Each role invocation | `-z` runs create new sessions; memories persist and grow within §2.7 budgets; the role remembers prior work in the same project |
-| **Maintain** | Scheduled / on thresholds | Prune sessions, compact checkpoints, vacuum state.db per §2.7 |
-| **Retire** | Project deletion or archival | Profile directory retained or cleaned per policy; memories represent project-specific research context |
+| **Create** | Project creation or first use | Build a clean profile in a temporary directory from the declared SOUL, configuration, and exact skill set. Do not clone base memories, sessions, databases, logs, checkpoints, caches, credentials, or other mutable state. Validate it, write its ownership manifest, then rename it atomically. |
+| **Configure** | Profile creation or explicit reconfiguration | Set the stable role identity, model/provider references, exact skills, memory policy, policy version, and profile revision. Project scientific context is not written into SOUL.md. |
+| **Run** | Each invocation | Supply the project question, method state, evidence, user instructions, and other scientific context through the sealed task brief and frozen prepared context. Apply the declared memory policy. |
+| **Maintain** | After evidence is sealed and no profile lock is active | Use only verified Hermes-supported session and database maintenance operations; record the action. |
+| **Retire** | Project deletion or archival | Resolve ownership from the exact profile manifest. Never select profiles for deletion by a project-name prefix. |
 
 ### 2.4 SOUL.md handling
 
-SOUL.md is the role's system prompt — it defines the agent's identity,
-expertise, and behavioral guidelines. It is:
+SOUL.md defines stable role identity, expertise, scientific standards, and
+behavioral constraints. It is versioned as part of the profile identity. It
+must not contain the project's research question, current method, results, or
+other mutable scientific context.
 
-- **Written once** at profile creation time, combining the base role template
-  with project-specific context (project name, research question, team charter)
-- **NOT re-injected per invocation** — it lives in the profile directory and
-  Hermes reads it automatically
-- **Updated only on explicit role reconfiguration** — not silently overwritten
-
-The Method Hub resource system (`resources/team/`) already defines role souls
-(`soul_text`). These are baked into project profiles at creation time via:
-
-```python
-# At profile creation:
-soul_content = render_role_soul(role, project_context)
-profile_dir / "SOUL.md".write_text(soul_content)
-```
+The Method Hub resource system (`resources/team/`) supplies the declared role
+soul. Profile provisioning records the source digest and complete rendered
+SOUL.md digest in the profile manifest. A SOUL change is an explicit role
+reconfiguration that creates a new profile revision.
 
 ### 2.5 What gets isolated vs. what persists
 
-| Component | Per-project isolation | Persists across runs |
-|---|---|---|
-| SOUL.md | ✅ Project-specific role identity | ✅ Fixed at creation (read-only in container) |
-| config.yaml | ✅ Model/provider per project | ✅ Fixed at creation (read-only in container) |
-| Credentials | ✅ Per-project | ❌ **Never persisted in the profile** — runtime injection or egress token only (C7) |
-| skills/ | ✅ Per-project skill set | ✅ Fixed at creation (read-only in container) |
-| memories/ | ✅ Project-scoped | ✅ **Accumulates** within §2.7 budget — role remembers prior work |
-| sessions/ | ✅ Project-scoped | ✅ **Accumulates** within §2.7 budget |
-| state.db / logs/ / checkpoints/ / cache/ | ✅ Project-scoped | ✅ Accumulates within §2.7 budget (writable in container — C1) |
-| Workspace (outputs) | ✅ Per-run | ❌ Fresh each run |
-| Task brief | ✅ Per-run | ❌ Fresh each run |
+| Component | Isolation and persistence rule |
+|---|---|
+| SOUL.md | stable, versioned role identity; read-only during execution; no project scientific context |
+| config.yaml | versioned non-secret runtime configuration; read-only during execution |
+| Credentials | never persisted in a profile, workspace, manifest, log, artifact, or evidence record |
+| skills/ | exact declared and versioned skill set; read-only during execution |
+| memories/ | governed by the declared memory policy; immutable before and after snapshots are recorded when exposed |
+| state.db | selected-profile runtime and session state; persistent only under the persistent policy and tracked as reproducibility-sensitive context |
+| sessions/ | Hermes request dumps, not the authoritative session store; retained only under the declared policy and budget |
+| logs/, checkpoints/, cache/ | mutable runtime state governed by the whole-profile memory policy and retention rules |
+| Workspace and task brief | fresh per invocation; task brief and frozen inputs are read-only; declared outputs are writable |
 
-### 2.6 Memory as research context — supplementary, digest-recorded (C3)
+### 2.6 Memory as supplementary research context (C3)
 
-The role's accumulated memory is valuable working context. When the theorist
-completes Phase 1 and later starts Phase 3, its MEMORY.md carries forward
-conclusions, noted assumptions, and open questions.
+Persistent project memory changes the accepted frozen-context model in
+architecture 08. It therefore remains a proposal until an architecture
+decision record defines its authority, visibility, retention, and
+reproducibility rules. Before that decision is accepted, persistent memory
+may be exercised only in the non-publishing diagnostic lane.
 
-Memory does **not** replace the formal context channel. The sealed basis and
-frozen, contract-prepared contexts remain the auditable scientific authority;
-memory is agent-managed, mutable, and non-deterministic. To keep the full
-context basis of every run reproducible, each invocation record must capture:
+Under the proposed policy, memory may preserve researcher-visible notation,
+preferences, working reminders, and pointers to formal records. It is never
+scientific authority and cannot be the only location of a conclusion,
+assumption, method definition, result, or user decision. The sealed basis and
+frozen contract-prepared context remain authoritative.
 
-- sha256 of `MEMORY.md` and `USER.md` at invocation start;
-- the role's `memory_policy` and its version;
-- session count (or state.db size class) as a cheap growth signal.
+Because memory can influence output, a digest alone is not enough to
+reconstruct the role's context. Each invocation record must capture:
 
-This is cheap (two file hashes) and keeps memory honest: what the agent knew
-is attested, even though its content is agent-authored.
+- immutable content-addressed snapshots of the exact `MEMORY.md` and
+  `USER.md` supplied at invocation start;
+- SHA-256 digests of those snapshots, the complete profile revision, the
+  memory policy, and the memory-policy version;
+- the new Hermes `session_id`, model, provider, completion fields, and usage
+  metadata from `usage.json`; and
+- separate after-run snapshots and digests for every persistent memory update.
+
+If Hermes can browse prior sessions, Method Hub must either disable that
+capability or preserve an immutable snapshot of the exact accessible session
+state, including the relevant `state.db` and request dumps. Recording only a
+database digest and size is not sufficient for reconstruction.
+
+The researcher must be able to inspect, clear, export, and reconfigure the
+memory. Material scientific content becomes durable only through the normal
+phase output and publication contract.
 
 ### 2.7 Growth bounds and retention (C2)
 
@@ -235,10 +289,11 @@ Per-project profiles must not overburden the host. Budgets per profile
 
 | State | Budget | Mechanism |
 |---|---|---|
-| `sessions/` | e.g. keep newest 50 sessions or 90 days | Method Hub maintenance task prunes; `hermes sessions` for inspection |
+| Sessions recorded in `state.db` | e.g. keep newest 50 sessions or 90 days | use a verified Hermes-supported maintenance operation; never delete database rows directly |
+| `sessions/` request dumps | e.g. 25 MB or 90 days | prune only closed request-dump files after invocation evidence is sealed |
 | `checkpoints/` | e.g. 25 MB | prune oldest compression snapshots |
 | `logs/` | e.g. 25 MB, rotated | truncate/rotate outside active invocations |
-| `state.db` | warn at 250 MB | Hermes layout upgrade / vacuum (`main.py:6736+` notes ~60% reclaim) |
+| `state.db` | warn at 250 MB | run only a verified Hermes compact or vacuum operation, with no active profile lock |
 | `memories/` | agent-managed; warn at 100 KB | memory tool is self-compacting; flag for researcher review, never auto-delete |
 
 Rules: maintenance never runs during an active invocation (profile mutex,
@@ -251,14 +306,15 @@ Each project role profile carries a declared `memory_policy`:
 
 | Policy | Meaning | Default for |
 |---|---|---|
-| `persistent` | memories/ + sessions/ accumulate across runs | research_lead, theorist, data_analyst |
-| `read_only` | memories/ mounted read-only; agent may read but not write | (reserved) |
-| `ephemeral` | fresh empty memories/ + sessions/ per invocation; discarded after | **paper_reviewer** |
+| `persistent` | selected project-profile state persists; exact memory before and after the run is snapshotted | research_lead, theorist, data_analyst |
+| `read_only` | a disposable writable runtime profile is seeded from frozen memory; all runtime changes are discarded | reserved |
+| `ephemeral` | a fresh writable runtime profile starts without project memory or prior mutable state and is discarded after the run | outside_reviewer, normally mapped to `paper_reviewer` |
 
 The reviewer default implements the outside-reviewer closed-packet requirement
-(architecture 08 §5.4): a review run starts with no project memory. WP4's
-no-memory attestation then has something concrete to attest — the ephemeral
-mount was empty at start. Changing a role's policy is a role-reconfiguration
+(architecture 08 §5.4): a review run starts without prior `state.db`, session
+records, request dumps, logs, checkpoints, caches, or project memory. The
+no-memory attestation therefore covers the complete mutable runtime profile,
+not only `memories/`. Changing a role's policy is a role-reconfiguration
 event, versioned like any other profile change.
 
 ### 2.9 Per-profile execution mutex (C5)
@@ -274,19 +330,29 @@ profile state.
 
 ## 3. Execution architecture
 
-### 3.1 Topology: one-shot inside rootless container
+### 3.1 Topology: a separate non-publishing diagnostic lane
 
+```text
+Method Hub diagnostic composition root
+  DiagnosticService
+    DiagnosticStore and profile mutex
+    ProjectProfileManager
+    OneShotDiagnosticExecutor
+      rootless runtime adapter
+      selected project-role profile
+      sealed task brief and diagnostic workspace
+      bounded supervisor
+      provider-only network path
 ```
-Method Hub RunCoordinator
-  └─ HarnessExecutionServices
-       └─ RoleLifecycleService
-            └─ OneShotExecutor (extends the bubblewrap.py prototype — C8)
-                 ├─ Container runtime (Podman or bwrap+PID tracking)
-                 ├─ Project-scoped profile (HERMES_HOME=<project profile dir>)
-                 ├─ Mounted task brief (file, not CLI arg)
-                 ├─ Mounted workspace (role outputs)
-                 └─ Network policy (deny-default, provider allowlist via egress)
-```
+
+The scientific `RunCoordinator`, `HarnessExecutionServices`, and
+`RoleLifecycleService` do not select or call this executor. The diagnostic
+lane cannot create a scientific run, satisfy a phase prerequisite, publish an
+artifact, mutate formal project state, or trigger another role. The
+`oneshot` setting must therefore be removed from, or rejected by, scientific
+executor selection.
+
+This separation is a hard safety gate, not only an API organization choice.
 
 ### 3.2 Task brief delivery
 
@@ -302,51 +368,68 @@ This avoids:
 - Brief content appearing in `ps` output
 - Brief content in process metadata or logs
 
-### 3.3 Container runtime choice
+### 3.3 Runtime choice and architecture status
 
-**Primary: Podman** (needs installation). Provides:
-- `podman create` → durable container ID
-- `podman start` → start the created container
-- `podman inspect` → check status, verify realized policy
-- `podman kill` / `podman stop` → cancellation with verification
-- `podman logs` → bounded log retrieval
-- Rootless operation (no daemon, user namespace)
+**Required production boundary: rootless OCI.** Accepted ADR-004 requires
+rootless OCI isolation for CLI roles. Podman remains the current reference
+runtime because its create, inspect, stop, kill, logs, and durable container
+identity operations support restart-safe supervision.
 
-**Fallback: bwrap with PID tracking** (current prototype, enhanced). Provides:
-- Process group isolation, namespace unsharing
-- PID file for identity tracking (within one boot)
-- No inspect API — must track state manually
+**Interim diagnostic boundary: Bubblewrap.** Bubblewrap may be used to close
+a narrower, non-publishing headless subgate on a verified Linux host. Its
+durable identity must include boot ID, PID, `/proc` start ticks, executable
+identity, and an invocation marker. Identity uncertainty closes as
+`unresolved`; it never causes a replacement launch or an assumed success.
 
-The plan targets Podman. If Podman cannot be installed, the bwrap fallback
-works for diagnostic purposes but is weaker on restart reconciliation. Either
-way the container image or host-bind must carry a **pinned Hermes
-installation** (binary + runtime deps); the image content is a provisioning
-deliverable, not host state.
+Bubblewrap evidence does not by itself close Phase 0 or WP1 while ADR-004
+requires rootless OCI. Any decision to make Bubblewrap a production boundary
+must be recorded in a new or superseding architecture decision.
 
-### 3.4 Profile mounting strategy (C1 — inverted)
+Either runtime must carry a pinned Hermes installation and runtime
+dependencies. That exact runtime content and digest are provisioning
+deliverables, not unrecorded host state.
 
-Hermes writes `state.db`, `logs/`, `checkpoints/`, and `cache/` on every run,
-so the profile base must be writable. Protection applies to the identity
-files, not the directory:
+### 3.4 Profile mounting strategy (C1 - inverted)
 
+Hermes needs writable runtime state, but it does not need access to the host's
+complete Hermes home. Each invocation receives a synthetic Hermes home that
+contains only the selected project-role profile:
+
+```text
+sandbox/
+  workspace/                 # declared role workspace, read-write
+  workspace/task.md         # sealed task brief, read-only
+  hermes-home/
+    profiles/<selected>/
+      SOUL.md                # read-only identity
+      config.yaml            # read-only, with no persisted secrets
+      skills/                # exact declared skills, read-only
+      memories/              # policy-controlled mutable state
+      state.db               # policy-controlled mutable state
+      sessions/              # request dumps, policy-controlled
+      logs/
+      checkpoints/
+      cache/
 ```
-Container filesystem:
-  /workspace/          ← bind-mounted role workspace (read-write)
-  /workspace/task.md   ← task brief (read-only)
-  /hermes-home/        ← bind-mounted project profile dir (read-WRITE)
-    profiles/<name>/
-      SOUL.md          ← read-only bind mount over the writable tree
-      config.yaml      ← read-only bind mount (secrets stripped — C7)
-      skills/          ← read-only bind mount
-      memories/        ← writable (policy-gated: ro for read_only, fresh tmpfs for ephemeral)
-      sessions/        ← writable (fresh tmpfs for ephemeral)
-      state.db, logs/, checkpoints/, cache/  ← writable (Hermes requires)
-```
 
-For `ephemeral` memory policy, `memories/` and `sessions/` are fresh tmpfs (or
-a per-run empty directory), discarded after the closure is sealed. The
-read-only identity mounts are verified by the spike (C9) before they are
-relied upon.
+The runtime must pass `-p <selected-profile>` explicitly. It must not expose
+sibling profiles, boards, global memory, or other host Hermes state.
+
+Policy realization is defined over the whole mutable profile. The canonical
+project profile is never mounted directly as writable. Each invocation writes
+to a per-run runtime profile or overlay:
+
+- `persistent`: seed from a consistent canonical snapshot; after validated
+  success and verified quiescence, atomically promote allowed changes only
+  while the original fencing token and lease remain current;
+- `read_only`: seed a disposable writable runtime profile from the declared
+  immutable memory snapshot, then discard the complete runtime profile; and
+- `ephemeral`: start with a fresh writable runtime profile containing no prior
+  project memory or mutable state, then discard it completely.
+
+Failed, cancelled, timed-out, lease-lost, or unresolved changes are not
+promoted. The identity mounts, runtime overlays, promotion path, and all three
+policy realizations must be verified by real sandbox tests.
 
 ### 3.5 Network and secret handling (C6, C7)
 
@@ -357,7 +440,7 @@ relied upon.
 - Keeps real credentials out of the container environment
 
 **Proxy reachability (C6).** `localhost` inside a private network namespace is
-the container's own loopback — a host-side proxy is unreachable at
+the container's own loopback - a host-side proxy is unreachable at
 `localhost:9090`. The topology must be one of:
 
 - **Podman (slirp4netns):** proxy listens on the host; container reaches it at
@@ -366,281 +449,189 @@ the container's own loopback — a host-side proxy is unreachable at
   the sandbox (start proxy first, `bwrap` shares its netns), so `localhost`
   is correct and no external interface exists beyond the proxy; or
 - **veth pair** between proxy netns and sandbox netns (bwrap "separate netns"
-  claim in the current prototype must be verified — the spike must demonstrate
+  claim in the current prototype must be verified - the spike must demonstrate
   the actual mechanism).
 
 The chosen mechanism is a spike checklist item, not an assumption.
 
-**Credential rule (C7).** Exactly one rule everywhere: real provider
-credentials are never written into the project profile directory, never
-mounted, and never persisted in manifests, logs, artifacts, or evidence. With
-egress: the container gets only a proxy token. Fallback without egress:
-runtime env injection of the minimum credential (weaker — credential is in
-container env, though not in image/manifest/logs). Because
-`hermes profile create --clone-from` copies the source `.env`, provisioning
-must delete `.env`/`auth.json` from the new project profile immediately after
-creation.
+**Credential rule (C7).** Real provider credentials are never written to a
+profile, workspace, command argument, manifest, log, database record,
+artifact, API result, or evidence package. The preferred design supplies only
+a narrowly scoped proxy credential through a tested non-argument mechanism.
+If no secret-safe provider path is available, preflight fails before Hermes
+starts.
 
+The observed `hermes profile create --clone-from` operation copies `.env`.
+Method Hub provisioning therefore builds a clean profile from declared
+identity resources rather than cloning mutable base state. Legacy imports are
+quarantined and verified secret-free before they can become discoverable.
 ---
 
 ## 4. Implementation deliverables
 
-### 4.0 One-shot Hermes spike (prerequisite — S5.0, extended per C9)
+### 4.0 One-shot Hermes evidence checkpoint
 
-Record and verify:
+The [completed host observations](completed/spike-report-s5.0.md) establish
+useful Hermes v0.19.0 facts, but they are not sandbox or control evidence.
 
-```bash
-# Spike script: verify hermes -z behavior
-HERMES_HOME=~/.hermes hermes -p developer \
-  -z "Read the file at /tmp/spike-input.md and write your response to /tmp/spike-output.json" \
-  --usage-file /tmp/spike-usage.json \
-  -m glm-5.2 --provider custom
-```
+Observed on the named host:
 
-Verify and document:
-- [ ] Exit code semantics (0=success, non-zero=failure)
-- [ ] stdout contains ONLY final response text
-- [ ] `--usage-file` JSON structure
-- [ ] Signal handling: SIGTERM to the process tree
-- [ ] Output quiescence: no file writes after process exit
-- [ ] Skill loading: `--skills` loads only declared skills
-- [ ] Profile selection: `-p` switches config/SOUL/skills correctly
-- [ ] Memory persistence: MEMORY.md changes persist across `-z` runs
-- [ ] Memory tool availability in one-shot mode (can the agent write memories
-      during `-z`? Which toolset enables it?)
-- [ ] Session creation: each `-z` run creates a new session
-- [ ] Task brief via file reference works (not inline prompt)
-- [ ] **Write footprint (C1):** enumerate every file Hermes writes during one
-      `-z` run (`state.db`, logs, checkpoints, cache, sessions) — this fixes
-      the mount design
-- [ ] **Read-only identity files (C1):** one-shot succeeds with SOUL.md,
-      config.yaml, skills/ read-only
-- [ ] **Provider override resolution (C9):** `-m`/`--provider` values resolve
-      against the profile's configured providers (custom providers are
-      `custom:<name>`)
-- [ ] **Egress proxy topology (C6):** the chosen proxy mechanism actually
-      reaches the provider from inside the sandbox
-- [ ] **Ephemeral memory policy (C4):** one-shot with empty tmpfs memories/
-      runs cleanly and leaves the persistent profile untouched
+- [x] clean stdout and stderr behavior for the tested cases;
+- [x] `usage.json` fields, including `session_id`, model, provider, token
+  counts, and completion flags;
+- [x] SIGTERM behavior for the observed main process and process group;
+- [x] host write footprint, including `state.db`, WAL files, logs,
+  `auth.lock`, and temporary files;
+- [x] one-shot memory-tool availability and persistence;
+- [x] new session creation in `state.db`; `sessions/` contains request dumps;
+- [x] task-brief delivery by file reference;
+- [x] base-profile cloning copies `.env` and therefore cannot be used without
+  exact exclusion and verification; and
+- [x] model and provider override behavior.
 
-### 4.1 Project-scoped profile management (NEW)
+Still required before the headless diagnostic subgate closes:
 
-Create `src/method_hub/profiles/project_profiles.py`:
+- [ ] a committed, reproducible script that uses the new diagnostic lane;
+- [ ] exact `-p <profile>` selection inside the sandbox;
+- [ ] access to only the selected profile and exact declared skills;
+- [ ] read-only SOUL, configuration, skills, task brief, and frozen inputs;
+- [ ] persistent author memory across two runs with exact before and after
+  snapshots;
+- [ ] a disposable `read_only` runtime profile seeded from frozen memory;
+- [ ] a fully fresh reviewer profile with no prior memory, `state.db`,
+  sessions, request dumps, logs, checkpoints, or cache;
+- [ ] provider-only egress and secret-safe delivery;
+- [ ] incremental bounded stdout and stderr under flood;
+- [ ] complete descendant termination and output quiescence after cancel and
+  timeout;
+- [ ] restart reconciliation at every launch boundary; and
+- [ ] outcome validation that detects an internal Hermes failure even when
+  the process exits with code 0.
 
-```python
-class ProjectProfileManager:
-    """Create and manage per-project Hermes profiles."""
+### 4.1 Atomic, exact profile provisioning
 
-    def create_project_profiles(
-        self,
-        *,
-        project_id: str,
-        roles: tuple[str, ...],  # research_lead, theorist, etc.
-        base_profiles: Mapping[str, str],  # base role template names
-        souls: Mapping[str, str],  # role soul text from resources/team/
-        model_config: Mapping[str, Any],  # model/provider per role
-        skills: Mapping[str, tuple[str, ...]],  # declared skills per role
-        memory_policies: Mapping[str, str],  # C4: persistent/read_only/ephemeral
-    ) -> Mapping[str, Path]:
-        """Create one Hermes profile per role, scoped to this project.
+`ProjectProfileManager` must create a profile in a temporary directory from
+declared identity resources, validate it, write an ownership manifest, and
+rename it atomically. It must not clone base memories, `state.db`, sessions,
+request dumps, logs, checkpoints, cache, credentials, or undeclared skills.
 
-        - Clones from base profile (gets skills, config template)
-        - Scrubs .env / auth.json from the clone (C7)
-        - Writes project-specific SOUL.md
-        - Sets model/provider in config.yaml
-        - Records memory_policy per role (C4)
-        - Credentials injected at runtime, never stored in profile
-        - Returns mapping of role → profile directory path
-        """
+The manifest records the exact project ID, role, mapped Hermes profile name,
+SOUL digest, configuration digest, exact skill names and digests, memory
+policy and version, profile revision, and creation provenance. All source and
+destination paths are containment-checked, and symlinks cannot escape the
+profile root.
 
-    def profile_path(self, project_id: str, role: str) -> Path:
-        """Return the profile directory for a project role."""
+Profile lookup and retirement use manifest ownership, not name-prefix
+matching. `outside_reviewer`, normally mapped to `paper_reviewer`, defaults
+to `ephemeral` unless a later accepted decision explicitly changes it.
 
-    def profile_state_digests(self, project_id: str, role: str) -> Mapping[str, str]:
-        """sha256 of MEMORY.md and USER.md for invocation records (C3)."""
+### 4.2 One-shot diagnostic executor and supervisor
 
-    def maintain_profiles(self, project_id: str) -> None:
-        """Prune sessions/checkpoints/logs within §2.7 budgets (C2)."""
+The executor passes `-p <selected-profile>`, mounts only the selected profile,
+and realizes the declared whole-profile memory policy. It writes the sealed
+brief before launch and accepts outputs only in the diagnostic workspace.
 
-    def retire_profiles(self, project_id: str) -> None:
-        """Clean up profiles when a project is deleted."""
-```
+The supervisor must:
 
-Profile creation uses:
-```bash
-hermes profile create <project_id>-<role> --clone-from <base_role> --no-alias
-```
+- persist the real runtime identity immediately after spawn through a launch
+  handshake, before acknowledging active execution;
+- incrementally drain stdout and stderr into bounded, redacted buffers;
+- parse `usage.json` and validate the declared output contract;
+- treat exit code as one signal, never as sufficient evidence of task
+  success;
+- cancel the complete process tree with TERM, bounded wait, KILL escalation,
+  reaping, and output-quiescence verification;
+- reconcile only the exact durable runtime identity after restart; and
+- close ambiguous identity as `unresolved`, without retrying or launching a
+  replacement.
 
-Then scrubs credentials, writes SOUL.md and config.yaml programmatically, and
-records the memory policy.
+### 4.3 Resource, network, and secret controls
 
-### 4.2 One-shot executor (extends the bubblewrap prototype — C8)
+Enforce wall-time, CPU, memory, process-count, open-file, per-file, file-count,
+workspace-growth, retained-log, and aggregate diagnostic-storage limits.
 
-`executors/bubblewrap.py` already implements the one-shot decision (the
-sandbox IS the execution; container PID is the external execution ID). Extend
-it into `src/method_hub/executors/oneshot.py` with a pluggable runtime:
+Network policy is deny-default with a demonstrated provider-only path.
+`--share-net` is not an allowlist. Real credentials must not appear in
+process arguments, profiles, workspaces, logs, database records, API results,
+or evidence packages. A narrowly scoped proxy credential or file-descriptor
+delivery mechanism must be tested by an evidence-package secret scan.
 
-```python
-class OneShotExecutorSettings:
-    hermes_binary: str = "hermes"
-    hermes_home: Path  # root containing profiles/
-    container_runtime: str = "podman"  # or "bwrap"
-    image_digest: str = ""  # pinned image
-    poll_interval_seconds: float = 5.0
-    default_timeout_seconds: int = 14_400
-    output_limit_bytes: int = 1_048_576
-    credential_env: Mapping[str, str]  # injected at runtime, never persisted
+### 4.4 Diagnostic service, persistence, and headless interface
 
-class OneShotExecutor:
-    """Execute role invocations via hermes -z inside a rootless container."""
+Diagnostic invocations remain separate from scientific runs. The application
+composition root constructs `DiagnosticService` directly; it is never routed
+through `RunCoordinator` or `RoleLifecycleService`.
 
-    async def execute(self, invocation, observer) -> RoleExecutionResult:
-        # 1. Write task brief to workspace/task.md
-        # 2. Record memory-state digests in the invocation record (C3)
-        # 3. Acquire the per-profile mutex (C5)
-        # 4. Build container command:
-        #    - Mount workspace (rw), task brief (ro), profile (rw with ro identity overlays — C1)
-        #    - Apply memory policy mounts (C4)
-        # 5. Create container → persist container ID
-        # 6. Start container
-        # 7. Poll until terminal
-        # 8. Capture bounded stdout/stderr (incremental, redacted)
-        # 9. Release mutex; return result
+The durable lifecycle distinguishes at least `pending`, `preflight`,
+`creating`, `launch_acknowledged`, `running`, `cancel_requested`,
+`timeout_requested`, `terminating`, `closing`, `unresolved`, `succeeded`,
+`failed`, `timed_out`, and `cancelled`. The next block exposes this through a headless service or
+CLI for real evidence collection. The user-facing diagnostic UI is a later
+Phase 0 completion item.
 
-    async def cancel(self, external_execution_id) -> None:
-        # podman kill <container_id>
-        # Verify terminal state
+### 4.5 Durable fencing and profile mutex
 
-    async def reconcile(self, external_execution_id) -> RoleExecutionResult | None:
-        # podman inspect <container_id>
-        # Return terminal result or None if still running
-```
+Every state mutation, acknowledgement, heartbeat, cancellation transition,
+terminal closure, memory record, canonical promotion, cleanup, and lock
+release is conditioned on the current fencing token and live lease. Leases
+renew while work is active. Lease loss blocks promotion and initiates verified
+termination or quarantine.
 
-### 4.3 Container runtime adapter
+Profile-lock release requires the exact owner and token. Lease expiry alone
+does not permit a successor while the prior runtime may still be active;
+reclaim requires verified quiescence or controlled adoption of that exact
+runtime identity.
 
-Create `src/method_hub/executors/container_runtime.py`:
-
-```python
-class ContainerRuntime:
-    """Abstract rootless container operations."""
-
-    async def create(self, config: ContainerConfig) -> str:
-        """Create container, return container ID."""
-
-    async def start(self, container_id: str) -> None: ...
-
-    async def inspect(self, container_id: str) -> ContainerState: ...
-
-    async def kill(self, container_id: str) -> None: ...
-
-    async def logs(self, container_id: str, *, tail_bytes: int) -> tuple[str, str]: ...
-
-    async def remove(self, container_id: str) -> None: ...
-```
-
-Implementations: `PodmanRuntime` (primary), `BwrapRuntime` (fallback,
-promoting the existing prototype).
-
-### 4.4 Diagnostic service and persistence
-
-Per the programmer's plan (S5.1–S5.8), create a separate diagnostic
-persistence model:
-
-- `diagnostic_invocations` table — separate from scientific `runs`
-- Diagnostic API endpoints — separate from scientific phase commands
-- Diagnostic UI — loopback-only, non-publishing label
-
-The diagnostic service reuses `RoleExecutor` and `ExecutionObserver`
-interfaces but never enters submission, validation, or publication.
-
-### 4.5 Durable fencing (S5.7, extended per C5)
-
-Move fencing from in-memory to database-backed:
-
-```sql
-CREATE TABLE diagnostic_fencing_tokens (
-    execution_id TEXT PRIMARY KEY,
-    token INTEGER NOT NULL,
-    holder TEXT,
-    lease_expires_at TEXT,
-    updated_at TEXT NOT NULL
-);
-
--- C5: per-profile execution mutex
-CREATE TABLE profile_execution_locks (
-    profile_name TEXT PRIMARY KEY,   -- <project_id>-<role>
-    invocation_id TEXT NOT NULL,
-    acquired_at TEXT NOT NULL,
-    lease_expires_at TEXT NOT NULL
-);
-```
-
-Two coordinators cannot advance the same invocation because the token check
-is a database-level atomic update. Two invocations cannot share one profile
-because the profile lock is a database-level atomic acquire, with lease
-expiry and restart reconciliation.
+The profile mutex applies to every path that can use the same Hermes profile,
+including one-shot diagnostics and development Kanban execution. Lock
+acquisition, runtime-profile creation, promotion, and cleanup are enclosed by
+guaranteed ownership-aware cleanup so exceptions cannot leak ownership or
+promote stale state.
 
 ---
 
-## 5. Revised gap analysis vs. programmer's plan
+## 5. Implementation checkpoint at `eecc6d1`
 
-| Programmer's plan item | Status in revised plan | Change |
+The table separates code presence from verified behavior.
+
+| Area | Current state | Required closure |
 |---|---|---|
-| S5.0 One-shot spike | ✅ Keep, expanded | Add write-footprint, read-only identity, memory-tool, provider-resolution, egress-topology, ephemeral-policy checks |
-| S5.1 Diagnostic types + gating | ✅ Keep as-is | — |
-| S5.2 Preflight | ✅ Keep, adapt | Check for Podman (not just bwrap); verify profile dir exists with SOUL.md; verify credential files absent (C7); verify memory-policy mount readiness (C4) |
-| S5.3 Truthful identity | ✅ Keep | Container ID from Podman, not bwrap label |
-| S5.4 Capability boundary | ⚠️ Revised | Profile is project-scoped, not disposable; memory/sessions PERSIST per policy; SOUL.md baked at creation; identity files read-only over a writable profile (C1) |
-| S5.5 Provider networking | ✅ Keep, corrected | Proxy topology must survive netns isolation (C6); `hermes egress` if available; credential env injection as fallback |
-| S5.6 Bounded processes | ✅ Keep, extended | Incremental streaming, not `communicate()`; §2.7 profile-state budgets added to aggregate limits |
-| S5.7 Durable fencing | ✅ Keep, extended | DB-backed, not in-memory; per-profile mutex added (C5) |
-| S5.8 Diagnostic UI | ✅ Keep | — |
-| "Sanitized disposable profile" | ❌ **Replaced** | Project-scoped persistent profiles with policy-gated memory |
-| "Exclude memory, history, caches" | ❌ **Reversed** | Memory and sessions are KEPT per policy — they are research context; their digests are recorded (C3) |
-| "SOUL.md per invocation" | ❌ **Reversed** | SOUL.md baked into profile at creation, not per-run |
-| Memory-canary test (S5.4) | ⚠️ **Repurposed** | Canary now verifies *policy enforcement*: present under `persistent`, absent under `ephemeral` |
-
----
+| Host one-shot reconnaissance | completed observation record | retain as background evidence; do not treat it as containment proof |
+| Project profile manager | partial scaffold | atomic clean provisioning, exact skills, manifest ownership, policy enforcement, SHA-256 snapshots, safe maintenance and retirement |
+| One-shot executor | command-building scaffold | scientific-path gating, exact profile, isolated runtime view, bounded supervisor, durable identity, outcome validation |
+| Diagnostic database | tables and basic store exist | complete lifecycle, token-guarded mutations, leases, owner-specific lock release, restart reconciliation |
+| Diagnostic service | unit-level scaffold | construct it in a separate application root and expose a headless diagnostic command |
+| Runtime controls | not demonstrated | real Bubblewrap subgate and rootless OCI path consistent with ADR-004 |
+| Memory and session model | proposed, not accepted | architecture decision, exact accessible-state evidence, user inspection controls, full reviewer ephemerality |
+| Tests | 38 focused scaffold tests pass | real Linux execution, failure injection, isolation, memory, cancellation, restart, quota, egress, and secret evidence |
+| Diagnostic UI | not started | defer until the headless diagnostic subgate closes |
 
 ## 6. Implementation sequence
 
-### Phase 1: Foundation (no container, no real model call)
+### 6.1 Next bounded block
 
-1. **One-shot spike** — Record `hermes -z` behavior (§4.0, extended checklist)
-2. **ADR: per-project profile memory model (C10)** — record the change to the
-   role-context architecture (persistent project memory with per-role policy)
-   before code relies on it
-3. **Project profile manager** — Create/clone/scrub/configure per-project
-   profiles, memory policies, state digests
-4. **OneShotExecutor skeleton** — Build command, run `hermes -z` directly
-   (no container), verify task-brief-via-file works
-5. **Tests** — Profile creation, credential scrubbing, task brief delivery,
-   memory persistence, memory-policy mounts, retention pruning
+Implement the
+[Headless Hermes Runtime Closure](next-block-headless-hermes-runtime-closure.md).
+It closes the non-publishing backend subgate in this order:
 
-### Phase 2: Container boundary
+1. accept the memory/session and diagnostic-authority decision record;
+2. remove one-shot execution from all scientific executor selection;
+3. provision exact profiles atomically and realize all memory policies;
+4. build the isolated runtime and bounded supervisor;
+5. complete durable lifecycle, fencing, cancellation, and reconciliation;
+6. expose a headless diagnostic command; and
+7. collect interim H0-A evidence if used and the mandatory H0-B rootless OCI
+   evidence.
 
-6. **Install Podman** — `apt install podman` or equivalent (rootless:
-   newuidmap/newgidmap)
-7. **ContainerRuntime adapter** — Podman create/start/inspect/kill/logs
-8. **OneShotExecutor in container** — Mount workspace + profile with read-only
-   identity overlays + memory-policy mounts
-9. **Network policy** — Deny-default + egress proxy with verified topology (C6)
-10. **Tests** — Isolation (no DB access, no host files), cancellation, restart
+### 6.2 Work after the headless runtime gate
 
-### Phase 3: Diagnostic infrastructure
+Once the headless exit criteria pass:
 
-11. **Diagnostic persistence** — Separate tables, state machine
-12. **Durable fencing** — DB-backed tokens, leases, and profile mutexes
-13. **Diagnostic API + UI** — Loopback diagnostic view
-14. **Tests** — Two-coordinator fencing, profile-mutex contention, restart
-    adoption, unresolved state
-
-### Phase 4: Evidence and exit gate
-
-15. **Real synthetic task** — Run through the complete path
-16. **Failure injection** — Crash at each boundary
-17. **Evidence package** — Assemble per S8 of the programmer's plan, plus
-    memory-policy attestation and profile-state inventories
+1. add the local user-facing diagnostic UI and complete the remaining Phase 0
+   usability evidence;
+2. close WP0 reviewed-basis integrity;
+3. implement phase-specific output adapters and validators; and
+4. begin real five-phase pilots only after those gates are satisfied.
 
 ---
 
@@ -650,11 +641,11 @@ Per the programmer's plan and the dependency order:
 
 - Complete reviewed-basis sealing (WP0 exit gate still open)
 - Phase-specific output adapters and validators (WP2)
-- Formal Phase 1–5 execution and publication
+- Formal Phase 1-5 execution and publication
 - Reproducible production role profiles and reviewer no-memory attestation
-  (WP4 — §2.8's ephemeral reviewer policy is the hook it will attest)
+  (WP4 - §2.8's ephemeral reviewer policy is the hook it will attest)
 - Authentication and remote operation (WP5)
-- Backup, restore, migration, and release packaging (WP6–WP7)
+- Backup, restore, migration, and release packaging (WP6-WP7)
 
 The diagnostic lane proves the execution boundary. It does not authorize
 scientific publication.

@@ -1,11 +1,18 @@
 # Next Work Block: Complete the Non-Publishing Hermes Diagnostic Lane
 
-Status: Recommended next implementation block
+Status: Reference safety and evidence baseline. Exit gate open.
 
 Prepared: 2026-08-03
 
+
+The strict non-publishing, containment, cancellation, reconciliation, and
+evidence requirements remain valid. The disposable-profile details and this
+file's implementation order are superseded by the Hermes-specific revision
+and the controlling headless runtime block. Do not implement this file alone.
 Related plans:
 
+- [Headless Hermes Runtime Closure](next-block-headless-hermes-runtime-closure.md)
+- [Hermes-Specific Diagnostic Revision](revised-diagnostic-lane-plan.md)
 - [Phase 0: Safe Hermes Execution](phase-0-safe-hermes-execution.md)
 - [Operational Completion Plan](operational-completion-plan.md)
 - [Completed Hermes Transport Findings](completed/phase-0-spike-findings.md)

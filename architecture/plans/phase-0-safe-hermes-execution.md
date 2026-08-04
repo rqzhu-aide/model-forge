@@ -15,29 +15,45 @@ remains open.
 
 ## Current implementation checkpoint
 
-Verified complete:
+As of commit `eecc6d1`, the Phase 0 exit gate remains open.
 
-- transport reconnaissance against Hermes v0.19.0;
-- correction of the development Kanban status and retry mapping;
-- environment filtering, profile preflight, and an initial capped
-  control-command capture foundation;
-- one successful host-based synthetic theorist connectivity run.
+Verified observations:
 
-The evidence is archived in
-[Completed Hermes Transport Findings](completed/phase-0-spike-findings.md).
+- Hermes v0.19.0 Kanban transport behavior and one host-based synthetic
+  connectivity run;
+- Hermes v0.19.0 host one-shot behavior, usage fields, writable profile
+  footprint, memory and session behavior, file-based task delivery, profile
+  cloning, and provider overrides.
+
+Implemented foundations, not yet operationally verified:
+
+- initial project-profile provisioning and memory-policy metadata;
+- separate diagnostic, fencing-token, and profile-lock persistence;
+- a one-shot command builder and diagnostic service scaffold; and
+- 38 focused scaffold tests.
+
+Evidence:
+
+- [Completed Hermes Transport Findings](completed/phase-0-spike-findings.md)
+- [Completed Host One-Shot Observations](completed/spike-report-s5.0.md)
 
 Still open:
 
-- containment of the actual agent and its tools;
-- truthful external identity, durable fencing, restart reconciliation, and
-  verified cancellation;
-- bounds on all logs, processes, files, and workspace growth while produced;
-- provider-only networking and complete secret isolation;
-- the loopback diagnostic status and log interface;
-- the complete failure-injection and formal-state evidence package.
+- separation of one-shot diagnostics from scientific execution;
+- exact selected-profile, skill, identity, and memory-policy isolation;
+- truthful runtime identity, durable fencing, lease renewal, restart
+  reconciliation, and verified cancellation;
+- bounds on logs, streams, processes, files, workspaces, and retained state;
+- provider-only networking and secret-safe credential delivery;
+- outcome validation independent of process exit code;
+- real Linux isolation and failure-injection evidence; and
+- the loopback diagnostic status and log interface.
 
 The recommended next implementation package is
-[Complete the Non-Publishing Hermes Diagnostic Lane](next-block-hermes-diagnostic-closure.md).
+[Headless Hermes Runtime Closure](next-block-headless-hermes-runtime-closure.md).
+It closes a non-publishing backend subgate. It does not by itself close Phase
+0, because the user-facing diagnostic interface and its usability evidence
+remain required.
 
 ## Revision 1 summary
 
@@ -380,7 +396,7 @@ Before implementation, verify the exact supported one-shot interface, profile
 selection, task-brief delivery, workspace behavior, output and exit semantics,
 tool loading, provider configuration, and signal handling through the recorded
 spike required by the
-[next work block](next-block-hermes-diagnostic-closure.md). Record or update an
+[next work block](next-block-headless-hermes-runtime-closure.md). Record or update an
 architecture decision for this topology.
 
 The Kanban gateway and board findings remain valid for the development Track A

@@ -41,6 +41,15 @@ Done and verified:
   `trusted_local` executor binding is now in
   `role-invocation-start.schema.json` with both examples conforming (positive
   and negative schema checks verified through the repo SchemaCatalog).
+- **WP-C complete** (commit `ab2d9c4`, live-API verified): the Block 2 role
+  configuration service exposes all four role definitions, skill
+  version/source/digest reporting, customization-conflict protection, and
+  atomic rollback. 444 tests green.
+- **WP-B complete** (commit `b40c9c9` + validator fix-up `e7d3e62`):
+  ADR-012 wording applied to the numbered docs, `validate_package.py`
+  aligned with the trusted-local binding, the stale example digest cascade
+  left by WP-A repaired (start -> closure -> submission -> downstream ->
+  run-state -> receipts), and the architecture package validator exits 0.
 
 Known deviations being corrected: Block 4 landed before Blocks 1-3 (plan
 order violated; tolerated because the executor is self-contained, but Block 1

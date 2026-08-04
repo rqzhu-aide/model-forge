@@ -67,15 +67,21 @@ do not yet define).
 
 ## 3. Execution and validation protocol
 
-- Work is dispatched as bounded one-shot tasks to the `developer` profile
-  (larger packages) or the `worker` profile (smaller, verifiable packages).
-- Only ONE profile works the repository at a time. A package is dispatched
+- Work is dispatched as bounded one-shot tasks to subagents (delegate_task,
+  deepseek-v4-flash). The coder profile plans, writes self-contained briefs,
+  validates every result, and stewards the plan documents.
+- Package sizing rule (2026-08-04, researcher directive): one concern per
+  package. Split anything with more than ~3 distinct behaviors or an
+  expected diff over ~5 files. A failed package must be cheap to discard
+  and re-dispatch with a corrected brief. Subagents do essentially all
+  implementation; the coder does only truly tiny surgical fixes.
+- Only ONE subagent works the repository at a time. A package is dispatched
   only when the previous one is committed and the tree is clean.
-- The coder profile validates every completed package before the next is
+- The coder validates every completed package before the next is
   dispatched: diff review against the package scope, file:line claim checks,
   behavioral probes where the package makes runtime claims, and a full green
   backend suite. Self-reports are not accepted as evidence.
-- Every package ends in ONE git commit with a descriptive message. Workers
+- Every package ends in ONE git commit with a descriptive message. Subagents
   never amend architecture decision records. Phase contracts and role order
   are out of scope for all packages.
 
@@ -128,20 +134,47 @@ create and inspect all four role definitions and report exact installed
 assets; conflict path requires explicit user choice; suite green.
 Depends on: Block 4 hardening committed.
 
-### WP-D - Block 3: run-profile assembler (developer, large)
+### WP-D - Block 3: run-profile assembler (developer lane, split for size)
 
-Scope: project-role state lock; sealed idempotent invocation; run directory
-(profile/workspace/inputs/outputs/logs/manifest); profile assembly from role
-definition + selected project-role memory and safe session snapshot
-(export/import when available, else verified SQLite backup while quiescent -
-never copy a live `state.db`); fresh-state mode for first runs and the
-outside reviewer; materialize only selected context; credentials never copied
-into profiles/manifests/logs/evidence; preflight (Hermes, assets, state,
-paths, permissions, space, lock, brief, output contract).
-Acceptance: Block 3 checkpoint - two preparations from the same sealed basis
-produce equivalent manifests and run-profile content apart from declared
-invocation identifiers/timestamps; suite green.
-Depends on: WP-C.
+WP-D1 (complete, `1d19a90` + validator fix): assembler core. The remainder
+of Block 3 is split into three small packages:
+
+### WP-D2a - session snapshot procedure (subagent, small)
+
+Scope: add safe session-state snapshots to the assembler. Verified fact
+(parent probe 2026-08-04): `hermes sessions export` is a READABLE export
+(JSONL/MD), NOT a restorable state snapshot; no session import exists.
+Per ADR-012 item 5 the mechanism is therefore a verified SQLite backup:
+open the canonical project-role `state.db` read-only, copy via the SQLite
+online backup API (never copy the raw db/wal/shm files), refuse fast on a
+busy database, then `PRAGMA integrity_check` + a smoke query on the copy
+and record its sha256. Record in the manifest's reserved `session_snapshot`
+field: procedure id, source, quiescence flag (wal present or not), digest.
+Fresh/ephemeral policy (and the outside reviewer) gets empty session state.
+Acceptance: snapshot of a known DB is byte-consistent and integrity-checked;
+a busy source fails fast with a clear error; reviewer snapshot is empty;
+suite green.
+Depends on: WP-D1.
+
+### WP-D2b - preflight service (subagent, small)
+
+Scope: the Block 3 preflight checklist as a service over WP-D1 sealed runs:
+verify Hermes executable + version, role assets vs manifest digests,
+selected state presence, run paths and permissions, free disk space, lock
+ownership, task brief presence, expected output contract. Structured
+pass/fail report per check; no auto-repair.
+Acceptance: each check has a positive and negative test; suite green.
+Depends on: WP-D1.
+
+### WP-D2c - determinism checkpoint (subagent, small)
+
+Scope: the Block 3 checkpoint as a test package: two preparations from the
+same sealed basis produce equivalent manifests and run-profile content,
+apart from declared invocation identifiers and timestamps. Also runs the
+architecture validator and records its output as evidence.
+Acceptance: equivalence test green; any nondeterminism found is reported,
+not silently normalized.
+Depends on: WP-D2a, WP-D2b.
 
 ### WP-E - Block 5: validate, record, promote (developer, large)
 

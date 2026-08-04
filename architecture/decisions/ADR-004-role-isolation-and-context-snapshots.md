@@ -4,6 +4,11 @@
 
 Accepted
 
+Superseded in part by
+[ADR-012](ADR-012-trusted-local-hermes-execution.md) for Version 1. The frozen
+context, immutable record, and reviewer-packet requirements remain accepted.
+Rootless OCI and enforced host isolation are deferred optional hardening.
+
 ## Context
 
 A role can use model tools, filesystem operations, or command-line programs that

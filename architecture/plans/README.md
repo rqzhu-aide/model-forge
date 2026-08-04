@@ -7,56 +7,60 @@ specification or decision record before code relies on such a change.
 
 ## Recommended next block
 
-- [End-to-End OCI Diagnostic Closure](next-block-end-to-end-oci-diagnostic-closure.md)
-  is the controlling next implementation package. It connects the public
-  diagnostic command to the OCI executor, isolates one exact runtime profile,
-  makes identity and cancellation durable, enforces memory and network policy,
-  and repeats the complete Linux evidence matrix through the real path.
+- [Trusted Local Hermes Execution Closure](next-block-local-hermes-execution-closure.md)
+  is the controlling Version 1 package. It makes role configuration, per-run
+  profiles, local Hermes supervision, artifact validation, and atomic
+  memory-session promotion one complete user-operated path.
 
-This corrective block is required because commit `009a50a` proves useful
-rootless Podman and Hermes feasibility, but it does not satisfy the H0-B exit
-gate. The local diagnostic UI, WP0 reviewed-basis closure, and scientific
-Hermes execution remain later work.
+[ADR-012](../decisions/ADR-012-trusted-local-hermes-execution.md) defines the
+boundary: Method Hub is a trusted, single-user local control plane. It provides
+workflow and state integrity, not operating-system isolation from Hermes.
 
-## Active plans and design records
+## Active plans
 
-- [Headless Hermes Runtime Closure](next-block-headless-hermes-runtime-closure.md)
-  remains the parent Phase 0 backend gate. Its detailed invariants and 27-case
-  evidence matrix remain controlling. The end-to-end OCI block above is the
-  bounded corrective package needed to finish it.
-- [Revised Diagnostic Lane Plan](revised-diagnostic-lane-plan.md) records the
-  Hermes-specific profile, memory, and one-shot design. Its exit gate remains
-  open.
-- [Original Diagnostic Closure Plan](next-block-hermes-diagnostic-closure.md)
-  remains the strict safety and evidence baseline. Its earlier disposable
-  profile details are superseded by the Hermes-specific design.
-- [Operational Completion Plan](operational-completion-plan.md) remains the
-  production-readiness program.
-- [Manual Method Hub with Sequential-First Orchestration](manual-sequential-orchestration-implementation-plan.md)
-  records the implemented development baseline and remaining production
-  boundary.
 - [Phase 0: Safe Hermes Execution](phase-0-safe-hermes-execution.md) remains
-  open. Runtime scaffolding and partial Linux feasibility evidence exist, but
-  the integrated OCI diagnostic and the local diagnostic interface have not
-  passed their gates.
-- [WP0: Reviewed-Basis Closure](wp0-reviewed-basis-closure.md) is partially
-  implemented. It must not become the active block until the diagnostic
-  execution boundary is trustworthy.
+  open under its Revision 3 trusted-local topology. The local closure plan is
+  its controlling implementation package.
+- [Operational Completion Plan](operational-completion-plan.md) remains the
+  overall production-readiness program.
+- [Manual Method Hub with Sequential-First Orchestration](manual-sequential-orchestration-implementation-plan.md)
+  records the development baseline and research workflow that must be retained.
+  Its OCI-specific implementation guidance is superseded for Version 1.
+- [WP0: Reviewed-Basis Closure](wp0-reviewed-basis-closure.md) remains partially
+  implemented and follows the local execution closure.
 - [WP1 and WP2: Execution and Validation](wp1-wp2-execution-and-validation.md)
-  contain useful scaffolding. Neither work package has passed its exit gate,
-  and the diagnostic executor must remain unreachable from scientific runs.
+  remain open. WP1 now targets trusted local execution; WP2 validation work
+  remains required.
 
-The dated roadmap under `.hermes/plans/` is retained as a historical gap
-analysis. Its older baseline, sequencing, and OCI deferral are not controlling.
+## Historical and deferred records
+
+- [End-to-End OCI Diagnostic Closure](next-block-end-to-end-oci-diagnostic-closure.md)
+  is deferred optional hardening for multi-user, remote, unattended, or
+  untrusted-tool operation.
+- [Headless Hermes Runtime Closure](next-block-headless-hermes-runtime-closure.md)
+  retains detailed OCI failure cases and evidence requirements but is not a
+  Version 1 gate.
+- [Hermes Diagnostic Lane Revision](revised-diagnostic-lane-plan.md) retains
+  useful profile, memory, lifecycle, and validation observations. Its OCI
+  topology is historical.
+- [Original Diagnostic Closure Plan](next-block-hermes-diagnostic-closure.md)
+  is a historical safety baseline.
+- [H0-B OCI evidence](../evidence/h0b-oci-evidence-index.md) remains historical
+  feasibility evidence, not a completion gate.
+- The dated roadmap under `.hermes/plans/` is historical gap analysis.
 
 ## Completion order from the current checkpoint
 
-1. Complete the end-to-end OCI diagnostic closure and accept H0-B evidence.
-2. Add the local diagnostic status, log, cancellation, and memory interface to
-   finish the remaining Phase 0 usability gate.
-3. Complete WP0 reviewed-basis integrity.
-4. Continue with production scientific execution and output validation under
-   WP1 and WP2.
+1. Complete trusted local Hermes execution, including configuration, run
+   profiles, supervision, validation, state promotion, and Web controls.
+2. Complete WP0 reviewed-basis integrity.
+3. Finish the remaining phase-specific WP2 adapters and validation using real
+   Hermes fixtures.
+4. Run controlled real five-phase pilots through the same local path.
+5. Complete reconciliation, backup and restore, packaging, and release evidence.
+
+OCI may be reconsidered later if the operating model changes. It must not delay
+this local Version 1 path.
 
 ## Completed records
 

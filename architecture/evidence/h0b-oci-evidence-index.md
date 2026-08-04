@@ -1,6 +1,6 @@
 # H0-B Evidence Index: Rootless OCI Runtime Gate
 
-## Status: PARTIAL OCI FEASIBILITY EVIDENCE; EXIT GATE OPEN
+## Status: HISTORICAL OCI FEASIBILITY EVIDENCE; OPTIONAL HARDENING DEFERRED
 
 Recorded: 2026-08-04
 Source commit: `009a50a`
@@ -12,8 +12,9 @@ Observed image digest:
 Reported suite result: 441 passed, 2 skipped, 0 failed
 Reported H0-B test file result: 22 passed
 
-The reported tests are useful observations, but they do not satisfy the H0-B
-exit gate. Most exercise hand-built Podman commands or isolated components.
+The reported tests remain useful observations, but H0-B is no longer a Version
+1 exit gate under ADR-012. They also do not satisfy the optional OCI gate.
+Most exercise hand-built Podman commands or isolated components.
 None runs the complete public path
 `diag CLI -> DiagnosticService -> OciExecutor -> Hermes`, and the required
 27-case Linux matrix was not executed.
@@ -98,7 +99,7 @@ Retain the 22 passing tests as partial feasibility evidence. Do not delete or
 reinterpret them. They may be cited for the narrow observations above, but they
 must not be used to label H0-B, Phase 0, or WP1 complete.
 
-The controlling corrective work is
+The optional OCI follow-on work is
 [End-to-End OCI Diagnostic Closure](../plans/next-block-end-to-end-oci-diagnostic-closure.md).
 H0-B can be relabeled `PASSED` only after the complete required matrix passes
 without skips through the public diagnostic service and production OCI

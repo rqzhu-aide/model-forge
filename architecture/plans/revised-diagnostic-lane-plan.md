@@ -1,13 +1,15 @@
 # Revised Implementation Plan: Hermes Diagnostic Lane for Method Hub
 
-Status: Active Hermes-specific design record. Exit gate open.
+Status: Historical OCI-specific design record. Its profile, memory, validation,
+and lifecycle observations remain useful, but it is not the Version 1 work
+order.
 Implementation checkpoint: commit `009a50a`, audited 2026-08-04.
-This plan adapts the
-[original safety baseline](next-block-hermes-diagnostic-closure.md) to verified
-Hermes behavior. The controlling corrective package is
-[End-to-End OCI Diagnostic Closure](next-block-end-to-end-oci-diagnostic-closure.md).
+Current plan:
 
-## Current implementation audit
+- [Trusted Local Hermes Execution Closure](next-block-local-hermes-execution-closure.md)
+
+## Historical OCI implementation audit
+
 
 Commit `009a50a` implements useful additional foundations:
 

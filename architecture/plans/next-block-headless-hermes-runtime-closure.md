@@ -1,10 +1,14 @@
 # Next Work Block: Headless Hermes Runtime Closure
 
-Status: Active parent gate. Exit gate open.
+Status: Deferred OCI hardening reference. Not a Version 1 gate.
+
+Version 1 replacement:
+
+- [Trusted Local Hermes Execution Closure](next-block-local-hermes-execution-closure.md)
 
 Baseline: commit `009a50a`, audited 2026-08-04.
 
-Controlling corrective package:
+Optional OCI corrective package:
 
 - [End-to-End OCI Diagnostic Closure](next-block-end-to-end-oci-diagnostic-closure.md)
 
@@ -65,8 +69,8 @@ to UI polish or scientific pilots would hide rather than close that execution
 boundary.
 
 The [end-to-end OCI corrective block](next-block-end-to-end-oci-diagnostic-closure.md)
-is therefore the immediate implementation package. This parent gate remains
-the source of truth for the full evidence standard.
+is the implementation package if optional OCI hardening is resumed. This file
+then remains the source of truth for that optional evidence standard.
 
 ## 3. Fixed architectural decisions
 
@@ -591,9 +595,9 @@ evidence; do not weaken or silently waive it.
 - backup, restore, migration, and release packaging; and
 - Windows execution support.
 
-After H0-B passes, the next bounded work should add the local diagnostic UI
-and close the remaining Phase 0 usability evidence. Reviewed-basis closure
-comes after that UI slice and before real scientific pilots.
+If optional H0-B is resumed and passes, its results may strengthen the local
+execution boundary. It does not change the Version 1 work order defined by
+ADR-012 and the trusted-local closure plan.
 
 ## 9. Implementation judgment
 

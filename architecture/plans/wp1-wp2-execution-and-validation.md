@@ -1,35 +1,29 @@
 # WP1 + WP2: Production Execution Boundary and Output Validation
 
-Status: Partially implemented scaffolding (audited 2026-08-04). Both exit gates remain open.
+Status: WP1 execution topology superseded for Version 1; WP2 remains partially
+implemented. Both exit gates remain open.
 
-## Implementation audit
+## Current implementation audit
 
-At commit `009a50a`, the repository contains useful scaffolding for Bubblewrap
-and rootless OCI execution, capability materialization, project and runtime
-profiles, memory policies, diagnostic persistence, fencing, output adaptation,
-phase-specific validation, and Linux evidence tests. These are foundations, not
-accepted WP1 or WP2 deliverables.
+ADR-012 replaces rootless OCI with trusted local Hermes execution for Version
+1. The controlling implementation package is
+[Trusted Local Hermes Execution Closure](next-block-local-hermes-execution-closure.md).
 
-WP1 remains open. Most importantly, the OCI executor is not integrated into the
-public diagnostic path, yet the scientific `oci` setting installs Bubblewrap in
-the scientific `RunCoordinator`. The current OCI command mounts the complete
-host Hermes home read-write and lacks durable container identity,
-lease-enforced fencing, awaited cancellation, verified restart reconciliation,
-complete bounds, provider-only egress, and secret-safe delivery. Scientific
-execution must not select Bubblewrap, one-shot, or OCI while this remains true.
-
-The [End-to-End OCI Diagnostic Closure](next-block-end-to-end-oci-diagnostic-closure.md)
-must pass first. Its non-publishing evidence will validate the execution
-boundary but will not itself complete WP1.
+WP1 now requires exact run-profile preparation, durable local process identity,
+bounded logs, whole-process-tree cancellation, restart reconciliation, state
+locks, quiescence, and atomic promotion. It does not require container images,
+mount isolation, provider-only networking, or OCI escape evidence for Version
+1. The system must state honestly that local Hermes inherits the researcher's
+host permissions.
 
 WP2 remains open because real phase outputs are not yet carried through the
 complete adapter, immutable submission, validation, and publication path.
 Companion artifacts and several phase-specific semantic checks still require
-real Hermes fixtures. No scientific pilot should begin until the diagnostic
-boundary and WP0 reviewed basis pass.
+real Hermes fixtures.
 
-Keep the existing design sections and exit gates below. Earlier implementation
-status labels are subordinate to this audit.
+The detailed OCI executor sections below are retained as optional post-Version
+1 hardening research. Their output-adapter, validation, raw-evidence, and
+failure-case material remains useful where it does not depend on OCI.
 
 ## Revision 1 changelog
 

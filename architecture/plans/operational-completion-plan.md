@@ -6,32 +6,24 @@ Prepared: 2026-08-03
 
 ## Current implementation checkpoint
 
-As of commit `009a50a`:
+As of commit `a08604d` and ADR-012:
 
-- the sequential development harness and schema-example workflows remain
-  available;
-- WP0 command sealing, WP1 containment, and WP2 output validation have useful
-  partial implementations, but none has passed its exit gate;
-- rootless Podman can execute one hand-built Hermes diagnostic on the tested
-  Linux host;
-- diagnostic lifecycle, project profiles, runtime snapshots, memory policies,
-  fencing, fixed-output validation, an OCI executor, and focused tests now
-  provide substantial scaffolding;
-- the public diagnostic command still does not compose the OCI executor, and
-  the current service and executor lifecycle cannot complete a real invocation
-  together;
-- exact-profile mounting, durable container identity, current-lease fencing,
-  awaited cancellation, memory promotion rules, complete resource bounds,
-  provider-only egress, and secret-safe delivery remain open;
-- the committed H0-B evidence is partial feasibility evidence rather than a
-  complete integrated gate; and
-- the Web interface still lacks the diagnostic status, logs, cancellation,
-  memory, and evidence controls.
+- Method Hub targets a trusted, single-user local Linux application for Version
+  1;
+- rootless OCI is optional later hardening, not a Phase 0 or WP1 prerequisite;
+- the sequential harness, project profiles, runtime snapshots, lifecycle store,
+  locks, fixed-output validation, phase validators, and React interface provide
+  useful foundations;
+- the existing direct and Bubblewrap execution pieces are not yet one supported
+  local scientific run path; and
+- configuration-managed role assets, exact run-profile assembly, bounded local
+  process supervision, safe session snapshots, post-run validation, atomic
+  promotion, and complete Web controls remain open.
 
-Production scientific execution remains disabled. The recommended next bounded
-package is [End-to-End OCI Diagnostic Closure](next-block-end-to-end-oci-diagnostic-closure.md).
-It must pass before the local diagnostic UI, WP0 reviewed-basis completion, or
-real Phase 1 through Phase 5 pilots become the active block.
+Production scientific execution remains disabled until the
+[Trusted Local Hermes Execution Closure](next-block-local-hermes-execution-closure.md)
+passes. The local UI and WP0 reviewed-basis work can then complete before real
+five-phase pilots.
 
 ## 1. Operational version 1 outcome
 
@@ -42,7 +34,7 @@ which an authenticated researcher can:
 2. configure reproducible Hermes role profiles and recommended skills;
 3. review the exact scientific and execution basis of a proposed run;
 4. explicitly start, monitor, cancel, and inspect any eligible phase run;
-5. execute real role work inside an isolated and recoverable boundary;
+5. execute real role work through a controlled and recoverable local path;
 6. publish only complete, validated, unconflicted scientific records;
 7. understand current method identity, alignment, attention, outcome, and
    uncertainty without reading internal storage files;

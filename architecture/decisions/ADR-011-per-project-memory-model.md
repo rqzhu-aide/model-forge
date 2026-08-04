@@ -2,6 +2,10 @@
 
 Status: Accepted (2026-08-03, diagnostic lane scope)
 
+[ADR-012](ADR-012-trusted-local-hermes-execution.md) expands this policy to
+trusted local Version 1 scientific execution while preserving its promotion
+and reviewer-state restrictions.
+
 ## Context
 
 Architecture 08 defines a frozen per-run context snapshot model: each role

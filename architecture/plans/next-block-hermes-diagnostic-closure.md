@@ -1,14 +1,18 @@
 # Next Work Block: Complete the Non-Publishing Hermes Diagnostic Lane
 
-Status: Reference safety and evidence baseline. Exit gate open.
+Status: Historical safety baseline. OCI containment is deferred for Version 1.
+
+Current work order:
+
+- [Trusted Local Hermes Execution Closure](next-block-local-hermes-execution-closure.md)
 
 Prepared: 2026-08-03
 
 
-The strict non-publishing, containment, cancellation, reconciliation, and
-evidence requirements remain valid. The disposable-profile details and this
-file's implementation order are superseded by the Hermes-specific revision
-and the controlling headless runtime block. Do not implement this file alone.
+The non-publishing, cancellation, reconciliation, bounded-log, and evidence
+principles remain useful. Its OCI containment assumptions and implementation
+order are superseded for Version 1 by ADR-012 and the trusted-local plan. Do not
+implement this file as the current work order.
 Related plans:
 
 - [End-to-End OCI Diagnostic Closure](next-block-end-to-end-oci-diagnostic-closure.md)

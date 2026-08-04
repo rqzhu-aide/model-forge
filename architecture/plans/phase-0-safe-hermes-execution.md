@@ -1,51 +1,45 @@
 # Phase 0: Safe Hermes Execution
 
-Status: Active implementation instruction, Revision 2. Exit gate open.
+Status: Active implementation instruction, Revision 3. Exit gate open.
 
-Prepared: 2026-08-03 (original draft)
-Revised: 2026-08-03 (Revision 2, one-shot OCI completion topology)
+Prepared: 2026-08-03
+Revised: 2026-08-04 (Revision 3, trusted local execution topology)
 
-Revision 2 topology note: the controlling completion path is now one-shot
-Hermes inside rootless OCI, as defined in Section 5.4 and the next work block.
-Gateway and diagnostic-board language in the Revision 1 summary is retained
-only as historical Track A rationale. It does not define a completion gate.
+Revision 3 replaces rootless OCI as the Version 1 completion path with trusted
+local Hermes execution under ADR-012. The OCI and Kanban material retained
+below is historical design and optional future hardening. It is not the current
+work order.
 
-Current completion status: Partially implemented. The Phase 0 exit gate
-remains open.
+Current completion status: Partially implemented. The Phase 0 exit gate remains
+open.
 
 ## Current implementation checkpoint
 
-As of commit `009a50a`, Phase 0 remains open.
+As of commit `a08604d`:
 
-Now demonstrated:
+- Hermes host one-shot behavior, profile writes, memory, sessions, usage, and
+  task delivery have useful observation records;
+- profile, runtime-snapshot, lifecycle, lock, validation, and UI scaffolds exist;
+- OCI feasibility work exists but is no longer a Version 1 prerequisite; and
+- the local scientific run path is not yet composed end to end.
 
-- host one-shot and Kanban behavior are documented as bounded observations;
-- Hermes can run inside rootless Podman on the tested Linux host;
-- the image can use a read-only root with dropped capabilities, and the OCI
-  executor emits basic CPU, memory, and process-limit options whose exhaustion
-  enforcement remains unverified; and
-- diagnostic lifecycle, fencing, runtime-profile, memory-policy, OCI-executor,
-  output-contract, and evidence-test scaffolds exist.
+Still required:
 
-Not yet demonstrated through one public operational path:
+- configuration-managed SOUL, skills, role configuration, and library guidance;
+- exact per-run profiles built from the role definition and selected current
+  project-role memory and session state;
+- one supervised local Hermes executor with bounded logs, timeout,
+  process-tree cancellation, and restart reconciliation;
+- post-quiescence artifact validation and narrow atomic promotion;
+- correct persistent, read-only, and fresh-reviewer state behavior; and
+- complete researcher-facing configuration, run, log, validation, and state
+  controls.
 
-- `diag start -> DiagnosticService -> OciExecutor -> Hermes`;
-- fail-closed manifest and exact selected-profile isolation;
-- durable container identity and single-owner lifecycle transitions;
-- token- and lease-guarded promotion, cancellation, cleanup, and recovery;
-- correct persistent, read-only, and ephemeral memory behavior;
-- continuously drained bounded output and complete resource quotas;
-- provider-only egress and secret-safe credential delivery;
-- the complete real Linux matrix with no skips and unchanged scientific state;
-  and
-- the local diagnostic status, log, cancellation, memory, and evidence
-  interface.
+The controlling package is
+[Trusted Local Hermes Execution Closure](next-block-local-hermes-execution-closure.md).
 
-The H0-B evidence committed at `009a50a` is useful OCI feasibility evidence,
-but it is not accepted as the Phase 0 backend gate. The recommended corrective
-package is [End-to-End OCI Diagnostic Closure](next-block-end-to-end-oci-diagnostic-closure.md).
-After that package passes, the local diagnostic interface remains necessary to
-complete Phase 0 usability evidence.
+The earlier revisions below remain useful for Hermes behavior and failure cases,
+but their OCI topology and exit gates are superseded for Version 1.
 
 ## Revision 1 summary
 

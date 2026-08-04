@@ -1,6 +1,13 @@
 # Next Work Block: End-to-End OCI Diagnostic Closure
 
-Status: Recommended next implementation block.
+Status: Deferred optional hardening plan. Not a Version 1 prerequisite.
+
+Version 1 replacement:
+
+- [Trusted Local Hermes Execution Closure](next-block-local-hermes-execution-closure.md)
+
+Retain this file as a future isolation reference. Do not implement it as the
+current work order.
 
 Baseline: commit `009a50a`, audited 2026-08-04.
 

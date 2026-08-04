@@ -4,7 +4,7 @@
 > checkpoint. Do not use its work order, executor selection, or OCI deferral as
 > current implementation instructions. The controlling plan index is
 > [`architecture/plans/README.md`](../../architecture/plans/README.md), and the
-> immediate work package is the end-to-end OCI diagnostic closure.
+> immediate work package is trusted local Hermes execution closure.
 
 
 > **Scope:** A gap analysis and pragmatic work-order plan to bring Method Hub

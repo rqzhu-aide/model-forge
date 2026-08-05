@@ -323,15 +323,20 @@ command.
   never-started keeps null + note. 660 tests green. **Backend lane of
   WP-F is complete** - read, start, cancel, preflight, validation,
   promotion all exposed.
-- **WP-F2 - Configuration page (frontend)**: role list with health badges,
-  role detail (SOUL/config/skills/guidance + provenance), provision action
-  with the 409 CUSTOMIZATION_CONFLICT -> explicit force-choice flow. Uses
-  the existing WP-C API.
-- **WP-F3 - supervision views (frontend)**: per-project supervised-run
-  list, run-start form (brief, role, memory policy, expected outputs),
-  detail view (pre-run basis, live state/elapsed/bounded logs, cancel,
-  closure view with validation result, promoted/retained items, receipt,
-  smallest safe next action).
+- **WP-F2 complete** (commit `8120f46`, three passes - frontend is ~2x
+  slower for the subagent model; the renderToStaticMarkup idiom only works
+  with synchronous data, interactive @testing-library pattern established):
+  Configuration page + role detail with the 409 -> explicit overwrite
+  confirmation flow (never auto-force; digests from the health endpoint).
+  vitest 62/62, build clean.
+- **WP-F3a - run list + start form (frontend)**: per-project
+  supervised-run list (F0 API) with status pills + the start form
+  (invocation/idempotency, role, phase, method identity, brief, expected
+  outputs, memory policy) wired to the F1a POST with 409 error display.
+- **WP-F3b - run detail + closure view (frontend)**: sealed basis/manifest
+  summary, preflight report, launch records with live polling, cancel
+  button (F1b), validation report, promotion history, receipt, smallest
+  safe next action.
 - **WP-F4 - reviewed-basis panel (frontend)**: the complete reviewed basis
   on the phase page (WP0 audit item 5) + memory policy display + nav.
 Depends on: WP-C, WP-D, WP-E.

@@ -579,6 +579,48 @@ async def _exercise_skill_source_revision_drift(tmp_path: Path) -> None:
     assert exc.value.code == "stale_basis.role_resource_drifted"
 
 
+def test_verify_sealed_basis_rejects_memory_policy_drift(tmp_path: Path) -> None:
+    """WP-H2: a sealed memory policy that differs from the frozen snapshot
+    must be rejected as stale_basis.role_resource_drifted."""
+    asyncio.run(_exercise_memory_policy_drift(tmp_path))
+
+
+async def _exercise_memory_policy_drift(tmp_path: Path) -> None:
+    coordinator, basis, recipe_doc = await _coordinator_fixture(tmp_path)
+    basis = copy.deepcopy(basis)
+    resources = copy.deepcopy(basis["role_resources"])
+    role = next(iter(resources))
+    assert resources[role].get("memory_policy") == "persistent"
+    resources[role]["memory_policy"] = "ephemeral"
+    basis["role_resources"] = resources
+    command = {"project_id": recipe_doc["project_id"], "sealed_basis": basis}
+    recipe = PreparedRunRecipe(sha256="0" * 64, document=recipe_doc)
+    with pytest.raises(RepositoryConflictError) as exc:
+        coordinator._verify_sealed_basis(
+            command, recipe, runtime=_p1_runtime(coordinator.specification)
+        )
+    assert exc.value.code == "stale_basis.role_resource_drifted"
+
+
+def test_sealed_basis_carries_wp_h2_exact_configuration(tmp_path: Path) -> None:
+    """WP-H2: the descriptor basis seals the exact installed role
+    configuration: memory policy from the catalog, explicit nulls for
+    model/provider (not carried by the WP-C catalog), and the phase
+    instruction field present for every role."""
+    asyncio.run(_exercise_wp_h2_snapshot_fields(tmp_path))
+
+
+async def _exercise_wp_h2_snapshot_fields(tmp_path: Path) -> None:
+    _, basis, _ = await _coordinator_fixture(tmp_path)
+    resources = basis["role_resources"]
+    assert resources, "the basis must seal role resources"
+    for role, payload in resources.items():
+        assert payload["memory_policy"] == "persistent", role
+        assert "model" in payload and payload["model"] is None, role
+        assert "provider" in payload and payload["provider"] is None, role
+        assert "phase_instruction" in payload, role
+
+
 def test_verify_sealed_basis_passes_legacy_command_without_basis(
     tmp_path: Path,
 ) -> None:

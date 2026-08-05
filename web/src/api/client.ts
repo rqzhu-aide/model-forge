@@ -253,4 +253,11 @@ export const api = {
       "POST",
       input,
     ),
+
+  cancelSupervisedRun: (projectId: string, invocationId: string) =>
+    commandRequest<SupervisedRunDetail>(
+      `/projects/${encodeURIComponent(projectId)}/supervised-runs/${encodeURIComponent(invocationId)}/cancel`,
+      "POST",
+      {},
+    ),
 };

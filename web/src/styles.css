@@ -2259,3 +2259,232 @@ p.run-monitor-note {
     flex-direction: column;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Supervised-run detail page (WP-F3b)                                 */
+/* ------------------------------------------------------------------ */
+
+.message--neutral {
+  border-color: var(--line-strong);
+  background: var(--surface-soft);
+  color: var(--text-soft);
+}
+
+.message--neutral strong,
+.message--neutral code {
+  color: var(--text);
+}
+
+.next-action {
+  margin: 0 0 1rem;
+  padding: 0.7rem 0.9rem;
+  border-left: 3px solid var(--accent);
+  background: var(--surface-soft);
+  border-radius: 0 8px 8px 0;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+
+.verdict-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-bottom: 0.8rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.panel-subheading {
+  margin: 1.2rem 0 0.5rem;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.muted-note {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+
+.record-metadata__sub {
+  display: block;
+  margin-top: 0.3rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.checks-list {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.checks-list__item {
+  display: grid;
+  grid-template-columns: minmax(9rem, auto) auto 1fr;
+  align-items: baseline;
+  gap: 0.7rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.checks-list__item--fail {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.checks-list__name {
+  color: var(--text);
+}
+
+.checks-list__detail {
+  color: var(--text-soft);
+  font-size: 0.85rem;
+}
+
+.expected-outputs-list,
+.asset-digest-list,
+.promotion-targets {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.expected-outputs-list {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.expected-outputs-list li {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.expected-outputs-list small {
+  color: var(--muted);
+}
+
+.asset-digests {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.asset-digests summary {
+  cursor: pointer;
+  padding: 0.55rem 0.7rem;
+  color: var(--text-soft);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.asset-digest-list {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.asset-digest-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.8rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.asset-digest-list__digest {
+  color: var(--muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.launch-records,
+.promotion-records {
+  display: grid;
+  gap: 0.8rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.launch-record,
+.promotion-record {
+  padding: 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.launch-record__heading,
+.promotion-record__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-bottom: 0.6rem;
+}
+
+.launch-record .record-metadata,
+.promotion-record .record-metadata {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.durable-id {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.promotion-target {
+  display: grid;
+  grid-template-columns: minmax(7rem, auto) 1fr;
+  align-items: baseline;
+  gap: 0.3rem 0.8rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.promotion-target__digest {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.8rem;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.promotion-target__backup {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.run-list__link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.run-list__link:hover {
+  text-decoration: underline;
+}

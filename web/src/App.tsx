@@ -9,6 +9,7 @@ import { ProjectOverviewPage } from "./pages/ProjectOverviewPage";
 import { ProjectsPage } from "./pages/ProjectsPage";
 import { RoleConfigurationPage } from "./pages/RoleConfigurationPage";
 import { RunPage } from "./pages/RunPage";
+import { SupervisedRunDetailPage } from "./pages/SupervisedRunDetailPage";
 import { SupervisedRunsPage } from "./pages/SupervisedRunsPage";
 import { SystemSettingsPage } from "./pages/SystemSettingsPage";
 
@@ -23,6 +24,10 @@ export function App() {
         <Route path="projects/:projectId/runs/:runId" element={<RunPage />} />
         <Route path="projects/:projectId/settings/profiles" element={<ProfilesPage />} />
         <Route path="projects/:projectId/supervised" element={<SupervisedRunsPage />} />
+        <Route
+          path="projects/:projectId/supervised/:invocationId"
+          element={<SupervisedRunDetailPage />}
+        />
         <Route path="configuration" element={<ConfigurationPage />} />
         <Route path="configuration/roles/:roleId" element={<RoleConfigurationPage />} />
         <Route path="settings" element={<SystemSettingsPage />} />

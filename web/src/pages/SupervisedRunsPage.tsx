@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { ApiError, api } from "../api/client";
 import type {
   ExpectedOutputInput,
@@ -33,7 +33,7 @@ export function supervisedRunsPollInterval(
     : false;
 }
 
-const launchStatusLabels: Record<SupervisedLaunchStatus, string> = {
+export const launchStatusLabels: Record<SupervisedLaunchStatus, string> = {
   running: "Running",
   succeeded: "Succeeded",
   failed: "Failed",
@@ -546,7 +546,12 @@ export function SupervisedRunsPage() {
               return (
                 <li key={run.invocation_id}>
                   <div className="run-list__heading">
-                    <code>{run.invocation_id}</code>
+                    <Link
+                      to={`/projects/${encodeURIComponent(projectId)}/supervised/${encodeURIComponent(run.invocation_id)}`}
+                      className="run-list__link"
+                    >
+                      <code>{run.invocation_id}</code>
+                    </Link>
                     <StatusPill tone={supervisedLaunchTone(run.latest_launch_status)}>
                       {run.latest_launch_status
                         ? launchStatusLabels[run.latest_launch_status]

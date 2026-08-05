@@ -176,6 +176,22 @@ describe("SupervisedRunsPage list", () => {
     expect(screen.getByText(/Memory read_only/)).toBeInTheDocument();
   });
 
+  it("links every invocation row to its detail page", async () => {
+    mockQueries([
+      summary({ invocation_id: "inv-link" }),
+      summary({ invocation_id: "inv-link-2", latest_launch_status: "running" }),
+    ]);
+
+    renderPage();
+
+    const link = await screen.findByRole("link", { name: "inv-link" });
+    expect(link).toHaveAttribute("href", "/projects/project-1/supervised/inv-link");
+    expect(screen.getByRole("link", { name: "inv-link-2" })).toHaveAttribute(
+      "href",
+      "/projects/project-1/supervised/inv-link-2",
+    );
+  });
+
   it("shows an empty state when the project has no supervised runs", async () => {
     mockQueries([]);
 

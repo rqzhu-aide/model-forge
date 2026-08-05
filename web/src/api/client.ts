@@ -1,5 +1,6 @@
 import type {
   ActionDescriptor,
+  ConfigurationHealthView,
   CreateProjectRequest,
   MethodRow,
   PhaseId,
@@ -8,6 +9,11 @@ import type {
   ProjectBriefView,
   ProjectOverview,
   ProjectSummary,
+  ProvisionResultView,
+  ProvisionRoleRequest,
+  RoleDefinitionCatalogView,
+  RoleDefinitionView,
+  RoleHealthReportView,
   RunDetail,
   RunEvent,
   RunSummary,
@@ -22,18 +28,24 @@ export class ApiError extends Error {
   readonly status: number;
   readonly code: string | undefined;
   readonly smallestCorrection: string | undefined;
+  readonly objectRefs: string[] | undefined;
+  readonly detail: Record<string, unknown> | undefined;
 
   constructor(
     message: string,
     status: number,
     code?: string,
     smallestCorrection?: string,
+    objectRefs?: string[],
+    detail?: Record<string, unknown>,
   ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
     this.smallestCorrection = smallestCorrection;
+    this.objectRefs = objectRefs;
+    this.detail = detail;
   }
 }
 
@@ -53,6 +65,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       message?: string;
       code?: string;
       smallest_correction?: string;
+      object_refs?: string[];
+      detail?: Record<string, unknown>;
     } = {};
     try {
       payload = (await response.json()) as typeof payload;
@@ -64,6 +78,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       response.status,
       payload.code,
       payload.smallest_correction,
+      payload.object_refs,
+      payload.detail,
     );
   }
 
@@ -197,5 +213,24 @@ export const api = {
       `/projects/${encodeURIComponent(projectId)}/configuration/profiles/${encodeURIComponent(roleId)}/skills/${encodeURIComponent(skillId)}/install`,
       "POST",
       { action_descriptor_id: actionId },
+    ),
+
+  getRoleDefinitions: () =>
+    request<RoleDefinitionCatalogView>("/configuration/roles"),
+
+  getRoleDefinition: (roleId: string) =>
+    request<RoleDefinitionView>(`/configuration/roles/${encodeURIComponent(roleId)}`),
+
+  getConfigurationHealth: () =>
+    request<ConfigurationHealthView>("/configuration/health"),
+
+  getRoleHealth: (roleId: string) =>
+    request<RoleHealthReportView>(`/configuration/roles/${encodeURIComponent(roleId)}/health`),
+
+  provisionRole: (roleId: string, input: ProvisionRoleRequest) =>
+    commandRequest<ProvisionResultView>(
+      `/configuration/roles/${encodeURIComponent(roleId)}/provision`,
+      "POST",
+      input,
     ),
 };

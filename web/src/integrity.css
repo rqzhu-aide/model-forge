@@ -151,6 +151,80 @@
   margin-top: 0.75rem;
 }
 
+/* Role-definition configuration (WP-F2) */
+
+.config-role-card__link {
+  margin: 0.9rem 0 0;
+}
+
+.soul-text {
+  max-height: 26rem;
+  margin: 0;
+  padding: 0.9rem 1rem;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.config-list {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0.8rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.config-list > li {
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.digest-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.5rem 1.25rem;
+  margin: 0.6rem 0 0;
+}
+
+.digest-pair > div {
+  min-width: 0;
+}
+
+.digest-pair dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.digest-pair dd {
+  margin: 0.15rem 0 0;
+}
+
+.digest-pair code {
+  font-size: 0.78rem;
+}
+
+.provision-conflict__refs {
+  margin-top: 0.55rem;
+}
+
+.provision-outcome-message {
+  margin-top: 0.9rem;
+}
+
+.provision-outcome-message .record-metadata {
+  margin-top: 0.6rem;
+}
+
 @media (max-width: 680px) {
   .launch-review__context-list li {
     grid-template-columns: 1fr;

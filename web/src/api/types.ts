@@ -402,6 +402,124 @@ export interface ProfileConfigurationView {
   projection: ProjectionStamp;
 }
 
+// ---------------------------------------------------------------------------
+// Role-definition configuration service (WP-F2)
+// ---------------------------------------------------------------------------
+
+export type ConfigurationAssetType =
+  | "soul"
+  | "base_configuration"
+  | "library_guidance"
+  | "skill";
+
+export type ConfigurationAssetStatus = "present" | "missing" | "customized" | "unavailable";
+
+export type ConfigurationOverallStatus = "healthy" | "incomplete" | "customized" | "unavailable";
+
+export type ConfigurationCondition =
+  | "healthy"
+  | "hermes_missing"
+  | "profile_missing"
+  | "soul_customized"
+  | "soul_missing"
+  | "config_customized"
+  | "config_missing"
+  | "skill_mismatch"
+  | "skill_missing"
+  | "skill_unavailable"
+  | "bundle_missing";
+
+export interface SkillRecommendationView {
+  skill_id: string;
+  name: string;
+  description: string;
+  source: string;
+  recommended_version: string;
+}
+
+export interface CustomSkillView {
+  skill_id: string;
+  name: string;
+  description: string;
+  source: string;
+}
+
+export interface BaseConfigurationView {
+  file_name: string;
+  format: "yaml" | "json";
+  content_sha256: string;
+}
+
+export interface LibraryGuidanceView {
+  file_name: string;
+  content_sha256: string;
+}
+
+export interface RoleDefinitionView {
+  role_id: string;
+  display_name: string;
+  profile_version: string;
+  default_profile: string;
+  applicable_phases: PhaseId[];
+  soul_text: string;
+  soul_sha256: string;
+  base_configuration: BaseConfigurationView;
+  recommended_skills: SkillRecommendationView[];
+  custom_skills: CustomSkillView[];
+  library_guidance: LibraryGuidanceView;
+}
+
+export interface RoleDefinitionCatalogView {
+  roles: RoleDefinitionView[];
+}
+
+export interface AssetStatusView {
+  asset_type: ConfigurationAssetType;
+  file_name: string;
+  status: ConfigurationAssetStatus;
+  expected_sha256: string;
+  actual_sha256?: string;
+  source?: string;
+  recommended_version?: string;
+  detail: string;
+}
+
+export interface RoleHealthReportView {
+  role_id: string;
+  display_name: string;
+  profile_available: boolean;
+  profile_name?: string;
+  overall_status: ConfigurationOverallStatus;
+  soul_status: AssetStatusView;
+  configuration_status: AssetStatusView;
+  guidance_status: AssetStatusView;
+  skill_statuses: AssetStatusView[];
+  conditions: ConfigurationCondition[];
+  detail: string;
+}
+
+export interface ConfigurationHealthView {
+  hermes_root: string;
+  hermes_available: boolean;
+  roles: RoleHealthReportView[];
+  overall_status: ConfigurationOverallStatus;
+  conditions: ConfigurationCondition[];
+}
+
+export interface ProvisionRoleRequest {
+  install_skills: boolean;
+  force_overwrite_assets: boolean;
+  force_overwrite_skills: boolean;
+}
+
+export interface ProvisionResultView {
+  role_id: string;
+  profile_name: string;
+  assets_written: string[];
+  skills_installed: string[];
+  rolled_back: boolean;
+}
+
 export interface StartRunRequest {
   action_descriptor_id: string;
   phase: PhaseId;

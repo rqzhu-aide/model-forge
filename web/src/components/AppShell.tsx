@@ -173,6 +173,9 @@ export function AppShell() {
               <span aria-hidden="true">@</span> Profiles and skills
             </NavLink>
           ) : null}
+          <NavLink to="/configuration" className={({ isActive }) => isActive ? "sidebar-link is-active" : "sidebar-link"}>
+            <span aria-hidden="true">⚙</span> Configuration
+          </NavLink>
           <NavLink to="/settings" className={({ isActive }) => isActive ? "sidebar-link is-active" : "sidebar-link"}>
             <span aria-hidden="true">:</span> System settings
           </NavLink>
@@ -190,6 +193,7 @@ export function AppShell() {
               <NavLink to="/">Projects</NavLink>
               <NavLink to="/projects/new">New project</NavLink>
               {projectId ? <NavLink to={`/projects/${projectId}/settings/profiles`}>Profiles</NavLink> : null}
+              <NavLink to="/configuration">Configuration</NavLink>
               <NavLink to="/settings">System settings</NavLink>
             </nav>
           </details>

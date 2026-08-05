@@ -1,5 +1,10 @@
 import type { ReactNode } from "react";
-import type { RunLifecycleState, ScientificStatus } from "../api/types";
+import type {
+  ConfigurationAssetStatus,
+  ConfigurationOverallStatus,
+  RunLifecycleState,
+  ScientificStatus,
+} from "../api/types";
 import { sentenceCase } from "../utils/format";
 
 export type Tone = "positive" | "warning" | "danger" | "neutral" | "information";
@@ -27,6 +32,19 @@ export function runStateTone(state: RunLifecycleState): Tone {
   if (["created", "preparing", "prepared", "running", "submitted", "validating", "promoting"].includes(state)) {
     return "information";
   }
+  return "neutral";
+}
+
+export function configurationOverallTone(status: ConfigurationOverallStatus): Tone {
+  if (status === "healthy") return "positive";
+  if (status === "unavailable") return "danger";
+  return "warning";
+}
+
+export function configurationAssetTone(status: ConfigurationAssetStatus): Tone {
+  if (status === "present") return "positive";
+  if (status === "customized") return "warning";
+  if (status === "missing") return "danger";
   return "neutral";
 }
 

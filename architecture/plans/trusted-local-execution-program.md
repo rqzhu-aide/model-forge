@@ -115,6 +115,15 @@ Done and verified:
   empty-choices role omission fixed, and all four silently-skipped drift
   classes (unmatched input, method identity, missing live role, extra
   digests) now reject with stable stale_basis codes. 603 tests green.
+- **WP-H2 complete** (commits `b8f7b37` + `095b421`): exact installed role
+  configuration sealed in the basis - memory policy from the catalog,
+  explicit null model/provider and phase instruction where the catalog
+  lacks them, drift rejection via the WP-H1 machinery. The co-programmer
+  absorbed the capped subagent's production work into their audit-fix
+  commit (executor C1-C4 PID-reuse/boot-id safety, assembler C5/H1/H5,
+  provisioner H2-H8, OCI doc cleanup) - reviewed by file:line, all sound;
+  I added the two missing WP-H2 drift/snapshot tests. 636 tests green.
+  **WP0 exit gate is now reviewable.**
 
 Known deviations being corrected: Block 4 landed before Blocks 1-3 (plan
 order violated; tolerated because the executor is self-contained, but Block 1

@@ -318,8 +318,11 @@ command.
   cancel via the executor, explicit cancels classify as cancelled (not
   failed; executor emits no CANCELLED status - optional launcher hook,
   default None). 657 tests green.
-- **WP-F1c - preflight persistence (backend, tiny)**: record the preflight
-  report at launch time so the closure view can show it.
+- **WP-F1c complete** (commit `2719829`): preflight reports persisted at
+  start time (pass and fail paths), detail view serves them; sealed-but-
+  never-started keeps null + note. 660 tests green. **Backend lane of
+  WP-F is complete** - read, start, cancel, preflight, validation,
+  promotion all exposed.
 - **WP-F2 - Configuration page (frontend)**: role list with health badges,
   role detail (SOUL/config/skills/guidance + provenance), provision action
   with the 409 CUSTOMIZATION_CONFLICT -> explicit force-choice flow. Uses

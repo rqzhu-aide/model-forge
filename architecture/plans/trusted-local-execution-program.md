@@ -337,8 +337,10 @@ command.
 - **WP-F3b complete** (commit `4e4b590`): detail + closure view in
   lifecycle order with live polling, cancel-while-running, and smallest-
   safe-next-action hints from durable state. vitest 103/103.
-- **WP-F4 - reviewed-basis panel (frontend)**: the complete reviewed basis
-  on the phase page (WP0 audit item 5) + memory policy display + nav.
+- **WP-F4 complete** (commit `e260491`): reviewed-basis panel
+  closes WP0 audit item 5; memory policy labels. vitest 109/109.
+  **WP-F is CLOSED** - the Block 6 checkpoint (one real run entirely
+  through the UI) is the remaining acceptance act.
 Depends on: WP-C, WP-D, WP-E.
 
 ### WP-G - scenarios and traceability (worker, medium)

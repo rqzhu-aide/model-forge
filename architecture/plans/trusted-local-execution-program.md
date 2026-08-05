@@ -108,6 +108,13 @@ Done and verified:
   592 tests green. **Pilot milestone**: project-004-eld Phase 2 completed
   through the real supervised path (5 runs, 6 promotions, memory
   continuity verified); preflight drift-noise fix `7986f12`.
+- **WP-H1 complete** (commit `f494aa0`; four passes - audit, design,
+  rewrite, completion - with two real defects caught by live probing,
+  including a swallowed manifest-path error my own design review missed):
+  acceptance-time completeness gate for the sealed basis (C6-respecting),
+  empty-choices role omission fixed, and all four silently-skipped drift
+  classes (unmatched input, method identity, missing live role, extra
+  digests) now reject with stable stale_basis codes. 603 tests green.
 
 Known deviations being corrected: Block 4 landed before Blocks 1-3 (plan
 order violated; tolerated because the executor is self-contained, but Block 1

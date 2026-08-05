@@ -2488,3 +2488,92 @@ p.run-monitor-note {
 .run-list__link:hover {
   text-decoration: underline;
 }
+
+/* ------------------------------------------------------------------ */
+/* Reviewed-basis panel (WP-F4)                                       */
+/* ------------------------------------------------------------------ */
+
+.reviewed-basis summary {
+  margin-top: 0.65rem;
+  color: var(--accent);
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.reviewed-inputs-list {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reviewed-inputs-list li {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.reviewed-inputs-list span {
+  color: var(--text-soft);
+  font-size: 0.85rem;
+}
+
+.reviewed-inputs-list__digest {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.reviewed-method {
+  margin: 0;
+}
+
+.reviewed-role {
+  margin: 0.9rem 0 0;
+  padding: 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.reviewed-role h4 {
+  margin: 0 0 0.6rem;
+}
+
+.reviewed-role .record-metadata {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.reviewed-skills {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reviewed-skills li {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.reviewed-skills small {
+  color: var(--muted);
+}
+
+.reviewed-skills__digest {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}

@@ -290,8 +290,51 @@ export interface PhaseView {
   actions: ActionDescriptor[];
   active_runs: RunSummary[];
   recent_runs: RunSummary[];
+  descriptor_basis?: ReviewedBasis | null;
   projection: ProjectionStamp;
   empty_state_message?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Reviewed-basis seal (WP-F4): what a start-run action seals at review time
+// ---------------------------------------------------------------------------
+
+export interface ReviewedCurrentInput {
+  option_id: string;
+  generation_id: string;
+  sha256: string;
+}
+
+export interface ReviewedAuthorityHead {
+  authority_sequence: number;
+  authority_root_sha256: string;
+  current_revision: number;
+}
+
+export interface ReviewedSkill {
+  skill_id: string;
+  source: string;
+  source_revision: string;
+  bundle_sha256: string;
+}
+
+export interface ReviewedRoleResource {
+  profile: string;
+  profile_version: string;
+  soul_sha256: string;
+  skills: ReviewedSkill[];
+  model: string | null;
+  provider: string | null;
+  memory_policy: "persistent" | "read_only" | "ephemeral";
+  phase_instruction: string | null;
+  tools: string | null;
+}
+
+export interface ReviewedBasis {
+  authority_head: ReviewedAuthorityHead;
+  reviewed_current_inputs: ReviewedCurrentInput[];
+  method_identity: MethodIdentity | null;
+  role_resources: Record<string, ReviewedRoleResource>;
 }
 
 export interface RunStage {

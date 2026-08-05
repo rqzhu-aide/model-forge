@@ -9,6 +9,7 @@ import { MethodSelector, SelectedMethodSummary } from "../components/MethodSelec
 import { MethodTable } from "../components/MethodTable";
 import { Panel } from "../components/Panel";
 import { ProjectionNote } from "../components/ProjectionNote";
+import { ReviewedBasisPanel } from "../components/ReviewedBasisPanel";
 import { RunForm } from "../components/RunForm";
 import { RunList } from "../components/RunList";
 import { ScientificStatusGrid } from "../components/Status";
@@ -142,6 +143,8 @@ export function PhasePage() {
           </EmptyState>
         )}
       </Panel>
+
+      <ReviewedBasisPanel basis={phase.descriptor_basis} />
 
       <div className="phase-information-grid">
         <Panel title="Current phase assessment" eyebrow="Separate status dimensions">

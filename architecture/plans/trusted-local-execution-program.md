@@ -334,10 +334,9 @@ command.
   check names). vitest 77/77, build clean. Test-orchestration lesson:
   TanStack refetch chains under fake timers need vi.waitFor, not fixed
   advances.
-- **WP-F3b - run detail + closure view (frontend)**: sealed basis/manifest
-  summary, preflight report, launch records with live polling, cancel
-  button (F1b), validation report, promotion history, receipt, smallest
-  safe next action.
+- **WP-F3b complete** (commit `4e4b590`): detail + closure view in
+  lifecycle order with live polling, cancel-while-running, and smallest-
+  safe-next-action hints from durable state. vitest 103/103.
 - **WP-F4 - reviewed-basis panel (frontend)**: the complete reviewed basis
   on the phase page (WP0 audit item 5) + memory policy display + nav.
 Depends on: WP-C, WP-D, WP-E.

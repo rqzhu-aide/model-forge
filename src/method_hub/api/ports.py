@@ -29,6 +29,7 @@ from .models import (
     RunSummary,
     SaveProfileRequest,
     StartRunRequest,
+    StartSupervisedRunRequest,
     SupervisedRunDetail,
     SupervisedRunSummary,
     SystemSettingsView,
@@ -45,6 +46,7 @@ CommandFamily = Literal[
     "save_profile",
     "install_skill",
     "provision_role",
+    "start_supervised_run",
 ]
 
 
@@ -80,6 +82,20 @@ class ArtifactDelivery:
     media_type: str
     content_sha256: str
     filename: str
+
+
+@dataclass(frozen=True, slots=True)
+class SupervisedRunStartResult:
+    """Outcome of one supervised-run start command (WP-F1a).
+
+    ``detail`` is the durable WP-F0 read view of the invocation;
+    ``replayed`` is True when the idempotency key already had a seal and
+    nothing new was launched (the transport maps it to HTTP 200 instead
+    of 202).
+    """
+
+    detail: SupervisedRunDetail
+    replayed: bool
 
 
 class MethodHubApplicationService(Protocol):
@@ -153,6 +169,14 @@ class MethodHubApplicationService(Protocol):
     async def get_supervised_run(
         self, project_id: str, invocation_id: str
     ) -> SupervisedRunDetail: ...
+
+    async def start_supervised_run(
+        self,
+        project_id: str,
+        command: StartSupervisedRunRequest,
+        *,
+        raw_request: RawRequestReceipt,
+    ) -> SupervisedRunStartResult: ...
 
     async def get_artifact(
         self, project_id: str, artifact_id: str

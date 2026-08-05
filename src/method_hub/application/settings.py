@@ -74,6 +74,12 @@ class ApplicationSettings(BaseSettings):
             return self.frontend_dist.expanduser().resolve()
         return (Path(__file__).resolve().parents[3] / "web" / "dist").resolve()
 
+    def resolved_hermes_root(self) -> Path:
+        """Resolve the effective Hermes root (defaults to ``~/.hermes``)."""
+        if self.hermes_root is not None:
+            return self.hermes_root.expanduser().resolve()
+        return (Path.home() / ".hermes").resolve()
+
     def profile_for(self, role: str) -> str:
         values = {
             "research_lead": self.research_lead_profile,

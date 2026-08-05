@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import logging
+import os
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
@@ -35,12 +37,18 @@ from ..api.models import (
     RunSummary,
     SaveProfileRequest,
     StartRunRequest,
+    StartSupervisedRunRequest,
     SupervisedRunDetail,
     SupervisedRunSummary,
     SystemSettingsView,
     UpdateProjectBriefRequest,
 )
-from ..api.ports import ArtifactDelivery, RawRequestBody, RawRequestReceipt
+from ..api.ports import (
+    ArtifactDelivery,
+    RawRequestBody,
+    RawRequestReceipt,
+    SupervisedRunStartResult,
+)
 from ..configuration.profiles import (
     PROFILE_ROLES,
     REVIEWER_PROFILE_ISOLATION_MESSAGE,
@@ -66,6 +74,7 @@ from ..contracts import PhaseContractError
 from ..digests.jcs import canonicalize
 from ..domain.identities import MethodIdentity
 from ..domain.runs import RunRequest, isoformat_utc, utc_now
+from ..executors.local_hermes import LocalHermesExecutorSettings
 from ..harness.commands import build_run_command, require_complete_sealed_basis
 from ..harness.role_resource_snapshot import compute_role_resources, load_skill_manifest
 from ..specification import SpecificationPackage
@@ -89,7 +98,15 @@ from .role_views import (
     build_role_definition_view,
     build_role_health_view,
 )
-from .run_profile_assembler import RunSealStore
+from .run_launcher import launch_sealed_run
+from .run_preflight import DEFAULT_MIN_FREE_BYTES, run_preflight
+from .run_profile_assembler import (
+    RunProfileAssembler,
+    RunSealError,
+    RunSealStore,
+    SealedRun,
+    StateLockHeld,
+)
 from .run_views import CANCELLABLE, run_detail_view, run_event_view, run_summary_view
 from .settings import ApplicationSettings
 from .supervised_run_views import supervised_run_detail, supervised_run_summary
@@ -99,6 +116,30 @@ from .view_models import ACTIVE_RUN_STATES, ResearchProjectionService, project_s
 RunLauncher = Callable[[str], Awaitable[None]]
 CancellationNotifier = Callable[[str], Awaitable[None]]
 RecoveryLauncher = Callable[[], Awaitable[None]]
+
+logger = logging.getLogger(__name__)
+
+#: Provider credential environment variables the supervised-start path
+#: may pass to the Hermes process.  Keys come ONLY from the server
+#: process environment through this allowlist — never from the request
+#: body (the strict request model forbids them), never logged, never
+#: persisted (the E0 executor redaction covers captured streams).
+PROVIDER_SECRET_ENV_ALLOWLIST: tuple[str, ...] = (
+    "DEEPSEEK_API_KEY",
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "MOONSHOT_API_KEY",
+    "KIMI_API_KEY",
+)
+
+
+def _provider_secret_env() -> dict[str, str]:
+    """Collect present provider keys from the process environment."""
+    return {
+        name: os.environ[name]
+        for name in PROVIDER_SECRET_ENV_ALLOWLIST
+        if name in os.environ
+    }
 
 
 class MethodHubService:
@@ -115,6 +156,8 @@ class MethodHubService:
         run_launcher: RunLauncher | None = None,
         cancellation_notifier: CancellationNotifier | None = None,
         recovery_launcher: RecoveryLauncher | None = None,
+        supervised_executor_settings: LocalHermesExecutorSettings | None = None,
+        supervised_min_free_bytes: int = DEFAULT_MIN_FREE_BYTES,
     ) -> None:
         self.settings = settings
         self.specification = specification
@@ -138,6 +181,10 @@ class MethodHubService:
             execution_available=run_launcher is not None,
         )
         self._run_seal_store: RunSealStore | None = None
+        self._run_seal_database: Database | None = None
+        self._run_assembler: RunProfileAssembler | None = None
+        self._supervised_executor_settings = supervised_executor_settings
+        self._supervised_min_free_bytes = supervised_min_free_bytes
         self._background: set[asyncio.Task[None]] = set()
 
     @property
@@ -149,7 +196,9 @@ class MethodHubService:
         from the hub repository's ``method-hub.sqlite3``.  It is opened
         and migrated on first use so a fresh installation with no
         supervised runs ever still serves empty read results instead of
-        errors.
+        errors.  The same Database instance backs the run-profile
+        assembler, so a launch recorded by a background thread is visible
+        to the WP-F0 read surface immediately.
         """
         if self._run_seal_store is None:
             database = Database(
@@ -157,8 +206,32 @@ class MethodHubService:
                 migrations=HUB_MIGRATIONS,
             )
             database.initialize()
+            self._run_seal_database = database
             self._run_seal_store = RunSealStore(database)
         return self._run_seal_store
+
+    @property
+    def run_profile_assembler(self) -> RunProfileAssembler:
+        """Lazily build the run-profile assembler (WP-D1) over the seal store.
+
+        The assembler is wired to this service's data root, the WP-C role
+        catalog, the repository's skill bundle root, the SAME
+        ``hub.sqlite3`` database the lazy run-seal store reads, and the
+        Hermes root/binary from settings.  It is built once and reused
+        for every supervised start.
+        """
+        if self._run_assembler is None:
+            self.run_seal_store  # ensure the shared database exists
+            assert self._run_seal_database is not None
+            self._run_assembler = RunProfileAssembler(
+                data_root=self.settings.data_root,
+                role_resources=self.role_resources,
+                database=self._run_seal_database,
+                bundle_root=self.skill_bundle_root,
+                hermes_root=self.settings.resolved_hermes_root(),
+                hermes_binary=self.settings.hermes_executable,
+            )
+        return self._run_assembler
 
     async def resume_incomplete(self) -> None:
         if self.recovery_launcher is not None:
@@ -941,6 +1014,260 @@ class MethodHubService:
                 RepositoryNotFoundError("supervised run", invocation_id)
             )
         return supervised_run_detail(record, store)
+
+    async def start_supervised_run(
+        self,
+        project_id: str,
+        command: StartSupervisedRunRequest,
+        *,
+        raw_request: RawRequestReceipt,
+    ) -> SupervisedRunStartResult:
+        """Seal, preflight, and schedule one supervised run (WP-F1a).
+
+        This is an explicit user command: nothing here starts a run
+        automatically.  The flow is:
+
+        1. **Transport validation** — the brief must be non-empty and
+           every expected-output path must be relative (the full output
+           contract is re-checked by the WP-D2b preflight, so deep
+           validation is not duplicated here).
+        2. **Seal** — the WP-D1 assembler seals the invocation under the
+           project-role state lock.  A replay of an existing idempotency
+           key returns the existing seal WITHOUT relaunching (HTTP 200
+           instead of 202).  A second start for the same project-role
+           while a launch holds the state lock is rejected with 409.
+        3. **Brief materialization** — the brief text is written under
+           the run's ``briefs/`` area; the launcher copies it into the
+           workspace as ``task.md`` and records its digest.
+        4. **Synchronous preflight** — the WP-D2b preflight must pass
+           before the request returns; a failure is a 409 carrying the
+           preflight detail.
+        5. **Background launch** — ``launch_sealed_run`` (which can run
+           for many minutes) is dispatched through ``asyncio.to_thread``
+           and held by this service, so the endpoint returns immediately
+           and the WP-F0 read surface shows the launch record as
+           ``running`` and then the terminal status.  Thread exceptions
+           are captured onto the launch record (``failed``) by the
+           launcher and logged here — never swallowed, never crashing the
+           server.
+
+        Provider keys are read from the server process environment via
+        :data:`PROVIDER_SECRET_ENV_ALLOWLIST` and injected only through
+        the executor's ``secret_env`` mechanism — never from the request
+        body, never logged, never persisted.
+        """
+        brief_text = command.brief_text.strip()
+        if not brief_text:
+            raise CommandRejected(
+                new_command_error(
+                    "SUPERVISED_RUN_INVALID",
+                    field_path="brief_text",
+                    object_refs=[project_id],
+                    researcher_message="The task brief must not be empty.",
+                    smallest_correction=(
+                        "Provide the brief text for the run and submit again."
+                    ),
+                )
+            )
+        for index, entry in enumerate(command.expected_outputs):
+            path_value = entry.path
+            if path_value.startswith(("/", "\\")) or Path(path_value).is_absolute():
+                raise CommandRejected(
+                    new_command_error(
+                        "SUPERVISED_RUN_INVALID",
+                        field_path=f"expected_outputs.{index}.path",
+                        object_refs=[project_id],
+                        researcher_message=(
+                            f"Expected output path {path_value!r} must be "
+                            "relative to the run's outputs directory."
+                        ),
+                        smallest_correction=(
+                            "Declare the path relative to the run outputs "
+                            "area (for example 'results/summary.json') and "
+                            "submit again."
+                        ),
+                    )
+                )
+        try:
+            self.role_resources.role(command.role)
+        except ValueError as error:
+            raise CommandRejected(
+                new_command_error(
+                    "SUPERVISED_RUN_INVALID",
+                    field_path="role",
+                    object_refs=[project_id, command.role],
+                    researcher_message=str(error),
+                    smallest_correction=(
+                        "Select one of the configured research roles and "
+                        "submit again."
+                    ),
+                )
+            ) from error
+
+        assembler = self.run_profile_assembler
+        store = self.run_seal_store
+
+        # Idempotency: a replayed key returns the existing seal without
+        # touching the filesystem or launching anything.
+        existing = store.find_by_idempotency_key(command.idempotency_key)
+        if existing is not None:
+            if existing["project_id"] != project_id:
+                raise CommandRejected(
+                    new_command_error(
+                        "SUPERVISED_RUN_INVALID",
+                        field_path="idempotency_key",
+                        object_refs=[project_id, command.idempotency_key],
+                        researcher_message=(
+                            "This idempotency key is already bound to a "
+                            "supervised run of another project."
+                        ),
+                        smallest_correction=(
+                            "Submit the run with a new idempotency key."
+                        ),
+                    )
+                )
+            return SupervisedRunStartResult(
+                detail=supervised_run_detail(existing, store),
+                replayed=True,
+            )
+
+        user_choices: dict[str, Any] = {
+            "mode": "headless",
+            "task_brief": "briefs/task.md",
+        }
+        for key, value in (
+            ("model", command.model),
+            ("provider", command.provider),
+            ("timeout_seconds", command.timeout_seconds),
+        ):
+            if value is not None:
+                user_choices[key] = value
+
+        try:
+            sealed = assembler.seal_invocation(
+                invocation_id=command.invocation_id,
+                idempotency_key=command.idempotency_key,
+                project_id=project_id,
+                role=command.role,
+                phase=command.phase,
+                method_identity=command.method_identity,
+                user_choices=user_choices,
+                expected_outputs=[
+                    entry.model_dump(mode="json", exclude_none=True)
+                    for entry in command.expected_outputs
+                ],
+                memory_policy=command.memory_policy,
+            )
+        except StateLockHeld as error:
+            raise CommandRejected(
+                new_command_error(
+                    "SUPERVISED_RUN_LOCKED",
+                    object_refs=[
+                        project_id,
+                        command.role,
+                        error.holder_invocation_id,
+                    ],
+                    researcher_message=str(error),
+                    smallest_correction=(
+                        "Wait for the active run of this project-role to "
+                        "finish before starting another."
+                    ),
+                )
+            ) from error
+        except RunSealError as error:
+            raise CommandRejected(
+                new_command_error(
+                    "SUPERVISED_RUN_INVALID",
+                    object_refs=[project_id, command.role],
+                    researcher_message=str(error),
+                    smallest_correction=(
+                        "Correct the run request and submit again with a "
+                        "new invocation id."
+                    ),
+                )
+            ) from error
+
+        # A concurrent same-key seal may have won the
+        # UNIQUE(idempotency_key) race after our pre-check; its surviving
+        # record wins and this attempt is a replay (the loser's run
+        # directory was already rolled back by the assembler).
+        surviving = store.find_by_idempotency_key(command.idempotency_key)
+        if surviving is not None and surviving["run_dir"] != str(sealed.run_dir):
+            return SupervisedRunStartResult(
+                detail=supervised_run_detail(surviving, store),
+                replayed=True,
+            )
+
+        brief_path = sealed.run_dir / "briefs" / "task.md"
+        brief_path.parent.mkdir(parents=True, exist_ok=True)
+        brief_path.write_text(command.brief_text, encoding="utf-8")
+
+        report = run_preflight(
+            assembler,
+            sealed,
+            min_free_bytes=self._supervised_min_free_bytes,
+        )
+        if not report.passed:
+            raise CommandRejected(
+                new_command_error(
+                    "SUPERVISED_RUN_PREFLIGHT_FAILED",
+                    object_refs=[project_id, sealed.invocation_id],
+                    researcher_message=(
+                        "Preflight failed for this run; no process was "
+                        "launched: "
+                        + ", ".join(report.to_dict()["failed_checks"])
+                    ),
+                    smallest_correction=(
+                        "Resolve the preflight failures and replay the same "
+                        "idempotency key to retry the launch."
+                    ),
+                    detail=report.to_dict(),
+                )
+            )
+
+        launch_task = asyncio.create_task(
+            asyncio.to_thread(
+                self._launch_supervised_in_background, sealed, brief_path
+            )
+        )
+        self._background.add(launch_task)
+        launch_task.add_done_callback(self._background.discard)
+
+        record = store.find_by_invocation_id(sealed.invocation_id)
+        assert record is not None
+        return SupervisedRunStartResult(
+            detail=supervised_run_detail(record, store),
+            replayed=False,
+        )
+
+    def _launch_supervised_in_background(
+        self, sealed: SealedRun, brief_path: Path
+    ) -> None:
+        """Run the WP-E0 supervised launch off the event loop.
+
+        Executes in a worker thread via ``asyncio.to_thread`` so a
+        multi-minute Hermes run never blocks the HTTP request.  The
+        launcher closes its launch record as ``failed`` on every abort
+        and re-raises; this wrapper logs the exception so the failure is
+        never silent, and never lets it crash the server.
+        """
+        try:
+            launch_sealed_run(
+                assembler=self.run_profile_assembler,
+                seal_or_invocation_id=sealed,
+                task_brief=brief_path,
+                executor_settings=self._supervised_executor_settings,
+                secret_env=_provider_secret_env(),
+                min_free_bytes=self._supervised_min_free_bytes,
+            )
+        except Exception:
+            logger.exception(
+                "Supervised launch failed for invocation %s "
+                "(project %s, role %s); the launch record is closed as failed.",
+                sealed.invocation_id,
+                sealed.project_id,
+                sealed.role,
+            )
 
     async def get_artifact(
         self, project_id: str, artifact_id: str

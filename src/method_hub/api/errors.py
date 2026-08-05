@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Any, Literal
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
@@ -33,6 +33,9 @@ CommandErrorCode = Literal[
     "PUBLICATION_CONFLICT",
     "CUSTOMIZATION_CONFLICT",
     "ROLE_PROVISIONING_FAILED",
+    "SUPERVISED_RUN_INVALID",
+    "SUPERVISED_RUN_LOCKED",
+    "SUPERVISED_RUN_PREFLIGHT_FAILED",
 ]
 ErrorCategory = Literal[
     "authentication",
@@ -72,6 +75,9 @@ ERROR_RULES: dict[CommandErrorCode, ErrorRule] = {
     "PUBLICATION_CONFLICT": ErrorRule("concurrency", 409, True, "MH-56"),
     "CUSTOMIZATION_CONFLICT": ErrorRule("transition", 409, False, "MH-49"),
     "ROLE_PROVISIONING_FAILED": ErrorRule("transition", 500, True, "MH-59"),
+    "SUPERVISED_RUN_INVALID": ErrorRule("schema", 400, True, "MH-60"),
+    "SUPERVISED_RUN_LOCKED": ErrorRule("concurrency", 409, False, "MH-61"),
+    "SUPERVISED_RUN_PREFLIGHT_FAILED": ErrorRule("dependency", 409, True, "MH-62"),
 }
 
 
@@ -88,6 +94,10 @@ class CommandError(StrictModel):
     researcher_message: NonEmptyString
     smallest_correction: NonEmptyString
     occurred_at: NonEmptyString
+    #: Optional structured payload carried by selected error codes (for
+    #: example the WP-D2b preflight report on a preflight abort).  Never
+    #: contains secret material.
+    detail: dict[str, Any] | None = None
 
     @model_validator(mode="after")
     def enforce_stable_rule_mapping(self) -> "CommandError":
@@ -124,6 +134,7 @@ def new_command_error(
     smallest_correction: str,
     object_refs: list[str] | None = None,
     field_path: str | None = None,
+    detail: dict[str, Any] | None = None,
 ) -> CommandError:
     rule = ERROR_RULES[code]
     occurred_at = datetime.now(UTC).isoformat().replace("+00:00", "Z")
@@ -139,6 +150,7 @@ def new_command_error(
         researcher_message=researcher_message,
         smallest_correction=smallest_correction,
         occurred_at=occurred_at,
+        detail=detail,
     )
 
 

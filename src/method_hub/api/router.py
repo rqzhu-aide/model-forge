@@ -34,6 +34,7 @@ from .models import (
     RunSummary,
     SaveProfileRequest,
     StartRunRequest,
+    StartSupervisedRunRequest,
     StrictModel,
     SupervisedRunDetail,
     SupervisedRunSummary,
@@ -329,6 +330,42 @@ def create_api_router() -> APIRouter:
     ) -> SupervisedRunDetail:
         """Return the durable detail view of one supervised invocation."""
         return await service.get_supervised_run(project_id, invocation_id)
+
+    @router.post(
+        "/projects/{project_id}/supervised-runs",
+        response_model=SupervisedRunDetail,
+        response_model_exclude_none=True,
+        status_code=status.HTTP_202_ACCEPTED,
+        openapi_extra=_body_contract(StartSupervisedRunRequest),
+    )
+    async def start_supervised_run(
+        project_id: str,
+        request: Request,
+        service: Service,
+        response: Response,
+    ) -> SupervisedRunDetail:
+        """Seal and schedule one supervised run (explicit command; WP-F1a).
+
+        Returns 202 with the invocation detail once the launch record is
+        scheduled (the WP-E0 launch runs in the background and the WP-F0
+        read surface shows its progress).  An idempotent replay of an
+        existing key returns the existing invocation with 200 and does
+        not launch again.  Invalid requests are 400; a held project-role
+        state lock or a failing preflight is 409.
+        """
+        command, raw_request = await _capture_and_parse(
+            request,
+            service,
+            StartSupervisedRunRequest,
+            command_family="start_supervised_run",
+            project_id=project_id,
+        )
+        result = await service.start_supervised_run(
+            project_id, command, raw_request=raw_request
+        )
+        if result.replayed:
+            response.status_code = status.HTTP_200_OK
+        return result.detail
 
     @router.get("/projects/{project_id}/artifacts/{artifact_id}")
     async def get_artifact(

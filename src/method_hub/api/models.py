@@ -465,6 +465,45 @@ class RunDetail(RunSummary):
     publication_receipt: PublicationReceiptView | None = None
 
 
+class ExpectedOutput(StrictModel):
+    """One declared expected output of a supervised run (WP-F1a).
+
+    ``path`` is relative to the run's ``outputs/`` directory.  Only the
+    relative-ness is checked at the transport layer; the seal/preflight
+    machinery re-checks the full output contract (``..`` escapes,
+    pre-existing outputs) before any process is launched.
+    """
+
+    output_id: NonEmptyString
+    path: NonEmptyString
+    required_fields: list[NonEmptyString] | None = None
+
+
+class StartSupervisedRunRequest(StrictModel):
+    """Explicit user command to seal and launch one supervised run (WP-F1a).
+
+    Every start is an explicit command: nothing in the service starts a
+    run automatically.  Provider keys are never accepted here — they come
+    only from the server process environment via the allowlist, so any
+    request body attempting to smuggle credentials fails schema
+    validation (``extra='forbid'``).
+    """
+
+    invocation_id: NonEmptyString
+    idempotency_key: NonEmptyString
+    role: NonEmptyString
+    phase: NonEmptyString
+    method_identity: dict[str, Any] | None = None
+    brief_text: str
+    expected_outputs: list[ExpectedOutput] = Field(default_factory=list)
+    memory_policy: Literal["persistent", "ephemeral", "read_only"]
+    #: Recorded in the seal manifest's ``user_choices`` metadata; the
+    #: launcher resolves the effective timeout from it.
+    model: NonEmptyString | None = None
+    provider: NonEmptyString | None = None
+    timeout_seconds: int | None = Field(default=None, ge=1)
+
+
 class SupervisedRunSummary(StrictModel):
     """One sealed supervised invocation, condensed for list views (WP-F0).
 

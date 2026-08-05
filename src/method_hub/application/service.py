@@ -64,7 +64,7 @@ from ..contracts import PhaseContractError
 from ..digests.jcs import canonicalize
 from ..domain.identities import MethodIdentity
 from ..domain.runs import RunRequest, isoformat_utc, utc_now
-from ..harness.commands import build_run_command
+from ..harness.commands import build_run_command, require_complete_sealed_basis
 from ..harness.role_resource_snapshot import compute_role_resources, load_skill_manifest
 from ..specification import SpecificationPackage
 from ..storage.artifacts import ArtifactStore
@@ -389,22 +389,28 @@ class MethodHubService:
         phase_id: str,
         mode: str | None,
     ) -> dict[str, dict[str, Any]] | None:
-        """Compute the role-resource snapshot for the phase's roles."""
-        identity = self.specification.phases.identity(phase_id)
-        try:
-            plan = self.specification.resolve_phase(
-                identity,
-                mode or "",
-                {},
-                "current_only",
-            )
-        except Exception:
+        """Compute the role-resource snapshot for the phase's roles.
+
+        Roles are derived from the phase contract's role stages filtered by
+        the selected mode (the same filter ``resolve_phase`` applies), NOT
+        from a ``resolve_phase`` call with empty choice values: every mode
+        declares required choices, so that resolution always raises and the
+        basis would silently omit all role resources -- including for
+        method-bound modes, which is exactly the empty-choices omission gap.
+        """
+        if mode is None:
             return None
-        roles = {step.role for stage in plan.stages for step in stage.role_steps}
+        document = self.specification.phases.contract_document(phase_id)
+        roles = {
+            str(role)
+            for stage in document["role_stages"]
+            if mode in stage.get("applicable_modes", ())
+            for role in stage.get("roles", ())
+        }
         if not roles:
             return None
         try:
-            manifest = load_skill_manifest(self.skill_bundle_root)
+            manifest = load_skill_manifest(self.skill_bundle_root.parent)
             _, resources = compute_role_resources(
                 repository=self.repository,
                 settings=self.settings,
@@ -722,6 +728,53 @@ class MethodHubService:
             )
         except PhaseContractError as error:
             raise _schema_rejected(str(error)) from error
+
+        # NEW-command acceptance gate (C2/C6): the schema keeps sealed_basis
+        # optional so stored pre-upgrade commands still revalidate during
+        # restart recovery, but a command accepted from this point on must
+        # seal a complete reviewed basis. The descriptor match above already
+        # proves the basis is live-true; this gate proves it is complete.
+        # The idempotent-replay path returns before this point, so replays
+        # never re-resolve or re-gate (reviewed-basis test case 7).
+        try:
+            require_complete_sealed_basis(
+                sealed_basis=phase_view.descriptor_basis,
+                phase_roles={
+                    step.role
+                    for stage in plan.stages
+                    for step in stage.role_steps
+                },
+                required_input_ids={
+                    str(item["input_id"])
+                    for item in self.specification.phases.contract_document(
+                        command.phase
+                    )["required_inputs"]
+                    if str(item["presence"]) in {"always", "required_in_modes"}
+                    and not (
+                        str(item["presence"]) == "required_in_modes"
+                        and plan.mode_id not in item.get("required_in_modes", ())
+                    )
+                    and (
+                        item.get("applicable_modes") is None
+                        or plan.mode_id in item.get("applicable_modes")
+                    )
+                },
+                selected_input_ids=set(command.selected_context_option_ids),
+                expected_method=method,
+            )
+        except ValueError as error:
+            raise CommandRejected(
+                new_command_error(
+                    "STALE_BASIS",
+                    object_refs=[project_id, command.phase],
+                    researcher_message=str(error),
+                    smallest_correction=(
+                        "Refresh the phase view and review the updated basis "
+                        "before starting the run."
+                    ),
+                )
+            ) from error
+
         request = RunRequest(
             project_id=project_id,
             phase_contract=identity,

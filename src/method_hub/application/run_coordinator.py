@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from ..configuration.resources import RoleResourceCatalog
-from ..contracts.runtime import resolve_runtime_contract
+from ..contracts.runtime import RuntimePhaseContract, resolve_runtime_contract
 from ..domain.identities import MethodIdentity
 from ..domain.runs import RunStatus, isoformat_utc, utc_now
 from ..executors import RoleExecutor
@@ -233,7 +233,7 @@ class RunCoordinator:
             role_resources=resources,
         )
         self._verify_frozen_inputs(recipe)
-        self._verify_sealed_basis(command, recipe)
+        self._verify_sealed_basis(command, recipe, runtime=runtime)
         self.repository.freeze_manifest(run_id, recipe.sha256, recipe.document)
         self._mark_prepared(run_id, recipe)
 
@@ -567,14 +567,19 @@ class RunCoordinator:
                 )
 
     def _verify_sealed_basis(
-        self, command: dict[str, Any], recipe: PreparedRunRecipe
+        self,
+        command: dict[str, Any],
+        recipe: PreparedRunRecipe,
+        *,
+        runtime: RuntimePhaseContract,
     ) -> None:
         """Verify the sealed basis captured at view time against the freshly
         prepared run recipe.
 
         If the sealed basis in the command does not match the prepared state,
         the run is rejected with ``STALE_BASIS`` — the researcher must refresh
-        and re-review.
+        and re-review. A stored pre-upgrade command without ``sealed_basis``
+        (C6) passes through unchanged.
         """
         sealed = command.get("sealed_basis")
         if sealed is None:
@@ -596,7 +601,13 @@ class RunCoordinator:
                     "The formal authority head changed between review and preparation.",
                 )
 
-        # 2. Reviewed current inputs — generation_id drift
+        # 2. Reviewed current inputs — generation_id drift, and rejection of a
+        #    sealed entry that matches no frozen contract input (the reviewed
+        #    input is no longer part of the prepared basis).
+        frozen = recipe.document.get("frozen_inputs", ())
+        frozen_ids = {
+            str(item.get("contract_input_id", "")) for item in frozen
+        }
         for sealed_input in sealed.get("reviewed_current_inputs", ()):
             option_id = sealed_input.get("option_id")
             if option_id is None:
@@ -604,24 +615,58 @@ class RunCoordinator:
             sealed_gen = sealed_input.get("generation_id")
             if sealed_gen is None:
                 continue
-            for frozen in recipe.document.get("frozen_inputs", ()):
-                if str(frozen.get("contract_input_id", "")) == str(option_id):
-                    if str(frozen["generation_id"]) != str(sealed_gen):
+            if str(option_id) not in frozen_ids:
+                raise RepositoryConflictError(
+                    "stale_basis.input_generation_drifted",
+                    f"Reviewed current input {option_id!r} is not part of the prepared basis.",
+                )
+            for item in frozen:
+                if str(item.get("contract_input_id", "")) == str(option_id):
+                    if str(item["generation_id"]) != str(sealed_gen):
                         raise RepositoryConflictError(
                             "stale_basis.input_generation_drifted",
                             "A reviewed current input was republished before the run froze.",
                         )
                     break
 
-        # 3. Role resources
+        # 3. Method identity: the run must execute exactly the reviewed method.
+        #    The live method comes from the resolved runtime contract's choices;
+        #    either side missing while the other names a method is drift too.
+        sealed_method = sealed.get("method_identity")
+        live_method = _selected_method(runtime.plan.choice_values)
+        if live_method is None:
+            if sealed_method is not None:
+                raise RepositoryConflictError(
+                    "stale_basis.method_drifted",
+                    "The reviewed basis names a method but the prepared run is not method-bound.",
+                )
+        else:
+            if type(sealed_method) is not dict:
+                raise RepositoryConflictError(
+                    "stale_basis.method_drifted",
+                    "The reviewed basis does not name the method the prepared run will execute.",
+                )
+            expected = live_method.to_dict()
+            for key in ("stable_id", "version", "definition_sha256"):
+                if sealed_method.get(key) != expected[key]:
+                    raise RepositoryConflictError(
+                        "stale_basis.method_drifted",
+                        "The method the run will execute changed between review and preparation.",
+                    )
+
+        # 4. Role resources. The frozen recipe is the live reference at
+        #    preparation time: a role absent from the live catalog is absent
+        #    from the recipe's role_resources.
         sealed_resources = sealed.get("role_resources", {})
         if sealed_resources:
-            roles = set(sealed_resources)
-            _, live_resources = self._freeze_role_resources(project_id, roles)
+            live_resources = recipe.document.get("role_resources", {})
             for role, sealed_role in sealed_resources.items():
                 live_role = live_resources.get(role)
                 if live_role is None:
-                    continue
+                    raise RepositoryConflictError(
+                        "stale_basis.role_resource_drifted",
+                        f"Role {role!r} is no longer part of the prepared run.",
+                    )
                 for field in ("profile", "profile_version", "soul_sha256"):
                     if str(sealed_role.get(field, "")) != str(
                         live_role.get(field, "")
@@ -642,6 +687,37 @@ class RunCoordinator:
                     raise RepositoryConflictError(
                         "stale_basis.role_resource_drifted",
                         f"Skill bundles for role {role!r} changed between review and preparation.",
+                    )
+                # Every further field present in BOTH snapshots must match:
+                # soul text, per-skill source revisions, and any future digest
+                # field added to the snapshot.
+                for field in sorted(set(sealed_role) & set(live_role)):
+                    if field in (
+                        "profile",
+                        "profile_version",
+                        "soul_sha256",
+                        "skills",
+                    ):
+                        continue
+                    if str(sealed_role[field]) != str(live_role[field]):
+                        raise RepositoryConflictError(
+                            "stale_basis.role_resource_drifted",
+                            f"Role resource for {role!r} changed between review and preparation.",
+                        )
+                sealed_skill_entries = [
+                    dict(s)
+                    for s in sealed_role.get("skills", ())
+                    if type(s) is dict
+                ]
+                live_skill_entries = [
+                    dict(s)
+                    for s in live_role.get("skills", ())
+                    if type(s) is dict
+                ]
+                if sealed_skill_entries != live_skill_entries:
+                    raise RepositoryConflictError(
+                        "stale_basis.role_resource_drifted",
+                        f"Skill entries for role {role!r} changed between review and preparation.",
                     )
 
     @staticmethod

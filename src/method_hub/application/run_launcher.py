@@ -379,6 +379,7 @@ def launch_sealed_run(
     min_free_bytes: int = DEFAULT_MIN_FREE_BYTES,
     hermes_probe: Callable[[str], HermesProbe] | None = None,
     heartbeat_log_limit: int = DEFAULT_HEARTBEAT_LOG_LIMIT,
+    cancel_requested: Callable[[str], bool] | None = None,
 ) -> LaunchResult:
     """Launch one sealed run under the project-role state lock.
 
@@ -392,7 +393,12 @@ def launch_sealed_run(
     polling in tests); the Hermes binary, Hermes home, and profile
     argument behavior are always forced to the sealed-run values.
     *secret_env* injects provider keys into the Hermes process
-    environment at launch time — never persisted.
+    environment at launch time — never persisted.  *cancel_requested*
+    (if given) is consulted at close time: when it reports an explicit
+    user cancel for the invocation and the process died by signal, the
+    launch record closes as ``cancelled`` instead of ``failed``.  The
+    flag is never set by this launcher — only by the explicit cancel
+    command path (WP-F1b).
 
     Raises :class:`StateLockHeld` when another invocation holds the
     project-role state lock, :class:`LaunchPreflightError` when the
@@ -428,11 +434,25 @@ def launch_sealed_run(
 
     closed = False
 
-    def _close(status: str, result: RoleExecutionResult | None = None) -> None:
+    def _close(status: str, result: RoleExecutionResult | None = None) -> str:
+        """Close the launch record once, returning the recorded status."""
         nonlocal closed
         if closed:
-            return
+            return status
         closed = True
+        if (
+            cancel_requested is not None
+            and result is not None
+            and result.status is RoleExecutionStatus.FAILED
+            and cancel_requested(sealed.invocation_id)
+        ):
+            # The process was terminated by an EXPLICIT user cancel
+            # (WP-F1b): the executor reports a signal death as FAILED,
+            # and only the cancel path can know the death was a user
+            # command.  Classification happens here, at close time, so
+            # the launch record keeps a single writer.  This is never
+            # automatic: the flag is set solely by cancel_supervised_run.
+            status = "cancelled"
         records.close_launch_record(
             launch_id,
             status=status,
@@ -442,6 +462,7 @@ def launch_sealed_run(
             exit_code=result.exit_code if result is not None else None,
             closed_at=isoformat_utc(utc_now()),
         )
+        return status
 
     with assembler.state_lock(sealed.project_id, sealed.role, sealed.invocation_id):
         records.create_launch_record(
@@ -476,12 +497,12 @@ def launch_sealed_run(
             )
             result = asyncio.run(executor.execute(invocation, heartbeat_observer))
             _write_captured_logs(run_dir, result)
-            _close(result.status.value, result)
+            effective_status = _close(result.status.value, result)
             return LaunchResult(
                 launch_id=launch_id,
                 seal_id=sealed.seal_id,
                 invocation_id=sealed.invocation_id,
-                status=result.status,
+                status=RoleExecutionStatus(effective_status),
                 external_execution_id=result.external_execution_id,
                 exit_code=result.exit_code,
                 task_brief_sha256=brief_sha256,

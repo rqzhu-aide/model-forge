@@ -178,6 +178,10 @@ class MethodHubApplicationService(Protocol):
         raw_request: RawRequestReceipt,
     ) -> SupervisedRunStartResult: ...
 
+    async def cancel_supervised_run(
+        self, project_id: str, invocation_id: str
+    ) -> SupervisedRunDetail: ...
+
     async def get_artifact(
         self, project_id: str, artifact_id: str
     ) -> ArtifactDelivery: ...

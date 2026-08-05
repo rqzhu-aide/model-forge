@@ -367,6 +367,24 @@ def create_api_router() -> APIRouter:
             response.status_code = status.HTTP_200_OK
         return result.detail
 
+    @router.post(
+        "/projects/{project_id}/supervised-runs/{invocation_id}/cancel",
+        response_model=SupervisedRunDetail,
+        response_model_exclude_none=True,
+    )
+    async def cancel_supervised_run(
+        project_id: str, invocation_id: str, service: Service
+    ) -> SupervisedRunDetail:
+        """Cancel one running supervised invocation (explicit command; WP-F1b).
+
+        Returns the updated invocation detail once the run has been
+        cancelled: the launch record closes as ``cancelled`` (closed by
+        the launch worker, never by this path).  A missing invocation is
+        404; a terminal launch or a launch whose process identity is not
+        recorded yet is 409.
+        """
+        return await service.cancel_supervised_run(project_id, invocation_id)
+
     @router.get("/projects/{project_id}/artifacts/{artifact_id}")
     async def get_artifact(
         project_id: str,

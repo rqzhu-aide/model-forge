@@ -489,6 +489,25 @@ class RunSealStore:
                 (task_brief_sha256, launch_id),
             )
 
+    def record_launch_external_id(
+        self, launch_id: str, external_execution_id: str
+    ) -> None:
+        """Record the durable external process id on a RUNNING launch record.
+
+        Written by the launch-acknowledged observer immediately after the
+        process exists (WP-F1b), so an explicit cancel can target the
+        process while the launch is still running; the close path also
+        writes it at closure.  The ``running`` guard keeps an
+        acknowledge that somehow arrives after closure from clobbering
+        the terminal record.
+        """
+        with self._db.transaction() as conn:
+            conn.execute(
+                "UPDATE run_launch_records SET external_execution_id = ? "
+                "WHERE launch_id = ? AND status = 'running'",
+                (external_execution_id, launch_id),
+            )
+
     def close_launch_record(
         self,
         launch_id: str,

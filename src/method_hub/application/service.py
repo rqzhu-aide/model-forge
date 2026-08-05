@@ -7,6 +7,8 @@ import hashlib
 import json
 import logging
 import os
+import threading
+import time
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
@@ -74,7 +76,11 @@ from ..contracts import PhaseContractError
 from ..digests.jcs import canonicalize
 from ..domain.identities import MethodIdentity
 from ..domain.runs import RunRequest, isoformat_utc, utc_now
-from ..executors.local_hermes import LocalHermesExecutorSettings
+from ..executors.local_hermes import (
+    LocalHermesExecutor,
+    LocalHermesExecutorSettings,
+)
+from ..executors.protocol import ExecutionObserver, RoleInvocation
 from ..harness.commands import build_run_command, require_complete_sealed_basis
 from ..harness.role_resource_snapshot import compute_role_resources, load_skill_manifest
 from ..specification import SpecificationPackage
@@ -142,6 +148,44 @@ def _provider_secret_env() -> dict[str, str]:
     }
 
 
+#: Bounded wait for the launch worker thread to close the launch record
+#: after an explicit cancel has terminated the process (WP-F1b).  The
+#: worker owns record closure; this is only how long the cancel path
+#: waits for the terminal record before answering.
+_CANCEL_SETTLE_TIMEOUT_SECONDS = 20.0
+
+
+class ExternalIdRecordingObserver:
+    """ExecutionObserver that persists the durable external id at launch.
+
+    The E0 launcher fires ``launch_acknowledged`` immediately after the
+    process exists, with the REAL durable identity (``local:pid:...``).
+    This observer writes that id onto the RUNNING launch record so an
+    explicit cancel can target the process before the record closes
+    (WP-F1b).  Without it the id would only exist at close time.
+    """
+
+    def __init__(self, store: RunSealStore) -> None:
+        self._store = store
+
+    async def launch_intent(self, invocation: RoleInvocation) -> None:
+        return None
+
+    async def launch_acknowledged(
+        self, invocation: RoleInvocation, external_execution_id: str
+    ) -> None:
+        record = self._store.find_launch_record_by_invocation(
+            invocation.invocation_id
+        )
+        if record is not None:
+            self._store.record_launch_external_id(
+                str(record["launch_id"]), external_execution_id
+            )
+
+    async def heartbeat(self, invocation: RoleInvocation, activity: str) -> None:
+        return None
+
+
 class MethodHubService:
     """Local researcher service with explicit command and projection boundaries."""
 
@@ -186,6 +230,11 @@ class MethodHubService:
         self._supervised_executor_settings = supervised_executor_settings
         self._supervised_min_free_bytes = supervised_min_free_bytes
         self._background: set[asyncio.Task[None]] = set()
+        #: Explicit cancel requests per invocation (WP-F1b).  Set ONLY by
+        #: the user-facing cancel command, consulted by the launch worker
+        #: thread at close time so a signal death classifies as
+        #: ``cancelled`` rather than ``failed``.  Never set automatically.
+        self._cancel_requests: dict[str, threading.Event] = {}
 
     @property
     def run_seal_store(self) -> RunSealStore:
@@ -1240,6 +1289,131 @@ class MethodHubService:
             replayed=False,
         )
 
+    async def cancel_supervised_run(
+        self, project_id: str, invocation_id: str
+    ) -> SupervisedRunDetail:
+        """Cancel one running supervised invocation (explicit command; WP-F1b).
+
+        This is an explicit user command — nothing here cancels runs
+        automatically.  The flow:
+
+        1. **Lookup** — the latest launch record for the invocation is
+           located through the seal store; a missing invocation or a
+           seal under another project is 404, and an invocation with no
+           launch record at all is 404 as well (there is nothing to
+           cancel).
+        2. **State check** — a terminal launch (``succeeded``,
+           ``failed``, ``cancelled``) is 409: there is nothing to
+           cancel.  A launch still ``running`` whose durable external
+           process id has not been recorded yet (the launch-acknowledged
+           observer has not fired) is 409 with a retry hint.
+        3. **Identity-safe signal** — the executor's ``cancel`` is
+           called with the durable external id.  It verifies the
+           process identity (``/proc`` start time + boot id) before
+           signalling the process group, and refuses on mismatch, so a
+           recycled PID is never killed (C2).
+        4. **Worker-owned closure** — this method NEVER closes the
+           launch record.  The launch worker thread's ``execute``
+           returns when the process dies and the launcher closes the
+           record as ``cancelled`` (the explicit-cancel classification
+           is conveyed to the launcher via the per-invocation cancel
+           event).  This method waits, bounded, for that terminal record
+           and returns the updated invocation detail.
+        """
+        store = self.run_seal_store
+        seal = store.find_by_invocation_id(invocation_id)
+        if seal is None or str(seal["project_id"]) != project_id:
+            raise _not_found(
+                RepositoryNotFoundError("supervised run", invocation_id)
+            )
+        launch = store.find_launch_record_by_invocation(invocation_id)
+        if launch is None:
+            raise _not_found(
+                RepositoryNotFoundError("supervised run", invocation_id)
+            )
+        status = str(launch["status"])
+        if status in ("succeeded", "failed", "cancelled"):
+            raise CommandRejected(
+                new_command_error(
+                    "INVALID_TRANSITION",
+                    object_refs=[project_id, invocation_id],
+                    researcher_message=(
+                        f"The supervised run {invocation_id!r} already "
+                        f"finished with status {status!r}; there is nothing "
+                        "to cancel."
+                    ),
+                    smallest_correction=(
+                        "Start a new supervised run if you need another "
+                        "execution."
+                    ),
+                )
+            )
+        external_id = launch["external_execution_id"]
+        if not external_id:
+            raise CommandRejected(
+                new_command_error(
+                    "TARGET_STATE_MISMATCH",
+                    object_refs=[project_id, invocation_id],
+                    researcher_message=(
+                        f"The supervised run {invocation_id!r} is still "
+                        "starting up; its durable process identity is not "
+                        "recorded yet, so it is not yet cancellable. "
+                        "Retry in a moment."
+                    ),
+                    smallest_correction=(
+                        "Retry the cancel once the run is running."
+                    ),
+                )
+            )
+
+        # Record the EXPLICIT cancel request before signalling, so the
+        # launcher (which owns record closure) classifies the signal
+        # death as ``cancelled``.  Cleared if the signal path fails.
+        cancel_event = self._cancel_requests.setdefault(
+            invocation_id, threading.Event()
+        )
+        cancel_event.set()
+        try:
+            await self._supervised_cancel_executor().cancel(str(external_id))
+        except Exception:
+            cancel_event.clear()
+            raise
+
+        # Wait, bounded, for the worker thread to close the record.  The
+        # cancel path never writes the record itself — the launcher is
+        # the single writer.
+        deadline = time.monotonic() + _CANCEL_SETTLE_TIMEOUT_SECONDS
+        while time.monotonic() < deadline:
+            current = store.find_launch_record_by_invocation(invocation_id)
+            if current is not None and str(current["status"]) != "running":
+                return supervised_run_detail(seal, store)
+            await asyncio.sleep(0.05)
+        raise CommandRejected(
+            new_command_error(
+                "INVALID_TRANSITION",
+                object_refs=[project_id, invocation_id],
+                researcher_message=(
+                    f"The cancel of supervised run {invocation_id!r} did "
+                    "not settle: the launch record is still running. "
+                    "Check the run's state and retry."
+                ),
+                smallest_correction=(
+                    "Retry the cancel, or inspect the run detail for the "
+                    "current state."
+                ),
+            )
+        )
+
+    def _supervised_cancel_executor(self) -> LocalHermesExecutor:
+        """Build the executor used for identity-safe cancels.
+
+        ``cancel`` needs no invocation or binary: the durable external
+        id is self-contained (pid, start time, boot id, marker), and the
+        settings only contribute the SIGTERM grace period.
+        """
+        settings = self._supervised_executor_settings or LocalHermesExecutorSettings()
+        return LocalHermesExecutor(settings)
+
     def _launch_supervised_in_background(
         self, sealed: SealedRun, brief_path: Path
     ) -> None:
@@ -1250,12 +1424,24 @@ class MethodHubService:
         launcher closes its launch record as ``failed`` on every abort
         and re-raises; this wrapper logs the exception so the failure is
         never silent, and never lets it crash the server.
+
+        The ``observer`` persists the durable external id onto the
+        RUNNING launch record the moment the process exists (WP-F1b);
+        ``cancel_requested`` lets the launcher classify an explicitly
+        cancelled process as ``cancelled`` at close time.  Both are
+        explicit-command plumbing — nothing here starts or stops runs on
+        its own.
         """
+        cancel_event = self._cancel_requests.setdefault(
+            sealed.invocation_id, threading.Event()
+        )
         try:
             launch_sealed_run(
                 assembler=self.run_profile_assembler,
                 seal_or_invocation_id=sealed,
                 task_brief=brief_path,
+                observer=ExternalIdRecordingObserver(self.run_seal_store),
+                cancel_requested=lambda _invocation: cancel_event.is_set(),
                 executor_settings=self._supervised_executor_settings,
                 secret_env=_provider_secret_env(),
                 min_free_bytes=self._supervised_min_free_bytes,
@@ -1268,6 +1454,10 @@ class MethodHubService:
                 sealed.project_id,
                 sealed.role,
             )
+        finally:
+            # The worker has closed the record (terminal); a cancel flag
+            # for this invocation is no longer meaningful.
+            self._cancel_requests.pop(sealed.invocation_id, None)
 
     async def get_artifact(
         self, project_id: str, artifact_id: str

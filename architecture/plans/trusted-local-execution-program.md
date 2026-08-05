@@ -313,8 +313,11 @@ command.
   running -> succeeded transition is proven at the service level).
   Idempotent replay, 409 lock/preflight, env-allowlist secrets, strict
   request schema. 651 tests green.
-- **WP-F1b - run cancel endpoint (backend)**: POST cancel via the
-  executor's identity-safe cancel on the durable external id.
+- **WP-F1b complete** (commit `b5a0a5a`): POST cancel - durable external
+  id now recorded at launch_acknowledge (running-guarded), identity-safe
+  cancel via the executor, explicit cancels classify as cancelled (not
+  failed; executor emits no CANCELLED status - optional launcher hook,
+  default None). 657 tests green.
 - **WP-F1c - preflight persistence (backend, tiny)**: record the preflight
   report at launch time so the closure view can show it.
 - **WP-F2 - Configuration page (frontend)**: role list with health badges,

@@ -329,10 +329,11 @@ command.
   Configuration page + role detail with the 409 -> explicit overwrite
   confirmation flow (never auto-force; digests from the health endpoint).
   vitest 62/62, build clean.
-- **WP-F3a - run list + start form (frontend)**: per-project
-  supervised-run list (F0 API) with status pills + the start form
-  (invocation/idempotency, role, phase, method identity, brief, expected
-  outputs, memory policy) wired to the F1a POST with 409 error display.
+- **WP-F3a complete** (commit `902d479`): list with live polling +
+  start form with 400/409 displays (preflight failures show the failed
+  check names). vitest 77/77, build clean. Test-orchestration lesson:
+  TanStack refetch chains under fake timers need vi.waitFor, not fixed
+  advances.
 - **WP-F3b - run detail + closure view (frontend)**: sealed basis/manifest
   summary, preflight report, launch records with live polling, cancel
   button (F1b), validation report, promotion history, receipt, smallest

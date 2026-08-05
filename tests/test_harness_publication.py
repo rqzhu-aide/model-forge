@@ -32,7 +32,7 @@ def _sha(value: str) -> str:
 
 def _repository(tmp_path: Path) -> HubRepository:
     repository = HubRepository(tmp_path / "hub.sqlite3")
-    assert repository.initialize() == 9
+    assert repository.initialize() == 10
     repository.create_project("project.publication", {"name": "Publication test"})
     return repository
 

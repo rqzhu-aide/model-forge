@@ -567,6 +567,30 @@ _LAUNCH_RECORD_SCHEMA = (
 )
 
 
+#: One preflight report per supervised start attempt (WP-F1c).  Written
+#: synchronously by the start command right after the WP-D2b preflight
+#: runs, on BOTH the pass and the fail path, so a refusal is durable
+#: evidence rather than a transient 409.  ``launch_id`` stays NULL on the
+#: fail path (no launch record exists yet); the full per-check report is
+#: preserved in ``report_json``.
+_PREFLIGHT_REPORT_SCHEMA = (
+    """
+    CREATE TABLE run_preflight_reports (
+        report_id TEXT PRIMARY KEY,
+        launch_id TEXT,
+        invocation_id TEXT NOT NULL,
+        verdict TEXT NOT NULL CHECK (verdict IN ('pass', 'fail')),
+        report_json TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE INDEX run_preflight_reports_invocation_time
+        ON run_preflight_reports(invocation_id, created_at)
+    """,
+)
+
+
 HUB_MIGRATIONS = (
     Migration(1, _CONTROL_SCHEMA, name="control and run storage"),
     Migration(2, _EXECUTION_SCHEMA, name="role execution and submission storage"),
@@ -596,6 +620,11 @@ HUB_MIGRATIONS = (
         9,
         _PROMOTION_RECORD_SCHEMA,
         name="allowlisted memory/session promotion records (WP-E2)",
+    ),
+    Migration(
+        10,
+        _PREFLIGHT_REPORT_SCHEMA,
+        name="supervised-run preflight reports (WP-F1c)",
     ),
 )
 

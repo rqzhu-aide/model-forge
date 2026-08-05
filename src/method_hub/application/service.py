@@ -1256,6 +1256,12 @@ class MethodHubService:
             sealed,
             min_free_bytes=self._supervised_min_free_bytes,
         )
+        # WP-F1c: the report is durable evidence on BOTH paths — a pass
+        # is recorded before the launch is dispatched, a fail before the
+        # 409 is raised.  (The launcher's own pre-run re-check inside
+        # ``launch_sealed_run`` is not persisted here; only the start
+        # command's synchronous report is.)
+        store.record_preflight_report(sealed.invocation_id, report.to_dict())
         if not report.passed:
             raise CommandRejected(
                 new_command_error(

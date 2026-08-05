@@ -601,6 +601,50 @@ class RunSealStore:
             ).fetchone()
         return dict(row) if row is not None else None
 
+    # -- preflight reports (WP-F1c) -------------------------------------
+
+    def record_preflight_report(
+        self,
+        invocation_id: str,
+        report_dict: dict[str, Any],
+        launch_id: str | None = None,
+    ) -> str:
+        """Persist one WP-D2b preflight report for a supervised invocation.
+
+        Called synchronously by the start command right after the
+        preflight runs, on BOTH the pass and the fail path: a pass is
+        recorded before the launch is dispatched, a fail before the 409
+        is raised.  The fail path has no launch record yet, so
+        ``launch_id`` is optional.  Returns the new report id.
+        """
+        report_id = uuid.uuid4().hex
+        with self._db.transaction() as conn:
+            conn.execute(
+                "INSERT INTO run_preflight_reports "
+                "(report_id, launch_id, invocation_id, verdict, report_json, "
+                " created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    report_id,
+                    launch_id,
+                    invocation_id,
+                    "pass" if report_dict.get("passed") else "fail",
+                    json.dumps(report_dict),
+                    isoformat_utc(utc_now()),
+                ),
+            )
+        return report_id
+
+    def get_preflight_report(self, invocation_id: str) -> dict[str, Any] | None:
+        """Return the most recent stored preflight report for one invocation."""
+        with self._db.connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM run_preflight_reports WHERE invocation_id = ? "
+                "ORDER BY created_at DESC LIMIT 1",
+                (invocation_id,),
+            ).fetchone()
+        return dict(row) if row is not None else None
+
     # -- promotion records (WP-E2) --------------------------------------
 
     def record_promotion(

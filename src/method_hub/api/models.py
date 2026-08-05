@@ -575,6 +575,15 @@ class SupervisedPromotionRecord(StrictModel):
     backup_paths: dict[str, Any]
 
 
+class SupervisedPreflightReport(StrictModel):
+    """The latest stored preflight report for one invocation (WP-F1c)."""
+
+    report_id: NonEmptyString
+    verdict: Literal["pass", "fail"]
+    created_at: NonEmptyString
+    checks: list[dict[str, str]]
+
+
 class SupervisedRunDetail(StrictModel):
     """The complete durable read view of one supervised invocation (WP-F0)."""
 
@@ -585,7 +594,7 @@ class SupervisedRunDetail(StrictModel):
     sealed_at: NonEmptyString
     manifest: SupervisedManifestSummary | None = None
     manifest_note: NonEmptyString | None = None
-    preflight_report: None = None
+    preflight_report: SupervisedPreflightReport | None = None
     preflight_note: NonEmptyString | None = None
     launches: list[SupervisedLaunchRecord]
     validation: SupervisedValidationReport | None = None

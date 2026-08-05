@@ -12,9 +12,12 @@ Covers: list summaries with digest-verified manifest fields; the full
 detail view (manifest summary, launch records, validation report,
 promotion records); project-scoped 404 for an invocation sealed under a
 different project id; empty list for a project without supervised runs;
-empty list (not an error) when no hub.sqlite3 exists at all; and the
+empty list (not an error) when no hub.sqlite3 exists at all; the
 digest-verification behavior of ``read_manifest_document`` when the
-stored manifest bytes no longer match the registry digest.
+stored manifest bytes no longer match the registry digest; and WP-F1c
+preflight-report persistence (a started run shows its stored PASS
+report with all eight checks, a refused start persists its FAIL report,
+and a sealed-but-never-started invocation still shows null + note).
 """
 
 from __future__ import annotations
@@ -37,6 +40,7 @@ from method_hub.application.service import MethodHubService
 from method_hub.application.settings import ApplicationSettings
 from method_hub.configuration.resources import RoleResourceCatalog
 from method_hub.domain.runs import isoformat_utc, utc_now
+from method_hub.executors.local_hermes import LocalHermesExecutorSettings
 from method_hub.profiles.project_profiles import MemoryPolicy
 from method_hub.specification import SpecificationPackage
 from method_hub.storage.artifacts import ArtifactStore
@@ -54,28 +58,91 @@ FAKE_HERMES = HermesProbe("/fake/hermes", "9.9.9")
 PROJECT = "proj-001"
 OTHER_PROJECT = "proj-002"
 
+#: The WP-D2b preflight's eight named checks, in report order.
+PREFLIGHT_CHECK_NAMES = [
+    "hermes_executable",
+    "role_assets",
+    "selected_state",
+    "paths_permissions",
+    "free_space",
+    "lock_ownership",
+    "task_brief",
+    "output_contract",
+]
+
+#: Stub Hermes executable for start-endpoint tests: answers ``--version``
+#: (the seal probe and the preflight's hermes_executable check both run
+#: it) and otherwise exits 0 after a short pause so the launch settles
+#: quickly (mirrors the WP-F1a stub).
+_STUB_SCRIPT = r'''#!/usr/bin/env python3
+"""Stub Hermes executable for WP-F1c preflight-persistence tests."""
+import argparse
+import sys
+import time
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--version", action="store_true")
+    parser.add_argument("-z", dest="prompt")
+    parser.add_argument("-p", dest="profile")
+    parser.add_argument("--usage-file", dest="usage_file")
+    parser.add_argument("-m", dest="model")
+    parser.add_argument("--provider", dest="provider")
+    parser.add_argument("--skills", dest="skills")
+    args, _ = parser.parse_known_args()
+
+    if args.version:
+        print("stub-hermes 0.0.1")
+        sys.exit(0)
+
+    time.sleep(0.5)
+
+    if args.usage_file:
+        with open(args.usage_file, "w") as f:
+            f.write('{"tokens": 1}')
+    sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()
+'''
+
 
 # --------------------------------------------------------------------------- #
 # Fixtures                                                                     #
 # --------------------------------------------------------------------------- #
 
 
-def _environment(tmp_path: Path, *, seed_store: bool = True) -> dict[str, Any]:
+def _environment(
+    tmp_path: Path,
+    *,
+    seed_store: bool = True,
+    hermes_executable: str | None = None,
+    supervised_executor_settings: LocalHermesExecutorSettings | None = None,
+) -> dict[str, Any]:
     """Service + TestClient over one tmp data root, seeded like WP-E tests.
 
     The hub repository lives at ``method-hub.sqlite3`` (the production
     layout); the supervised-run machinery — and the service's lazy
     ``run_seal_store`` — lives at ``hub.sqlite3`` under the same root.
+    ``hermes_executable``/``supervised_executor_settings`` wire the
+    service for start-endpoint tests (WP-F1c); without them the
+    environment serves the WP-F0 read surface only.
     """
     workspace = WorkspacePaths(tmp_path / "data", create=True)
     repository = HubRepository(workspace.root / "method-hub.sqlite3")
     repository.initialize()
+    settings = ApplicationSettings(data_root=workspace.root)
+    if hermes_executable is not None:
+        settings.hermes_executable = hermes_executable
     service = MethodHubService(
-        settings=ApplicationSettings(data_root=workspace.root),
+        settings=settings,
         specification=SpecificationPackage.load(ROOT / "architecture"),
         repository=repository,
         artifacts=ArtifactStore(workspace),
         role_resources=RoleResourceCatalog.load(RESOURCE_ROOT),
+        supervised_executor_settings=supervised_executor_settings,
     )
     assembler: RunProfileAssembler | None = None
     store: RunSealStore | None = None
@@ -110,6 +177,60 @@ def _environment(tmp_path: Path, *, seed_store: bool = True) -> dict[str, Any]:
 @pytest.fixture
 def environment(tmp_path: Path) -> dict[str, Any]:
     return _environment(tmp_path)
+
+
+@pytest.fixture
+def stub_hermes(tmp_path: Path) -> Path:
+    """Create the stub Hermes executable and return its absolute path."""
+    stub = tmp_path / "stub-hermes"
+    stub.write_text(_STUB_SCRIPT)
+    stub.chmod(0o755)
+    return stub
+
+
+def _start_payload(**overrides: Any) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "invocation_id": "inv-001",
+        "idempotency_key": "key-001",
+        "role": "theorist",
+        "phase": "P3",
+        "method_identity": {"method_id": "mh-1", "version": "1.0"},
+        "brief_text": "# Brief\nProduce the declared output.\n",
+        "expected_outputs": [
+            {
+                "output_id": "out-1",
+                "path": "results/summary.json",
+                "required_fields": ["conclusion"],
+            },
+        ],
+        "memory_policy": "persistent",
+    }
+    payload.update(overrides)
+    return payload
+
+
+def _post_start(client: TestClient, **overrides: Any):
+    return client.post(
+        f"/api/v1/projects/{PROJECT}/supervised-runs",
+        json=_start_payload(**overrides),
+    )
+
+
+def _start_environment(
+    tmp_path: Path, stub_hermes: Path
+) -> dict[str, Any]:
+    """WP-F1c start-capable environment: real stub binary + fast executor."""
+    return _environment(
+        tmp_path,
+        hermes_executable=str(stub_hermes),
+        supervised_executor_settings=LocalHermesExecutorSettings(
+            hermes_binary=str(stub_hermes),
+            poll_interval_seconds=0.05,
+            output_limit_bytes=65536,
+            terminate_grace_seconds=1,
+            kill_grace_seconds=1,
+        ),
+    )
 
 
 def _seal_kwargs(**overrides: Any) -> dict[str, Any]:
@@ -337,9 +458,10 @@ def test_detail_returns_manifest_launches_validation_and_promotions(
     assert promotion["after_digest"] == {"memories/MEMORY.md": "b" * 64}
     assert promotion["backup_paths"] == {"memories/MEMORY.md": "backup/MEMORY.md"}
 
-    # Preflight reports are not persisted (WP-D2b) — by design.
+    # Sealed but never started: no preflight report was recorded (the
+    # start command persists reports; this run was never started).
     assert "preflight_report" not in detail
-    assert "not persisted" in detail["preflight_note"]
+    assert "No preflight report" in detail["preflight_note"]
 
 
 def test_detail_for_invocation_sealed_under_other_project_is_404(
@@ -399,3 +521,123 @@ def test_detail_with_tampered_manifest_degrades_to_note(
     assert "phase" not in summary
     assert "memory_policy" not in summary
     assert summary["sealed_at"] == sealed.sealed_at
+
+
+# --------------------------------------------------------------------------- #
+# Preflight report persistence (WP-F1c)                                        #
+# --------------------------------------------------------------------------- #
+
+
+def test_start_persists_pass_preflight_report_visible_in_detail(
+    tmp_path: Path, stub_hermes: Path
+) -> None:
+    """A started run persists its preflight report: the detail endpoint
+    shows the verdict plus all eight named checks (WP-F1c)."""
+    environment = _start_environment(tmp_path, stub_hermes)
+    client = environment["client"]
+    store = environment["store"]
+    assert store is not None
+
+    response = _post_start(client)
+    assert response.status_code == 202
+
+    # The report was persisted by the start command before the launch
+    # was dispatched.
+    stored = store.get_preflight_report("inv-001")
+    assert stored is not None
+    assert stored["verdict"] == "pass"
+    assert len(json.loads(stored["report_json"])["checks"]) == 8
+
+    # The WP-F0 detail endpoint surfaces the persisted report.
+    detail = client.get(
+        f"/api/v1/projects/{PROJECT}/supervised-runs/inv-001"
+    ).json()
+    preflight = detail["preflight_report"]
+    assert preflight["verdict"] == "pass"
+    assert preflight["report_id"]
+    assert preflight["created_at"]
+    names = [check["name"] for check in preflight["checks"]]
+    assert names == PREFLIGHT_CHECK_NAMES
+    assert all(
+        check["status"] in ("pass", "fail", "warning")
+        for check in preflight["checks"]
+    )
+    assert "preflight_note" not in detail
+
+    # The run itself still reaches its terminal state as before.
+    assert detail["launches"][0]["status"] == "succeeded"
+
+
+def test_preflight_failure_persists_fail_report_visible_in_detail(
+    tmp_path: Path, stub_hermes: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A refused start (tampered SOUL after sealing) persists the FAIL
+    report: the 409 carries it and the detail endpoint shows it."""
+    environment = _start_environment(tmp_path, stub_hermes)
+    service: MethodHubService = environment["service"]
+    client = environment["client"]
+    store = environment["store"]
+    assert store is not None
+
+    # Tamper the run profile's SOUL between sealing and preflight, so the
+    # role_assets check fails deterministically.
+    assembler = service.run_profile_assembler
+    original_seal = assembler.seal_invocation
+
+    def seal_then_tamper_soul(**kwargs: Any) -> SealedRun:
+        sealed = original_seal(**kwargs)
+        soul = sealed.run_dir / "profile" / "SOUL.md"
+        soul.write_text(
+            soul.read_text(encoding="utf-8") + "\n# tampered after sealing\n",
+            encoding="utf-8",
+        )
+        return sealed
+
+    monkeypatch.setattr(assembler, "seal_invocation", seal_then_tamper_soul)
+
+    response = _post_start(client)
+    assert response.status_code == 409
+    payload = response.json()
+    assert payload["code"] == "SUPERVISED_RUN_PREFLIGHT_FAILED"
+    assert "role_assets" in payload["detail"]["failed_checks"]
+
+    # The FAIL report was persisted before the 409 was raised.
+    stored = store.get_preflight_report("inv-001")
+    assert stored is not None
+    assert stored["verdict"] == "fail"
+    assert "role_assets" in json.loads(stored["report_json"])["failed_checks"]
+
+    # The detail endpoint shows the persisted FAIL report with all eight
+    # checks; no process was ever launched.
+    detail = client.get(
+        f"/api/v1/projects/{PROJECT}/supervised-runs/inv-001"
+    ).json()
+    preflight = detail["preflight_report"]
+    assert preflight["verdict"] == "fail"
+    names = [check["name"] for check in preflight["checks"]]
+    assert names == PREFLIGHT_CHECK_NAMES
+    role_assets = next(
+        check for check in preflight["checks"] if check["name"] == "role_assets"
+    )
+    assert role_assets["status"] == "fail"
+    assert "SOUL.md" in role_assets["detail"]
+    assert "preflight_note" not in detail
+    assert detail["launches"] == []
+
+
+def test_sealed_but_never_started_shows_preflight_null_and_note(
+    environment: dict[str, Any],
+) -> None:
+    """A sealed-but-never-started invocation has no stored preflight
+    report: the detail view keeps the null report plus the note."""
+    assembler = environment["assembler"]
+    assert assembler is not None
+    client = environment["client"]
+
+    sealed = _seal(assembler)
+
+    detail = client.get(
+        f"/api/v1/projects/{PROJECT}/supervised-runs/{sealed.invocation_id}"
+    ).json()
+    assert "preflight_report" not in detail
+    assert "No preflight report" in detail["preflight_note"]

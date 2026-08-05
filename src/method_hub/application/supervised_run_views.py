@@ -23,6 +23,7 @@ from typing import Any, Mapping
 from ..api.models import (
     SupervisedLaunchRecord,
     SupervisedManifestSummary,
+    SupervisedPreflightReport,
     SupervisedPromotionRecord,
     SupervisedRunDetail,
     SupervisedRunSummary,
@@ -38,13 +39,14 @@ from .run_profile_assembler import RunSealStore
 #: ended.
 _READ_LIMIT = 1000
 
-#: WP-D2b (``run_preflight``) reports in memory only — it never persists
-#: the report, and the launch flow consumes it solely to abort.  There is
-#: therefore no durable preflight report to surface; the detail view
-#: carries this note instead of a report.
+#: WP-F1c persists the preflight report at start time (pass and fail
+#: paths alike).  A run with no stored report was sealed but never
+#: started, or started before persistence; the detail view carries this
+#: note instead of a report.
 PREFLIGHT_NOT_PERSISTED_NOTE = (
-    "Preflight reports are not persisted (WP-D2b runs read-only and never "
-    "writes its report); no preflight data is available."
+    "No preflight report was recorded for this run: the start command "
+    "persists reports, so a sealed-but-never-started invocation (or one "
+    "started before preflight persistence) has none."
 )
 
 
@@ -128,6 +130,7 @@ def supervised_run_detail(
     # The store returns promotions newest-first; report them
     # chronologically, matching the launch records.
     promotions.reverse()
+    preflight = store.get_preflight_report(str(record["invocation_id"]))
     return SupervisedRunDetail(
         invocation_id=str(record["invocation_id"]),
         seal_id=str(record["seal_id"]),
@@ -146,8 +149,12 @@ def supervised_run_detail(
                 "the run directory)."
             )
         ),
-        preflight_report=None,
-        preflight_note=PREFLIGHT_NOT_PERSISTED_NOTE,
+        preflight_report=(
+            _preflight_view(preflight) if preflight is not None else None
+        ),
+        preflight_note=(
+            None if preflight is not None else PREFLIGHT_NOT_PERSISTED_NOTE
+        ),
         launches=[_launch_view(row) for row in launches],
         validation=(
             _validation_view(validation) if validation is not None else None
@@ -228,6 +235,31 @@ def _validation_view(row: Mapping[str, Any]) -> SupervisedValidationReport:
         launch_id=str(row["launch_id"]),
         verdict=str(row["verdict"]),
         validated_at=str(row["validated_at"]),
+        checks=checks,
+    )
+
+
+def _preflight_view(row: Mapping[str, Any]) -> SupervisedPreflightReport:
+    """Project one stored preflight report row (WP-F1c)."""
+    checks: list[dict[str, str]] = []
+    try:
+        document = json.loads(str(row["report_json"]))
+    except ValueError:
+        document = None
+    if isinstance(document, dict) and isinstance(document.get("checks"), list):
+        checks = [
+            {
+                "name": str(check.get("name")),
+                "status": str(check.get("status")),
+                "detail": str(check.get("detail")),
+            }
+            for check in document["checks"]
+            if isinstance(check, dict)
+        ]
+    return SupervisedPreflightReport(
+        report_id=str(row["report_id"]),
+        verdict=str(row["verdict"]),
+        created_at=str(row["created_at"]),
         checks=checks,
     )
 

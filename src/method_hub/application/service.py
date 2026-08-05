@@ -418,6 +418,8 @@ class MethodHubService:
                 skill_manifest=manifest,
                 roles=roles,
                 project_id=project_id,
+                contract_document=document,
+                mode=mode,
             )
         except Exception:
             return None
@@ -1427,6 +1429,13 @@ class MethodHubService:
             )
 
         try:
+            if effective_profile == "default":
+                raise ProvisioningError(
+                    f"Profile name {effective_profile!r} is reserved: it "
+                    f"resolves to the Hermes root directory itself. Refusing "
+                    f"to provision role {role_id!r} into it; assign a "
+                    f"dedicated profile for this role."
+                )
             result = provision_role_definition(
                 resource=resource,
                 profile_home=profile_home,
@@ -1457,6 +1466,21 @@ class MethodHubService:
                         "Resolve the conflict explicitly: keep the customized "
                         "file or force-overwrite it with the reference, then "
                         "provision again."
+                    ),
+                )
+            ) from error
+        except (SkillConflictError, SkillInstallationError) as error:
+            raise CommandRejected(
+                new_command_error(
+                    "CUSTOMIZATION_CONFLICT",
+                    object_refs=[role_id, effective_profile],
+                    researcher_message=(
+                        f"A recommended skill for role {role_id!r} conflicts "
+                        f"with a customized local skill directory: {error}"
+                    ),
+                    smallest_correction=(
+                        "Resolve the local skill directory, refresh, and "
+                        "provision again, or force-overwrite the skill."
                     ),
                 )
             ) from error

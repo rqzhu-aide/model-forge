@@ -668,6 +668,8 @@ class RoleHealthReportView(StrictModel):
             "config_missing",
             "skill_mismatch",
             "skill_missing",
+            "skill_unavailable",
+            "bundle_missing",
         ]
     ]
     detail: str
@@ -691,6 +693,8 @@ class ConfigurationHealthView(StrictModel):
             "config_missing",
             "skill_mismatch",
             "skill_missing",
+            "skill_unavailable",
+            "bundle_missing",
         ]
     ]
 

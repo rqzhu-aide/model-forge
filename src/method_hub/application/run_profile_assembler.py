@@ -129,6 +129,11 @@ _WRITABLE_PROFILE_DIRS: tuple[str, ...] = (
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
 
+#: A skill id is used verbatim as one path component under both the
+#: bundle root and ``profile_dir/skills``.  It must be a single safe
+#: component: no path separators, no ``..``, no leading dot.
+_SKILL_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
+
 
 # --------------------------------------------------------------------------- #
 # Errors                                                                       #
@@ -226,6 +231,29 @@ def _validate_identifier(value: str, label: str) -> str:
     if value in {".", ".."}:
         raise RunSealError(f"{label} must not be a path component.")
     return value
+
+
+def _validate_skill_id(skill_id: str) -> str:
+    """Reject skill ids that could escape the bundle or profile roots.
+
+    The id is used verbatim as a single path component under both
+    ``bundle_root`` and ``profile_dir/skills``, so path separators,
+    ``..`` components, and leading dots are refused outright.  Mirrors
+    the installer's character gate (``skill_installer.py``) and is the
+    assembler-side defense for ids that never pass through the installer
+    (H1 path traversal).
+    """
+    if (
+        type(skill_id) is not str
+        or not skill_id
+        or _SKILL_ID_RE.fullmatch(skill_id) is None
+        or ".." in skill_id
+    ):
+        raise RunSealError(
+            f"Skill ID {skill_id!r} must match {_SKILL_ID_RE.pattern!r} "
+            "and must not contain path separators or '..'."
+        )
+    return skill_id
 
 
 def _default_hermes_probe(binary: str) -> HermesProbe:
@@ -650,12 +678,18 @@ class RunSealStore:
         holder: str = "run-profile-assembler",
         lease_seconds: int = 14_400,
     ) -> FencingToken:
-        """Issue a new monotonically increasing fencing token (UPSERT)."""
+        """Issue a new monotonically increasing fencing token (UPSERT).
+
+        Uses ``BEGIN IMMEDIATE``: the SELECT-then-UPSERT is a
+        read-modify-write that must be serialized against concurrent
+        issuers, or two callers can read the same current value and
+        produce duplicate tokens (H5).
+        """
         now = datetime.now(timezone.utc).isoformat()
         expires = (
             datetime.now(timezone.utc) + timedelta(seconds=lease_seconds)
         ).isoformat()
-        with self._db.transaction() as conn:
+        with self._db.immediate_transaction() as conn:
             row = conn.execute(
                 "SELECT token FROM run_fencing_tokens WHERE invocation_id = ?",
                 (invocation_id,),
@@ -966,7 +1000,16 @@ class RunProfileAssembler:
             )
 
         with self.state_lock(project_id, role, invocation_id) as lock:
+            # Whether THIS attempt created the run directory.  Two
+            # concurrent same-key seals can both pass the idempotency and
+            # exists checks above, but the exclusive mkdir below has
+            # exactly one winner.  Rollback must never delete a directory
+            # another attempt owns — the loser's rmtree of the shared
+            # path deleted the winner's sealed manifest (C5).
+            dir_created = False
             try:
+                run_dir.mkdir(parents=True, exist_ok=False)
+                dir_created = True
                 self._create_layout(run_dir)
                 profile_dir = run_dir / "profile"
                 asset_digests = self._assemble_profile(resource, profile_dir)
@@ -1010,17 +1053,36 @@ class RunProfileAssembler:
                     manifest_sha256=manifest_sha256,
                     sealed_at=sealed_at,
                 )
+            except FileExistsError:
+                if dir_created:
+                    # We own the directory; a mid-assembly collision is a
+                    # genuine error.  Roll back our own partial work.
+                    shutil.rmtree(run_dir, ignore_errors=True)
+                    raise
+                # Another concurrent attempt created the run directory
+                # first and owns the path — never remove it.  When it has
+                # already sealed, return its record (idempotency).
+                winner = self._store.find_by_idempotency_key(idempotency_key)
+                if winner is not None:
+                    return self._reconstruct(winner)
+                raise
             except Exception:
-                # Roll back a partially prepared run directory so a failed
-                # seal never permanently blocks a retry of this invocation.
-                shutil.rmtree(run_dir, ignore_errors=True)
+                if dir_created:
+                    # Roll back a partially prepared run directory so a
+                    # failed seal never permanently blocks a retry of this
+                    # invocation.
+                    shutil.rmtree(run_dir, ignore_errors=True)
                 raise
 
         # The idempotency race loser returns the winner's record.
         if record["seal_id"] != seal_id:
-            # This attempt lost the race after preparing its own directory;
-            # remove it so no unsealed run directory is left behind.
-            shutil.rmtree(run_dir, ignore_errors=True)
+            # This attempt lost the UNIQUE(idempotency_key) race after
+            # preparing its own directory.  Remove it only when this
+            # attempt created it and the winner sealed elsewhere: a
+            # same-path winner is impossible (the mkdir above is
+            # exclusive), but never delete a directory the winner owns.
+            if dir_created and Path(record["run_dir"]) != run_dir:
+                shutil.rmtree(run_dir, ignore_errors=True)
             return self._reconstruct(record)
         return SealedRun(
             seal_id=record["seal_id"],
@@ -1074,6 +1136,7 @@ class RunProfileAssembler:
         skills_root = profile_dir / "skills"
         skills_root.mkdir(parents=True, exist_ok=True)
         for skill in resource.recommended_skills:
+            _validate_skill_id(skill.skill_id)
             source = (
                 self._bundle_root / skill.skill_id
                 if self._bundle_root is not None

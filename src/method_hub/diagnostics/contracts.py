@@ -309,8 +309,8 @@ class ProcessIdentity:
     Historical records may carry OCI container IDs and image digests.
     """
 
-    runtime: str  # executor runtime label, e.g. "bwrap"; historical: "oci"
-    external_id: str  # e.g. "oneshot:pid:12345"
+    runtime: str  # executor runtime label, e.g. "local"; historical: "bwrap"/"oci"
+    external_id: str  # e.g. "local:pid:12345:st:123456:mk:abc123def456"
     pid: int | None = None
     boot_id: str | None = None
     proc_start_ticks: int | None = None

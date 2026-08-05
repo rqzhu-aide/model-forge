@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import logging
 import os
 import re
 import signal
@@ -54,6 +55,8 @@ from .protocol import (
     RoleExecutionStatus,
     RoleInvocation,
 )
+
+logger = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------------- #
 # Constants                                                                    #
@@ -131,12 +134,13 @@ class _StreamCapture:
 class ProcessIdentity:
     """Durable identity for a local Hermes process.
 
-    Binds the PID, process start time, executable path, and a per-invocation
-    marker to distinguish PID reuse across process lifetimes.
+    Binds the PID, executable path, a per-invocation marker, and the host
+    boot ID to distinguish PID reuse across process lifetimes.  The start
+    time is deliberately not stored here (M2): it is read from
+    ``/proc/<pid>/stat`` at format/verify time so it can never go stale.
     """
 
     pid: int
-    start_time: float  # monotonic seconds at process creation
     executable: str  # resolved Hermes binary path
     invocation_marker: str  # unique per-invocation token
     host_boot_id: str | None = None  # /proc/sys/kernel/random/boot_id if available
@@ -146,16 +150,31 @@ def _read_boot_id() -> str | None:
     """Read the host boot identity for PID-reuse disambiguation."""
     try:
         return Path("/proc/sys/kernel/random/boot_id").read_text().strip()
-    except (OSError, FileNotFoundError):
+    except OSError:
         return None
 
 
 def _check_process_alive(pid: int) -> bool:
-    """Check whether a process with the given PID exists."""
+    """Check whether a process with the given PID exists and is not a zombie.
+
+    ``os.kill(pid, 0)`` also succeeds for zombie entries, so the process
+    state (field 3 of ``/proc/<pid>/stat``) is inspected as well: a zombie
+    ('Z') has already exited and counts as dead (M6).
+    """
     try:
         os.kill(pid, 0)
-        return True
-    except (OSError, ProcessLookupError):
+    except OSError:
+        return False
+    # The PID exists — but the entry may be a zombie awaiting reaping.
+    try:
+        stat_data = Path(f"/proc/{pid}/stat").read_text()
+        paren_end = stat_data.rfind(")")
+        if paren_end == -1:
+            return True
+        fields = stat_data[paren_end + 2:].split()
+        return not (fields and fields[0] == "Z")
+    except (OSError, ValueError, IndexError):
+        # /proc entry vanished between the kill check and the read.
         return False
 
 
@@ -179,8 +198,29 @@ def _get_process_starttime(pid: int) -> float | None:
         if len(fields) > 19:
             return float(fields[19])
         return None
-    except (OSError, FileNotFoundError, ValueError, IndexError):
+    except (OSError, ValueError, IndexError):
         return None
+
+
+def _identity_matches(identity: Mapping[str, Any], pid: int) -> bool:
+    """Check whether ``pid`` still refers to the process in ``identity``.
+
+    Compares ``/proc/<pid>/stat`` field 22 (start time) against the ``st:``
+    value embedded in the identity, and the embedded ``bi:`` boot ID against
+    the current host boot ID.  A mismatch means the PID was recycled for an
+    unrelated process, so signalling it would be unsafe.
+    """
+    expected_starttime = identity.get("starttime")
+    if expected_starttime is not None:
+        actual_starttime = _get_process_starttime(pid)
+        if actual_starttime is None or actual_starttime != expected_starttime:
+            return False
+    expected_boot_id = identity.get("boot_id")
+    if expected_boot_id is not None:
+        current_boot_id = _read_boot_id()
+        if current_boot_id is not None and current_boot_id != expected_boot_id:
+            return False
+    return True
 
 
 # --------------------------------------------------------------------------- #
@@ -214,10 +254,6 @@ class LocalHermesExecutorSettings:
     terminate_grace_seconds: int = _TERMINATE_GRACE_SECONDS
     #: Grace period (seconds) for SIGKILL before giving up.
     kill_grace_seconds: int = _KILL_GRACE_SECONDS
-
-
-class LocalHermesExecutionError(RuntimeError):
-    """A local Hermes execution failed."""
 
 
 # --------------------------------------------------------------------------- #
@@ -290,8 +326,6 @@ class LocalHermesExecutor:
         try:
             command = self._build_command(invocation, hermes_bin)
             env = self._build_environment(invocation)
-            external_id_placeholder = f"local:{invocation.execution_id}"
-            await observer.launch_acknowledged(invocation, external_id_placeholder)
 
             # Launch the process directly (no shell, no bwrap).
             workspace_cwd = invocation.workspace.resolve()
@@ -305,149 +339,168 @@ class LocalHermesExecutor:
                 start_new_session=True,  # Creates a new process group.
             )
 
-            # Record durable process identity immediately.
-            boot_id = _read_boot_id()
-            identity = ProcessIdentity(
-                pid=process.pid,
-                start_time=time.monotonic(),
-                executable=hermes_bin,
-                invocation_marker=invocation.execution_id,
-                host_boot_id=boot_id,
-            )
-            external_id = self._format_external_id(identity)
-
-            # Incremental output streaming.  F1: a single cumulative cap per
-            # stream is enforced across the whole execute() call.  F2: bounded
-            # chunk reads (read(N)) make line length irrelevant.
-            limit = self.settings.output_limit_bytes
-            stdout_cap = _StreamCapture()
-            stderr_cap = _StreamCapture()
-
-            deadline = time.monotonic() + invocation.timeout_seconds
-            start_time = time.monotonic()
-
-            async def _read_stream(
-                stream: asyncio.StreamReader | None,
-                cap: _StreamCapture,
-            ) -> None:
-                """Read bounded chunks; store up to limit, drain the rest.
-
-                Uses read(CHUNK) instead of readline() so over-long lines
-                (F2) do not raise LimitOverrunError.  The cumulative cap
-                (F1) is enforced via the ``cap`` state object: once it is
-                reached, remaining bytes are drained from the pipe and
-                discarded so the child never blocks on a full pipe, and a
-                single ``[output truncated]`` marker is appended once.
-                """
-                if stream is None:
-                    return
-                marker = "\n[output truncated]"
-                while True:
-                    try:
-                        chunk = await stream.read(_CHUNK_SIZE)
-                    except asyncio.LimitOverrunError:
-                        # StreamReader internal buffer exceeded — should not
-                        # happen with read(N), but drain defensively.
-                        continue
-                    except Exception:
-                        break
-                    if not chunk:
-                        break
-                    if cap.truncated:
-                        # Cap already reached — discard bytes but keep
-                        # draining so the child does not block on a full pipe.
-                        continue
-                    remaining = limit - cap.captured
-                    if remaining <= len(marker.encode()):
-                        # No room for more data — append marker once, then
-                        # keep draining the rest of the pipe.
-                        cap.buffer.append(marker)
-                        cap.captured += len(marker.encode())
-                        cap.truncated = True
-                        continue
-                    # Store as many bytes as we can, reserving room for the
-                    # marker if this chunk crosses the boundary.
-                    room = remaining - len(marker.encode())
-                    store = chunk[:room]
-                    cap.buffer.append(store.decode("utf-8", errors="replace"))
-                    cap.captured += len(store)
-                    if len(chunk) > room:
-                        # Chunk crossed the cap boundary.
-                        cap.buffer.append(marker)
-                        cap.captured += len(marker.encode())
-                        cap.truncated = True
-
-            while True:
-                read_task = asyncio.gather(
-                    _read_stream(process.stdout, stdout_cap),
-                    _read_stream(process.stderr, stderr_cap),
+            try:
+                # Record durable process identity immediately.
+                boot_id = _read_boot_id()
+                identity = ProcessIdentity(
+                    pid=process.pid,
+                    executable=hermes_bin,
+                    invocation_marker=invocation.execution_id,
+                    host_boot_id=boot_id,
                 )
-                try:
-                    await asyncio.wait_for(
-                        read_task, timeout=self.settings.poll_interval_seconds
-                    )
-                except asyncio.TimeoutError:
-                    read_task.cancel()
+                external_id = self._format_external_id(identity)
 
-                if process.returncode is not None:
-                    # Process exited — drain remaining output.
-                    drain_task = asyncio.gather(
+                # C1: acknowledge the launch with the REAL durable external
+                # ID (not a placeholder) so cancel()/reconcile() can act on
+                # it later — the old placeholder carried no parseable PID.
+                await observer.launch_acknowledged(invocation, external_id)
+
+                # Incremental output streaming.  F1: a single cumulative cap per
+                # stream is enforced across the whole execute() call.  F2: bounded
+                # chunk reads (read(N)) make line length irrelevant.
+                limit = self.settings.output_limit_bytes
+                stdout_cap = _StreamCapture()
+                stderr_cap = _StreamCapture()
+
+                deadline = time.monotonic() + invocation.timeout_seconds
+                start_time = time.monotonic()
+
+                async def _read_stream(
+                    stream: asyncio.StreamReader | None,
+                    cap: _StreamCapture,
+                ) -> None:
+                    """Read bounded chunks; store up to limit, drain the rest.
+
+                    Uses read(CHUNK) instead of readline() so over-long lines
+                    (F2) do not raise LimitOverrunError.  The cumulative cap
+                    (F1) is enforced via the ``cap`` state object: once it is
+                    reached, remaining bytes are drained from the pipe and
+                    discarded so the child never blocks on a full pipe, and a
+                    single ``[output truncated]`` marker is appended once.
+                    """
+                    if stream is None:
+                        return
+                    marker = "\n[output truncated]"
+                    while True:
+                        try:
+                            chunk = await stream.read(_CHUNK_SIZE)
+                        except asyncio.LimitOverrunError:
+                            # StreamReader internal buffer exceeded — should not
+                            # happen with read(N), but drain defensively.
+                            continue
+                        except Exception:
+                            break
+                        if not chunk:
+                            break
+                        if cap.truncated:
+                            # Cap already reached — discard bytes but keep
+                            # draining so the child does not block on a full pipe.
+                            continue
+                        remaining = limit - cap.captured
+                        if remaining <= len(marker.encode()):
+                            # No room for more data — append marker once, then
+                            # keep draining the rest of the pipe.
+                            cap.buffer.append(marker)
+                            cap.captured += len(marker.encode())
+                            cap.truncated = True
+                            continue
+                        # Store as many bytes as we can, reserving room for the
+                        # marker if this chunk crosses the boundary.
+                        room = remaining - len(marker.encode())
+                        store = chunk[:room]
+                        cap.buffer.append(store.decode("utf-8", errors="replace"))
+                        cap.captured += len(store)
+                        if len(chunk) > room:
+                            # Chunk crossed the cap boundary.
+                            cap.buffer.append(marker)
+                            cap.captured += len(marker.encode())
+                            cap.truncated = True
+
+                while True:
+                    read_task = asyncio.gather(
                         _read_stream(process.stdout, stdout_cap),
                         _read_stream(process.stderr, stderr_cap),
                     )
                     try:
-                        await asyncio.wait_for(drain_task, timeout=5)
+                        await asyncio.wait_for(
+                            read_task, timeout=self.settings.poll_interval_seconds
+                        )
                     except asyncio.TimeoutError:
-                        drain_task.cancel()
+                        read_task.cancel()
 
-                    stdout_text = "".join(stdout_cap.buffer)
-                    stderr_text = "".join(stderr_cap.buffer)
-                    exit_code = process.returncode
-                    status = (
-                        RoleExecutionStatus.SUCCEEDED
-                        if exit_code == 0
-                        else RoleExecutionStatus.FAILED
+                    if process.returncode is not None:
+                        # Process exited — drain remaining output.
+                        drain_task = asyncio.gather(
+                            _read_stream(process.stdout, stdout_cap),
+                            _read_stream(process.stderr, stderr_cap),
+                        )
+                        try:
+                            await asyncio.wait_for(drain_task, timeout=5)
+                        except asyncio.TimeoutError:
+                            drain_task.cancel()
+
+                        stdout_text = "".join(stdout_cap.buffer)
+                        stderr_text = "".join(stderr_cap.buffer)
+                        exit_code = process.returncode
+                        status = (
+                            RoleExecutionStatus.SUCCEEDED
+                            if exit_code == 0
+                            else RoleExecutionStatus.FAILED
+                        )
+                        return RoleExecutionResult(
+                            status=status,
+                            external_execution_id=external_id,
+                            exit_code=exit_code,
+                            summary=(
+                                f"Hermes exited with code {exit_code}. "
+                                f"Version: {version_info}"
+                            ),
+                            diagnostic_text=_redact(
+                                f"{stderr_text}\n--- stdout ---\n{stdout_text}".strip()
+                            ),
+                            captured_stdout=_redact(stdout_text),
+                            captured_stderr=_redact(stderr_text),
+                        )
+
+                    elapsed = time.monotonic() - start_time
+                    await observer.heartbeat(
+                        invocation,
+                        f"Hermes PID {process.pid} running "
+                        f"(elapsed {elapsed:.0f}s, version: {version_info})",
                     )
-                    return RoleExecutionResult(
-                        status=status,
-                        external_execution_id=external_id,
-                        exit_code=exit_code,
-                        summary=(
-                            f"Hermes exited with code {exit_code}. "
-                            f"Version: {version_info}"
-                        ),
-                        diagnostic_text=_redact(
-                            f"{stderr_text}\n--- stdout ---\n{stdout_text}".strip()
-                        ),
-                        captured_stdout=_redact(stdout_text),
-                        captured_stderr=_redact(stderr_text),
-                    )
 
-                elapsed = time.monotonic() - start_time
-                await observer.heartbeat(
-                    invocation,
-                    f"Hermes PID {process.pid} running "
-                    f"(elapsed {elapsed:.0f}s, version: {version_info})",
-                )
-
-                if time.monotonic() >= deadline:
-                    # Timeout — terminate the full process tree.
+                    if time.monotonic() >= deadline:
+                        # Timeout — terminate the full process tree.
+                        await self._terminate_process_tree(process)
+                        stdout_text = "".join(stdout_cap.buffer)
+                        stderr_text = "".join(stderr_cap.buffer)
+                        return RoleExecutionResult(
+                            status=RoleExecutionStatus.FAILED,
+                            external_execution_id=external_id,
+                            exit_code=None,
+                            summary="Hermes exceeded its time limit.",
+                            diagnostic_text=_redact(
+                                f"Timed out after {invocation.timeout_seconds}s\n"
+                                f"--- stderr ---\n{stderr_text}\n"
+                                f"--- stdout ---\n{stdout_text}"
+                            ),
+                            captured_stdout=_redact(stdout_text),
+                            captured_stderr=_redact(stderr_text),
+                        )
+            finally:
+                # C3: on any abnormal exit (task cancellation, an observer
+                # raising, ...) ensure the child process tree is terminated
+                # and the pipe FDs are released — never leak them.
+                if process.returncode is None:
                     await self._terminate_process_tree(process)
-                    stdout_text = "".join(stdout_cap.buffer)
-                    stderr_text = "".join(stderr_cap.buffer)
-                    return RoleExecutionResult(
-                        status=RoleExecutionStatus.FAILED,
-                        external_execution_id=external_id,
-                        exit_code=None,
-                        summary="Hermes exceeded its time limit.",
-                        diagnostic_text=_redact(
-                            f"Timed out after {invocation.timeout_seconds}s\n"
-                            f"--- stderr ---\n{stderr_text}\n"
-                            f"--- stdout ---\n{stdout_text}"
-                        ),
-                        captured_stdout=_redact(stdout_text),
-                        captured_stderr=_redact(stderr_text),
-                    )
+                # Force-close the subprocess transport so the pipe FDs are
+                # released even if the streams were never drained to EOF.
+                transport = getattr(process, "_transport", None)
+                if transport is not None:
+                    try:
+                        transport.close()
+                    except Exception:
+                        pass  # Best effort — the process tree is already gone.
 
         except (OSError, subprocess.SubprocessError) as error:
             return RoleExecutionResult(
@@ -477,7 +530,7 @@ class LocalHermesExecutor:
         # 1. SIGTERM to the process group.
         try:
             os.killpg(os.getpgid(pid), signal.SIGTERM)
-        except (OSError, ProcessLookupError):
+        except OSError:
             pass
 
         # 2. Wait for graceful exit.
@@ -492,7 +545,7 @@ class LocalHermesExecutor:
         # 3. SIGKILL the process group.
         try:
             os.killpg(os.getpgid(pid), signal.SIGKILL)
-        except (OSError, ProcessLookupError):
+        except OSError:
             pass
 
         # 4. Wait for forced exit.
@@ -515,17 +568,34 @@ class LocalHermesExecutor:
     async def cancel(self, external_execution_id: str) -> None:
         """Terminate a running Hermes process by external execution ID.
 
-        Extracts the PID from the external ID and sends SIGTERM → SIGKILL
-        to the process group.
+        Parses the full durable identity and verifies it still matches the
+        process behind the PID before sending SIGTERM → SIGKILL to the
+        process group.  If the PID was recycled for an unrelated process
+        (start time or boot ID mismatch), the group is NOT killed (C2).
         """
-        pid = self._extract_pid(external_execution_id)
+        identity = self._parse_external_id(external_execution_id)
+        if identity is None:
+            return
+        pid = identity.get("pid")
         if pid is None:
+            return
+
+        # C2: verify identity before killing.  Signalling on PID alone is
+        # unsafe: the OS may have recycled the PID for an unrelated
+        # process group since the invocation was recorded.
+        if not _identity_matches(identity, pid):
+            logger.warning(
+                "cancel(%s): refusing to kill PID %d — identity mismatch "
+                "(PID reused or host rebooted); process group left alone.",
+                external_execution_id,
+                pid,
+            )
             return
 
         # SIGTERM the process group.
         try:
             os.killpg(os.getpgid(pid), signal.SIGTERM)
-        except (OSError, ProcessLookupError):
+        except OSError:
             return  # Already dead.
 
         # Wait for exit.
@@ -537,7 +607,7 @@ class LocalHermesExecutor:
         # Escalate to SIGKILL.
         try:
             os.killpg(os.getpgid(pid), signal.SIGKILL)
-        except (OSError, ProcessLookupError):
+        except OSError:
             pass
 
     # ------------------------------------------------------------------ #
@@ -589,6 +659,27 @@ class LocalHermesExecutor:
                 )
 
         # Process is still running with the same identity.
+        # C4: the start time alone cannot detect cross-reboot PID reuse —
+        # the boot ID embedded in the external ID must still match the
+        # current host boot.  If the host rebooted since launch, any
+        # process now holding this PID is unrelated.
+        expected_boot_id = identity.get("boot_id")
+        if expected_boot_id is not None:
+            current_boot_id = _read_boot_id()
+            if current_boot_id is not None and current_boot_id != expected_boot_id:
+                return RoleExecutionResult(
+                    status=RoleExecutionStatus.FAILED,
+                    external_execution_id=external_execution_id,
+                    exit_code=None,
+                    summary="Hermes process exited (host rebooted since launch).",
+                    diagnostic_text=(
+                        f"Boot ID changed from {expected_boot_id} to "
+                        f"{current_boot_id} — PID {pid} cannot belong to "
+                        "the recorded invocation."
+                    ),
+                )
+
+        # Process is still running with the same identity.
         return None  # Still running — caller can decide to cancel or wait.
 
     # ------------------------------------------------------------------ #
@@ -605,7 +696,16 @@ class LocalHermesExecutor:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout_b, _ = await asyncio.wait_for(proc.communicate(), timeout=10)
+            try:
+                stdout_b, _ = await asyncio.wait_for(
+                    proc.communicate(), timeout=10
+                )
+            except asyncio.TimeoutError:
+                # M7: the version probe timed out — kill the child instead
+                # of leaking it.
+                proc.kill()
+                await proc.wait()
+                raise
             version = stdout_b.decode("utf-8", errors="replace").strip()
             self._hermes_version = version
             self._hermes_executable = hermes_bin
@@ -713,12 +813,19 @@ class LocalHermesExecutor:
     def _format_external_id(identity: ProcessIdentity) -> str:
         """Format a durable external execution ID.
 
-        Format: ``local:pid:<N>:st:<STARTTIME>:mk:<MARKER>``
-        where STARTTIME is /proc/<pid>/stat field 22 (clock ticks).
+        Format:
+        ``local:pid:<N>:st:<STARTTIME>:mk:<MARKER>:bi:<BOOT_ID>``
+        where STARTTIME is /proc/<pid>/stat field 22 (clock ticks) and
+        BOOT_ID is the host boot ID, which makes cross-reboot PID reuse
+        detectable (C4).
         """
         starttime = _get_process_starttime(identity.pid)
         st_str = f"{starttime}" if starttime is not None else "unknown"
-        return f"local:pid:{identity.pid}:st:{st_str}:mk:{identity.invocation_marker[:12]}"
+        boot_id = identity.host_boot_id or "unknown"
+        return (
+            f"local:pid:{identity.pid}:st:{st_str}:"
+            f"mk:{identity.invocation_marker[:12]}:bi:{boot_id}"
+        )
 
     @staticmethod
     def _extract_pid(external_execution_id: str) -> int | None:
@@ -762,6 +869,8 @@ class LocalHermesExecutor:
                     result["starttime"] = None
             elif key == "mk":
                 result["marker"] = value
+            elif key == "bi":
+                result["boot_id"] = value
             i += 2
         return result if "pid" in result else None
 
@@ -791,7 +900,6 @@ class LocalHermesExecutor:
 
 
 __all__ = [
-    "LocalHermesExecutionError",
     "LocalHermesExecutor",
     "LocalHermesExecutorSettings",
     "ProcessIdentity",

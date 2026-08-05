@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -886,3 +887,275 @@ def test_all_four_roles_provision_and_inspect(tmp_path: Path) -> None:
         assert role_report.guidance_status.status == "present"
         for skill in role_report.skill_statuses:
             assert skill.status == "present"
+
+
+# --------------------------------------------------------------------------- #
+# 10. Hardening: skill conflict → 409, unreadable files, crash-safe rollback,
+#     default-profile rejection, unavailable-skill condition codes
+# --------------------------------------------------------------------------- #
+
+
+def test_service_provision_role_skill_conflict_maps_to_409(tmp_path: Path) -> None:
+    """A customized skill directory surfaces as CUSTOMIZATION_CONFLICT, not a 500."""
+
+    async def run() -> None:
+        service = _make_service(tmp_path)
+        hermes_root = Path(service.settings.hermes_root or (tmp_path / "hermes"))
+        profiles = _make_profile_dirs(hermes_root)
+        resource = service.role_resources.role("theorist")
+        profile_home = profiles["theorist"]
+        # Write canonical assets so provisioning reaches the skill step
+        (profile_home / "SOUL.md").write_text(resource.soul_text, encoding="utf-8")
+        config_path = profile_home / resource.base_configuration.file_name
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text(resource.base_configuration.content, encoding="utf-8")
+        guidance_path = profile_home / resource.library_guidance.file_name
+        guidance_path.parent.mkdir(parents=True, exist_ok=True)
+        guidance_path.write_text(resource.library_guidance.content, encoding="utf-8")
+        # Pre-install a customized skill under the same name
+        custom_skill = profile_home / "skills" / "stat-paper-writing"
+        custom_skill.mkdir(parents=True)
+        (custom_skill / "SKILL.md").write_text("# Custom\n", encoding="utf-8")
+
+        with pytest.raises(CommandRejected) as exc_info:
+            await service.provision_role("theorist", ProvisionRoleRequest())
+        assert exc_info.value.error.code == "CUSTOMIZATION_CONFLICT"
+        # Rollback preserved the user's customized skill
+        assert (custom_skill / "SKILL.md").read_text(encoding="utf-8") == "# Custom\n"
+
+    asyncio.run(run())
+
+
+def test_service_provision_role_unreadable_soul_is_conflict(tmp_path: Path) -> None:
+    """A binary (non-UTF-8) SOUL.md is a conflict, never silently overwritten."""
+
+    async def run() -> None:
+        service = _make_service(tmp_path)
+        hermes_root = Path(service.settings.hermes_root or (tmp_path / "hermes"))
+        profiles = _make_profile_dirs(hermes_root)
+        binary = profiles["theorist"] / "SOUL.md"
+        payload = b"\xff\xfe\x00 binary soul not utf-8"
+        binary.write_bytes(payload)
+
+        with pytest.raises(CommandRejected) as exc_info:
+            await service.provision_role("theorist", ProvisionRoleRequest())
+        assert exc_info.value.error.code == "CUSTOMIZATION_CONFLICT"
+        # The binary file is untouched after rollback
+        assert (profiles["theorist"] / "SOUL.md").read_bytes() == payload
+
+    asyncio.run(run())
+
+
+def test_provision_unreadable_asset_conflict_and_force_overwrite(tmp_path: Path) -> None:
+    """Provisioner level: an unreadable file is a conflict, not 'missing'."""
+    catalog = RoleResourceCatalog.load(RESOURCE_ROOT)
+    bundle = ROOT / "resources" / "skills"
+    hermes_root = tmp_path / "hermes"
+    profiles = _make_profile_dirs(hermes_root)
+    resource = catalog.role("theorist")
+    profile_home = profiles["theorist"]
+    binary = profile_home / "SOUL.md"
+    payload = b"\xff\xfe not utf-8"
+    binary.write_bytes(payload)
+
+    with pytest.raises(CustomizationConflict):
+        provision_role_definition(resource, profile_home, bundle)
+    assert binary.read_bytes() == payload
+
+    # With explicit force-overwrite the user's choice is honored
+    result = provision_role_definition(
+        resource, profile_home, bundle, force_overwrite_assets=True
+    )
+    assert "SOUL.md" in result.assets_written
+    assert (profile_home / "SOUL.md").read_text(encoding="utf-8") == resource.soul_text
+
+
+def test_health_unreadable_asset_reported_customized_not_missing(tmp_path: Path) -> None:
+    """Health assessment treats unreadable files as customized, not missing."""
+    catalog = RoleResourceCatalog.load(RESOURCE_ROOT)
+    bundle = ROOT / "resources" / "skills"
+    hermes_root = tmp_path / "hermes"
+    profiles = _make_profile_dirs(hermes_root)
+    resource = catalog.role("theorist")
+    profile_home = profiles["theorist"]
+    # Provision canonically first, then replace SOUL.md with a binary file
+    provision_role_definition(resource, profile_home, bundle)
+    (profile_home / "SOUL.md").write_bytes(b"\xff\xfe binary")
+
+    report = assess_role_health(resource, profile_home, bundle)
+    assert report.soul_status.status == "customized"
+    assert report.soul_status.actual_sha256 is not None
+    assert report.overall_status == "customized"
+
+
+def test_restore_backup_recovers_profile_when_move_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """If the backup cannot be moved into place, the original profile is recovered."""
+    from method_hub.configuration import role_provisioner as provisioner_module
+
+    profile_home = tmp_path / "profiles" / "theorist"
+    profile_home.mkdir(parents=True)
+    marker = profile_home / "pre-existing.txt"
+    marker.write_text("original\n", encoding="utf-8")
+    backup = provisioner_module._backup_profile(profile_home)
+
+    real_replace = os.replace
+    calls = {"count": 0}
+
+    def failing_replace(src, dst):
+        calls["count"] += 1
+        if calls["count"] == 2:  # the backup → profile_home move
+            raise OSError("injected move failure")
+        return real_replace(src, dst)
+
+    monkeypatch.setattr(provisioner_module.os, "replace", failing_replace)
+
+    with pytest.raises(OSError, match="injected move failure"):
+        provisioner_module._restore_backup(profile_home, backup)
+
+    # Recovery moved the original profile back into place
+    assert profile_home.is_dir()
+    assert marker.read_text(encoding="utf-8") == "original\n"
+
+
+def test_restore_backup_crash_between_rename_and_move_leaves_recoverable_trash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A crash after the rename (before the move) never deletes the original."""
+    from method_hub.configuration import role_provisioner as provisioner_module
+
+    profile_home = tmp_path / "profiles" / "theorist"
+    profile_home.mkdir(parents=True)
+    marker = profile_home / "pre-existing.txt"
+    marker.write_text("original\n", encoding="utf-8")
+    backup = provisioner_module._backup_profile(profile_home)
+
+    real_replace = os.replace
+    calls = {"count": 0}
+
+    def failing_replace(src, dst):
+        calls["count"] += 1
+        if calls["count"] >= 2:  # move AND recovery both fail (process crash)
+            raise OSError("injected failure")
+        return real_replace(src, dst)
+
+    monkeypatch.setattr(provisioner_module.os, "replace", failing_replace)
+
+    with pytest.raises(OSError, match="injected failure"):
+        provisioner_module._restore_backup(profile_home, backup)
+
+    # The original profile was renamed aside, not deleted: its content is
+    # fully recoverable from the trash directory.
+    assert not profile_home.exists()
+    trash_dirs = [
+        p
+        for p in (tmp_path / "profiles").iterdir()
+        if p.name.startswith(".theorist.trash-")
+    ]
+    assert len(trash_dirs) == 1
+    assert (trash_dirs[0] / "pre-existing.txt").read_text(encoding="utf-8") == "original\n"
+
+
+def test_provision_rejects_default_profile_name(tmp_path: Path) -> None:
+    """Provisioning must never target the reserved 'default' (Hermes root) profile."""
+    catalog = RoleResourceCatalog.load(RESOURCE_ROOT)
+    bundle = ROOT / "resources" / "skills"
+    resource = catalog.role("theorist")
+    default_home = tmp_path / "default"
+    default_home.mkdir()
+
+    with pytest.raises(ProvisioningError, match="default"):
+        provision_role_definition(resource, default_home, bundle)
+    # Nothing was written into the root directory
+    assert not (default_home / "SOUL.md").exists()
+    assert not (default_home / "skills").exists()
+
+
+def test_service_provision_rejects_default_profile(tmp_path: Path) -> None:
+    """A role mapped to the 'default' profile is rejected before any write."""
+
+    async def run() -> None:
+        workspace = WorkspacePaths(tmp_path / "data", create=True)
+        hermes = tmp_path / "hermes"
+        hermes.mkdir(parents=True)
+        repository = HubRepository(workspace.root / "hub.sqlite3")
+        repository.initialize()
+        service = MethodHubService(
+            settings=ApplicationSettings(
+                data_root=workspace.root,
+                hermes_root=hermes,
+                theorist_profile="default",
+            ),
+            specification=SpecificationPackage.load(ARCH_ROOT),
+            repository=repository,
+            artifacts=ArtifactStore(workspace),
+            role_resources=RoleResourceCatalog.load(RESOURCE_ROOT),
+        )
+
+        with pytest.raises(CommandRejected) as exc_info:
+            await service.provision_role("theorist", ProvisionRoleRequest())
+        assert exc_info.value.error.code == "ROLE_PROVISIONING_FAILED"
+        # Nothing was written into the Hermes root
+        assert not (hermes / "SOUL.md").exists()
+        assert not (hermes / "skills").exists()
+
+    asyncio.run(run())
+
+
+def test_health_unavailable_skill_condition_codes(tmp_path: Path) -> None:
+    """Unavailable skills produce skill_unavailable and bundle_missing codes."""
+    catalog = RoleResourceCatalog.load(RESOURCE_ROOT)
+    hermes_root = tmp_path / "hermes"
+    _make_profile_dirs(hermes_root)
+
+    view = build_role_health_view(
+        catalog,
+        "theorist",
+        hermes_root,
+        bundle_root=None,  # skill bundle unavailable
+        effective_profiles={"theorist": "theorist"},
+    )
+    assert view.overall_status == "unavailable"
+    assert "skill_unavailable" in view.conditions
+    assert "bundle_missing" in view.conditions
+    assert "profile_missing" not in view.conditions
+
+
+def test_health_unavailable_skill_without_profile_has_no_bundle_code(
+    tmp_path: Path,
+) -> None:
+    """When the profile itself is missing, unavailable skills imply no bundle code."""
+    catalog = RoleResourceCatalog.load(RESOURCE_ROOT)
+    hermes_root = tmp_path / "hermes"
+    hermes_root.mkdir(parents=True)  # Hermes root exists, but no profiles
+
+    view = build_role_health_view(
+        catalog,
+        "theorist",
+        hermes_root,
+        bundle_root=None,
+        effective_profiles={"theorist": "theorist"},
+    )
+    assert "profile_missing" in view.conditions
+    assert "skill_unavailable" in view.conditions
+    assert "bundle_missing" not in view.conditions
+
+
+def test_configuration_health_unavailable_skills_conditions(tmp_path: Path) -> None:
+    """Aggregate health carries the new codes when the bundle is missing."""
+    catalog = RoleResourceCatalog.load(RESOURCE_ROOT)
+    hermes_root = tmp_path / "hermes"
+    _make_profile_dirs(hermes_root)
+
+    effective = {role: role for role in PROFILE_ROLES}
+    effective["outside_reviewer"] = "paper_reviewer"
+    view = build_configuration_health_view(
+        catalog,
+        hermes_root,
+        bundle_root=None,
+        effective_profiles=effective,
+    )
+    assert view.overall_status == "unavailable"
+    assert "skill_unavailable" in view.conditions
+    assert "bundle_missing" in view.conditions

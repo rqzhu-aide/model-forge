@@ -48,7 +48,7 @@ Every research run is a controlled operation:
 
 1. The user selects the phase, scope, method when applicable, instructions, and optional context, either directly or through a valid bounded delegation.
 2. The harness freezes the exact command and a manifest containing the contract, input basis, role recipe, resource limits, and publication plan. The manifest does not claim later context materialization, role output, or completion.
-3. Before each role begins, the harness seals a `PreparedRoleContext` and `RoleInvocationStart`, then launches the bound rootless OCI executor. The role can write only within its run-local role root and can read only through its declared capability broker.
+3. Before each role begins, the harness seals a `PreparedRoleContext` and `RoleInvocationStart`, then launches the bound trusted local executor. The role can write only within its run-local role root and can read only through its declared capability broker.
 4. When a role ends, the harness seals a `RoleInvocationClosure`. A downstream role may consume only successful upstream closures and their exact accepted outputs.
 5. After the selected role plan has one complete ordered successful closure chain, including the final lead closure, the harness seals one immutable `RunSubmission`. Submission closes the cancellation gate and binds every candidate artifact sent to validation.
 6. Validators check structure, identity, provenance, phase obligations, scientific-basis completeness, and publication safety.

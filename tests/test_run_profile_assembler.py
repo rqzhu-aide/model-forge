@@ -16,8 +16,11 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+import threading
+from contextlib import contextmanager
+from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 import pytest
 
@@ -44,7 +47,10 @@ from method_hub.application.session_snapshots import (
     SESSION_SNAPSHOT_PROCEDURE,
     snapshot_session_db,
 )
-from method_hub.configuration.resources import RoleResourceCatalog
+from method_hub.configuration.resources import (
+    RoleResourceCatalog,
+    SkillRecommendation,
+)
 from method_hub.configuration.skill_installer import directory_sha256
 from method_hub.digests.jcs import canonicalize
 from method_hub.profiles.project_profiles import (
@@ -864,3 +870,244 @@ class TestSessionSnapshot:
         # A second snapshot into the same destination is refused.
         with pytest.raises(SessionSnapshotError):
             snapshot_session_db(source, dest)
+
+
+# --------------------------------------------------------------------------- #
+# C5: concurrent same-key seal safety                                         #
+# --------------------------------------------------------------------------- #
+
+
+class TestConcurrentSeals:
+    def test_rollback_never_deletes_directory_owned_by_another_attempt(
+        self,
+        assembler: RunProfileAssembler,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """C5 regression: a seal that loses the run-dir mkdir race must not
+        rmtree the directory a concurrent attempt owns — before the fix the
+        loser's rollback deleted the winner's sealed manifest."""
+        run_dir = assembler.run_dir_for("inv-001")
+        original_state_lock = assembler.state_lock
+
+        @contextmanager
+        def _sneaky_state_lock(*args: Any, **kwargs: Any) -> Iterator[Any]:
+            with original_state_lock(*args, **kwargs) as lock:
+                # Simulate a concurrent attempt that created the run
+                # directory (and is mid-seal) after the exists guard passed.
+                run_dir.mkdir(parents=True, exist_ok=False)
+                (run_dir / "marker.txt").write_text(
+                    "winner-owned", encoding="utf-8"
+                )
+                yield lock
+
+        monkeypatch.setattr(assembler, "state_lock", _sneaky_state_lock)
+        with pytest.raises(FileExistsError):
+            assembler.seal_invocation(**_seal_kwargs())
+
+        # The directory belongs to the other attempt: it must survive intact.
+        assert run_dir.is_dir()
+        assert (
+            run_dir / "marker.txt"
+        ).read_text(encoding="utf-8") == "winner-owned"
+
+    def test_concurrent_same_key_seals_never_corrupt_the_winner(
+        self,
+        assembler: RunProfileAssembler,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Two threads sealing the same key + invocation simultaneously:
+        exactly one seal survives with its manifest intact, the record
+        reconstructs (the corruption symptom was ManifestDigestError on
+        every later lookup), and the loser never deletes the winner's
+        directory."""
+        barrier = threading.Barrier(2)
+        original_state_lock = assembler.state_lock
+
+        @contextmanager
+        def _synced_state_lock(*args: Any, **kwargs: Any) -> Iterator[Any]:
+            with original_state_lock(*args, **kwargs) as lock:
+                # Both threads pass the idempotency + exists checks before
+                # either creates the run directory, then race the mkdir.
+                barrier.wait(timeout=30)
+                yield lock
+
+        monkeypatch.setattr(assembler, "state_lock", _synced_state_lock)
+
+        outcomes: list[SealedRun] = []
+        errors: list[BaseException] = []
+
+        def _seal() -> None:
+            try:
+                outcomes.append(assembler.seal_invocation(**_seal_kwargs()))
+            except BaseException as error:  # noqa: BLE001 — collected below
+                errors.append(error)
+
+        threads = [threading.Thread(target=_seal) for _ in range(2)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=60)
+        assert not any(thread.is_alive() for thread in threads)
+
+        # Exactly one seal survives, with its run directory and manifest.
+        assert len(outcomes) >= 1
+        winner = outcomes[0]
+        assert all(result.seal_id == winner.seal_id for result in outcomes)
+        assert winner.run_dir.is_dir()
+        assert (winner.run_dir / "manifest" / "manifest.json").is_file()
+        # The assembled profile must be intact: nothing after _create_layout
+        # recreates profile/ if a loser's rollback rmtree'd it.
+        assert (winner.run_dir / "profile").is_dir()
+
+        # The loser either returned the winner's record (idempotency) or
+        # failed with the mkdir race — it must never have rmtree'd the
+        # winner's directory.
+        for error in errors:
+            assert isinstance(error, FileExistsError)
+        assert len(list(assembler.runs_root.iterdir())) == 1
+
+        # The surviving record reconstructs and stays idempotent.
+        record = assembler.store.find_by_idempotency_key("key-001")
+        assert record is not None
+        assert record["seal_id"] == winner.seal_id
+        reconstructed = assembler._reconstruct(record)  # type: ignore[attr-defined]
+        assert reconstructed.manifest_sha256 == winner.manifest_sha256
+        again = assembler.seal_invocation(**_seal_kwargs())
+        assert again.seal_id == winner.seal_id
+        assert (again.run_dir / "manifest" / "manifest.json").is_file()
+
+
+# --------------------------------------------------------------------------- #
+# H1: skill_id path traversal                                                 #
+# --------------------------------------------------------------------------- #
+
+
+class _DoctoredCatalog:
+    """Catalog stub returning one doctored RoleResource."""
+
+    def __init__(self, resource: Any) -> None:
+        self._resource = resource
+
+    def role(self, role: str) -> Any:
+        return self._resource
+
+
+def _doctored_resource(
+    catalog: RoleResourceCatalog, skill_id: str
+) -> Any:
+    resource = catalog.role("theorist")
+    return replace(
+        resource,
+        recommended_skills=(
+            SkillRecommendation(
+                skill_id=skill_id,
+                name="doctored",
+                description="doctored",
+                source="doctored",
+                recommended_version="1.0",
+            ),
+        ),
+    )
+
+
+class TestSkillIdValidation:
+    @pytest.mark.parametrize(
+        "skill_id",
+        [
+            "../../escape",
+            "../outside",
+            "a/b",
+            "a\\b",
+            "/etc/passwd",
+            "..",
+            ".",
+            ".hidden",
+            "a..b",
+            "",
+        ],
+    )
+    def test_traversal_skill_id_rejected(
+        self,
+        assembler: RunProfileAssembler,
+        catalog: RoleResourceCatalog,
+        tmp_path: Path,
+        skill_id: str,
+    ) -> None:
+        """H1 regression: an unsafe skill_id must never be used as a path
+        component under the bundle or profile roots."""
+        resource = _doctored_resource(catalog, skill_id)
+        profile_dir = tmp_path / "profile"
+        profile_dir.mkdir()
+        with pytest.raises(RunSealError, match="Skill ID"):
+            assembler._assemble_profile(  # type: ignore[attr-defined]
+                resource, profile_dir
+            )
+        # Nothing escaped the profile directory.
+        assert not (tmp_path / "escape").exists()
+        assert not (tmp_path / "outside").exists()
+
+    def test_seal_rejects_traversal_skill_id_and_rolls_back(
+        self,
+        assembler: RunProfileAssembler,
+        catalog: RoleResourceCatalog,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        """The full seal path rejects the traversal id and rolls back its
+        own (unsealed) run directory; nothing is copied outside profile/."""
+        bundle_root = tmp_path / "bundle"
+        bundle_root.mkdir()
+        monkeypatch.setattr(assembler, "_bundle_root", bundle_root)
+        monkeypatch.setattr(
+            assembler, "_role_resources", _DoctoredCatalog(_doctored_resource(catalog, "../../escape"))
+        )
+        with pytest.raises(RunSealError, match="Skill ID"):
+            assembler.seal_invocation(**_seal_kwargs())
+        assert not assembler.run_dir_for("inv-001").exists()
+        assert not (tmp_path / "escape").exists()
+        assert not (tmp_path / "bundle" / "escape").exists()
+
+    def test_valid_skill_id_accepted(
+        self, assembler: RunProfileAssembler, catalog: RoleResourceCatalog
+    ) -> None:
+        resource = _doctored_resource(catalog, "stat-paper-writing")
+        profile_dir = assembler.run_dir_for("inv-skills") / "profile"
+        profile_dir.mkdir(parents=True)
+        digests = assembler._assemble_profile(  # type: ignore[attr-defined]
+            resource, profile_dir
+        )
+        assert (profile_dir / "skills" / "stat-paper-writing").is_dir()
+        assert "skills/stat-paper-writing" in digests
+
+
+# --------------------------------------------------------------------------- #
+# H5: fencing token atomicity                                                 #
+# --------------------------------------------------------------------------- #
+
+
+class TestFencingTokenAtomicity:
+    def test_concurrent_issuance_is_atomic_and_monotonic(
+        self, database: Database
+    ) -> None:
+        """H5 regression: concurrent issuers for one invocation must never
+        produce duplicate tokens (the deferred SELECT-then-UPSERT could
+        read the same current value twice)."""
+        store = RunSealStore(database)
+        barrier = threading.Barrier(4)
+        tokens: list[int] = []
+
+        def _issue() -> None:
+            barrier.wait(timeout=30)
+            tokens.append(store.issue_fencing_token("inv-fence").token)
+
+        threads = [threading.Thread(target=_issue) for _ in range(4)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=60)
+        assert not any(thread.is_alive() for thread in threads)
+
+        # Strictly increasing and duplicate-free: 1, 2, 3, 4.
+        assert sorted(tokens) == [1, 2, 3, 4]
+        store.validate_fencing_token("inv-fence", max(tokens))
+

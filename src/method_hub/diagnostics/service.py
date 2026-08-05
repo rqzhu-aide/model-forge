@@ -100,8 +100,8 @@ class _DiagnosticObserver:
     """ExecutionObserver that records process identity and heartbeats.
 
     The observer drives all lifecycle transitions after launch_intent:
-    - launch_acknowledged → LAUNCH_ACKNOWLEDGED when the container is created
-    - first heartbeat → RUNNING when the container starts producing output
+    - launch_acknowledged → LAUNCH_ACKNOWLEDGED when the process is created
+    - first heartbeat → RUNNING when the process starts producing output
     """
 
     def __init__(
@@ -272,7 +272,7 @@ class DiagnosticService:
             )
             # The observer drives all state transitions via callbacks.
             # The service does NOT pre-mark launch_acknowledged or running —
-            # the executor's observer handles those when the container
+            # the executor's observer handles those when the process
             # is actually created and started (Slice 3: create→ack→start).
             result = await self._executor.execute(role_invocation, observer)
 

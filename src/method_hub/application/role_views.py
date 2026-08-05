@@ -33,7 +33,8 @@ _AssetType = Literal["soul", "base_configuration", "library_guidance", "skill"]
 _AssetStatusLiteral = Literal["present", "missing", "customized", "unavailable"]
 _HealthConditionLiteral = Literal[
     "hermes_missing", "profile_missing", "soul_customized", "soul_missing",
-    "config_customized", "config_missing", "skill_mismatch", "skill_missing", "healthy",
+    "config_customized", "config_missing", "skill_mismatch", "skill_missing",
+    "skill_unavailable", "bundle_missing", "healthy",
 ]
 
 
@@ -204,11 +205,19 @@ def _derive_conditions(report: RoleHealthReport) -> list[str]:
         conditions.append("config_missing")
     if report.configuration_status.status == "customized":
         conditions.append("config_customized")
+    bundle_missing_reported = False
     for skill in report.skill_statuses:
         if skill.status == "missing":
             conditions.append("skill_missing")
-        if skill.status == "customized":
+        elif skill.status == "customized":
             conditions.append("skill_mismatch")
+        elif skill.status == "unavailable":
+            conditions.append("skill_unavailable")
+            # The profile exists but the recommended skill's source cannot be
+            # reached — the skill bundle (or the skill inside it) is missing.
+            if report.profile_available and not bundle_missing_reported:
+                conditions.append("bundle_missing")
+                bundle_missing_reported = True
     if report.overall_status == "healthy" and not conditions:
         conditions.append("healthy")
     return conditions

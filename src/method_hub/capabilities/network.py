@@ -1,14 +1,11 @@
 """Network policy: deny-by-default with optional host allowlist.
 
-The policy is declarative — it describes what *should* be reachable.  The
-executor (currently the one-shot bwrap wrapper) enforces it at runtime by
-configuring the sandbox network namespace.  In deny-all mode the sandbox gets
-a private network namespace with no interfaces.  In allowlist mode the
-sandbox gets a loopback + a proxied connection to each declared host.
-
-Under ADR-012 network enforcement is workflow discipline, not a security
-guarantee; it is sealed into the manifest and recorded in the invocation
-document so the exact declared posture is auditable.
+The policy is declarative — it describes what *should* be reachable.  Under
+trusted local execution (ADR-012) the executor runs Hermes directly as a
+local process, so the policy is not enforced in a sandbox network namespace.
+Network enforcement is workflow discipline, not a security guarantee; it is
+sealed into the manifest and recorded in the invocation document so the exact
+declared posture is auditable.
 """
 
 from __future__ import annotations

@@ -121,6 +121,49 @@ def require_complete_sealed_basis(
                     "entry lacks its skill_id or bundle digest."
                 )
 
+        # WP-H2: the exact installed role configuration. The memory policy is
+        # always declared by the WP-C base configuration, so it must be sealed
+        # non-empty. model/provider/tools and the per-role phase instruction
+        # are recorded as explicit nulls when the WP-C definition or phase
+        # contract declares nothing -- the key must still be sealed so the
+        # record is honest and the value is pinned for drift detection.
+        for field in ("model", "provider", "phase_instruction", "tools"):
+            if field not in sealed_role:
+                raise ValueError(
+                    f"The reviewed basis underspecifies role {role!r}: "
+                    f"missing {field}."
+                )
+        if not sealed_role.get("memory_policy"):
+            raise ValueError(
+                f"The reviewed basis underspecifies role {role!r}: "
+                "missing memory policy."
+            )
+        base_configuration = sealed_role.get("base_configuration")
+        if (
+            type(base_configuration) is not dict
+            or not base_configuration.get("file_name")
+            or not base_configuration.get("sha256")
+        ):
+            raise ValueError(
+                f"The reviewed basis underspecifies role {role!r}: "
+                "the base configuration lacks its content digest."
+            )
+        library_guidance = sealed_role.get("library_guidance")
+        if (
+            type(library_guidance) is not dict
+            or not library_guidance.get("file_name")
+            or not library_guidance.get("sha256")
+        ):
+            raise ValueError(
+                f"The reviewed basis underspecifies role {role!r}: "
+                "the library guidance lacks its content digest."
+            )
+        if type(sealed_role.get("custom_skills")) is not list:
+            raise ValueError(
+                f"The reviewed basis underspecifies role {role!r}: "
+                "missing custom skills."
+            )
+
 
 def build_run_command(
     request: RunRequest,

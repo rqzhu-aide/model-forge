@@ -32,9 +32,9 @@ examples, but it does not perform research. Direct `hermes_kanban` execution is
 also development-only.
 
 Production agent execution remains disabled until the reviewed run basis,
-rootless OCI capability boundary, authentication, recovery, and deployment
+trusted local execution boundary, authentication, recovery, and deployment
 requirements are complete. See the
-[Operational Completion Plan](architecture/plans/operational-completion-plan.md)
+[Trusted Local Execution Program](architecture/plans/trusted-local-execution-program.md)
 for the ordered implementation program and release gates.
 
 ## Research workflow

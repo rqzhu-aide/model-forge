@@ -66,9 +66,10 @@ The current validator checks:
   probes mutate the coherent transaction instead of maintaining large duplicate
   fixture files;
 - all role-produced outputs under unique role write roots;
-- exact rootless OCI executor binding with private user, process, and mount
-  namespaces, read-only root filesystem, no capabilities, no-new-privileges,
-  pinned seccomp, one writable role root, broker socket, and declared egress;
+- exact `trusted_local` executor binding with local process-group
+  supervision, SIGTERM-then-SIGKILL termination, verified quiescence,
+  one run-profile working root distinct from the workspace, and pinned
+  executor fields shared across role starts;
 - one fully instantiated data-analyst profile and immutable profile artifacts for
   every other role step. It does not claim to validate profile content that is
   not instantiated in the example set;

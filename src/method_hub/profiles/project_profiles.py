@@ -49,7 +49,7 @@ class MemoryPolicy(StrEnum):
 #: Files that must be scrubbed from a cloned profile (C7).
 CREDENTIAL_FILES: tuple[str, ...] = (".env", "auth.json", "auth.lock")
 
-#: Files that define role identity — baked at creation, read-only in container.
+#: Files that define role identity — baked at creation, read-only at runtime.
 IDENTITY_FILES: tuple[str, ...] = ("SOUL.md", "config.yaml")
 
 

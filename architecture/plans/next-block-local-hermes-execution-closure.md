@@ -310,8 +310,8 @@ Replace or simplify:
   process-tree quiescence - not writing a runner from scratch.
 
 OCI source and tests were removed from the working tree in Revision 1 (git
-history preserves them). The diagnostic lane is interim-wired to
-`OneShotExecutor` until Block 4 lands.
+history preserves them). Block 4 has landed: the diagnostic lane is now wired
+to `LocalHermesExecutor`, and the interim `OneShotExecutor` wiring is gone.
 
 Do not rewrite functioning phase contracts or role order. Phase 3 remains
 `theorist -> data analyst -> research lead`, Phase 4 remains
@@ -406,9 +406,10 @@ with the researcher.
   already red (5 failures from the slice 2-7 runtime-profile requirement
   drift), confirming the code was not being kept viable.
 - **A4 (decision).** The diagnostic lane composition root
-  (`diagnostics/composition.py`) is interim-wired to `OneShotExecutor` and
-  its preflight checks `bwrap` instead of Podman. The lane stays dev-only;
-  Block 4 replaces this interim wiring with `LocalHermesExecutor`.
+  (`diagnostics/composition.py`) was interim-wired to `OneShotExecutor` with
+  a `bwrap` preflight check; Block 4 replaced that interim wiring with
+  `LocalHermesExecutor`, whose preflight checks the Hermes version instead.
+  The lane stays dev-only.
   `diagnostics/contracts.py` `ProcessIdentity.runtime` keeps historical
   `"oci"` values readable.
 - **A5 (conformance).** `OneShotExecutor.cancel` now conforms to the

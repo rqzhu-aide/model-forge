@@ -15,8 +15,10 @@ import asyncio
 import hashlib
 import json
 import os
+import re
 import signal
 import shutil
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -155,10 +157,9 @@ class TestProcessIdentity:
     """Durable process identity distinguishes PID reuse."""
 
     def test_format_external_id_contains_pid_and_marker(self):
-        """The external ID encodes PID, start time, and invocation marker."""
+        """The external ID encodes PID, start time, marker, and boot ID."""
         identity = ProcessIdentity(
             pid=12345,
-            start_time=0.0,
             executable="/usr/bin/hermes",
             invocation_marker="test-exec-1234567890",
         )
@@ -166,12 +167,12 @@ class TestProcessIdentity:
         assert "local:pid:12345" in ext_id
         assert "st:" in ext_id
         assert "mk:test-exec-12" in ext_id  # marker truncated to 12 chars
+        assert ":bi:" in ext_id  # C4: boot ID embedded for reboot detection
 
     def test_extract_pid_roundtrip(self):
         """PID extraction works on formatted external IDs."""
         identity = ProcessIdentity(
             pid=999,
-            start_time=0.0,
             executable="/usr/bin/hermes",
             invocation_marker="abcdef",
         )
@@ -180,18 +181,19 @@ class TestProcessIdentity:
         assert extracted == 999
 
     def test_parse_external_id_components(self):
-        """Full parsing extracts PID, start time, and marker."""
+        """Full parsing extracts PID, start time, marker, and boot ID."""
         identity = ProcessIdentity(
             pid=42,
-            start_time=0.0,
             executable="/usr/bin/hermes",
             invocation_marker="marker1234567",
+            host_boot_id="boot-1234",
         )
         ext_id = LocalHermesExecutor._format_external_id(identity)
         parsed = LocalHermesExecutor._parse_external_id(ext_id)
         assert parsed is not None
         assert parsed["pid"] == 42
         assert "marker" in parsed or "mk" in parsed
+        assert parsed.get("boot_id") == "boot-1234"
 
     def test_extract_pid_rejects_old_format(self):
         """Old oneshot:pid: format is rejected."""
@@ -217,6 +219,24 @@ class TestProcessStatusHelpers:
         """A nonexistent PID is not alive."""
         # PID 0x7FFFFFFF is extremely unlikely to exist.
         assert _check_process_alive(2147483647) is False
+
+    @pytest.mark.skipif(sys.platform != "linux", reason="Linux-only /proc test")
+    def test_check_process_alive_zombie(self):
+        """A zombie process counts as dead (M6)."""
+        proc = subprocess.Popen(
+            [sys.executable, "-c", "import time; time.sleep(0.2)"]
+        )
+        try:
+            time.sleep(0.6)  # Let the child exit and become a zombie.
+            # Verify it really is a zombie before asserting the helper.
+            stat_data = Path(f"/proc/{proc.pid}/stat").read_text()
+            paren_end = stat_data.rfind(")")
+            assert paren_end != -1
+            state = stat_data[paren_end + 2:].split()[0]
+            assert state == "Z", f"expected zombie, got state {state!r}"
+            assert _check_process_alive(proc.pid) is False
+        finally:
+            proc.wait()  # Reap the zombie.
 
     @pytest.mark.skipif(sys.platform != "linux", reason="Linux-only /proc test")
     def test_get_process_starttime_returns_float(self):
@@ -246,7 +266,7 @@ class TestReconcile:
     def test_reconcile_dead_process(self):
         """A process that no longer exists returns FAILED."""
         executor = LocalHermesExecutor(LocalHermesExecutorSettings())
-        ext_id = "local:pid:2147483647:st:0:mk:nonexistent"
+        ext_id = "local:pid:2147483647:st:0:mk:nonexistent:bi:deadbeef"
         result = asyncio.run(executor.reconcile(ext_id))
         assert result is not None
         assert result.status == RoleExecutionStatus.FAILED
@@ -257,6 +277,32 @@ class TestReconcile:
         executor = LocalHermesExecutor(LocalHermesExecutorSettings())
         result = asyncio.run(executor.reconcile("invalid:id"))
         assert result is None
+
+    @pytest.mark.skipif(sys.platform != "linux", reason="Linux-only /proc test")
+    def test_reconcile_running_process(self):
+        """A live process whose identity still matches returns None."""
+        executor = LocalHermesExecutor(LocalHermesExecutorSettings())
+        pid = os.getpid()
+        ext_id = (
+            f"local:pid:{pid}:st:{_get_process_starttime(pid)}:"
+            f"mk:self:bi:{_read_boot_id()}"
+        )
+        result = asyncio.run(executor.reconcile(ext_id))
+        assert result is None  # Still running — nothing to report.
+
+    @pytest.mark.skipif(sys.platform != "linux", reason="Linux-only /proc test")
+    def test_reconcile_boot_id_mismatch(self):
+        """A boot ID that differs from the host's means a reboot (C4)."""
+        executor = LocalHermesExecutor(LocalHermesExecutorSettings())
+        pid = os.getpid()
+        ext_id = (
+            f"local:pid:{pid}:st:{_get_process_starttime(pid)}:"
+            f"mk:self:bi:00000000-0000-0000-0000-000000000000"
+        )
+        result = asyncio.run(executor.reconcile(ext_id))
+        assert result is not None
+        assert result.status == RoleExecutionStatus.FAILED
+        assert "boot" in result.summary.lower()
 
 
 # --------------------------------------------------------------------------- #
@@ -276,6 +322,59 @@ class TestHermesVersion:
         v2 = asyncio.run(executor._get_hermes_version("hermes"))
         assert v1 == v2
         assert v1 != "unknown"
+
+    @pytest.mark.skipif(sys.platform != "linux", reason="Linux-only /proc test")
+    def test_version_probe_timeout_kills_child(self, tmp_path, monkeypatch):
+        """A hanging --version probe is killed on timeout (M7)."""
+        hang = tmp_path / "hang-hermes"
+        hang.write_text(
+            "#!/usr/bin/env python3\n"
+            "import os, time\n"
+            "pid_file = os.environ.get('HANG_PID_FILE')\n"
+            "if pid_file:\n"
+            "    with open(pid_file, 'w') as f:\n"
+            "        f.write(str(os.getpid()))\n"
+            "time.sleep(600)\n"
+        )
+        hang.chmod(0o755)
+        pid_file = tmp_path / "probe.pid"
+        monkeypatch.setenv("HANG_PID_FILE", str(pid_file))
+
+        executor = LocalHermesExecutor(LocalHermesExecutorSettings())
+
+        async def _timeout_immediately(coro, timeout):
+            # Close the never-started communicate() coroutine cleanly.
+            coro.close()
+            # Give the probe child a moment to start up and write its
+            # PID file, then simulate the probe timing out.
+            await asyncio.sleep(0.2)
+            raise asyncio.TimeoutError
+
+        async def run():
+            with patch.object(
+                asyncio, "wait_for", new=_timeout_immediately
+            ):
+                return await executor._get_hermes_version(str(hang))
+
+        version = asyncio.run(run())
+        assert version == "unknown"
+
+        # The probe child must have been killed, not leaked.
+        probe_pid: int | None = None
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            if pid_file.exists():
+                probe_pid = int(pid_file.read_text().strip())
+                break
+            time.sleep(0.05)
+        assert probe_pid is not None, "probe child never wrote its PID file"
+        while time.monotonic() < deadline:
+            if not _check_process_alive(probe_pid):
+                break
+            time.sleep(0.05)
+        assert not _check_process_alive(probe_pid), (
+            f"version probe PID {probe_pid} still alive after timeout"
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -465,7 +564,10 @@ class TestEndToEndSuccess:
         assert result.exit_code == 0
         assert result.external_execution_id is not None
         assert result.external_execution_id.startswith("local:")
+        # C1: the launch ack carries the REAL durable external ID, so
+        # cancel()/reconcile() can act on it later.
         assert len(observer.acks) >= 1
+        assert observer.acks[-1] == result.external_execution_id
 
 
 class TestEndToEndOutputFlood:
@@ -522,6 +624,24 @@ class TestEndToEndOverlongLine:
 class TestEndToEndCancellation:
     """(d) Cancellation kills the whole process tree including grandchildren."""
 
+    @pytest.mark.skipif(sys.platform != "linux", reason="Linux-only /proc test")
+    def test_cancel_refuses_pid_reuse(self):
+        """Cancel must NOT kill a process whose start time doesn't match (C2)."""
+        executor = LocalHermesExecutor(LocalHermesExecutorSettings())
+        pid = os.getpid()
+        # A bogus start time (0) can never match the real /proc value, so
+        # cancel() must refuse to signal — killing here would terminate
+        # this very test process.
+        ext_id = (
+            f"local:pid:{pid}:st:0:mk:self:bi:{_read_boot_id() or 'unknown'}"
+        )
+
+        async def run():
+            await executor.cancel(ext_id)
+            return _check_process_alive(pid)
+
+        assert asyncio.run(run()) is True  # We survived — nothing was killed.
+
     def test_cancel_kills_grandchild(self, stub_hermes: Path, tmp_path: Path):
         workspace = tmp_path / "ws"
         workspace.mkdir()
@@ -538,14 +658,20 @@ class TestEndToEndCancellation:
             # Give the stub time to spawn the grandchild.
             await asyncio.sleep(0.5)
 
-            # The observer's ack is a placeholder; the real PID is in
-            # the heartbeat message ("Hermes PID <N> running...").
-            assert len(observer.heartbeats) >= 1
-            import re
+            # C1: the ack now carries the REAL durable external ID
+            # (PID + start time + marker + boot ID), not a placeholder.
+            assert len(observer.acks) >= 1
+            external_id = observer.acks[-1]
+            assert external_id.startswith("local:pid:")
 
+            pid = LocalHermesExecutor._extract_pid(external_id)
+            assert pid is not None
+
+            # The heartbeat PID must agree with the ack PID.
+            assert len(observer.heartbeats) >= 1
             m = re.search(r"PID (\d+)", observer.heartbeats[-1])
             assert m, f"Could not extract PID from heartbeat: {observer.heartbeats}"
-            pid = int(m.group(1))
+            assert int(m.group(1)) == pid
 
             # Find all processes in the same process group (grandchildren).
             import glob
@@ -563,7 +689,7 @@ class TestEndToEndCancellation:
                         pgrp = int(fields[3])
                         if pgrp == os.getpgid(pid) and stat_pid != pid:
                             children.append(stat_pid)
-                except (OSError, ValueError, ProcessLookupError):
+                except (OSError, ValueError):
                     continue
 
             assert len(children) > 0, (
@@ -571,10 +697,7 @@ class TestEndToEndCancellation:
             )
             grandchild_pid = children[0]
 
-            # Construct the external_id to cancel.
-            external_id = f"local:pid:{pid}:st:0:mk:{invocation.execution_id[:12]}"
-
-            # Cancel the execution.
+            # Cancel the execution using the acknowledged real ID.
             await executor.cancel(external_id)
 
             # Wait for the exec task to complete.

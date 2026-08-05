@@ -1,6 +1,6 @@
 # Method Hub Operational Completion Plan
 
-Status: Active implementation plan
+Status: Historical (superseded by trusted-local-execution-program.md)
 
 Prepared: 2026-08-03
 

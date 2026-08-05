@@ -211,7 +211,12 @@ class RunCoordinator:
             step.role for stage in plan.stages for step in stage.role_steps
         }
         profiles, resources = self._freeze_role_resources(
-            str(run["project_id"]), roles
+            str(run["project_id"]),
+            roles,
+            contract_document=self.specification.phases.contract_document(
+                str(command["phase"])
+            ),
+            mode=plan.mode_id,
         )
         method = _selected_method(plan.choice_values)
         publication_basis = capture_publication_basis(
@@ -527,7 +532,12 @@ class RunCoordinator:
         )
 
     def _freeze_role_resources(
-        self, project_id: str, roles: set[str]
+        self,
+        project_id: str,
+        roles: set[str],
+        *,
+        contract_document: dict[str, Any] | None = None,
+        mode: str | None = None,
     ) -> tuple[dict[str, str], dict[str, dict[str, Any]]]:
         from ..harness.role_resource_snapshot import compute_role_resources
 
@@ -538,6 +548,8 @@ class RunCoordinator:
             skill_manifest=self._skill_manifest,
             roles=roles,
             project_id=project_id,
+            contract_document=contract_document,
+            mode=mode,
         )
 
     def _verify_frozen_inputs(self, recipe: PreparedRunRecipe) -> None:
@@ -689,8 +701,13 @@ class RunCoordinator:
                         f"Skill bundles for role {role!r} changed between review and preparation.",
                     )
                 # Every further field present in BOTH snapshots must match:
-                # soul text, per-skill source revisions, and any future digest
-                # field added to the snapshot.
+                # soul text, per-skill source revisions, and the WP-H2 exact
+                # configuration fields (memory policy, model/provider,
+                # phase instruction, base configuration and library guidance
+                # digests, custom skills). A field the sealed basis does not
+                # record at all (a pre-WP-H2 stored command) passes through
+                # unchanged (C6); a recorded field that differs from the
+                # freshly frozen snapshot is drift.
                 for field in sorted(set(sealed_role) & set(live_role)):
                     if field in (
                         "profile",
@@ -699,7 +716,7 @@ class RunCoordinator:
                         "skills",
                     ):
                         continue
-                    if str(sealed_role[field]) != str(live_role[field]):
+                    if sealed_role[field] != live_role[field]:
                         raise RepositoryConflictError(
                             "stale_basis.role_resource_drifted",
                             f"Role resource for {role!r} changed between review and preparation.",

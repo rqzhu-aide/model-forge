@@ -127,6 +127,8 @@ class HealthCondition(str, Enum):
     CONFIG_MISSING = "config_missing"
     SKILL_MISMATCH = "skill_mismatch"
     SKILL_MISSING = "skill_missing"
+    SKILL_UNAVAILABLE = "skill_unavailable"
+    BUNDLE_MISSING = "bundle_missing"
     HEALTHY = "healthy"
 
 
@@ -145,16 +147,30 @@ def _sha256_file(path: Path) -> str | None:
         return None
 
 
-def _read_profile_file(profile_home: Path, file_name: str) -> str | None:
-    """Read a text file from the profile directory, returning None if absent."""
+def _read_profile_file(profile_home: Path, file_name: str) -> tuple[bool, str | None]:
+    """Read a text file from the profile directory.
+
+    Returns ``(exists, content)``:
+
+    - ``(False, None)`` — the file is absent.
+    - ``(True, None)`` — the file exists but could not be read or decoded as
+      UTF-8 (a binary file, or an I/O error).
+    - ``(True, str)`` — the decoded file content.
+
+    Callers must treat ``(True, None)`` as "customized/unverifiable", never
+    as "missing", so that unreadable files are never silently overwritten.
+    """
     path = profile_home / file_name
     try:
+        if not path.exists():
+            return False, None
+    except OSError:
+        return True, None
+    try:
         data = path.read_bytes()
-        return data.decode("utf-8", errors="strict")
-    except FileNotFoundError:
-        return None
+        return True, data.decode("utf-8", errors="strict")
     except (OSError, UnicodeDecodeError):
-        return None
+        return True, None
 
 
 def _check_asset(
@@ -178,8 +194,8 @@ def _check_asset(
             recommended_version=recommended_version,
             detail="Profile directory is unavailable.",
         )
-    actual = _read_profile_file(profile_home, file_name)
-    if actual is None:
+    exists, actual = _read_profile_file(profile_home, file_name)
+    if not exists:
         return AssetStatus(
             asset_type=asset_type,
             file_name=file_name,
@@ -189,6 +205,23 @@ def _check_asset(
             source=source,
             recommended_version=recommended_version,
             detail=f"{file_name} is not present in the profile.",
+        )
+    if actual is None:
+        # The file exists but cannot be read or decoded. It cannot be proven
+        # to match the reference, so it is customized/unverifiable — never
+        # report it as missing, which would invite a silent overwrite.
+        return AssetStatus(
+            asset_type=asset_type,
+            file_name=file_name,
+            status="customized",
+            expected_sha256=expected_sha256,
+            actual_sha256=_sha256_file(profile_home / file_name),
+            source=source,
+            recommended_version=recommended_version,
+            detail=(
+                f"{file_name} exists but could not be read or decoded as "
+                f"UTF-8; it was not overwritten."
+            ),
         )
     actual_sha = _sha256_text(actual)
     if actual_sha == expected_sha256:
@@ -393,9 +426,27 @@ def _backup_profile(profile_home: Path) -> Path:
 
 
 def _restore_backup(profile_home: Path, backup: Path) -> None:
-    """Restore a profile directory from its backup, replacing the current one."""
-    shutil.rmtree(profile_home)
-    shutil.move(str(backup), str(profile_home))
+    """Restore a profile directory from its backup, replacing the current one.
+
+    The restore is crash-safe: the current profile is first renamed aside
+    (one atomic rename), then the backup is moved into place, and only then
+    is the aside deleted. A process crash between the rename and the move
+    leaves the original profile recoverable under the trash name — it is
+    never deleted before the backup is in place.
+    """
+    trash = profile_home.parent / f".{profile_home.name}.trash-{uuid.uuid4().hex}"
+    os.replace(profile_home, trash)
+    try:
+        os.replace(backup, profile_home)
+    except BaseException:
+        # The move failed; the original profile still exists under the trash
+        # name. Try to put it back so the caller sees a consistent directory.
+        try:
+            os.replace(trash, profile_home)
+        except OSError:
+            pass
+        raise
+    shutil.rmtree(trash)
 
 
 def _cleanup_backup(backup: Path) -> None:
@@ -422,7 +473,7 @@ def _write_file_atomic(target: Path, content: str) -> None:
         os.fsync(descriptor)
     finally:
         os.close(descriptor)
-    os.rename(staging, target)
+    os.replace(staging, target)
 
 
 def _provision_asset(
@@ -443,9 +494,14 @@ def _provision_asset(
     and force_overwrite is False.
     """
     target = profile_home / file_name
-    existing = _read_profile_file(profile_home, file_name)
-    if existing is not None:
-        existing_sha = _sha256_text(existing)
+    exists, existing = _read_profile_file(profile_home, file_name)
+    if exists:
+        if existing is not None:
+            existing_sha = _sha256_text(existing)
+        else:
+            # The file exists but could not be read/decoded. Hash the raw
+            # bytes when possible; either way it cannot be proven to match.
+            existing_sha = _sha256_file(target)
         if existing_sha == expected_sha256:
             return False  # already matches
         if not force_overwrite:
@@ -454,7 +510,7 @@ def _provision_asset(
                 asset_type=asset_type,
                 path=target,
                 expected_sha256=expected_sha256,
-                actual_sha256=existing_sha,
+                actual_sha256=existing_sha or ("0" * 64),
             )
     _write_file_atomic(target, content)
     written_sha = _sha256_file(target)
@@ -490,6 +546,14 @@ def provision_role_definition(
     if not profile_home.is_dir() or profile_home.is_symlink():
         raise ProvisioningError(
             f"Profile directory is not available: {profile_home}"
+        )
+
+    if profile_home.name == "default":
+        raise ProvisioningError(
+            f"Profile name {profile_home.name!r} is reserved: it resolves to "
+            f"the Hermes root directory itself. Refusing to provision role "
+            f"{resource.role_id!r} into {profile_home}; assign a dedicated "
+            f"profile for this role."
         )
 
     backup = _backup_profile(profile_home)

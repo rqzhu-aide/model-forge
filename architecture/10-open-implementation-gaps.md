@@ -2,10 +2,11 @@
 
 ## Status
 
-The reviewed-basis gap and reviewer-memory boundary in this file must close
-before Method Hub can claim exact user authorization and closed-packet review.
-The full production sequence is maintained in the
-[Operational Completion Plan](plans/operational-completion-plan.md).
+The reviewed-basis gap in this file is CLOSED: WP0 (reviewed-basis closure)
+sealed the accepted command basis, and WP-H1 added the sealed-basis
+acceptance-time completeness gate. The reviewer-memory boundary below remains
+open. The full production sequence is maintained in the
+[Trusted Local Execution Program](plans/trusted-local-execution-program.md).
 
 ## Current gap
 

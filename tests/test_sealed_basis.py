@@ -23,6 +23,7 @@ from method_hub.api.ports import RawRequestBody
 from method_hub.application.bootstrap import build_service
 from method_hub.application.run_coordinator import RunCoordinator
 from method_hub.application.settings import ApplicationSettings
+from method_hub.configuration.resources import RoleResourceCatalog
 from method_hub.contracts.runtime import RuntimePhaseContract, resolve_runtime_contract
 from method_hub.domain.identities import MethodIdentity
 from method_hub.executors import DeterministicFakeExecutor
@@ -31,8 +32,11 @@ from method_hub.harness.preparation import PreparedRunRecipe
 from method_hub.specification import SpecificationPackage
 from method_hub.storage.repository import RepositoryConflictError
 
+import yaml
+
 
 ARCHITECTURE = Path(__file__).resolve().parents[1] / "architecture"
+RESOURCES = Path(__file__).resolve().parents[1] / "resources" / "team"
 
 
 def _raw(
@@ -623,6 +627,21 @@ def _complete_gate_basis() -> dict:
                         "bundle_sha256": "0" * 64,
                     }
                 ],
+                "model": None,
+                "provider": None,
+                "memory_policy": "persistent",
+                "phase_instruction": None,
+                "tools": None,
+                "base_configuration": {
+                    "file_name": "configs/lead.yaml",
+                    "format": "yaml",
+                    "sha256": "0" * 64,
+                },
+                "library_guidance": {
+                    "file_name": "guidance/lead.md",
+                    "sha256": "0" * 64,
+                },
+                "custom_skills": [],
             }
         },
     }

@@ -465,6 +465,94 @@ class RunDetail(RunSummary):
     publication_receipt: PublicationReceiptView | None = None
 
 
+class SupervisedRunSummary(StrictModel):
+    """One sealed supervised invocation, condensed for list views (WP-F0).
+
+    ``phase``, ``method_identity``, and ``memory_policy`` come from the
+    stored, digest-verified manifest JSON and are null when that document
+    is no longer readable (for example after WP-E3 retention pruned the
+    run directory).  Everything else comes from the seal registry and the
+    launch/validation/promotion tables.
+    """
+
+    invocation_id: NonEmptyString
+    seal_id: NonEmptyString
+    role: NonEmptyString
+    phase: NonEmptyString | None = None
+    method_identity: dict[str, Any] | None = None
+    memory_policy: NonEmptyString | None = None
+    sealed_at: NonEmptyString
+    latest_launch_status: Literal[
+        "running", "succeeded", "failed", "cancelled"
+    ] | None = None
+    validation_verdict: Literal["pass", "fail"] | None = None
+    promoted: bool
+
+
+class SupervisedManifestSummary(StrictModel):
+    """Selected fields of the immutable seal manifest (never the full bytes)."""
+
+    project_id: NonEmptyString
+    role: NonEmptyString
+    phase: NonEmptyString
+    method_identity: dict[str, Any] | None = None
+    memory_snapshot: dict[str, Any] | None = None
+    session_snapshot: dict[str, Any] | None = None
+    expected_outputs: list[dict[str, Any]]
+    hermes: dict[str, Any] | None = None
+    role_asset_digests: dict[str, str]
+    sealed_at: NonEmptyString
+
+
+class SupervisedLaunchRecord(StrictModel):
+    """One durable launch record of a supervised invocation (WP-E0)."""
+
+    launch_id: NonEmptyString
+    status: Literal["running", "succeeded", "failed", "cancelled"]
+    exit_code: int | None = None
+    external_execution_id: NonEmptyString | None = None
+    task_brief_sha256: Sha256String | None = None
+    launched_at: NonEmptyString
+    closed_at: NonEmptyString | None = None
+
+
+class SupervisedValidationReport(StrictModel):
+    """The latest stored output-validation report for one invocation (WP-E1)."""
+
+    launch_id: NonEmptyString
+    verdict: Literal["pass", "fail"]
+    validated_at: NonEmptyString
+    checks: list[dict[str, str]]
+
+
+class SupervisedPromotionRecord(StrictModel):
+    """One allowlisted memory/session promotion record (WP-E2)."""
+
+    record_id: NonEmptyString
+    promoted_at: NonEmptyString
+    status: Literal["succeeded", "failed"]
+    before_digest: dict[str, Any]
+    after_digest: dict[str, Any]
+    backup_paths: dict[str, Any]
+
+
+class SupervisedRunDetail(StrictModel):
+    """The complete durable read view of one supervised invocation (WP-F0)."""
+
+    invocation_id: NonEmptyString
+    seal_id: NonEmptyString
+    project_id: NonEmptyString
+    role: NonEmptyString
+    sealed_at: NonEmptyString
+    manifest: SupervisedManifestSummary | None = None
+    manifest_note: NonEmptyString | None = None
+    preflight_report: None = None
+    preflight_note: NonEmptyString | None = None
+    launches: list[SupervisedLaunchRecord]
+    validation: SupervisedValidationReport | None = None
+    promotions: list[SupervisedPromotionRecord]
+
+
 class SkillStatus(StrictModel):
     skill_id: NonEmptyString
     name: NonEmptyString

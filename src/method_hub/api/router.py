@@ -35,6 +35,8 @@ from .models import (
     SaveProfileRequest,
     StartRunRequest,
     StrictModel,
+    SupervisedRunDetail,
+    SupervisedRunSummary,
     SystemSettingsView,
     UpdateProjectBriefRequest,
 )
@@ -299,6 +301,34 @@ def create_api_router() -> APIRouter:
         project_id: str, run_id: str, service: Service
     ) -> RunDetail:
         return await service.get_run(project_id, run_id)
+
+    @router.get(
+        "/projects/{project_id}/supervised-runs",
+        response_model=list[SupervisedRunSummary],
+        response_model_exclude_none=True,
+    )
+    async def list_supervised_runs(
+        project_id: str, service: Service
+    ) -> list[SupervisedRunSummary]:
+        """List sealed supervised invocations (read-only; WP-F0).
+
+        The path ``project_id`` is the free-form project id the
+        run-profile assembler seals under — there is deliberately no
+        project-existence check against the hub repository, and a
+        project without supervised runs returns an empty list.
+        """
+        return await service.list_supervised_runs(project_id)
+
+    @router.get(
+        "/projects/{project_id}/supervised-runs/{invocation_id}",
+        response_model=SupervisedRunDetail,
+        response_model_exclude_none=True,
+    )
+    async def get_supervised_run(
+        project_id: str, invocation_id: str, service: Service
+    ) -> SupervisedRunDetail:
+        """Return the durable detail view of one supervised invocation."""
+        return await service.get_supervised_run(project_id, invocation_id)
 
     @router.get("/projects/{project_id}/artifacts/{artifact_id}")
     async def get_artifact(

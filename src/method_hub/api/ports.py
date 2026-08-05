@@ -29,6 +29,8 @@ from .models import (
     RunSummary,
     SaveProfileRequest,
     StartRunRequest,
+    SupervisedRunDetail,
+    SupervisedRunSummary,
     SystemSettingsView,
     UpdateProjectBriefRequest,
 )
@@ -143,6 +145,14 @@ class MethodHubApplicationService(Protocol):
     ) -> RunDetail: ...
 
     async def get_run(self, project_id: str, run_id: str) -> RunDetail: ...
+
+    async def list_supervised_runs(
+        self, project_id: str
+    ) -> list[SupervisedRunSummary]: ...
+
+    async def get_supervised_run(
+        self, project_id: str, invocation_id: str
+    ) -> SupervisedRunDetail: ...
 
     async def get_artifact(
         self, project_id: str, artifact_id: str

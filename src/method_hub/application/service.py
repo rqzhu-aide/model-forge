@@ -35,6 +35,8 @@ from ..api.models import (
     RunSummary,
     SaveProfileRequest,
     StartRunRequest,
+    SupervisedRunDetail,
+    SupervisedRunSummary,
     SystemSettingsView,
     UpdateProjectBriefRequest,
 )
@@ -68,7 +70,9 @@ from ..harness.commands import build_run_command, require_complete_sealed_basis
 from ..harness.role_resource_snapshot import compute_role_resources, load_skill_manifest
 from ..specification import SpecificationPackage
 from ..storage.artifacts import ArtifactStore
+from ..storage.database import Database
 from ..storage.errors import ArtifactIntegrityError
+from ..storage.migrations import HUB_MIGRATIONS
 from ..storage.repository import (
     HubRepository,
     RepositoryConflictError,
@@ -85,8 +89,10 @@ from .role_views import (
     build_role_definition_view,
     build_role_health_view,
 )
+from .run_profile_assembler import RunSealStore
 from .run_views import CANCELLABLE, run_detail_view, run_event_view, run_summary_view
 from .settings import ApplicationSettings
+from .supervised_run_views import supervised_run_detail, supervised_run_summary
 from .view_models import ACTIVE_RUN_STATES, ResearchProjectionService, project_summary
 
 
@@ -131,7 +137,28 @@ class MethodHubService:
             specification.phases,
             execution_available=run_launcher is not None,
         )
+        self._run_seal_store: RunSealStore | None = None
         self._background: set[asyncio.Task[None]] = set()
+
+    @property
+    def run_seal_store(self) -> RunSealStore:
+        """Lazily open the run-seal store over this service's data root.
+
+        The supervised-run machinery keeps its own Database at
+        ``<data_root>/hub.sqlite3`` (the pilot-script layout), separate
+        from the hub repository's ``method-hub.sqlite3``.  It is opened
+        and migrated on first use so a fresh installation with no
+        supervised runs ever still serves empty read results instead of
+        errors.
+        """
+        if self._run_seal_store is None:
+            database = Database(
+                self.settings.data_root / "hub.sqlite3",
+                migrations=HUB_MIGRATIONS,
+            )
+            database.initialize()
+            self._run_seal_store = RunSealStore(database)
+        return self._run_seal_store
 
     async def resume_incomplete(self) -> None:
         if self.recovery_launcher is not None:
@@ -879,6 +906,41 @@ class MethodHubService:
             manifest_row=self.queries.run_manifest(run_id),
             publication_row=receipt,
         )
+
+    async def list_supervised_runs(
+        self, project_id: str
+    ) -> list[SupervisedRunSummary]:
+        """List sealed supervised invocations for a project (WP-F0, read-only).
+
+        ``project_id`` here is the free-form project identifier the
+        run-profile assembler seals under — NOT a hub-repository project.
+        No project-existence check is performed against the hub
+        repository, and a project with no supervised runs (or no seal
+        store at all) yields an empty list rather than an error.
+        """
+        store = self.run_seal_store
+        return [
+            supervised_run_summary(record, store)
+            for record in store.list_seals(project_id=project_id, limit=1000)
+        ]
+
+    async def get_supervised_run(
+        self, project_id: str, invocation_id: str
+    ) -> SupervisedRunDetail:
+        """Return the durable detail view of one supervised invocation.
+
+        As with :meth:`list_supervised_runs`, ``project_id`` is the
+        assembler's free-form seal identifier and is matched against the
+        seal's stored project id; an invocation sealed under another
+        project id is reported as not found here.
+        """
+        store = self.run_seal_store
+        record = store.find_by_invocation_id(invocation_id)
+        if record is None or record["project_id"] != project_id:
+            raise _not_found(
+                RepositoryNotFoundError("supervised run", invocation_id)
+            )
+        return supervised_run_detail(record, store)
 
     async def get_artifact(
         self, project_id: str, artifact_id: str

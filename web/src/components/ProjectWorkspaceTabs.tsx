@@ -86,6 +86,13 @@ export function ProjectWorkspaceTabs({ projectId, overview, loading = false }: P
           </NavLink>
         );
       })}
+      <NavLink
+        to={`${basePath}/supervised`}
+        className={({ isActive }) => isActive ? "project-workspace-tab is-active" : "project-workspace-tab"}
+      >
+        <span className="project-workspace-tab__label">Supervised runs</span>
+        <small>Sealed invocations</small>
+      </NavLink>
     </nav>
   );
 }

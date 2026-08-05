@@ -520,6 +520,108 @@ export interface ProvisionResultView {
   rolled_back: boolean;
 }
 
+// ---------------------------------------------------------------------------
+// Supervised-run service (WP-F0 read surface + WP-F1a start command)
+// ---------------------------------------------------------------------------
+
+export type SupervisedLaunchStatus = "running" | "succeeded" | "failed" | "cancelled";
+
+export type SupervisedMemoryPolicy = "persistent" | "ephemeral" | "read_only";
+
+export interface SupervisedRunSummary {
+  invocation_id: string;
+  seal_id: string;
+  role: string;
+  phase: string | null;
+  method_identity: Record<string, unknown> | null;
+  memory_policy: string | null;
+  sealed_at: string;
+  latest_launch_status: SupervisedLaunchStatus | null;
+  validation_verdict: "pass" | "fail" | null;
+  promoted: boolean;
+}
+
+export interface ExpectedOutputInput {
+  output_id: string;
+  path: string;
+  required_fields?: string[];
+}
+
+export interface StartSupervisedRunRequest {
+  invocation_id: string;
+  idempotency_key: string;
+  role: string;
+  phase: string;
+  method_identity?: { stable_id: string; version: number } | null;
+  brief_text: string;
+  expected_outputs: ExpectedOutputInput[];
+  memory_policy: SupervisedMemoryPolicy;
+  model?: string;
+  provider?: string;
+  timeout_seconds?: number;
+}
+
+export interface SupervisedManifestSummary {
+  project_id: string;
+  role: string;
+  phase: string;
+  method_identity: Record<string, unknown> | null;
+  memory_snapshot: Record<string, unknown> | null;
+  session_snapshot: Record<string, unknown> | null;
+  expected_outputs: Record<string, unknown>[];
+  hermes: Record<string, unknown> | null;
+  role_asset_digests: Record<string, string>;
+  sealed_at: string;
+}
+
+export interface SupervisedLaunchRecord {
+  launch_id: string;
+  status: SupervisedLaunchStatus;
+  exit_code: number | null;
+  external_execution_id: string | null;
+  task_brief_sha256: string | null;
+  launched_at: string;
+  closed_at: string | null;
+}
+
+export interface SupervisedValidationReport {
+  launch_id: string;
+  verdict: "pass" | "fail";
+  validated_at: string;
+  checks: Record<string, string>[];
+}
+
+export interface SupervisedPromotionRecord {
+  record_id: string;
+  promoted_at: string;
+  status: "succeeded" | "failed";
+  before_digest: Record<string, unknown>;
+  after_digest: Record<string, unknown>;
+  backup_paths: Record<string, unknown>;
+}
+
+export interface SupervisedPreflightReport {
+  report_id: string;
+  verdict: "pass" | "fail";
+  created_at: string;
+  checks: Record<string, string>[];
+}
+
+export interface SupervisedRunDetail {
+  invocation_id: string;
+  seal_id: string;
+  project_id: string;
+  role: string;
+  sealed_at: string;
+  manifest: SupervisedManifestSummary | null;
+  manifest_note: string | null;
+  preflight_report: SupervisedPreflightReport | null;
+  preflight_note: string | null;
+  launches: SupervisedLaunchRecord[];
+  validation: SupervisedValidationReport | null;
+  promotions: SupervisedPromotionRecord[];
+}
+
 export interface StartRunRequest {
   action_descriptor_id: string;
   phase: PhaseId;

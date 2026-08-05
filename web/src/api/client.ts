@@ -18,6 +18,9 @@ import type {
   RunEvent,
   RunSummary,
   StartRunRequest,
+  StartSupervisedRunRequest,
+  SupervisedRunDetail,
+  SupervisedRunSummary,
   SystemSettingsView,
   UpdateProjectBriefRequest,
 } from "./types";
@@ -230,6 +233,23 @@ export const api = {
   provisionRole: (roleId: string, input: ProvisionRoleRequest) =>
     commandRequest<ProvisionResultView>(
       `/configuration/roles/${encodeURIComponent(roleId)}/provision`,
+      "POST",
+      input,
+    ),
+
+  getSupervisedRuns: (projectId: string) =>
+    request<SupervisedRunSummary[]>(
+      `/projects/${encodeURIComponent(projectId)}/supervised-runs`,
+    ),
+
+  getSupervisedRun: (projectId: string, invocationId: string) =>
+    request<SupervisedRunDetail>(
+      `/projects/${encodeURIComponent(projectId)}/supervised-runs/${encodeURIComponent(invocationId)}`,
+    ),
+
+  startSupervisedRun: (projectId: string, input: StartSupervisedRunRequest) =>
+    commandRequest<SupervisedRunDetail>(
+      `/projects/${encodeURIComponent(projectId)}/supervised-runs`,
       "POST",
       input,
     ),

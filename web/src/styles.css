@@ -1514,6 +1514,64 @@ dd {
   color: var(--danger);
 }
 
+.message--warning {
+  border-color: var(--warning);
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.message--warning strong,
+.message--warning code {
+  color: var(--warning);
+}
+
+.message--positive {
+  border-color: var(--positive);
+  background: var(--positive-soft);
+  color: var(--positive);
+}
+
+.message--positive strong,
+.message--positive code {
+  color: var(--positive);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.9rem;
+}
+
+.form-grid .field--wide {
+  grid-column: 1 / -1;
+}
+
+.expected-output-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1.2fr 1.2fr auto;
+  gap: 0.6rem;
+  align-items: center;
+  margin: 0.55rem 0;
+}
+
+.expected-output-row input {
+  min-height: 2.5rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.preflight-failed-checks {
+  margin: 0.45rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.preflight-failed-checks li {
+  margin: 0.22rem 0;
+}
+
 .message__label {
   font-weight: 800;
 }

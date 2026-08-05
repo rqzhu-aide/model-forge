@@ -20,7 +20,7 @@ Every scenario defines:
 
 ## Scenario index
 
-The exact identifiers, invariant links, test groups, phase suites, and milestones are machine-checked in [`contracts/traceability.json`](../contracts/traceability.json). S11 intentionally belongs to the control-command suite rather than a phase contract.
+The exact identifiers, invariant links, test groups, phase suites, and milestones are machine-checked in [`contracts/traceability.json`](../contracts/traceability.json). S11 intentionally belongs to the control-command suite rather than a phase contract, and S13-S24 belong to the trusted-local execution suite (ADR-012) with no phase contract.
 
 | ID | Executable ID | Scenario | Phase contracts | Milestones |
 |---|---|---|---|---|
@@ -36,3 +36,15 @@ The exact identifiers, invariant links, test groups, phase suites, and milestone
 | S10 | `s10.negative_result` | Complete negative scientific result | P3, P4, P5 | M6, M7 |
 | S11 | `s11.control_commands` | User-controlled lifecycle, withdrawal, and delegated control | Control suite | M2, M5 |
 | S12 | `s12.disjoint_concurrent_publication` | Disjoint concurrent publication | P3 | M2, M3, M6 |
+| S13 | `s13.role_setup_configuration` | Exact role setup through configuration | Trusted-local suite | M3 |
+| S14 | `s14.first_run_clean_state` | First run starts with clean state | Trusted-local suite | M3 |
+| S15 | `s15.continuation_latest_promoted_state` | Continuation sees exactly the latest promoted state | Trusted-local suite | M3 |
+| S16 | `s16.fresh_reviewer_state` | Fresh reviewer state is always ephemeral | Trusted-local suite | M3 |
+| S17 | `s17.invalid_output_no_state_change` | Exit zero alone never passes validation | Trusted-local suite | M3 |
+| S18 | `s18.hermes_version_change_preflight` | Hermes version change surfaces at preflight | Trusted-local suite | M3 |
+| S19 | `s19.cancellation_timeout_process_tree` | Cancellation and timeout terminate the complete process tree | Trusted-local suite | M3 |
+| S20 | `s20.restart_reconciliation_no_relaunch` | Restart reconciliation inspects durable identity, never relaunches | Trusted-local suite | M9 |
+| S21 | `s21.stale_lock_ownership` | Stale locks cannot promote or release another owner's lock | Trusted-local suite | M9 |
+| S22 | `s22.failed_promotion_preserves_last_known_good` | Failed promotion preserves last known good state byte-identically | Trusted-local suite | M3 |
+| S23 | `s23.bounded_logs_flood_overlong` | Bounded logs under output flood and over-long lines | Trusted-local suite | M3, M9 |
+| S24 | `s24.safe_session_snapshot` | Safe session snapshot with verified SQLite backup | Trusted-local suite | M9 |

@@ -97,9 +97,31 @@ The machine-readable [traceability registry](contracts/traceability.json) is the
 | MH-54 | Role isolation is enforced by a capability-based storage broker and the supported-platform process sandbox. Roles receive no formal-storage credentials, and path, link, subprocess, and direct-storage escape attempts fail. | Role and context contract, run harness, storage and authority | Capability and platform escape tests |
 | MH-60 | The sealed manifest role plan is a recipe only. Each executed stage has an immutable prepared context, invocation start, and terminal closure. A downstream stage uses only successful upstream closures and exact accepted outputs, and immutable submission requires the complete ordered successful closure chain, final lead closure, and every required output. | Run harness, role and context contract, validation strategy | Prepared-context, invocation-start, invocation-closure, downstream mismatch, and RunSubmission tests |
 
+## Trusted-local execution rules
+
+These rules implement the trusted local Hermes boundary of
+[ADR-012](decisions/ADR-012-trusted-local-hermes-execution.md). They are
+machine-validated together with the global rules above, and each is exercised
+by at least one scenario in the trusted-local suite (S13-S24).
+
+| ID | Required behavior | Primary specification | Persisted or test evidence |
+|---|---|---|---|
+| MH-61 | Role definitions are configuration-managed. SOUL, base configuration, recommended and custom skills, and library guidance come from the configuration interface; an update that conflicts with a customization requires an explicit user choice and never overwrites it silently; provisioning is atomic with rollback. | ADR-012 items 3 and 4, role and context contract | Role-configuration service tests; S13 |
+| MH-62 | A first persistent run, and any explicit fresh mode, starts with clean project-role state: no memory and no session snapshot copied from another project, role, or the global profile. | ADR-012 item 5, run harness | Run-profile assembler state-policy tests; S14 |
+| MH-63 | A persistent rerun receives exactly the latest promoted memory and safe session snapshot, byte-identical, with complete provenance recorded in the manifest. | ADR-012 items 5 and 6, run harness | Snapshot-identity and promotion-digest tests; S15 |
+| MH-64 | The outside reviewer always starts from fresh, ephemeral runtime state with no project-role memory or session, unless a later user decision and architecture change explicitly allow otherwise. | ADR-012 invariant, role and context contract | Reviewer-state-policy tests; S16 |
+| MH-65 | Exit code zero alone is never sufficient. Missing, malformed, wrong-basis, or undeclared outputs fail validation and change no current state. | ADR-012 invariant, run harness, validation strategy | Output-inventory and verdict tests; S17 (pilot attempt 1) |
+| MH-66 | A changed Hermes installation surfaces at preflight. The executable path, version, and immutable identity are recorded; a real version change is shown to the user and recorded in the next manifest, and update-check noise never causes false drift. | ADR-012 item 8, run harness | Preflight drift tests; S18 (pilot attempt 2, commit 7986f12) |
+| MH-67 | Cancellation and timeout terminate the complete Hermes process tree and reach verified quiescence before closure; no descendant is left unaccounted. | ADR-012 invariant, run harness | Process-tree termination and quiescence tests; S19 |
+| MH-68 | Application restart reconciliation inspects the recorded durable process identity and never launches a replacement invocation automatically. | ADR-012 invariant and item 7, run harness | Durable-identity and reconciliation tests; S20 |
+| MH-69 | A stale lock owner cannot promote state or release another owner's project-role lock; fencing tokens and leases protect ownership. | Closure plan fixed rule 8, run harness | Lock-fencing and stale-owner tests; S21 |
+| MH-70 | Failed promotion preserves the last known good formal and project-role state byte-identically; current pointers advance only after the complete promotion succeeds. | ADR-012 invariant, run harness, storage and authority | Promotion-failure injection tests; S22 |
+| MH-71 | Logs are streamed under fixed bounds. Output floods and over-long lines cannot block process completion or grow memory without bound. | ADR-012 item 7, run harness | Bounded-log and flood tests; S23 |
+| MH-72 | Session snapshots use a verified procedure: read-only source, SQLite online backup with integrity check, quiescence flag, and fail-fast refusal of a busy source. A live database file is never copied. | ADR-012 item 5, run harness | Session-snapshot and busy-abort tests; S24 |
+
 ## Machine-readable coverage
 
-`contracts/traceability.json` is the canonical coverage registry. Its scenario entries use the exact identifiers accepted by executable phase contracts. A scenario with no phase contract, such as S11, names an empty `phase_contracts` list and remains part of the control-command suite. The validator checks both directions: every declared identifier exists, every invariant and requirement is covered, every scenario document is registered exactly once, and every phase-contract reference agrees with the registry.
+`contracts/traceability.json` is the canonical coverage registry. Its scenario entries use the exact identifiers accepted by executable phase contracts. A scenario with no phase contract, such as S11, names an empty `phase_contracts` list and remains part of the control-command suite. The trusted-local scenarios S13-S24 name the same empty list and form the trusted-local execution suite. The validator checks both directions: every declared identifier exists, every invariant and requirement is covered, every scenario document is registered exactly once, and every phase-contract reference agrees with the registry.
 
 ## Change procedure
 

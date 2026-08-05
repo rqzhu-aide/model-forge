@@ -2874,7 +2874,7 @@ def validate_traceability_registry(schemas, registry, complete: dict) -> list[st
     ]
     expected_invariants = [f"INV-{number:03d}" for number in range(1, 23)]
     expected_tests = [f"IT-{number:03d}" for number in range(1, 23)]
-    expected_requirements = {f"MH-{number:02d}" for number in range(1, 61)}
+    expected_requirements = {f"MH-{number:02d}" for number in range(1, 73)}
     if principle_ids != expected_invariants:
         errors.append(
             f"principle invariant IDs are {principle_ids}, expected {expected_invariants}"
@@ -2885,7 +2885,7 @@ def validate_traceability_registry(schemas, registry, complete: dict) -> list[st
     if len(requirement_ids) != len(set(requirement_ids)) or set(
         requirement_ids
     ) != expected_requirements:
-        errors.append("narrative requirement IDs must cover MH-01 through MH-60 exactly once")
+        errors.append("narrative requirement IDs must cover MH-01 through MH-72 exactly once")
     if milestone_numbers != list(range(10)):
         errors.append("roadmap milestones must cover M0 through M9 exactly once and in order")
 
@@ -2911,9 +2911,9 @@ def validate_traceability_registry(schemas, registry, complete: dict) -> list[st
     registered_scenarios = traceability["scenarios"]
     scenario_ids = [item["scenario_id"] for item in registered_scenarios]
     scenario_codes = [item["scenario_code"] for item in registered_scenarios]
-    expected_codes = [f"S{number:02d}" for number in range(1, 13)]
+    expected_codes = [f"S{number:02d}" for number in range(1, 25)]
     if scenario_codes != expected_codes or len(scenario_ids) != len(set(scenario_ids)):
-        errors.append("traceability scenarios must register S01 through S12 exactly once and in order")
+        errors.append("traceability scenarios must register S01 through S24 exactly once and in order")
     scenario_by_id = {item["scenario_id"]: item for item in registered_scenarios}
     registered_documents = {item["document"] for item in registered_scenarios}
     actual_documents = {

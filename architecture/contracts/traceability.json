@@ -12,7 +12,8 @@
                                                            "MH-52",
                                                            "MH-55",
                                                            "MH-58",
-                                                           "MH-59"
+                                                           "MH-59",
+                                                           "MH-68"
                                                        ],
                                    "test_ids":  [
                                                     "IT-001"
@@ -23,7 +24,9 @@
                                                         "s03.phase4_before_phase3",
                                                         "s05.failed_run",
                                                         "s11.control_commands",
-                                                        "s12.disjoint_concurrent_publication"
+                                                        "s12.disjoint_concurrent_publication",
+                                                        "s19.cancellation_timeout_process_tree",
+                                                        "s20.restart_reconciliation_no_relaunch"
                                                     ]
                                },
                                {
@@ -56,7 +59,12 @@
                                                            "MH-50",
                                                            "MH-53",
                                                            "MH-57",
-                                                           "MH-60"
+                                                           "MH-60",
+                                                           "MH-61",
+                                                           "MH-62",
+                                                           "MH-63",
+                                                           "MH-66",
+                                                           "MH-72"
                                                        ],
                                    "test_ids":  [
                                                     "IT-003"
@@ -64,7 +72,12 @@
                                    "scenario_ids":  [
                                                         "s03.phase4_before_phase3",
                                                         "s06.optional_history",
-                                                        "s08.phase5_workflow"
+                                                        "s08.phase5_workflow",
+                                                        "s13.role_setup_configuration",
+                                                        "s14.first_run_clean_state",
+                                                        "s15.continuation_latest_promoted_state",
+                                                        "s18.hermes_version_change_preflight",
+                                                        "s24.safe_session_snapshot"
                                                     ]
                                },
                                {
@@ -74,13 +87,15 @@
                                                            "MH-06",
                                                            "MH-29",
                                                            "MH-46",
-                                                           "MH-54"
+                                                           "MH-54",
+                                                           "MH-64"
                                                        ],
                                    "test_ids":  [
                                                     "IT-004"
                                                 ],
                                    "scenario_ids":  [
-                                                        "s08.phase5_workflow"
+                                                        "s08.phase5_workflow",
+                                                        "s16.fresh_reviewer_state"
                                                     ]
                                },
                                {
@@ -112,7 +127,8 @@
                                                            "MH-12",
                                                            "MH-37",
                                                            "MH-45",
-                                                           "MH-60"
+                                                           "MH-60",
+                                                           "MH-65"
                                                        ],
                                    "test_ids":  [
                                                     "IT-006"
@@ -120,7 +136,9 @@
                                    "scenario_ids":  [
                                                         "s01.first_project",
                                                         "s05.failed_run",
-                                                        "s09.interrupted_promotion"
+                                                        "s09.interrupted_promotion",
+                                                        "s17.invalid_output_no_state_change",
+                                                        "s22.failed_promotion_preserves_last_known_good"
                                                     ]
                                },
                                {
@@ -130,14 +148,18 @@
                                                            "MH-40",
                                                            "MH-45",
                                                            "MH-49",
-                                                           "MH-56"
+                                                           "MH-56",
+                                                           "MH-69",
+                                                           "MH-70"
                                                        ],
                                    "test_ids":  [
                                                     "IT-007"
                                                 ],
                                    "scenario_ids":  [
                                                         "s09.interrupted_promotion",
-                                                        "s12.disjoint_concurrent_publication"
+                                                        "s12.disjoint_concurrent_publication",
+                                                        "s21.stale_lock_ownership",
+                                                        "s22.failed_promotion_preserves_last_known_good"
                                                     ]
                                },
                                {
@@ -215,7 +237,8 @@
                                                     "IT-012"
                                                 ],
                                    "scenario_ids":  [
-                                                        "s09.interrupted_promotion"
+                                                        "s09.interrupted_promotion",
+                                                        "s13.role_setup_configuration"
                                                     ]
                                },
                                {
@@ -297,7 +320,9 @@
                                                            "MH-12",
                                                            "MH-52",
                                                            "MH-56",
-                                                           "MH-59"
+                                                           "MH-59",
+                                                           "MH-67",
+                                                           "MH-71"
                                                        ],
                                    "test_ids":  [
                                                     "IT-017"
@@ -305,7 +330,10 @@
                                    "scenario_ids":  [
                                                         "s05.failed_run",
                                                         "s09.interrupted_promotion",
-                                                        "s12.disjoint_concurrent_publication"
+                                                        "s12.disjoint_concurrent_publication",
+                                                        "s17.invalid_output_no_state_change",
+                                                        "s19.cancellation_timeout_process_tree",
+                                                        "s23.bounded_logs_flood_overlong"
                                                     ]
                                },
                                {
@@ -877,6 +905,264 @@
                                            "IT-020",
                                            "IT-021"
                                        ]
+                      },
+                      {
+                          "scenario_id":  "s13.role_setup_configuration",
+                          "scenario_code":  "S13",
+                          "document":  "architecture/scenarios/S13-role-setup-configuration.md",
+                          "phase_contracts":  [
+                                              ],
+                          "milestones":  [
+                                             "M3"
+                                         ],
+                          "invariant_ids":  [
+                                                "INV-003",
+                                                "INV-012"
+                                            ],
+                          "requirement_ids":  [
+                                                  "MH-34",
+                                                  "MH-35",
+                                                  "MH-38",
+                                                  "MH-61"
+                                              ],
+                          "test_ids":  [
+                                           "IT-003",
+                                           "IT-012"
+                                       ]
+                      },
+                      {
+                          "scenario_id":  "s14.first_run_clean_state",
+                          "scenario_code":  "S14",
+                          "document":  "architecture/scenarios/S14-first-run-clean-state.md",
+                          "phase_contracts":  [
+                                              ],
+                          "milestones":  [
+                                             "M3"
+                                         ],
+                          "invariant_ids":  [
+                                                "INV-003"
+                                            ],
+                          "requirement_ids":  [
+                                                  "MH-34",
+                                                  "MH-53",
+                                                  "MH-62"
+                                              ],
+                          "test_ids":  [
+                                           "IT-003"
+                                       ]
+                      },
+                      {
+                          "scenario_id":  "s15.continuation_latest_promoted_state",
+                          "scenario_code":  "S15",
+                          "document":  "architecture/scenarios/S15-continuation-latest-promoted-state.md",
+                          "phase_contracts":  [
+                                              ],
+                          "milestones":  [
+                                             "M3"
+                                         ],
+                          "invariant_ids":  [
+                                                "INV-003"
+                                            ],
+                          "requirement_ids":  [
+                                                  "MH-03",
+                                                  "MH-53",
+                                                  "MH-63"
+                                              ],
+                          "test_ids":  [
+                                           "IT-003"
+                                       ]
+                      },
+                      {
+                          "scenario_id":  "s16.fresh_reviewer_state",
+                          "scenario_code":  "S16",
+                          "document":  "architecture/scenarios/S16-fresh-reviewer-state.md",
+                          "phase_contracts":  [
+                                              ],
+                          "milestones":  [
+                                             "M3"
+                                         ],
+                          "invariant_ids":  [
+                                                "INV-004"
+                                            ],
+                          "requirement_ids":  [
+                                                  "MH-29",
+                                                  "MH-64"
+                                              ],
+                          "test_ids":  [
+                                           "IT-004"
+                                       ]
+                      },
+                      {
+                          "scenario_id":  "s17.invalid_output_no_state_change",
+                          "scenario_code":  "S17",
+                          "document":  "architecture/scenarios/S17-invalid-output-no-state-change.md",
+                          "phase_contracts":  [
+                                              ],
+                          "milestones":  [
+                                             "M3"
+                                         ],
+                          "invariant_ids":  [
+                                                "INV-006",
+                                                "INV-017"
+                                            ],
+                          "requirement_ids":  [
+                                                  "MH-04",
+                                                  "MH-12",
+                                                  "MH-65"
+                                              ],
+                          "test_ids":  [
+                                           "IT-006",
+                                           "IT-017"
+                                       ]
+                      },
+                      {
+                          "scenario_id":  "s18.hermes_version_change_preflight",
+                          "scenario_code":  "S18",
+                          "document":  "architecture/scenarios/S18-hermes-version-change-preflight.md",
+                          "phase_contracts":  [
+                                              ],
+                          "milestones":  [
+                                             "M3"
+                                         ],
+                          "invariant_ids":  [
+                                                "INV-003"
+                                            ],
+                          "requirement_ids":  [
+                                                  "MH-03",
+                                                  "MH-34",
+                                                  "MH-66"
+                                              ],
+                          "test_ids":  [
+                                           "IT-003"
+                                       ]
+                      },
+                      {
+                          "scenario_id":  "s19.cancellation_timeout_process_tree",
+                          "scenario_code":  "S19",
+                          "document":  "architecture/scenarios/S19-cancellation-timeout-process-tree.md",
+                          "phase_contracts":  [
+                                              ],
+                          "milestones":  [
+                                             "M3"
+                                         ],
+                          "invariant_ids":  [
+                                                "INV-001",
+                                                "INV-017"
+                                            ],
+                          "requirement_ids":  [
+                                                  "MH-52",
+                                                  "MH-67"
+                                              ],
+                          "test_ids":  [
+                                           "IT-001",
+                                           "IT-017"
+                                       ]
+                      },
+                      {
+                          "scenario_id":  "s20.restart_reconciliation_no_relaunch",
+                          "scenario_code":  "S20",
+                          "document":  "architecture/scenarios/S20-restart-reconciliation-no-relaunch.md",
+                          "phase_contracts":  [
+                                              ],
+                          "milestones":  [
+                                             "M9"
+                                         ],
+                          "invariant_ids":  [
+                                                "INV-001"
+                                            ],
+                          "requirement_ids":  [
+                                                  "MH-01",
+                                                  "MH-08",
+                                                  "MH-68"
+                                              ],
+                          "test_ids":  [
+                                           "IT-001"
+                                       ]
+                      },
+                      {
+                          "scenario_id":  "s21.stale_lock_ownership",
+                          "scenario_code":  "S21",
+                          "document":  "architecture/scenarios/S21-stale-lock-ownership.md",
+                          "phase_contracts":  [
+                                              ],
+                          "milestones":  [
+                                             "M9"
+                                         ],
+                          "invariant_ids":  [
+                                                "INV-007"
+                                            ],
+                          "requirement_ids":  [
+                                                  "MH-49",
+                                                  "MH-69"
+                                              ],
+                          "test_ids":  [
+                                           "IT-007"
+                                       ]
+                      },
+                      {
+                          "scenario_id":  "s22.failed_promotion_preserves_last_known_good",
+                          "scenario_code":  "S22",
+                          "document":  "architecture/scenarios/S22-failed-promotion-preserves-last-known-good.md",
+                          "phase_contracts":  [
+                                              ],
+                          "milestones":  [
+                                             "M3"
+                                         ],
+                          "invariant_ids":  [
+                                                "INV-006",
+                                                "INV-007"
+                                            ],
+                          "requirement_ids":  [
+                                                  "MH-05",
+                                                  "MH-12",
+                                                  "MH-70"
+                                              ],
+                          "test_ids":  [
+                                           "IT-006",
+                                           "IT-007"
+                                       ]
+                      },
+                      {
+                          "scenario_id":  "s23.bounded_logs_flood_overlong",
+                          "scenario_code":  "S23",
+                          "document":  "architecture/scenarios/S23-bounded-logs-flood-overlong.md",
+                          "phase_contracts":  [
+                                              ],
+                          "milestones":  [
+                                             "M3",
+                                             "M9"
+                                         ],
+                          "invariant_ids":  [
+                                                "INV-017"
+                                            ],
+                          "requirement_ids":  [
+                                                  "MH-59",
+                                                  "MH-71"
+                                              ],
+                          "test_ids":  [
+                                           "IT-017"
+                                       ]
+                      },
+                      {
+                          "scenario_id":  "s24.safe_session_snapshot",
+                          "scenario_code":  "S24",
+                          "document":  "architecture/scenarios/S24-safe-session-snapshot.md",
+                          "phase_contracts":  [
+                                              ],
+                          "milestones":  [
+                                             "M9"
+                                         ],
+                          "invariant_ids":  [
+                                                "INV-003"
+                                            ],
+                          "requirement_ids":  [
+                                                  "MH-53",
+                                                  "MH-72"
+                                              ],
+                          "test_ids":  [
+                                           "IT-003"
+                                       ]
                       }
                   ]
 }
+

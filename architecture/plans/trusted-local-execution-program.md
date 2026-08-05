@@ -302,10 +302,18 @@ command.
   only). Read-only endpoints: list supervised invocations per project;
   per-invocation detail (seal manifest summary, preflight report, launch
   records, validation report, promotion records). Durable state only.
-- **WP-F1 - run action surface (backend)**: explicit-command endpoints -
-  start a supervised run (task brief + seal + launch through the WP-E0
-  machinery) and cancel (via the executor's identity-safe cancel on the
-  durable external id). Both fully supervised; no automation.
+- **WP-F0 complete** (commit `b4cd6a1`): supervised-run read surface -
+  list/detail endpoints over the seal store with digest-verified manifest
+  reads (tampered manifest -> null + note, never silent acceptance).
+  Finding: preflight reports are NOT persisted today (detail exposes
+  null + note). 642 tests green.
+- **WP-F1a - run start endpoint (backend)**: POST start (brief + seal +
+  background launch through the WP-E0 machinery; non-blocking - the read
+  surface shows progress; provider keys from server env allowlist only).
+- **WP-F1b - run cancel endpoint (backend)**: POST cancel via the
+  executor's identity-safe cancel on the durable external id.
+- **WP-F1c - preflight persistence (backend, tiny)**: record the preflight
+  report at launch time so the closure view can show it.
 - **WP-F2 - Configuration page (frontend)**: role list with health badges,
   role detail (SOUL/config/skills/guidance + provenance), provision action
   with the 409 CUSTOMIZATION_CONFLICT -> explicit force-choice flow. Uses

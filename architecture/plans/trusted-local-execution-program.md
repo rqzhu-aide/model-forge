@@ -290,16 +290,33 @@ Acceptance: receipt contents verified; retention prunes only expired,
 resolved, non-current evidence; suite green.
 Depends on: WP-E2.
 
-### WP-F - Block 6: Web operation surface (developer, medium)
+### WP-F - Block 6: Web operation surface (split for size, sequential)
 
-Scope: role-definition health + Hermes version + customization status on
-configuration pages; pre-run basis display; live state/elapsed/bounded logs +
-cancellation during runs; closure view with validation result, promoted/
-retained items, memory-session disposition, promotion receipt, smallest safe
-next action. No automatic phase progression anywhere.
-Acceptance: Block 6 checkpoint - configure, start, observe, cancel, and
-understand one real local run entirely through the UI; frontend + backend
-tests green.
+Block 6 checkpoint: configure, start, observe, cancel, and understand one
+real local run entirely through the UI; frontend + backend tests green.
+No automatic phase progression anywhere - every action is an explicit user
+command.
+
+- **WP-F0 - supervised-run read surface (backend)**: wire the run-profile
+  assembler's durable records into the app service (currently pilot-script
+  only). Read-only endpoints: list supervised invocations per project;
+  per-invocation detail (seal manifest summary, preflight report, launch
+  records, validation report, promotion records). Durable state only.
+- **WP-F1 - run action surface (backend)**: explicit-command endpoints -
+  start a supervised run (task brief + seal + launch through the WP-E0
+  machinery) and cancel (via the executor's identity-safe cancel on the
+  durable external id). Both fully supervised; no automation.
+- **WP-F2 - Configuration page (frontend)**: role list with health badges,
+  role detail (SOUL/config/skills/guidance + provenance), provision action
+  with the 409 CUSTOMIZATION_CONFLICT -> explicit force-choice flow. Uses
+  the existing WP-C API.
+- **WP-F3 - supervision views (frontend)**: per-project supervised-run
+  list, run-start form (brief, role, memory policy, expected outputs),
+  detail view (pre-run basis, live state/elapsed/bounded logs, cancel,
+  closure view with validation result, promoted/retained items, receipt,
+  smallest safe next action).
+- **WP-F4 - reviewed-basis panel (frontend)**: the complete reviewed basis
+  on the phase page (WP0 audit item 5) + memory policy display + nav.
 Depends on: WP-C, WP-D, WP-E.
 
 ### WP-G - scenarios and traceability (worker, medium)

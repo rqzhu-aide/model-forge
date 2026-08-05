@@ -307,9 +307,12 @@ command.
   reads (tampered manifest -> null + note, never silent acceptance).
   Finding: preflight reports are NOT persisted today (detail exposes
   null + note). 642 tests green.
-- **WP-F1a - run start endpoint (backend)**: POST start (brief + seal +
-  background launch through the WP-E0 machinery; non-blocking - the read
-  surface shows progress; provider keys from server env allowlist only).
+- **WP-F1a complete** (commit `1590061`): POST start - seal + synchronous
+  preflight + non-blocking background launch (202 immediately, progress
+  via the read surface; TestClient cannot observe mid-flight state - the
+  running -> succeeded transition is proven at the service level).
+  Idempotent replay, 409 lock/preflight, env-allowlist secrets, strict
+  request schema. 651 tests green.
 - **WP-F1b - run cancel endpoint (backend)**: POST cancel via the
   executor's identity-safe cancel on the durable external id.
 - **WP-F1c - preflight persistence (backend, tiny)**: record the preflight

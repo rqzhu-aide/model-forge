@@ -482,25 +482,49 @@ async def _coordinator_fixture(tmp_path: Path):
     return coordinator, basis, recipe_doc
 
 
-def test_verify_sealed_basis_rejects_unmatched_sealed_input(tmp_path: Path) -> None:
-    """A sealed reviewed input whose option_id matches no frozen contract
-    input must be rejected as stale_basis.input_generation_drifted."""
-    asyncio.run(_exercise_unmatched_sealed_input(tmp_path))
+def test_verify_sealed_basis_rejects_unmatched_required_sealed_input(
+    tmp_path: Path,
+) -> None:
+    """A sealed *required* reviewed input whose option_id matches no frozen
+    contract input must be rejected as stale_basis.input_generation_drifted."""
+    asyncio.run(_exercise_unmatched_sealed_input(tmp_path, required=True))
 
 
-async def _exercise_unmatched_sealed_input(tmp_path: Path) -> None:
+def test_verify_sealed_basis_skips_unmatched_optional_sealed_input(
+    tmp_path: Path,
+) -> None:
+    """A sealed *optional* reviewed input that the user deselected is
+    intentionally absent from the frozen set and must not be treated as
+    drift.  resolve_run_inputs omits unselected optional inputs; the sealed
+    basis still carries them (it seals every option at view time)."""
+    asyncio.run(_exercise_unmatched_sealed_input(tmp_path, required=False))
+
+
+async def _exercise_unmatched_sealed_input(
+    tmp_path: Path, *, required: bool
+) -> None:
     coordinator, basis, recipe_doc = await _coordinator_fixture(tmp_path)
     basis = copy.deepcopy(basis)
-    basis["reviewed_current_inputs"] = [
-        {"option_id": "p1.vanished_option", "generation_id": "generation.123"}
-    ]
+    entry: dict[str, typing.Any] = {
+        "option_id": "p1.vanished_option",
+        "generation_id": "generation.123",
+    }
+    if required:
+        entry["required"] = True
+    basis["reviewed_current_inputs"] = [entry]
     command = {"project_id": recipe_doc["project_id"], "sealed_basis": basis}
     recipe = PreparedRunRecipe(sha256="0" * 64, document=recipe_doc)
-    with pytest.raises(RepositoryConflictError) as exc:
+    if required:
+        with pytest.raises(RepositoryConflictError) as exc:
+            coordinator._verify_sealed_basis(
+                command, recipe, runtime=_p1_runtime(coordinator.specification)
+            )
+        assert exc.value.code == "stale_basis.input_generation_drifted"
+    else:
+        # Optional + deselected → no error.
         coordinator._verify_sealed_basis(
             command, recipe, runtime=_p1_runtime(coordinator.specification)
         )
-    assert exc.value.code == "stale_basis.input_generation_drifted"
 
 
 def test_verify_sealed_basis_rejects_method_drift(tmp_path: Path) -> None:

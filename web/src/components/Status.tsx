@@ -126,41 +126,6 @@ function outcomeTone(value?: ScientificStatus["scientific_outcome"]): Tone {
   return "neutral";
 }
 
-export function ScientificStatusGrid({ status }: { status: ScientificStatus }) {
-  const publication = status.publication_state;
-  const position = status.record_position;
-  const alignment = status.alignment;
-  const attention = status.attention;
-  const outcome = status.scientific_outcome;
-
-  const value = <T extends string>(entry: Record<T, string>, key?: T) =>
-    key ? entry[key] : "Not recorded";
-
-  return (
-    <dl className="status-grid">
-      <div><dt>Authority</dt><dd>{value(statusLabels.publication, publication)}</dd></div>
-      <div><dt>Position</dt><dd>{value(statusLabels.position, position)}</dd></div>
-      <div>
-        <dt>Method alignment</dt>
-        <dd><StatusPill tone={alignmentTone(alignment)}>{value(statusLabels.alignment, alignment)}</StatusPill></dd>
-      </div>
-      <div>
-        <dt>Research attention</dt>
-        <dd>
-          <StatusPill tone={attentionTone(attention)}>
-            {value(statusLabels.attention, attention)}
-            {status.attention_count ? ` (${status.attention_count})` : ""}
-          </StatusPill>
-        </dd>
-      </div>
-      <div>
-        <dt>Scientific outcome</dt>
-        <dd><StatusPill tone={outcomeTone(outcome)}>{value(statusLabels.outcome, outcome)}</StatusPill></dd>
-      </div>
-    </dl>
-  );
-}
-
 export interface CompactScientificStatusSummary {
   stateLabel: string;
   stateTone: Tone;

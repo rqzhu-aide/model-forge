@@ -1,6 +1,6 @@
 # Manual Method Hub with Sequential-First Orchestration
 
-Status: Development baseline implemented; production completion is tracked in [the operational plan](operational-completion-plan.md)
+Status: Development baseline implemented; production completion is tracked in [the operational plan](completed/operational-completion-plan.md)
 
 Prepared: 2026-08-02
 
@@ -627,7 +627,7 @@ The sequential-first version is complete when:
 ## 20. Next implementation action
 
 Keep production role execution disabled. Follow the
-[Operational Completion Plan](operational-completion-plan.md): first seal the
+[Operational Completion Plan](completed/operational-completion-plan.md): first seal the
 exact researcher-reviewed basis and complete the missing runtime
 representations, then replace the development execution boundary with the
 rootless OCI executor, capability broker, durable external-job reconciliation,

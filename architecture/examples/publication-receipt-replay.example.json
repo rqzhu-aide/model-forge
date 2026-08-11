@@ -10,7 +10,7 @@
     "phase": "P3",
     "manifest_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
     "submission_id": "submission.p3.replay.001",
-    "submission_sha256": "1bcc44c2dc646bbd54595ba4048f0602092ebdb312fe279dbd968856d649270e"
+    "submission_sha256": "ac95e19822dbd8dc1eb7d1e921cdc00ec57f4c4e538450974ccb5288754ae1bf"
   },
   "validation_reports": [
     {
@@ -88,5 +88,5 @@
   "attention_impacts": [],
   "atomic": true,
   "published_at": "2026-08-01T16:00:01Z",
-  "content_sha256": "fd007d299fd83b09177b1eabf2962bc6e695798c92fd1a04958814249820cfe0"
+  "content_sha256": "f158e628fefa95092c66475690a242e0a1569a30320ded4709974fad1186d0c8"
 }

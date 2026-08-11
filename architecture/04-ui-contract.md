@@ -266,7 +266,7 @@ The backend returns possible actions as typed action descriptors:
     "phase": "P3",
     "phase_contract_version": "2.0.0",
     "phase_contract_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
-    "mode": "p3.theory_update"
+    "mode": "p3.theory_establishment"
   }
 }
 ```

@@ -81,6 +81,7 @@ def run_detail_view(
     event_rows: tuple[sqlite3.Row, ...],
     manifest_row: sqlite3.Row | None,
     publication_row: sqlite3.Row | None = None,
+    execution_activity: tuple[sqlite3.Row, ...] = (),
 ) -> RunDetail:
     payload = _payload(row)
     summary = run_summary_view(row)
@@ -88,6 +89,25 @@ def run_detail_view(
     events = [run_event_view(item) for item in event_rows]
     stage_states = payload.get("stage_states", {})
     stage_source = manifest.get("stages") or payload.get("stage_plan", [])
+    # Build a {stage_id: latest_heartbeat_at} map from execution activity.
+    # Each row in latest_execution_activity joins role_execution_intents
+    # with the most recent heartbeat; the intent's payload_json carries
+    # the stage_id.  This lets the UI show liveness during long stages.
+    heartbeat_by_stage: dict[str, str] = {}
+    heartbeat_activity: dict[str, str] = {}
+    for act_row in execution_activity:
+        intent_payload = json.loads(act_row["payload_json"]) if act_row["payload_json"] else {}
+        stage_id = intent_payload.get("stage_id")
+        hb_at = act_row["heartbeat_at"]
+        if stage_id and hb_at:
+            hb_str = str(hb_at)
+            # activity rows are ordered by created_at, so the last entry
+            # per stage_id wins (most recent intent for that stage).
+            heartbeat_by_stage[str(stage_id)] = hb_str
+            hb_payload = json.loads(act_row["heartbeat_payload_json"]) if act_row["heartbeat_payload_json"] else {}
+            hb_activity = hb_payload.get("activity")
+            if hb_activity:
+                heartbeat_activity[str(stage_id)] = str(hb_activity)
     stages: list[RunStage] = []
     for item in stage_source:
         stage_id = str(item["stage_id"])
@@ -97,6 +117,10 @@ def run_detail_view(
             str(role["role"]) if type(role) is dict else str(role)
             for role in role_items
         ]
+        # Enrich running stages with the latest heartbeat data so the
+        # UI can distinguish a live agent from a wedged one.
+        latest_heartbeat = heartbeat_by_stage.get(stage_id)
+        latest_activity = heartbeat_activity.get(stage_id)
         stages.append(
             RunStage(
                 sequence=int(item["sequence"]),
@@ -107,8 +131,8 @@ def run_detail_view(
                 status=str(stage_state.get("status", "pending")),
                 started_at=_optional(stage_state.get("started_at")),
                 completed_at=_optional(stage_state.get("completed_at")),
-                activity=_optional(stage_state.get("activity")),
-                last_heartbeat_at=_optional(stage_state.get("last_heartbeat_at")),
+                activity=_optional(latest_activity or stage_state.get("activity")),
+                last_heartbeat_at=_optional(latest_heartbeat or stage_state.get("last_heartbeat_at")),
                 stale_after_seconds=stage_state.get("stale_after_seconds"),
             )
         )

@@ -283,8 +283,88 @@ class MethodHubService:
         return self._run_assembler
 
     async def resume_incomplete(self) -> None:
+        """Reconcile incomplete runs after application startup.
+
+        Two lanes:
+        1. Traditional runs — delegated to the RunCoordinator (if wired).
+        2. Supervised runs — find launch records still ``running`` from a
+           previous server session, reconcile each against the actual
+           process state, and close stale records.
+        """
         if self.recovery_launcher is not None:
             await self.recovery_launcher()
+        await self._reconcile_supervised_launches()
+
+    async def _reconcile_supervised_launches(self) -> None:
+        """Close supervised launch records left ``running`` by a crash.
+
+        For each running launch with a recorded ``external_execution_id``,
+        check whether the Hermes process is still alive via
+        :meth:`LocalHermesExecutor.reconcile`.  If the process is gone,
+        close the record as ``failed`` (the run cannot be resumed from
+        its in-memory state).  Records without an external id (process
+        was created but identity not yet recorded) are also closed as
+        ``failed`` — the process cannot be found or controlled.
+        """
+        try:
+            store = self.run_seal_store
+        except Exception:
+            return
+
+        running = store.list_running_launch_records()
+        if not running:
+            return
+
+        executor = LocalHermesExecutor(
+            LocalHermesExecutorSettings(
+                hermes_binary=self.settings.hermes_executable,
+            )
+        )
+        for record in running:
+            invocation_id = str(record["invocation_id"])
+            external_id = record.get("external_execution_id")
+            launch_id = str(record["launch_id"])
+
+            if external_id is None:
+                # Process was created but identity never recorded —
+                # cannot reconcile; close as failed.
+                store.close_launch_record(
+                    launch_id,
+                    status="failed",
+                    external_execution_id=None,
+                    exit_code=None,
+                    closed_at=isoformat_utc(utc_now()),
+                )
+                logger.info(
+                    "Reconciliation: closed launch %s (invocation %s) as "
+                    "failed — no external execution id was recorded.",
+                    launch_id,
+                    invocation_id,
+                )
+                continue
+
+            # reconcile is a coroutine: await it directly.  (asyncio.run here
+            # would raise RuntimeError — this method already runs inside the
+            # application event loop.)
+            result = await executor.reconcile(str(external_id))
+            if result is not None:
+                # Process is gone (exited naturally or PID reused).
+                store.close_launch_record(
+                    launch_id,
+                    status="failed",
+                    external_execution_id=str(external_id),
+                    exit_code=result.exit_code,
+                    closed_at=isoformat_utc(utc_now()),
+                )
+                logger.info(
+                    "Reconciliation: closed launch %s (invocation %s) as "
+                    "failed — %s",
+                    launch_id,
+                    invocation_id,
+                    result.summary,
+                )
+            # If result is None, the executor could not parse the identity
+            # or the process is still running — leave the record running.
     async def preserve_raw_request(
         self, raw_request: RawRequestBody
     ) -> RawRequestReceipt:
@@ -758,6 +838,10 @@ class MethodHubService:
         raw_request: RawRequestReceipt,
     ) -> RunDetail:
         self.repository.get_project(project_id)
+        # Apply default instruction when the user submitted empty/placeholder text.
+        command = _apply_default_instruction(self, project_id, command)
+        # Append open literature gaps from downstream phases to P1 instructions.
+        command = _append_literature_gaps(self, project_id, command)
         request_id = self._attach_raw_request(project_id, raw_request)
         existing_command = self.repository.get_command_by_idempotency(
             project_id, request_id
@@ -1027,6 +1111,7 @@ class MethodHubService:
             event_rows=self.repository.list_run_events(run_id),
             manifest_row=self.queries.run_manifest(run_id),
             publication_row=receipt,
+            execution_activity=self.queries.latest_execution_activity(run_id),
         )
 
     async def list_supervised_runs(
@@ -1273,8 +1358,8 @@ class MethodHubService:
                         + ", ".join(report.to_dict()["failed_checks"])
                     ),
                     smallest_correction=(
-                        "Resolve the preflight failures and replay the same "
-                        "idempotency key to retry the launch."
+                        "Resolve the preflight failures and submit again "
+                        "with a new invocation id and idempotency key."
                     ),
                     detail=report.to_dict(),
                 )
@@ -2146,6 +2231,143 @@ def _method_choice(values: dict[str, Any]) -> MethodIdentity | None:
         if key.endswith(".selected_method") and type(value) is dict:
             return MethodIdentity.from_dict(value)
     return None
+
+
+# --- Default instruction injection -----------------------------------------
+
+_PLACEHOLDER_INSTRUCTIONS = {
+    "",
+    "none",
+    "n/a",
+    "na",
+    "no additional instructions",
+    "use defaults",
+    "use default",
+    "default",
+}
+
+
+def _is_placeholder(text: str) -> bool:
+    return text.strip().lower() in _PLACEHOLDER_INSTRUCTIONS
+
+
+def _apply_default_instruction(
+    service: Any,
+    project_id: str,
+    command: StartRunRequest,
+) -> StartRunRequest:
+    """Replace empty/placeholder instructions with the generated default."""
+    instruction_key = next(
+        (k for k in command.choice_values if k.endswith(".instructions")),
+        None,
+    )
+    if instruction_key is None:
+        return command
+    current = str(command.choice_values.get(instruction_key, "")).strip()
+    if current and not _is_placeholder(current):
+        return command
+    # Fetch the project brief and generate the default instruction.
+    brief_row = service.repository.get_current_record(
+        project_id, "project.brief.current"
+    )
+    if brief_row is None:
+        return command  # No brief → leave as-is (validation will catch it).
+    brief_payload = row_json(brief_row)
+    from .default_instructions import load_instruction
+
+    default_text = load_instruction(command.mode, brief_payload)
+    new_choices = dict(command.choice_values)
+    new_choices[instruction_key] = default_text
+    return command.model_copy(update={"choice_values": new_choices})
+
+
+def _append_literature_gaps(
+    service: Any,
+    project_id: str,
+    command: StartRunRequest,
+) -> StartRunRequest:
+    """Append open LITERATURE_GAP items to P1 run instructions.
+
+    When downstream phases (P2–P5) flag missing references via
+    ``LITERATURE_GAP:`` attention items, those items should be visible
+    to the P1 literature update run so agents can assess and incorporate
+    them. This function appends a summary of open gaps to the P1
+    instruction text, regardless of whether the instruction is the
+    generated default or user-authored custom text.
+
+    Gaps are resolved by read-time comparison against the latest P1
+    publication timestamp — items addressed by a prior P1 run are
+    excluded.
+    """
+    if not command.mode.startswith("p1."):
+        return command
+    instruction_key = next(
+        (k for k in command.choice_values if k.endswith(".instructions")),
+        None,
+    )
+    if instruction_key is None:
+        return command
+    gaps = _collect_open_literature_gaps(service, project_id)
+    if not gaps:
+        return command
+    lines = ["", "The following references were flagged as missing from the"]
+    lines.append("project library by downstream phases. Assess each one and")
+    lines.append("incorporate those that are directly relevant:")
+    for gap in gaps:
+        lines.append(f"  - [{gap['phase']}] {gap['reference']}")
+    lines.append("")
+    current = str(command.choice_values.get(instruction_key, ""))
+    new_text = current.rstrip() + "\n".join(lines)
+    new_choices = dict(command.choice_values)
+    new_choices[instruction_key] = new_text
+    return command.model_copy(update={"choice_values": new_choices})
+
+
+def _collect_open_literature_gaps(
+    service: Any,
+    project_id: str,
+) -> list[dict[str, str]]:
+    """Return open LITERATURE_GAP items as ``{phase, reference}`` dicts."""
+    p1_published_at: str | None = None
+    for row in service.repository.list_current_records(project_id):
+        if str(row["record_type"]) == "literature_synthesis":
+            published = str(row["published_at"])
+            if p1_published_at is None or published > p1_published_at:
+                p1_published_at = published
+    run_phases: dict[str, str] = {}
+    for run in service.queries.list_runs(project_id):
+        payload = row_json(run)
+        run_id = str(run["run_id"])
+        if type(payload.get("phase")) is str:
+            run_phases[run_id] = str(payload["phase"])
+    result: list[dict[str, str]] = []
+    for row in service.repository.list_collection_items(
+        project_id, "project.attention_history"
+    ):
+        payload = row_json(row)
+        if str(payload.get("disposition", "open")) != "open":
+            continue
+        question = str(payload.get("question", ""))
+        if not question.startswith("LITERATURE_GAP:"):
+            continue
+        appended_at = str(row["appended_at"])
+        if p1_published_at is not None and appended_at <= p1_published_at:
+            continue
+        source_run_id = str(
+            row["source_run_id"] or payload.get("source_run_id", "")
+        )
+        item_phase = payload.get("phase")
+        if type(item_phase) is not str:
+            item_phase = run_phases.get(source_run_id)
+        if item_phase not in {"P1", "P2", "P3", "P4", "P5"}:
+            continue
+        result.append(
+            {
+                "phase": str(item_phase),
+                "reference": question[len("LITERATURE_GAP:"):].strip(),
+            }
+        )
+    return result
 
 
 def _run_id(phase: str, mode: str) -> str:

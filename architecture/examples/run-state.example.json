@@ -55,11 +55,11 @@
       "reason": "The complete Phase 4 candidate package was closed for validation.",
       "sequence": 5,
       "prior_event_sha256": "f186c46497939126cb1b26272e65a52592dd31cea0a7d332925283a3de441bac",
-      "event_sha256": "087b9a0040d6ed8c2dd53a1a87fc5936cf6b3ecb8e8467877f023dff97969769",
+      "event_sha256": "a9780a3283bf7eab910951831352086c7abba7894c2b4a6bbcc530369b9be4f4",
       "evidence_artifact": {
         "artifact_id": "artifact.run_submission.p4.001",
         "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.run_submission.p4.001",
-        "sha256": "1bcc44c2dc646bbd54595ba4048f0602092ebdb312fe279dbd968856d649270e",
+        "sha256": "ac95e19822dbd8dc1eb7d1e921cdc00ec57f4c4e538450974ccb5288754ae1bf",
         "media_type": "application/json"
       }
     },
@@ -71,8 +71,8 @@
       "actor": "system",
       "reason": "The harness began schema, provenance, alignment, and promotion checks.",
       "sequence": 6,
-      "prior_event_sha256": "087b9a0040d6ed8c2dd53a1a87fc5936cf6b3ecb8e8467877f023dff97969769",
-      "event_sha256": "433e6abc58ce64aa6f07c9348e37af45fef1db986e849f53c50773427d542864"
+      "prior_event_sha256": "a9780a3283bf7eab910951831352086c7abba7894c2b4a6bbcc530369b9be4f4",
+      "event_sha256": "53a429479228dfc8d869e76698085f296249389a9d145ac2a7fd7d94b34e0dda"
     },
     {
       "event_id": "event.run.promoting.001",
@@ -82,8 +82,8 @@
       "actor": "system",
       "reason": "All blocking validation checks passed.",
       "sequence": 7,
-      "prior_event_sha256": "433e6abc58ce64aa6f07c9348e37af45fef1db986e849f53c50773427d542864",
-      "event_sha256": "bf706aea17304aace846b1154391731f2ad82b3eef2123495a5b5bac8a8db204"
+      "prior_event_sha256": "53a429479228dfc8d869e76698085f296249389a9d145ac2a7fd7d94b34e0dda",
+      "event_sha256": "446393e9628f4099364e9265d73e67f0e8c9d5de84ab5ad12baba3f9d6887edb"
     },
     {
       "event_id": "event.run.published.001",
@@ -93,15 +93,15 @@
       "actor": "system",
       "reason": "The atomic publication transaction committed.",
       "sequence": 8,
-      "prior_event_sha256": "bf706aea17304aace846b1154391731f2ad82b3eef2123495a5b5bac8a8db204",
-      "event_sha256": "75150e6e23e82075b5f77a9f80e71937f47619f18480534cbcca76b71ede284c"
+      "prior_event_sha256": "446393e9628f4099364e9265d73e67f0e8c9d5de84ab5ad12baba3f9d6887edb",
+      "event_sha256": "eb215c07afdf5ef6bc2f9c9e0e981d621172dee6a3181601a8f9d4d5ce4e7ed0"
     }
   ],
   "publication_receipt_id": "publication.p4.001",
   "updated_at": "2026-08-01T15:10:04Z",
   "project_id": "project.demo",
-  "manifest_sha256": "ff82f75fd52e338e96a9ea1d1cc59c2399a52c218934b6d298f3cf6e37d82d12",
-  "journal_root_sha256": "75150e6e23e82075b5f77a9f80e71937f47619f18480534cbcca76b71ede284c",
+  "manifest_sha256": "1a7d32137300e2faafef7359483a1186e49558b2f583f9a3840a14c3adc0efb7",
+  "journal_root_sha256": "eb215c07afdf5ef6bc2f9c9e0e981d621172dee6a3181601a8f9d4d5ce4e7ed0",
   "submission_id": "submission.p4.001",
-  "submission_sha256": "1bcc44c2dc646bbd54595ba4048f0602092ebdb312fe279dbd968856d649270e"
+  "submission_sha256": "ac95e19822dbd8dc1eb7d1e921cdc00ec57f4c4e538450974ccb5288754ae1bf"
 }

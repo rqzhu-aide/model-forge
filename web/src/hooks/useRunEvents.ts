@@ -46,6 +46,7 @@ export function useRunEvents(projectId: string, run: RunDetail | undefined) {
         void queryClient.invalidateQueries({ queryKey: ["run", projectId, runId] });
       } catch {
         setStreamAvailable(false);
+        stream.close();
       }
     };
     stream.onerror = () => {

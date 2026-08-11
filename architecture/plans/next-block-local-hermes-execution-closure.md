@@ -13,8 +13,8 @@ Architecture decision:
 Related records:
 
 - [ADR-011: Per-project Hermes memory and session model](../decisions/ADR-011-per-project-memory-model.md)
-- [Operational completion plan](operational-completion-plan.md)
-- [WP0 reviewed-basis closure](wp0-reviewed-basis-closure.md)
+- [Operational completion plan](completed/operational-completion-plan.md)
+- [WP0 reviewed-basis closure](completed/wp0-reviewed-basis-closure.md)
 
 The former OCI closure plans are retained only as optional future hardening
 references. They are not Version 1 prerequisites.

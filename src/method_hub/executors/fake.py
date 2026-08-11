@@ -17,6 +17,23 @@ from .protocol import (
 OutputFactory = Callable[[RoleInvocation, int], Any]
 
 
+_FIXTURE_SUMMARIES: dict[str, str] = {
+    "P1": "Literature survey completed. Key gap: interaction effects under weak overlap remain underexplored in existing Langevin samplers.",
+    "P2": "Method catalog updated. Overlap-stabilized orthogonal score estimator entered the catalog with cross-fitting and smooth propensity bounding.",
+    "P3": "Theory record published. Convergence guarantee established for the entangled case under a curvature condition on the potential.",
+    "P4": "Empirical synthesis published. Simulation confirms a 30% mixing improvement over independent chains under moderate correlation regimes.",
+    "P5": "Manuscript draft assembled. Theoretical and empirical results are integrated; one revision round remains for the discussion section.",
+}
+
+
+def _fixture_summary(invocation: RoleInvocation) -> str | None:
+    """Return a phase-appropriate summary so the UI can display feedback."""
+    for phase_id, text in _FIXTURE_SUMMARIES.items():
+        if phase_id in invocation.run_id or phase_id in invocation.stage_id:
+            return text
+    return None
+
+
 class DeterministicFakeExecutor:
     """Write explicit test outputs without simulating scientific judgment."""
 
@@ -34,13 +51,17 @@ class DeterministicFakeExecutor:
 
     @staticmethod
     def _default_output(invocation: RoleInvocation, offset: int) -> dict[str, Any]:
-        return {
+        summary = _fixture_summary(invocation)
+        payload: dict[str, Any] = {
             "development_fixture": True,
             "run_id": invocation.run_id,
             "stage_id": invocation.stage_id,
             "role": invocation.role,
             "output_offset": offset,
         }
+        if summary is not None:
+            payload["summary"] = summary
+        return payload
 
     async def execute(
         self,

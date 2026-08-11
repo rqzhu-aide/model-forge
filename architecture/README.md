@@ -78,7 +78,7 @@ Read the files in this order:
 13. [Role and context contract](08-role-context-and-communication.md) defines reproducible profiles, prepared contexts, invocation starts and closures, downstream closure gates, immutable submission, capability-broker isolation, handoffs, and reviewer isolation.
 14. [Control commands](09-control-commands.md) defines cancellation, method lifecycle changes, formal-generation withdrawal, remote delegation, and shared command failures.
 15. [Open implementation gaps](10-open-implementation-gaps.md) records unresolved structural integrity requirements that must close before the harness is complete.
-16. [Operational completion plan](plans/operational-completion-plan.md) orders the remaining work from reviewed-basis sealing through supported release.
+16. [Operational completion plan](plans/completed/operational-completion-plan.md) orders the remaining work from reviewed-basis sealing through supported release.
 17. `tools/` contains the restricted RFC 8785 reference and one-command package conformance validator.
 18. `decisions/` records accepted changes to invariants, schemas, and phase behavior.
 
@@ -94,7 +94,7 @@ sequential harness, all five schema-example phase paths, API, and Web interface.
 2. Start every behavior change from its invariant, executable phase contract,
    schema, and scenario. Do not infer authority or phase behavior from UI code.
 3. Follow the
-   [Operational Completion Plan](plans/operational-completion-plan.md) for the
+   [Operational Completion Plan](plans/completed/operational-completion-plan.md) for the
    remaining production sequence. The reviewed-basis seal precedes real Hermes
    execution, and real execution precedes remote operation.
 4. Keep production role execution disabled until the plan's isolation,

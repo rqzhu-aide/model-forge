@@ -69,11 +69,12 @@
                       {
                           "mode_id":  "p4.comprehensive",
                           "label":  "Comprehensive",
-                          "purpose":  "Run a prespecified full evaluation with comparisons, sensitivity analyses, and robustness checks.",
+                          "purpose":  "Run a prespecified full evaluation with comparisons, sensitivity analyses, and robustness checks. Builds on validated preliminary implementation and evidence.",
                           "requires_method":  true,
                           "entry_conditions":  [
                                                    "The project brief, Phase 1 basis, and Phase 2 catalog are current.",
-                                                   "The selected method is active and current."
+                                                   "The selected method is active and current.",
+                                                   "A complete formal current preliminary evidence record exists from a prior preliminary run."
                                                ],
                           "required_choice_ids":  [
                                                       "p4.selected_method",
@@ -187,6 +188,32 @@
                                 "purpose":  "Expose assumptions, empirical implications, and boundary cases.",
                                 "condition":  "Included when an exactly aligned Phase 3 record exists; Phase 3 is not a prerequisite.",
                                 "presence":  "if_exists"
+                            },
+                            {
+                                "input_id":  "p4.prior_implementation",
+                                "record_type":  "implementation_record",
+                                "publication_required":  "formal",
+                                "position_required":  "current",
+                                "method_match":  "exact",
+                                "purpose":  "Provide the validated code and environment identity from the preliminary run.",
+                                "condition":  "Required for comprehensive mode.",
+                                "presence":  "required_in_modes",
+                                "required_in_modes":  [
+                                                          "p4.comprehensive"
+                                                      ]
+                            },
+                            {
+                                "input_id":  "p4.prior_evidence",
+                                "record_type":  "empirical_synthesis",
+                                "publication_required":  "formal",
+                                "position_required":  "current",
+                                "method_match":  "exact",
+                                "purpose":  "Provide the preliminary evidence and conclusions that the comprehensive run extends.",
+                                "condition":  "Required for comprehensive mode.",
+                                "presence":  "required_in_modes",
+                                "required_in_modes":  [
+                                                          "p4.comprehensive"
+                                                      ]
                             }
                         ],
     "prepared_contexts":  [
@@ -220,7 +247,9 @@
                                           "p4.current_evidence_index",
                                           "p4.current_empirical",
                                           "p4.current_implementation",
-                                          "p4.current_theory"
+                                          "p4.current_theory",
+                                          "p4.prior_implementation",
+                                          "p4.prior_evidence"
                                       ],
                             "writes":  [
                                            "p4.protocol",

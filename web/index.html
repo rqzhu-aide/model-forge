@@ -3,7 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f5f7f5" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6f7f9" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b0e14" />
+    <script>
+      // Apply the saved color theme before first paint to avoid a flash.
+      (function () {
+        var saved = null;
+        try { saved = window.localStorage.getItem("method-hub-theme"); } catch (e) {}
+        if (saved !== "light" && saved !== "dark") {
+          saved = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        document.documentElement.dataset.theme = saved;
+      })();
+    </script>
     <meta
       name="description"
       content="Method Hub controlled research workflow interface"

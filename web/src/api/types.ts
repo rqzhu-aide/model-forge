@@ -84,6 +84,13 @@ export interface AttentionSummary {
   method_id?: string;
 }
 
+export interface LiteratureGapSummary {
+  attention_id: string;
+  reference: string;
+  raised_by_phase: PhaseId;
+  method_id?: string;
+}
+
 export interface PhaseNavigationSummary {
   phase_id: PhaseId;
   name: string;
@@ -233,6 +240,11 @@ export interface ContextOption {
   option_id: string;
   label: string;
   description: string;
+  feedback?: string;
+  highlight_artifact_id?: string;
+  size_bytes?: number;
+  group?: string;
+  hidden?: boolean;
   artifact_pointer?: {
     artifact_id: string;
     uri: string;
@@ -292,6 +304,7 @@ export interface PhaseView {
   recent_runs: RunSummary[];
   descriptor_basis?: ReviewedBasis | null;
   projection: ProjectionStamp;
+  literature_gaps?: LiteratureGapSummary[];
   empty_state_message?: string;
 }
 

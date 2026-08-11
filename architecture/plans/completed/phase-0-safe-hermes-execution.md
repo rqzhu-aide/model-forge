@@ -36,7 +36,7 @@ Still required:
   controls.
 
 The controlling package is
-[Trusted Local Hermes Execution Closure](next-block-local-hermes-execution-closure.md).
+[Trusted Local Hermes Execution Closure](../next-block-local-hermes-execution-closure.md).
 
 The earlier revisions below remain useful for Hermes behavior and failure cases,
 but their OCI topology and exit gates are superseded for Version 1.
@@ -130,7 +130,7 @@ sealing remains a later prerequisite for publishable Hermes work.
 ## 2. Relationship to the existing architecture
 
 The following description records the pre-fb326de state of the
-[Hermes executor](../../src/method_hub/executors/hermes.py). It is retained as
+[Hermes executor](../../../src/method_hub/executors/hermes.py). It is retained as
 historical rationale for Revision 1. The current implementation checkpoint at
 the start of this plan supersedes it.
 
@@ -169,10 +169,10 @@ The grounded review additionally established:
 Phase 0 now uses these findings to strengthen the shared executor boundary
 through the one-shot OCI diagnostic path in Section 5.4. It must reuse the
 execution, cancellation, and recovery semantics defined by the
-[run harness](../02-run-harness.md) and the isolation rules in the
-[role and context contract](../08-role-context-and-communication.md), while
+[run harness](../../02-run-harness.md) and the isolation rules in the
+[role and context contract](../../08-role-context-and-communication.md), while
 remaining outside the scientific run, submission, and publication lifecycle.
-Its tests must follow the [validation strategy](../05-validation-strategy.md).
+Its tests must follow the [validation strategy](../../05-validation-strategy.md).
 
 The active [Operational Completion Plan](operational-completion-plan.md)
 continues to define the production sequence. Phase 0 is a non-publishing
@@ -868,10 +868,10 @@ the actual situation would require:
 
 The exact decomposition is adaptable, but likely work areas include:
 
-- [executor protocol](../../src/method_hub/executors/protocol.py);
-- [Hermes adapter](../../src/method_hub/executors/hermes.py);
-- [execution observer](../../src/method_hub/harness/execution_observer.py);
-- [role execution service](../../src/method_hub/harness/role_execution.py);
+- [executor protocol](../../../src/method_hub/executors/protocol.py);
+- [Hermes adapter](../../../src/method_hub/executors/hermes.py);
+- [execution observer](../../../src/method_hub/harness/execution_observer.py);
+- [role execution service](../../../src/method_hub/harness/role_execution.py);
 - executor configuration and application startup;
 - diagnostic application service and API transport;
 - diagnostic status and log components in the Web interface;

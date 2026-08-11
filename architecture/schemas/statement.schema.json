@@ -4,7 +4,7 @@
     "title":  "Scientific Statement",
     "description":  "An immutable statement within one record generation, with frozen scope, evidence, assessment, and creation-time alignment.",
     "type":  "object",
-    "additionalProperties":  false,
+    "additionalProperties":  true,
     "required":  [
                      "schema_version",
                      "statement_id",

@@ -46,6 +46,11 @@ class RunExecutionContext:
     phase_instruction: str
     role_souls: Mapping[str, str]
     preloaded_skills: Mapping[str, tuple[str, ...]]
+    role_instructions: Mapping[str, str] = None  # type: ignore[assignment]
+    # Key format: "{stage_id}.{role}" → instruction text.
+    # When present, role_execution looks up by the current stage+role
+    # and falls back to role-only key, then phase_instruction.
+    researcher_method_spec: str = ""
     submission_from_status: str = "running"
     submission_to_status: str = "submitted"
 

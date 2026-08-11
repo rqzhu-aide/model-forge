@@ -20,7 +20,7 @@
   },
   "validated_command": {
     "command_id": "command.p4.preliminary.001",
-    "command_sha256": "3ffdc4d76a6f5a8e971a4a0ac3c36af2b3eaff860819677b0ee8f3fac806514a"
+    "command_sha256": "b8716e64012e2bc6082068a8e3998c50d43a31f8b1aa6ede62046179bbe6d920"
   },
   "requested_by": {
     "user_id": "researcher.demo",
@@ -36,6 +36,6 @@
   },
   "occurred_at": "2026-08-01T14:00:00Z",
   "prior_audit_root_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-  "content_sha256": "3a035e5f0bce0adbde3fd286e2d5ccd8df9825cf8aebfe63ce50fb5255367dc5",
-  "audit_root_sha256": "6b2562fd9f4ad22f128ca2b1a22615f70585a5dc9c4287f6b3a537b0ad942c17"
+  "content_sha256": "dbadaf844363dbc2d18fd4c1a5982c2291813a7d46d6c8287a4b7fff6879da9e",
+  "audit_root_sha256": "16d82ac943e61a62a81fe946e0afc292dcfbde0717a546582bb02da321bd979c"
 }

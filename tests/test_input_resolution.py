@@ -270,3 +270,181 @@ def test_phase1_rerun_package_must_be_complete_or_absent() -> None:
         "p1.current_synthesis",
         "p1.current_coverage",
     }
+
+
+def p2_focused_contract():
+    package = SpecificationPackage.load(ARCHITECTURE)
+    method = MethodIdentity("method.demo", 1, "b" * 64)
+    plan = package.resolve_phase(
+        package.phases.identity("P2"),
+        "p2.focused_method",
+        {
+            "p2.selected_method": method.to_dict(),
+            "p2.instructions": "Revise the focused method.",
+            "p2.selected_history": [],
+        },
+        "current_only",
+    )
+    return package, method, resolve_runtime_contract(package.phases, plan)
+
+
+def p5_review_contract():
+    package = SpecificationPackage.load(ARCHITECTURE)
+    method = MethodIdentity("method.demo", 1, "b" * 64)
+    plan = package.resolve_phase(
+        package.phases.identity("P5"),
+        "p5.review_revision",
+        {
+            "p5.selected_method": method.to_dict(),
+            "p5.instructions": "Revise the manuscript after review.",
+            "p5.selected_history": [],
+        },
+        "current_only",
+    )
+    return package, method, resolve_runtime_contract(package.phases, plan)
+
+
+def test_phase2_focused_optional_context_is_deselectable() -> None:
+    """P2's theory/empirical/manuscript context is optional (if_exists): the
+    researcher may deselect present records or run without them entirely."""
+    _, method, contract = p2_focused_contract()
+    required = {
+        "p2.project_brief",
+        "p2.literature_synthesis",
+        "p2.literature_library",
+        "p2.literature_coverage",
+    }
+    lookup = Lookup(
+        {
+            "project_brief": reference("project_brief"),
+            "literature_synthesis": reference("literature_synthesis"),
+            "literature_library": reference("literature_library"),
+            "literature_coverage": reference("literature_coverage"),
+            "theory_record": reference("theory_record", method=method),
+            "empirical_synthesis": reference("empirical_synthesis", method=method),
+            "manuscript": reference("manuscript", method=method),
+        }
+    )
+
+    deselected = resolve_run_inputs(
+        project_id="project.demo",
+        contract=contract,
+        lookup=lookup,
+        selected_context_option_ids=sorted(required),
+    )
+    selected = resolve_run_inputs(
+        project_id="project.demo",
+        contract=contract,
+        lookup=lookup,
+        selected_context_option_ids=sorted(
+            required | {"p2.theory_result", "p2.manuscript_result"}
+        ),
+    )
+
+    assert deselected.passed
+    assert {
+        "p2.theory_result",
+        "p2.empirical_result",
+        "p2.manuscript_result",
+    }.isdisjoint(item.contract_input_id for item in deselected.inputs)
+    assert selected.passed
+    assert {"p2.theory_result", "p2.manuscript_result"} <= {
+        item.contract_input_id for item in selected.inputs
+    }
+
+
+def test_phase2_focused_optional_context_may_be_absent() -> None:
+    """A focused P2 run starts cleanly when no downstream results exist."""
+    _, _, contract = p2_focused_contract()
+    lookup = Lookup(
+        {
+            "project_brief": reference("project_brief"),
+            "literature_synthesis": reference("literature_synthesis"),
+            "literature_library": reference("literature_library"),
+            "literature_coverage": reference("literature_coverage"),
+        }
+    )
+
+    result = resolve_run_inputs(
+        project_id="project.demo",
+        contract=contract,
+        lookup=lookup,
+        selected_context_option_ids=[
+            "p2.project_brief",
+            "p2.literature_synthesis",
+            "p2.literature_library",
+            "p2.literature_coverage",
+        ],
+    )
+
+    assert result.passed
+
+
+def _p5_lookup(method: MethodIdentity, *, with_manuscript: bool) -> "Lookup":
+    records = {
+        "project_brief": reference("project_brief"),
+        "literature_library": reference("literature_library"),
+        "literature_synthesis": reference("literature_synthesis"),
+        "literature_coverage": reference("literature_coverage"),
+        "method_catalog": reference("method_catalog"),
+        "method_record": reference("method_record", method=method),
+        "theory_record": reference("theory_record", method=method),
+        "empirical_evidence_index": reference("empirical_evidence_index", method=method),
+        "empirical_synthesis": reference("empirical_synthesis", method=method),
+        "implementation_record": reference("implementation_record", method=method),
+    }
+    if with_manuscript:
+        records["manuscript"] = reference("manuscript", method=method)
+    return Lookup(records)
+
+
+_P5_ALWAYS_SELECTED = [
+    "p5.project_brief",
+    "p5.literature_library",
+    "p5.literature_synthesis",
+    "p5.literature_coverage",
+    "p5.method_catalog",
+    "p5.method",
+    "p5.theory",
+    "p5.empirical_index",
+    "p5.empirical",
+    "p5.implementation_record",
+]
+
+
+def test_phase5_review_revision_manuscript_stays_required() -> None:
+    """required_in_modes keeps its execution meaning: in review_revision mode
+    the current manuscript is mandatory — deselected or missing both fail."""
+    _, method, contract = p5_review_contract()
+
+    deselected = resolve_run_inputs(
+        project_id="project.demo",
+        contract=contract,
+        lookup=_p5_lookup(method, with_manuscript=True),
+        selected_context_option_ids=list(_P5_ALWAYS_SELECTED),
+    )
+    missing = resolve_run_inputs(
+        project_id="project.demo",
+        contract=contract,
+        lookup=_p5_lookup(method, with_manuscript=False),
+        selected_context_option_ids=[*_P5_ALWAYS_SELECTED, "p5.current_manuscript"],
+    )
+    complete = resolve_run_inputs(
+        project_id="project.demo",
+        contract=contract,
+        lookup=_p5_lookup(method, with_manuscript=True),
+        selected_context_option_ids=[*_P5_ALWAYS_SELECTED, "p5.current_manuscript"],
+    )
+
+    assert not deselected.passed
+    assert "input.required_context_not_selected" in {
+        item.code for item in deselected.findings
+    }
+    assert "p5.current_manuscript" in {
+        item.object_id for item in deselected.findings
+    }
+    assert not missing.passed
+    assert "input.required_current_record_missing" in {
+        item.code for item in missing.findings
+    }
+    assert complete.passed

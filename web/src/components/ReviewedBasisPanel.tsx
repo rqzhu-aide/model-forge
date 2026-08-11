@@ -7,6 +7,7 @@ export function memoryPolicyLabel(policy: string): string {
     case "persistent":
       return "keeps project memory between runs";
     case "ephemeral":
+    case "fresh":
       return "fresh every run";
     case "read_only":
       return "reads memory, never writes";

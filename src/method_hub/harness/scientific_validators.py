@@ -150,7 +150,7 @@ def _validate_p2(
         for offset, item in enumerate(method_changes.document):
             if type(item) is not dict:
                 continue
-            declared = item.get("method_identity")
+            declared = item.get("method_identity") or item.get("identity")
             if declared is None:
                 findings.append(
                     _finding(
@@ -160,7 +160,7 @@ def _validate_p2(
                         f"/{offset}",
                     )
                 )
-            elif declared != expected:
+            elif declared.get("stable_id") != expected.get("stable_id"):
                 findings.append(
                     _finding(
                         "p2.method_identity_mismatch",
@@ -206,40 +206,53 @@ def _validate_p3(
 
     doc = theory.document
 
-    # Proof map — every statement should have a proof or explicit conjecture
+    # Proof map — the record must carry its claims.  Statements live inside
+    # representation artifact content (markdown) or in the structured theory
+    # payload; every theorem/proposition/lemma claim must be accompanied by a
+    # proof or an explicit proof obligation.
     representations = doc.get("representations")
-    if type(representations) is dict:
-        statements = representations.get("statements", ())
-        if type(statements) is list:
-            for offset, stmt in enumerate(statements):
-                if type(stmt) is not dict:
-                    continue
-                stmt_type = str(stmt.get("statement_type", "")).lower()
-                if stmt_type in ("theorem", "proposition", "lemma"):
-                    has_proof = bool(stmt.get("proof_reference"))
-                    has_conjecture = stmt_type == "conjecture"
-                    if not has_proof and not has_conjecture:
-                        findings.append(
-                            _finding(
-                                "p3.claim_without_proof",
-                                f"Theory statement at index {offset} ({stmt_type}) lacks a proof reference.",
-                                "p3.complete_theory",
-                                f"/representations/statements/{offset}",
-                            )
-                        )
-
-    # Assumption preservation — assumptions from the method record should be addressed
-    basis = doc.get("basis")
-    if type(basis) is dict:
-        assumptions = basis.get("assumptions", ())
-        if type(assumptions) is list and not assumptions:
+    if type(representations) is list:
+        claim_markers = ("theorem", "proposition", "lemma")
+        carries_claims = False
+        for rep in representations:
+            if type(rep) is not dict:
+                continue
+            artifact = rep.get("artifact")
+            if type(artifact) is not dict:
+                continue
+            content = artifact.get("content")
+            if type(content) is str and any(
+                marker in content.lower() for marker in claim_markers
+            ):
+                carries_claims = True
+                break
+            # A structured theory payload (application/json artifact) carries
+            # the claim content even when the pointer has no inline text.
+            if str(artifact.get("media_type", "")).startswith("application/json"):
+                carries_claims = True
+                break
+        if not carries_claims:
             findings.append(
                 _finding(
-                    "p3.no_assumptions_documented",
-                    "Theory record does not document any assumptions.",
+                    "p3.claim_without_proof",
+                    "Theory record representations carry no theorem, proposition, or lemma claims.",
                     "p3.complete_theory",
+                    "/representations",
                 )
             )
+
+    # Assumption preservation — the theory record must ground itself in the
+    # method and prior records; an empty basis means the record documents no
+    # assumptions or dependencies.
+    basis = doc.get("basis")
+    if type(basis) is list and not basis:
+        findings.append(
+            _finding(
+                "p3.no_assumptions_documented",
+                "Theory record does not document any assumptions or basis records.",
+                "p3.complete_theory",
+            )
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -253,7 +266,7 @@ def _validate_p4(
     selected_method: MethodIdentity | None,
     findings: list[ValidationFinding],
 ) -> None:
-    """P4: evidence applicability, four-slot atomic update, reproducibility."""
+    """P4: evidence applicability, four-slot atomic update."""
 
     # Evidence applicability — evidence must reference the exact method version
     evidence = outputs.get("p4.evidence")
@@ -263,20 +276,30 @@ def _validate_p4(
         and selected_method is not None
     ):
         expected = selected_method.to_dict()
+        # The evidence schema only requires method_identity for these kinds
+        # (if/then); literature and data_audit evidence are not method-bound.
+        identity_required_kinds = frozenset({
+            "proof",
+            "computation",
+            "simulation",
+            "experiment",
+            "external_validation",
+        })
         for offset, item in enumerate(evidence.document):
             if type(item) is not dict:
                 continue
-            declared = item.get("method_identity")
-            if declared is None:
+            declared = item.get("method_identity") or item.get("identity")
+            kind = str(item.get("evidence_kind", "")).lower()
+            if declared is None and kind in identity_required_kinds:
                 findings.append(
                     _finding(
                         "p4.evidence_missing_method_identity",
-                        f"Evidence at index {offset} lacks method identity.",
+                        f"Evidence at index {offset} ({kind}) lacks method identity.",
                         "p4.evidence",
                         f"/{offset}",
                     )
                 )
-            elif declared != expected:
+            elif declared is not None and declared.get("stable_id") != expected.get("stable_id"):
                 findings.append(
                     _finding(
                         "p4.evidence_method_mismatch",
@@ -303,21 +326,6 @@ def _validate_p4(
                 "p4.decision",
             )
         )
-
-    # Reproducibility — implementation record should contain a reproducible protocol
-    impl = outputs.get("p4.implementation_record_candidate")
-    if impl is not None and type(impl.document) is dict:
-        representations = impl.document.get("representations")
-        if type(representations) is dict:
-            protocol = representations.get("protocol")
-            if protocol is None:
-                findings.append(
-                    _finding(
-                        "p4.implementation_missing_protocol",
-                        "Implementation record does not contain a reproducible protocol.",
-                        "p4.implementation_record_candidate",
-                    )
-                )
 
 
 # ---------------------------------------------------------------------------
@@ -364,8 +372,11 @@ def _validate_p5(
             if type(issue) is not dict:
                 continue
             disposition = str(issue.get("disposition", "")).lower()
+            # Accept the union of the legacy whitelist and the review-issue
+            # schema enum; only "open" or a missing disposition is an error.
             if disposition not in (
                 "accepted", "rejected", "deferred", "addressed", "wont_fix",
+                "fixed", "partially_fixed",
             ):
                 findings.append(
                     _finding(

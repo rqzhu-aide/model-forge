@@ -4,7 +4,7 @@
     "title":  "Immutable Scientific Evidence Item",
     "description":  "An immutable evidence identity with frozen method applicability, provenance, reproducibility, and scientific assessment at creation. Current eligibility and alignment are derived separately.",
     "type":  "object",
-    "additionalProperties":  false,
+    "additionalProperties":  true,
     "required":  [
                      "schema_version",
                      "evidence_id",
@@ -77,7 +77,7 @@
                                               },
                        "applicability_at_creation":  {
                                                          "type":  "object",
-                                                         "additionalProperties":  false,
+                                                         "additionalProperties":  true,
                                                          "required":  [
                                                                           "method_match",
                                                                           "conditions",
@@ -109,7 +109,7 @@
                                                      },
                        "reproducibility":  {
                                                "type":  "object",
-                                               "additionalProperties":  false,
+                                               "additionalProperties":  true,
                                                "required":  [
                                                                 "code_artifacts",
                                                                 "data_artifacts",
@@ -120,7 +120,7 @@
                                                "properties":  {
                                                                   "code_artifacts":  {
                                                                                          "type":  "array",
-                                                                                         "minItems":  1,
+                                                                                         "minItems": 0,
                                                                                          "items":  {
                                                                                                        "$ref":  "common-definitions.schema.json#/$defs/artifactPointer"
                                                                                                    }
@@ -133,7 +133,7 @@
                                                                                      },
                                                                   "configuration_artifacts":  {
                                                                                                   "type":  "array",
-                                                                                                  "minItems":  1,
+                                                                                                  "minItems": 0,
                                                                                                   "items":  {
                                                                                                                 "$ref":  "common-definitions.schema.json#/$defs/artifactPointer"
                                                                                                             }
@@ -148,7 +148,7 @@
                                                                                    },
                                                                   "environment_artifacts":  {
                                                                                                 "type":  "array",
-                                                                                                "minItems":  1,
+                                                                                                "minItems": 0,
                                                                                                 "items":  {
                                                                                                               "$ref":  "common-definitions.schema.json#/$defs/artifactPointer"
                                                                                                           }

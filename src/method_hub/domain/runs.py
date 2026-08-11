@@ -48,7 +48,12 @@ _TRANSITIONS: Mapping[RunStatus, frozenset[RunStatus]] = {
         {RunStatus.PREPARING, RunStatus.CANCELLATION_REQUESTED, RunStatus.FAILED}
     ),
     RunStatus.PREPARING: frozenset(
-        {RunStatus.PREPARED, RunStatus.CANCELLATION_REQUESTED, RunStatus.FAILED}
+        {
+            RunStatus.PREPARED,
+            RunStatus.CANCELLATION_REQUESTED,
+            RunStatus.CONFLICTED,
+            RunStatus.FAILED,
+        }
     ),
     RunStatus.PREPARED: frozenset(
         {RunStatus.RUNNING, RunStatus.CANCELLATION_REQUESTED, RunStatus.FAILED}

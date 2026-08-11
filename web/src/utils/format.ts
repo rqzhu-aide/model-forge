@@ -31,6 +31,13 @@ export function shortDigest(value?: string): string {
   return value.length > 16 ? `${value.slice(0, 8)}…${value.slice(-6)}` : value;
 }
 
+export function formatSize(bytes: number | undefined | null): string | null {
+  if (bytes == null) return null;
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export function sentenceCase(value: string): string {
   const text = value.replaceAll("_", " ").replaceAll(".", " ");
   return text.charAt(0).toUpperCase() + text.slice(1);

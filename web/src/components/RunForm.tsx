@@ -13,6 +13,7 @@ import type {
   PhaseView,
   StartRunRequest,
 } from "../api/types";
+import { GroupedContextCards } from "./GroupedContextCards";
 import { shortDigest } from "../utils/format";
 import { runInstructionDraftKey, useLocalDraft } from "../hooks/useLocalDraft";
 import { ErrorState } from "./Feedback";
@@ -131,6 +132,7 @@ export function RunForm({
   const [selectedHistory, setSelectedHistory] = useState<Set<string>>(new Set());
   const [selectedContext, setSelectedContext] = useState<Set<string>>(new Set());
   const [reviewing, setReviewing] = useState(false);
+  const [methodSpec, setMethodSpec] = useState("");
 
   useEffect(() => {
     setSelectedContext(
@@ -148,7 +150,6 @@ export function RunForm({
   const requiresMethod = phaseNeedsMethod(phaseView.phase_id, mode);
   const localMissing: string[] = [];
   if (requiresMethod && !selectedMethod) localMissing.push("Select an active method.");
-  if (!instructions.trim()) localMissing.push("Provide instructions for this run.");
 
   const mutation = useMutation({
     mutationFn: (input: StartRunRequest) => api.startRun(projectId, input),
@@ -182,8 +183,9 @@ export function RunForm({
     };
     if (selectedMethod && requiresMethod) values[`${prefix}.selected_method`] = selectedMethod.identity;
     if (phaseView.phase_id === "P1") values["p1.scope"] = phaseOneScope;
+    if (phaseView.phase_id === "P2" && mode === "p2.researcher_proposal") values["p2.researcher_method_spec"] = methodSpec.trim();
     return values;
-  }, [historyPointers, instructions, phaseOneScope, phaseView.phase_id, requiresMethod, selectedMethod]);
+  }, [historyPointers, instructions, methodSpec, phaseOneScope, phaseView.phase_id, requiresMethod, selectedMethod, mode]);
 
   const canReview = Boolean(action?.enabled) && localMissing.length === 0 && !mutation.isPending;
   const disabledMessage = localMissing[0] ?? action?.researcher_message ?? "The backend did not provide an eligible start action for this selection.";
@@ -281,6 +283,22 @@ export function RunForm({
         />
       ) : null}
 
+      {phaseView.phase_id === "P2" && mode === "p2.researcher_proposal" ? (
+        <label className="field field--prominent">
+          <span>Method specification</span>
+          <textarea
+            value={methodSpec}
+            onChange={(event) => {
+              setReviewing(false);
+              setMethodSpec(event.target.value);
+            }}
+            rows={8}
+            placeholder="Describe the method in your own words — math, algorithm, what problem it solves. Markdown, a file path, or a link are all fine."
+          />
+          <small>Write whatever you want. If the method is accepted, it will be registered in the catalog like any other method.</small>
+        </label>
+      ) : null}
+
       {phaseView.phase_id === "P5" ? (
         <MethodSelector
           methods={methods}
@@ -302,39 +320,28 @@ export function RunForm({
             setInstructions(event.target.value);
           }}
           rows={5}
-          required
           placeholder={phaseView.run_configuration.instruction_placeholder}
         />
         <small>{phaseView.run_configuration.instruction_help}</small>
         <small className="draft-note" role="status">
           {restoredInstructionDraft
             ? "A locally stored draft was restored. It is cleared after the run starts."
-            : "This browser saves an instruction draft locally when storage is available."}
+            : "Leave empty to use the default instruction generated from the project brief."}
         </small>
       </label>
 
       <fieldset>
         <legend>Current context for this run</legend>
-        <p className="field-help">The backend resolved these typed inputs. Required inputs cannot be removed here.</p>
-        <div className="context-list">
-          {phaseView.run_configuration.current_inputs.map((option) => (
-            <label key={option.option_id}>
-              <input
-                type="checkbox"
-                checked={selectedContext.has(option.option_id)}
-                disabled={option.required || option.disabled}
-                onChange={(event) => {
-                  setReviewing(false);
-                  toggleSetValue(setSelectedContext, option.option_id, event.target.checked);
-                }}
-              />
-              <span>
-                <strong>{option.label}{option.required ? " (required)" : ""}</strong>
-                <small>{option.disabled_reason ?? option.description}</small>
-              </span>
-            </label>
-          ))}
-        </div>
+        <p className="field-help">Required inputs cannot be removed. Select \"more\" on a card to read the record summary and highlight.</p>
+        <GroupedContextCards
+          options={phaseView.run_configuration.current_inputs}
+          projectId={projectId}
+          selectedIds={selectedContext}
+          onToggle={(optionId, val) => {
+            setReviewing(false);
+            toggleSetValue(setSelectedContext, optionId, val);
+          }}
+        />
       </fieldset>
 
       <fieldset>

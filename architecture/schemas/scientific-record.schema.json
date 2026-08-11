@@ -4,7 +4,7 @@
     "title":  "Immutable Scientific Record Generation",
     "description":  "A run-local candidate or newly formal scientific generation. Every field is frozen at creation. Later publication, position, alignment, attention, withdrawal, or invalidation changes live in derived state and append-only authority events.",
     "type":  "object",
-    "additionalProperties":  false,
+    "additionalProperties":  true,
     "required":  [
                      "schema_version",
                      "record_id",
@@ -52,10 +52,10 @@
                                                  },
                        "representations":  {
                                                "type":  "array",
-                                               "minItems":  1,
+                                               "minItems":  0,
                                                "items":  {
                                                              "type":  "object",
-                                                             "additionalProperties":  false,
+                                                             "additionalProperties":  true,
                                                              "required":  [
                                                                               "information_layer",
                                                                               "artifact"

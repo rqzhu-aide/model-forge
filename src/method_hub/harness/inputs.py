@@ -20,6 +20,9 @@ class CurrentRecordReference:
     artifact: ArtifactPointer
     method_identity: MethodIdentity | None = None
     logical_slot: str | None = None
+    summary: str | None = None
+    highlight_artifact_id: str | None = None
+    size_bytes: int | None = None
 
 
 @dataclass(frozen=True, slots=True)

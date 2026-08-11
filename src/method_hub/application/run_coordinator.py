@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -44,6 +45,8 @@ from .orchestration_progress import ProgressReportingServices
 from .repository_views import RepositoryQueries
 from .run_lifecycle import RunLifecycle
 from .settings import ApplicationSettings
+
+logger = logging.getLogger(__name__)
 
 
 _TERMINAL = frozenset(
@@ -484,6 +487,69 @@ class RunCoordinator:
             for key, value in plan.choice_values.items()
             if key.endswith(".instructions")
         )
+
+        # Resolve stage+role-specific instruction overrides.
+        #
+        # We populate ``role_instructions`` ONLY when a stage-specific
+        # template file actually exists at chain levels 1-2
+        # (``<stage_id>.<role>.md`` or ``<stage_id>.md``).  The mode-level
+        # templates (levels 3-6) are handled upstream by
+        # ``_apply_default_instruction`` in service.py, which replaces
+        # empty/placeholder instruction text with the mode-level default
+        # *before* the run is sealed.
+        #
+        # If the user authored custom instruction text, it is already in
+        # ``instruction`` and we must NOT shadow it with a stage template.
+        # Stage templates only override when the user left it empty (the
+        # upstream default is the mode-level text, which is a safe base
+        # for stage+role specialization).
+        role_instructions: dict[str, str] = {}
+        try:
+            from .default_instructions import stage_template_exists, load_instruction
+            from .repository_views import row_json
+
+            mode = plan.mode_id
+            # Fetch the brief once for all roles
+            brief_row = self.repository.get_current_record(
+                str(recipe.document["project_id"]),
+                "project.brief.current",
+            )
+            brief_payload = row_json(brief_row) if brief_row is not None else None
+
+            if brief_payload is not None:
+                for stage in plan.stages:
+                    for step in stage.role_steps:
+                        role = step.role
+                        stage_id = stage.stage_id
+                        if stage_template_exists(mode, role, stage_id):
+                            key = f"{stage_id}.{role}"
+                            role_instructions[key] = load_instruction(
+                                mode, brief_payload,
+                                role=role, stage_id=stage_id,
+                            )
+        except Exception:
+            logger.exception(
+                "Failed to resolve stage+role instructions for run %s; "
+                "falling back to phase-level instruction only.",
+                run_id,
+            )
+
+        # Append open LITERATURE_GAP items to P1 role instructions.
+        # Stage templates shadow the phase instruction, so we must enrich
+        # the role-level instructions here too, not just in service.py.
+        if plan.mode_id.startswith("p1.") and role_instructions:
+            _append_gaps_to_role_instructions(
+                self.repository,
+                self.queries,
+                str(recipe.document["project_id"]),
+                role_instructions,
+            )
+
+        # Extract researcher-provided method spec for researcher_proposal mode.
+        researcher_method_spec = str(
+            plan.choice_values.get("p2.researcher_method_spec", "")
+        )
+
         context = RunExecutionContext(
             run_id=run_id,
             project_id=str(recipe.document["project_id"]),
@@ -494,6 +560,8 @@ class RunCoordinator:
             phase_instruction=instruction,
             role_souls=souls,
             preloaded_skills=skills,
+            role_instructions=role_instructions,
+            researcher_method_spec=researcher_method_spec,
         )
         services = HarnessExecutionServices(
             context=context,
@@ -615,7 +683,10 @@ class RunCoordinator:
 
         # 2. Reviewed current inputs — generation_id drift, and rejection of a
         #    sealed entry that matches no frozen contract input (the reviewed
-        #    input is no longer part of the prepared basis).
+        #    input is no longer part of the prepared basis).  An optional input
+        #    that the user deselected is intentionally absent from the frozen
+        #    set (``resolve_run_inputs`` skips it); such entries are skipped
+        #    here rather than treated as drift.
         frozen = recipe.document.get("frozen_inputs", ())
         frozen_ids = {
             str(item.get("contract_input_id", "")) for item in frozen
@@ -628,10 +699,19 @@ class RunCoordinator:
             if sealed_gen is None:
                 continue
             if str(option_id) not in frozen_ids:
-                raise RepositoryConflictError(
-                    "stale_basis.input_generation_drifted",
-                    f"Reviewed current input {option_id!r} is not part of the prepared basis.",
-                )
+                # The reviewed basis seals every current input option,
+                # including optional ones the user may have deselected.
+                # resolve_run_inputs intentionally omits unselected
+                # optional inputs from the frozen set — that is not
+                # drift, just a user selection.  Only reject when the
+                # sealed entry was required (required inputs are always
+                # frozen when present).
+                if sealed_input.get("required"):
+                    raise RepositoryConflictError(
+                        "stale_basis.input_generation_drifted",
+                        f"Reviewed current input {option_id!r} is not part of the prepared basis.",
+                    )
+                continue
             for item in frozen:
                 if str(item.get("contract_input_id", "")) == str(option_id):
                     if str(item["generation_id"]) != str(sealed_gen):
@@ -847,6 +927,69 @@ def _publication_outputs(plan, validation: SubmissionValidationResult):
 
 def _parse_time(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def _append_gaps_to_role_instructions(
+    repository: HubRepository,
+    queries: RepositoryQueries,
+    project_id: str,
+    role_instructions: dict[str, str],
+) -> None:
+    """Append open LITERATURE_GAP items to each P1 role instruction in place.
+
+    Stage templates shadow the phase-level instruction, so the gap
+    enrichment done in ``service.py`` would be lost if we didn't also
+    enrich role-level instructions here. This mutates ``role_instructions``
+    in place by appending the gap list to each entry.
+    """
+    from .repository_views import row_json
+
+    p1_published_at: str | None = None
+    for row in repository.list_current_records(project_id):
+        if str(row["record_type"]) == "literature_synthesis":
+            published = str(row["published_at"])
+            if p1_published_at is None or published > p1_published_at:
+                p1_published_at = published
+    run_phases: dict[str, str] = {}
+    for run in queries.list_runs(project_id):
+        payload = row_json(run)
+        run_id = str(run["run_id"])
+        if type(payload.get("phase")) is str:
+            run_phases[run_id] = str(payload["phase"])
+    gaps: list[str] = []
+    for row in repository.list_collection_items(
+        project_id, "project.attention_history"
+    ):
+        payload = row_json(row)
+        if str(payload.get("disposition", "open")) != "open":
+            continue
+        question = str(payload.get("question", ""))
+        if not question.startswith("LITERATURE_GAP:"):
+            continue
+        appended_at = str(row["appended_at"])
+        if p1_published_at is not None and appended_at <= p1_published_at:
+            continue
+        source_run_id = str(
+            row["source_run_id"] or payload.get("source_run_id", "")
+        )
+        item_phase = payload.get("phase")
+        if type(item_phase) is not str:
+            item_phase = run_phases.get(source_run_id)
+        if item_phase not in {"P1", "P2", "P3", "P4", "P5"}:
+            continue
+        reference = question[len("LITERATURE_GAP:"):].strip()
+        gaps.append(f"[{item_phase}] {reference}")
+    if not gaps:
+        return
+    block = ["", "The following references were flagged as missing from the"]
+    block.append("project library by downstream phases. Assess each one and")
+    block.append("incorporate those that are directly relevant:")
+    for gap in gaps:
+        block.append(f"  - {gap}")
+    block.append("")
+    suffix = "\n".join(block)
+    for key in role_instructions:
+        role_instructions[key] = role_instructions[key].rstrip() + suffix
 
 
 __all__ = ["RunCoordinator"]

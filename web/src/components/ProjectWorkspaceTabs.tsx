@@ -26,7 +26,7 @@ export function getPhaseWorkspaceStatus(
   }
 
   const state = {
-    no_current_record: { label: "Not started", tone: "neutral" },
+    no_current_record: { label: "No current record", tone: "neutral" },
     active_run: {
       label: authoritative.active_run_count === 1
         ? "Run in progress"

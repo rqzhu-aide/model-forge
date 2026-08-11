@@ -47,6 +47,8 @@ def _choices(phase_id: str, mode_id: str) -> dict:
         return {"p1.scope": "broad_update", "p1.instructions": "Update the basis."}
     if phase_id == "P2" and mode_id == "p2.full_catalog":
         return {"p2.instructions": "Review the method catalog."}
+    if phase_id == "P2" and mode_id == "p2.researcher_proposal":
+        return {"p2.instructions": "Evaluate this method.", "p2.researcher_method_spec": "A ring-topology interacting Langevin sampler."}
     if phase_id == "P2":
         return {"p2.selected_method": METHOD, "p2.instructions": "Review one method."}
     prefix = phase_id.lower()
@@ -79,7 +81,7 @@ def _mutate_phase_contract(
     split_path.write_text(json.dumps(contract, indent=2), encoding="utf-8")
 
 
-def test_repository_indexes_five_phases_and_eight_modes(
+def test_repository_indexes_five_phases_and_ten_modes(
     repository: PhaseContractRepository,
 ) -> None:
     assert len(repository) == 5
@@ -88,7 +90,9 @@ def test_repository_indexes_five_phases_and_eight_modes(
         "p1.literature_update",
         "p2.focused_method",
         "p2.full_catalog",
-        "p3.theory_update",
+        "p2.researcher_proposal",
+        "p3.theory_establishment",
+        "p3.theory_revision",
         "p4.comprehensive",
         "p4.preliminary",
         "p5.assembly",
@@ -111,8 +115,18 @@ def test_repository_indexes_five_phases_and_eight_modes(
             ("p2.independent_proposals", "p2.cross_review", "p2.lead_reconciliation"),
         ),
         (
+            "P2",
+            "p2.researcher_proposal",
+            ("p2.independent_proposals", "p2.cross_review", "p2.lead_reconciliation"),
+        ),
+        (
             "P3",
-            "p3.theory_update",
+            "p3.theory_establishment",
+            ("p3.theorist", "p3.analyst", "p3.lead"),
+        ),
+        (
+            "P3",
+            "p3.theory_revision",
             ("p3.theorist", "p3.analyst", "p3.lead"),
         ),
         (
@@ -133,7 +147,7 @@ def test_repository_indexes_five_phases_and_eight_modes(
         ),
     ],
 )
-def test_all_eight_modes_resolve_exact_stage_plans(
+def test_all_ten_modes_resolve_exact_stage_plans(
     repository: PhaseContractRepository,
     phase_id: str,
     mode_id: str,
@@ -274,11 +288,11 @@ def test_selected_history_agrees_with_context_policy(
         "uri": "artifact://history/one",
         "sha256": "2" * 64,
     }
-    base = _choices("P3", "p3.theory_update")
+    base = _choices("P3", "p3.theory_establishment")
     with_history = {**base, "p3.selected_history": [history]}
     plan = repository.resolve(
         repository.identity("P3"),
-        "p3.theory_update",
+        "p3.theory_establishment",
         with_history,
         "current_plus_selected_history",
     )
@@ -288,7 +302,7 @@ def test_selected_history_agrees_with_context_policy(
     with pytest.raises(PhaseContractError) as captured:
         repository.resolve(
             repository.identity("P3"),
-            "p3.theory_update",
+            "p3.theory_establishment",
             with_history,
             "current_only",
         )
@@ -296,7 +310,7 @@ def test_selected_history_agrees_with_context_policy(
     with pytest.raises(PhaseContractError) as captured:
         repository.resolve(
             repository.identity("P3"),
-            "p3.theory_update",
+            "p3.theory_establishment",
             base,
             "current_plus_selected_history",
         )

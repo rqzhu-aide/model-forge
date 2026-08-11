@@ -18,6 +18,7 @@ from ..api.models import (
     DecisionBrief,
     EvidenceLink,
     EvidenceSummary,
+    LiteratureGapSummary,
     MethodIdentity as ApiMethodIdentity,
     MethodRow,
     PhaseNavigationSummary,
@@ -236,6 +237,7 @@ class ResearchProjectionService:
             document,
             selected_mode,
             selected_method,
+            phase_id,
         )
         if (
             phase_id in {"P3", "P4", "P5"}
@@ -256,7 +258,9 @@ class ResearchProjectionService:
                 {
                     "code": "executor.unavailable",
                     "message": (
-                        "Configure an approved role executor before starting a run."
+                        "No role executor is configured for this server. "
+                        "Start the server with METHOD_HUB_EXECUTOR_KIND=fake "
+                        "(development) or hermes_kanban to enable runs."
                     ),
                 }
             )
@@ -372,6 +376,9 @@ class ResearchProjectionService:
             recent_runs=list(recent_runs),
             descriptor_basis=descriptor_basis,
             projection=self._projection(project_id),
+            literature_gaps=(
+                self._literature_gaps(project_id) if phase_id == "P1" else []
+            ),
             empty_state_message=(
                 None
                 if current_view is not None
@@ -647,6 +654,75 @@ class ResearchProjectionService:
             )
         return result
 
+    def _literature_gaps(self, project_id: str) -> list[LiteratureGapSummary]:
+        """Collect open LITERATURE_GAP attention items for P1 re-run recommendations.
+
+        Scans ``project.attention_history`` for items whose ``question``
+        field starts with ``LITERATURE_GAP:``. An item is considered
+        *addressed* (and therefore excluded) when a Phase 1 publication
+        occurred after the item was appended — this is a read-time
+        computation, so no mutation of immutable collection items is
+        needed.
+        """
+        p1_published_at = self._latest_p1_publication_time(project_id)
+        run_phases: dict[str, str] = {}
+        run_methods: dict[str, MethodIdentity] = {}
+        for run in self.queries.list_runs(project_id):
+            payload = row_json(run)
+            run_id = str(run["run_id"])
+            if type(payload.get("phase")) is str:
+                run_phases[run_id] = str(payload["phase"])
+            run_method = _payload_method(payload)
+            if run_method is not None:
+                run_methods[run_id] = run_method
+        result: list[LiteratureGapSummary] = []
+        for row in self.repository.list_collection_items(
+            project_id, "project.attention_history"
+        ):
+            payload = row_json(row)
+            if str(payload.get("disposition", "open")) != "open":
+                continue
+            question = str(payload.get("question", ""))
+            if not question.startswith("LITERATURE_GAP:"):
+                continue
+            appended_at = str(row["appended_at"])
+            if p1_published_at is not None and appended_at <= p1_published_at:
+                continue
+            source_run_id = str(
+                row["source_run_id"] or payload.get("source_run_id", "")
+            )
+            item_phase = payload.get("phase")
+            if type(item_phase) is not str:
+                item_phase = run_phases.get(source_run_id)
+            if item_phase not in {"P1", "P2", "P3", "P4", "P5"}:
+                continue
+            item_method = _payload_method(payload) or run_methods.get(source_run_id)
+            result.append(
+                LiteratureGapSummary(
+                    attention_id=str(
+                        payload.get("attention_id", row["item_id"])
+                    ),
+                    reference=question[len("LITERATURE_GAP:"):].strip(),
+                    raised_by_phase=item_phase,  # type: ignore[arg-type]
+                    method_id=(
+                        str(item_method.stable_id)
+                        if item_method is not None
+                        else None
+                    ),
+                )
+            )
+        return result
+
+    def _latest_p1_publication_time(self, project_id: str) -> str | None:
+        """Return the published_at timestamp of the latest P1 formal record."""
+        latest: str | None = None
+        for row in self.repository.list_current_records(project_id):
+            if str(row["record_type"]) == "literature_synthesis":
+                published = str(row["published_at"])
+                if latest is None or published > latest:
+                    latest = published
+        return latest
+
     def _decision_brief(
         self,
         project_id: str,
@@ -911,15 +987,24 @@ class ResearchProjectionService:
         document: dict[str, Any],
         mode: str,
         method: MethodIdentity | None,
+        phase_id: str,
     ) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
         applicable = tuple(
             item
             for item in document["required_inputs"]
+            # Mode-scoped inputs apply only in their declared modes.  The
+            # contract schema allows the required_in_modes key only with
+            # presence "required_in_modes", so one condition suffices.
             if not (
                 str(item["presence"]) == "required_in_modes"
                 and mode not in item.get("required_in_modes", [])
             )
         )
+        # Phase/mode-specific visibility: mark record types that aren't
+        # useful as researcher-facing context cards. They stay in the
+        # options (auto-selected) but get hidden=True so the frontend
+        # doesn't render a card for them.
+        hidden_record_types = _hidden_context_record_types(phase_id, mode)
         references: dict[str, Any] = {}
         for item in applicable:
             match = str(item["method_match"])
@@ -940,6 +1025,10 @@ class ResearchProjectionService:
         findings: list[dict[str, str]] = []
         for item in applicable:
             presence = str(item["presence"])
+            # Mirror the execution layer (harness.inputs.resolve_run_inputs):
+            # presence "always" and mode-applicable "required_in_modes" inputs
+            # are mandatory; the UI must lock them checked or the harness
+            # rejects the run.
             required = presence in {"always", "required_in_modes"} or (
                 presence == "required_on_rerun" and rerun_active
             )
@@ -952,12 +1041,39 @@ class ResearchProjectionService:
                             "message": f"Required current {item['record_type']} is unavailable.",
                         }
                     )
+                    continue
+                # Optional record that doesn't exist yet — surface as a
+                # disabled, unchecked card so the user sees the phase
+                # slot but cannot select it.
+                options.append(
+                    {
+                        "option_id": str(item["input_id"]),
+                        "label": str(item["record_type"]).replace("_", " ").title(),
+                        "description": str(item["purpose"]),
+                        "feedback": None,
+                        "highlight_artifact_id": None,
+                        "size_bytes": None,
+                        "group": _context_group(str(item["record_type"])),
+                        "hidden": str(item["record_type"]) in hidden_record_types,
+                        "artifact_pointer": None,
+                        "generation_id": None,
+                        "selected_by_default": False,
+                        "required": False,
+                        "disabled": True,
+                        "disabled_reason": "No current record for this method.",
+                    }
+                )
                 continue
             options.append(
                 {
                     "option_id": str(item["input_id"]),
                     "label": str(item["record_type"]).replace("_", " ").title(),
                     "description": str(item["purpose"]),
+                    "feedback": reference.summary,
+                    "highlight_artifact_id": reference.highlight_artifact_id,
+                    "size_bytes": reference.size_bytes,
+                    "group": _context_group(str(item["record_type"])),
+                    "hidden": str(item["record_type"]) in hidden_record_types,
                     "artifact_pointer": {
                         "artifact_id": str(reference.artifact.artifact_id),
                         "uri": reference.artifact.uri,
@@ -1198,6 +1314,57 @@ def _provenance_summary(payload: dict[str, Any]) -> str | None:
 
 def _action_id(*parts: str) -> str:
     return "action." + hashlib.sha256("\x1f".join(parts).encode()).hexdigest()
+
+
+_CONTEXT_GROUPS: dict[str, str] = {
+    "project_brief": "brief",
+    "literature_synthesis": "literature",
+    "literature_library": "literature",
+    "literature_coverage": "literature",
+    "method_catalog": "catalog",
+    "method_record": "catalog",
+    "theory_record": "theory",
+    "empirical_evidence_index": "empirical",
+    "empirical_synthesis": "empirical",
+    "implementation_record": "empirical",
+    "manuscript": "manuscript",
+    "review_issue_ledger": "manuscript",
+    "phase_decision": "decision",
+}
+
+
+def _context_group(record_type: str) -> str:
+    """Map a record_type to a researcher-facing context group."""
+    return _CONTEXT_GROUPS.get(record_type, "other")
+
+
+# Record types hidden from the researcher-facing context UI for each phase.
+# The contracts still list them as required inputs for the execution layer,
+# but they don't add value as visible context cards for the researcher.
+_HIDDEN_BY_PHASE: dict[str, frozenset[str]] = {
+    "P2": frozenset({"literature_library"}),
+    "P3": frozenset({"literature_library"}),
+    "P4": frozenset({"literature_library"}),
+    "P5": frozenset({"literature_library"}),
+}
+
+# Record types hidden for specific (phase, mode) combinations.
+# P2's optional method-scoped context (theory/empirical/manuscript) only
+# resolves when a method is selected (focused_method mode); in full_catalog
+# mode the records never match, so the empty slots are hidden entirely
+# instead of shown as unavailable cards.
+_HIDDEN_BY_MODE: dict[tuple[str, str], frozenset[str]] = {
+    ("P2", "p2.full_catalog"): frozenset(
+        {"theory_record", "empirical_synthesis", "manuscript"}
+    ),
+}
+
+
+def _hidden_context_record_types(phase_id: str, mode: str) -> frozenset[str]:
+    """Return record types to hide from the context UI for this phase+mode."""
+    phase_hidden = _HIDDEN_BY_PHASE.get(phase_id, frozenset())
+    mode_hidden = _HIDDEN_BY_MODE.get((phase_id, mode), frozenset())
+    return phase_hidden | mode_hidden
 
 
 __all__ = [

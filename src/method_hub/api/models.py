@@ -119,6 +119,13 @@ class AttentionSummary(StrictModel):
     method_id: NonEmptyString | None = None
 
 
+class LiteratureGapSummary(StrictModel):
+    attention_id: NonEmptyString
+    reference: NonEmptyString
+    raised_by_phase: PhaseId
+    method_id: NonEmptyString | None = None
+
+
 class ScientificStatus(StrictModel):
     publication_state: Literal[
         "run_local", "submitted", "validated", "formal", "withdrawn", "invalid"
@@ -256,7 +263,7 @@ class SystemSettingsView(StrictModel):
     service_version: NonEmptyString
     bind_host: NonEmptyString
     port: int = Field(ge=1, le=65_535)
-    executor_kind: Literal["disabled", "fake", "hermes_kanban"]
+    executor_kind: Literal["disabled", "fake", "hermes_kanban", "local_hermes"]
     execution_available: bool
     development_mode: bool
     data_root: NonEmptyString
@@ -294,6 +301,11 @@ class ContextOption(StrictModel):
     option_id: NonEmptyString
     label: NonEmptyString
     description: str
+    feedback: str | None = None
+    highlight_artifact_id: str | None = None
+    size_bytes: int | None = None
+    group: str = "other"
+    hidden: bool = False
     artifact_pointer: ArtifactPointer | None = None
     generation_id: NonEmptyString | None = None
     selected_by_default: bool
@@ -352,6 +364,7 @@ class PhaseView(StrictModel):
     recent_runs: list[RunSummary]
     descriptor_basis: dict | None = None  # internal: for sealed_basis extraction
     projection: ProjectionStamp
+    literature_gaps: list[LiteratureGapSummary] = Field(default_factory=list)
     empty_state_message: str | None = None
 
 

@@ -4,7 +4,7 @@
     "title":  "Researcher Decision Record",
     "description":  "An immutable compact lead synthesis that informs the researcher without selecting or launching the next action. Current authority and alignment are derived separately.",
     "type":  "object",
-    "additionalProperties":  false,
+    "additionalProperties":  true,
     "required":  [
                      "schema_version",
                      "decision_id",
@@ -23,7 +23,6 @@
                      "smallest_decisive_result",
                      "scientific_outcome",
                      "available_actions",
-                     "rerun_question",
                      "content_sha256",
                      "created_at",
                      "authority_at_creation",
@@ -55,7 +54,7 @@
                        "headline":  {
                                         "type":  "string",
                                         "minLength":  1,
-                                        "maxLength":  240
+                                        "maxLength":  500
                                     },
                        "current_conclusion":  {
                                                   "type":  "string",
@@ -105,7 +104,7 @@
                                                  "minItems":  1,
                                                  "items":  {
                                                                "type":  "object",
-                                                               "additionalProperties":  false,
+                                                               "additionalProperties":  true,
                                                                "required":  [
                                                                                 "action_id",
                                                                                 "action_type",

@@ -62,7 +62,7 @@ export function supervisedMethodLabel(
 }
 
 function suggestedInvocationId(): string {
-  return `inv-${Date.now()}`;
+  return `inv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function suggestedIdempotencyKey(invocationId: string): string {

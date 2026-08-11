@@ -4,7 +4,7 @@
     "title":  "Manuscript Review Issue",
     "description":  "An immutable criticism and disposition from one frozen manuscript-review run.",
     "type":  "object",
-    "additionalProperties":  false,
+    "additionalProperties":  true,
     "required":  [
                      "schema_version",
                      "issue_id",

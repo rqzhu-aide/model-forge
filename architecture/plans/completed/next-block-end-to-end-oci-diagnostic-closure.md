@@ -4,7 +4,7 @@ Status: Deferred optional hardening plan. Not a Version 1 prerequisite.
 
 Version 1 replacement:
 
-- [Trusted Local Hermes Execution Closure](next-block-local-hermes-execution-closure.md)
+- [Trusted Local Hermes Execution Closure](../next-block-local-hermes-execution-closure.md)
 
 Retain this file as a future isolation reference. Do not implement it as the
 current work order.
@@ -20,8 +20,8 @@ Related records:
 - [Hermes diagnostic design](revised-diagnostic-lane-plan.md)
 - [Phase 0: Safe Hermes Execution](phase-0-safe-hermes-execution.md)
 - [Operational Completion Plan](operational-completion-plan.md)
-- [ADR-004: Role Isolation and Context Snapshots](../decisions/ADR-004-role-isolation-and-context-snapshots.md)
-- [Per-project Hermes memory decision](../decisions/ADR-011-per-project-memory-model.md)
+- [ADR-004: Role Isolation and Context Snapshots](../../decisions/ADR-004-role-isolation-and-context-snapshots.md)
+- [Per-project Hermes memory decision](../../decisions/ADR-011-per-project-memory-model.md)
 
 ## 1. Target outcome
 

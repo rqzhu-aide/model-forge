@@ -11,6 +11,8 @@ from ..configuration.resources import RoleResourceCatalog
 from ..executors import (
     HermesKanbanExecutor,
     HermesSettings,
+    LocalHermesExecutor,
+    LocalHermesExecutorSettings,
     SchemaExampleFakeExecutor,
     profile_exists,
 )
@@ -58,6 +60,22 @@ def build_service(settings: ApplicationSettings) -> MethodHubService:
     coordinator = None
     if settings.executor_kind == "fake":
         executor = SchemaExampleFakeExecutor(settings.resolved_architecture_root())
+        coordinator = RunCoordinator(
+            settings=settings,
+            specification=specification,
+            repository=repository,
+            artifacts=artifacts,
+            role_resources=resources,
+            executor=executor,
+        )
+    elif settings.executor_kind == "local_hermes":
+        _verify_hermes_profiles(settings)
+        executor = LocalHermesExecutor(
+            LocalHermesExecutorSettings(
+                hermes_binary=settings.hermes_executable,
+                hermes_home=settings.resolved_hermes_root(),
+            )
+        )
         coordinator = RunCoordinator(
             settings=settings,
             specification=specification,

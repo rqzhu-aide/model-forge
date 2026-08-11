@@ -14,7 +14,7 @@ def test_specification_package_loads_complete_contract_kernel() -> None:
     assert len(package.schemas) == 37
     assert len(package.digests) == 37
     assert len(package.phases) == 5
-    assert len(package.phases.mode_ids) == 8
+    assert len(package.phases.mode_ids) == 10
 
 
 def test_specification_package_resolves_without_prose_inference() -> None:

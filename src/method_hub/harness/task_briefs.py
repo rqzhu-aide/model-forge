@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping, Sequence
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from ..contracts import ResolvedPhasePlan, ResolvedStage
@@ -62,12 +64,27 @@ def _summarise_property(
     elif "enum" in prop:
         values = ", ".join(f"`{v}`" for v in prop["enum"])
         parts.append(f"one of {values}")
+    elif "oneOf" in prop:
+        # Render discriminated unions: each variant has a const "kind" field
+        variants: list[str] = []
+        for v in prop["oneOf"]:
+            vprops = v.get("properties", {})
+            vkind = vprops.get("kind", {}).get("const", "")
+            vrequired = [f for f in v.get("required", []) if f != "kind"]
+            if vkind and vrequired:
+                variants.append(f"{{kind: `{vkind}`, requires: {', '.join(f'`{r}`' for r in vrequired)}}}")
+            elif vkind:
+                variants.append(f"{{kind: `{vkind}`}}")
+        if variants:
+            parts.append("one of: " + "; ".join(variants))
 
     ptype = prop.get("type")
     if ptype == "string" and "const" not in prop and "enum" not in prop:
         parts.append("string")
     elif ptype == "integer":
         parts.append("integer")
+    elif ptype == "boolean":
+        parts.append("boolean")
     elif ptype == "array":
         items = prop.get("items", {})
         if isinstance(items, dict):
@@ -77,10 +94,15 @@ def _summarise_property(
                 parts.append("array of objects, each with:")
             elif items.get("type") == "string":
                 parts.append("array of strings")
+                if "enum" in items:
+                    values = ", ".join(f"`{v}`" for v in items["enum"])
+                    parts.append(f"each one of {values}")
                 if "pattern" in items:
                     hint = _pattern_hint(items["pattern"])
                     extra = f" ({hint})" if hint else ""
                     parts.append(f"each matching `{items['pattern']}`{extra}")
+            elif items.get("type") == "boolean":
+                parts.append("array of booleans")
             else:
                 parts.append("array")
         else:
@@ -153,7 +175,198 @@ def _render_schema_constraints(
         if prop_lines:
             prop_lines[0] = prop_lines[0] + f" ({marker})"
         lines.extend(prop_lines)
+
+    # Surface conditional requirements and prohibitions from if/then/else
+    # rules so agents include fields only when their trigger condition
+    # actually holds, and never include fields an else branch forbids.
+    conditional = _extract_conditional_requirements(schema)
+    if conditional:
+        lines.append("")
+        lines.append("Conditional fields (include only when the stated condition holds; omit otherwise):")
+        for entry in conditional:
+            field = entry["field"]
+            if entry["condition"] and entry["prohibited_when"]:
+                lines.append(
+                    f"- `{field}` — required only when: {entry['condition']}; "
+                    f"do NOT include when: {entry['prohibited_when']}"
+                )
+            elif entry["condition"]:
+                lines.append(f"- `{field}` — required only when: {entry['condition']}")
+            else:
+                lines.append(f"- `{field}` — do NOT include when: {entry['prohibited_when']}")
+
     return "\n".join(lines)
+
+
+def _describe_condition(if_block: dict[str, Any]) -> str:
+    """Render a human-readable description of an if-block's conditions."""
+    parts: list[str] = []
+    props = if_block.get("properties", {})
+    for field, constraint in props.items():
+        if "const" in constraint:
+            parts.append(f"`{field}` is `{constraint['const']}`")
+        elif "enum" in constraint:
+            vals = ", ".join(f"`{v}`" for v in constraint["enum"])
+            parts.append(f"`{field}` is one of ({vals})")
+    return "; AND ".join(parts) if parts else "always"
+
+
+def _describe_else_condition(if_block: dict[str, Any]) -> str:
+    """Render the condition under which an ``else`` branch applies.
+
+    The ``if`` block is a conjunction of property constraints, so its
+    negation is the disjunction of the per-property negations (De Morgan).
+    """
+    parts: list[str] = []
+    props = if_block.get("properties", {})
+    for field, constraint in props.items():
+        if "const" in constraint:
+            parts.append(f"`{field}` is not `{constraint['const']}`")
+        elif "enum" in constraint:
+            vals = ", ".join(f"`{v}`" for v in constraint["enum"])
+            parts.append(f"`{field}` is none of ({vals})")
+    return "; OR ".join(parts) if parts else "never"
+
+
+def _extract_prohibited_fields(block: Any) -> set[str]:
+    """Collect field names an ``else`` block forbids.
+
+    Handles the common ``not: {anyOf: [{required: [...]}, ...]}`` shape
+    used to forbid fields when the ``if`` condition does not hold.
+    """
+    fields: set[str] = set()
+    if not isinstance(block, dict):
+        return fields
+    required = block.get("required")
+    if isinstance(required, list):
+        fields.update(f for f in required if isinstance(f, str))
+    for key in ("not", "anyOf", "allOf", "oneOf"):
+        value = block.get(key)
+        if isinstance(value, dict):
+            fields |= _extract_prohibited_fields(value)
+        elif isinstance(value, list):
+            for item in value:
+                fields |= _extract_prohibited_fields(item)
+    return fields
+
+
+def _load_schema_example(schema_file: str) -> str | None:
+    """Load a compact JSON example for a schema, if one exists.
+
+    Identity-bearing fields (``*_id``, ``run_id``, ``stable_id``,
+    ``*_sha256``, timestamps) are replaced with ``<...>`` placeholders so
+    agents do not copy concrete example identities into real outputs.
+    """
+    from pathlib import Path as _Path
+
+    examples_dir = _Path(__file__).resolve().parents[3] / "architecture" / "examples"
+    stem = schema_file.replace(".schema.json", "")
+    # Try exact match, then stem-based match
+    candidates = [
+        examples_dir / f"{stem}.example.json",
+        examples_dir / f"{stem}.json",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            import json as _json
+
+            try:
+                data = _json.loads(candidate.read_text())
+                # Neutralize identity-bearing fields so agents don't
+                # copy concrete example values into real outputs.
+                data = _neutralize_identities(data)
+                # For array outputs, wrap in array
+                compact = _json.dumps(data, indent=2, ensure_ascii=False)
+                if len(compact) > 1500:
+                    compact = compact[:1500] + "\n  ... (truncated)"
+                return compact
+            except Exception:
+                pass
+    return None
+
+
+_ID_BEARING_SUFFIXES = ("_id", "_sha256")
+_ID_BEARING_KEYS = frozenset({
+    "run_id", "stable_id", "project_id", "artifact_id",
+    "generation_id", "command_id", "request_id", "manifest_id",
+    "definition_sha256", "content_sha256",
+    "sha256",  # bare sha256 keys in artifact pointers, evidence artifacts
+    "created_at", "updated_at", "published_at", "sealed_at",
+    "assessed_at",  # nested timestamp in alignmentAssessment
+})
+
+
+def _neutralize_identities(obj: Any) -> Any:
+    """Recursively replace identity-bearing values with ``<...>`` placeholders."""
+    if isinstance(obj, dict):
+        result = {}
+        for key, val in obj.items():
+            if (
+                key in _ID_BEARING_KEYS
+                or any(key.endswith(suffix) for suffix in _ID_BEARING_SUFFIXES)
+            ):
+                result[key] = "<...>"
+            else:
+                result[key] = _neutralize_identities(val)
+        return result
+    if isinstance(obj, list):
+        return [_neutralize_identities(item) for item in obj]
+    return obj
+
+
+def _extract_conditional_requirements(schema: dict[str, Any]) -> list[dict[str, str | None]]:
+    """Extract conditional field requirements and prohibitions from if/then/else rules.
+
+    Each returned entry has:
+    - ``field``: the field name
+    - ``condition``: when the field is required (``None`` if never required)
+    - ``prohibited_when``: when the field must NOT be included (``None`` if never prohibited)
+
+    Fields named in an ``else`` branch (via ``not``/``anyOf``/``required``)
+    are recorded as prohibitions so agents are never told to write fields
+    the schema forbids under the same condition.
+    """
+    entries: dict[str, dict[str, str | None]] = {}
+    for rule in schema.get("allOf", []):
+        if_block = rule.get("if", {})
+        if not isinstance(if_block, dict) or not if_block:
+            continue
+        condition = _describe_condition(if_block)
+        then_block = rule.get("then", {})
+        then_required = (
+            then_block.get("required", []) if isinstance(then_block, dict) else []
+        )
+        else_block = rule.get("else")
+        else_condition = (
+            _describe_else_condition(if_block) if isinstance(else_block, dict) else None
+        )
+        prohibited = _extract_prohibited_fields(else_block)
+        for field in then_required:
+            entry = entries.setdefault(
+                field, {"field": field, "condition": None, "prohibited_when": None}
+            )
+            if entry["condition"]:
+                entry["condition"] = f"{entry['condition']}; OR {condition}"
+            else:
+                entry["condition"] = condition
+            if field in prohibited and else_condition:
+                if entry["prohibited_when"]:
+                    entry["prohibited_when"] = (
+                        f"{entry['prohibited_when']}; OR {else_condition}"
+                    )
+                else:
+                    entry["prohibited_when"] = else_condition
+        for field in sorted(prohibited - set(then_required)):
+            entry = entries.setdefault(
+                field, {"field": field, "condition": None, "prohibited_when": None}
+            )
+            if entry["prohibited_when"]:
+                entry["prohibited_when"] = (
+                    f"{entry['prohibited_when']}; OR {else_condition}"
+                )
+            else:
+                entry["prohibited_when"] = else_condition
+    return list(entries.values())
 
 
 def render_task_brief(
@@ -169,6 +382,7 @@ def render_task_brief(
     scientific_stance: str = "",
     same_group_roles: Sequence[str] = (),
     schema_catalog: SchemaCatalog | None = None,
+    researcher_method_spec: str = "",
 ) -> str:
     """Render one bounded role assignment without software-manual prose."""
 
@@ -186,6 +400,8 @@ def render_task_brief(
         f"Project: `{project_id}`",
         f"Phase and mode: `{plan.identity.phase_id}` / `{plan.mode_id}`",
         "",
+        f"Current timestamp for `created_at`/`updated_at` fields: `{datetime.now(timezone.utc).isoformat()}`",
+        "",
         "## Scientific objective",
         "",
         stage.objective.strip(),
@@ -194,6 +410,23 @@ def render_task_brief(
         "",
         phase_instruction.strip(),
     ]
+    if researcher_method_spec.strip():
+        lines.extend([
+            "",
+            "## Researcher-proposed method specification",
+            "",
+            "The researcher has provided the following method for evaluation. "
+            "Evaluate this proposal — do NOT propose alternative methods. "
+            "Assess its mathematical soundness, computational feasibility, and "
+            "scientific novelty relative to the current catalog. If the method "
+            "is valid and distinct, the lead should register it in the catalog.",
+            "",
+            "---",
+            "",
+            researcher_method_spec.strip(),
+            "",
+            "---",
+        ])
     if scientific_stance.strip():
         lines.extend(["", "## Role stance", "", scientific_stance.strip()])
     lines.extend(["", "## Frozen inputs", ""])
@@ -212,10 +445,16 @@ def render_task_brief(
             ]
         )
     lines.extend(["", "## Required outputs", ""])
+    lines.append(
+        "For optional fields: omit the field entirely if you have no value. "
+        "Do not write `null` for optional object or array fields."
+    )
+    lines.append("")
     for spec in specs:
         shape = "JSON array" if spec.schema_application == "each_item" else "JSON object"
+        output_filename = Path(spec.relative_path).name
         lines.append(
-            f"- `{spec.contract_output_id}`: `{spec.relative_path}`; {shape}; "
+            f"- `{spec.contract_output_id}`: `{output_filename}`; {shape}; "
             f"schema `{spec.schema_file}`."
         )
         if schema_catalog is not None:
@@ -223,6 +462,26 @@ def render_task_brief(
             if constraints:
                 lines.append("")
                 lines.append(constraints)
+            # Include a compact example to anchor the agent on the correct structure
+            example = _load_schema_example(spec.schema_file)
+            if example:
+                lines.append("")
+                if spec.schema_application == "each_item":
+                    lines.append(
+                        "Template (the output file must be a JSON array; "
+                        "each element follows this shape — fill with real values, "
+                        "preserve structure):"
+                    )
+                    lines.append("```json")
+                    lines.append("[")
+                    lines.append(example)
+                    lines.append("]")
+                    lines.append("```")
+                else:
+                    lines.append("Template (fill with real values, preserve structure):")
+                    lines.append("```json")
+                    lines.append(example)
+                    lines.append("```")
     lines.extend(
         [
             "",

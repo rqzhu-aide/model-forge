@@ -64,7 +64,7 @@ def disabled_start_action() -> ActionDescriptor:
             "phase": "P3",
             "phase_contract_version": "2.0.0",
             "phase_contract_sha256": SHA,
-            "mode": "p3.theory_update",
+            "mode": "p3.theory_establishment",
         },
     )
 
@@ -80,12 +80,12 @@ def phase_view() -> PhaseView:
         run_configuration={
             "modes": [
                 {
-                    "mode_id": "p3.theory_update",
+                    "mode_id": "p3.theory_establishment",
                     "label": "Theory update",
                     "description": "Reassess and update the complete theory record.",
                 }
             ],
-            "default_mode": "p3.theory_update",
+            "default_mode": "p3.theory_establishment",
             "instruction_label": "Research instructions",
             "instruction_help": "Describe the questions that need attention.",
             "current_inputs": [],
@@ -111,7 +111,7 @@ def run_detail(state: str = "created") -> RunDetail:
     return RunDetail(
         run_id="run.demo",
         phase="P3",
-        mode="p3.theory_update",
+        mode="p3.theory_establishment",
         state=state,
         requested_at=NOW,
         updated_at=NOW,
@@ -472,7 +472,7 @@ def start_run_payload() -> dict[str, Any]:
     return {
         "action_descriptor_id": "action.start.p3",
         "phase": "P3",
-        "mode": "p3.theory_update",
+        "mode": "p3.theory_establishment",
         "choice_values": {
             "method_id": "method.demo",
             "instructions": "Check the boundary case.",
@@ -554,7 +554,7 @@ def test_phase_view_returns_backend_action_without_client_eligibility_logic() ->
 
     response = client.get(
         "/api/v1/projects/project.demo/phases/P3",
-        params={"mode": "p3.theory_update", "method_id": "method.demo"},
+        params={"mode": "p3.theory_establishment", "method_id": "method.demo"},
     )
 
     assert response.status_code == 200
@@ -566,7 +566,7 @@ def test_phase_view_returns_backend_action_without_client_eligibility_logic() ->
         "get_phase_view",
         "project.demo",
         "P3",
-        "p3.theory_update",
+        "p3.theory_establishment",
         "method.demo",
     )
 

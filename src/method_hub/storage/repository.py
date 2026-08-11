@@ -1151,7 +1151,8 @@ class HubRepository:
                     SELECT
                         s.project_id, s.slot_key, s.revision AS slot_revision,
                         g.*, a.sha256 AS artifact_sha256,
-                        a.storage_uri AS artifact_storage_uri
+                        a.storage_uri AS artifact_storage_uri,
+                        a.size AS artifact_size
                     FROM current_slots AS s
                     JOIN formal_generations AS g
                         ON g.project_id = s.project_id

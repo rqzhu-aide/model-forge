@@ -532,6 +532,14 @@
           "required": false,
           "allowed_values": [],
           "value_kind": "artifact_pointer_list"
+        },
+        {
+          "choice_id": "p2.researcher_method_spec",
+          "label": "Researcher method specification",
+          "description": "Free-form text describing a proposed method for evaluation. May be markdown, a file path, or a link.",
+          "required": false,
+          "allowed_values": [],
+          "value_kind": "text"
         }
       ],
       "run_modes": [
@@ -567,6 +575,22 @@
             "p2.selected_history"
           ],
           "method_choice_id": "p2.selected_method"
+        },
+        {
+          "mode_id": "p2.researcher_proposal",
+          "label": "Researcher proposal",
+          "purpose": "Evaluate a researcher-proposed method specification. If valid, register it as a new method in the catalog.",
+          "requires_method": false,
+          "entry_conditions": [
+            "A current Phase 1 literature basis is formal and readable."
+          ],
+          "required_choice_ids": [
+            "p2.instructions",
+            "p2.researcher_method_spec"
+          ],
+          "optional_choice_ids": [
+            "p2.selected_history"
+          ]
         }
       ],
       "prerequisites": [
@@ -634,6 +658,36 @@
           "purpose": "Preserve stable identities and constrain the authorized update scope.",
           "condition": "Required after the first catalog run and absent on the first run.",
           "presence": "required_on_rerun"
+        },
+        {
+          "input_id": "p2.theory_result",
+          "record_type": "theory_record",
+          "presence": "if_exists",
+          "method_match": "exact",
+          "purpose": "Expose the current theory conclusion, scope, and assumptions when revising the method.",
+          "condition": "Optional in focused_method mode when theory results exist for the selected method.",
+          "publication_required": "formal",
+          "position_required": "current"
+        },
+        {
+          "input_id": "p2.empirical_result",
+          "record_type": "empirical_synthesis",
+          "presence": "if_exists",
+          "method_match": "exact",
+          "purpose": "Expose the current empirical conclusion and boundary behavior when revising the method.",
+          "condition": "Optional in focused_method mode when empirical results exist for the selected method.",
+          "publication_required": "formal",
+          "position_required": "current"
+        },
+        {
+          "input_id": "p2.manuscript_result",
+          "record_type": "manuscript",
+          "presence": "if_exists",
+          "method_match": "exact",
+          "purpose": "Expose the current manuscript draft and its scope when revising the method.",
+          "condition": "Optional in focused_method mode when manuscript results exist for the selected method.",
+          "publication_required": "formal",
+          "position_required": "current"
         }
       ],
       "prepared_contexts": [],
@@ -650,7 +704,8 @@
           "stage_id": "p2.independent_proposals",
           "applicable_modes": [
             "p2.full_catalog",
-            "p2.focused_method"
+            "p2.focused_method",
+            "p2.researcher_proposal"
           ],
           "execution": "parallel",
           "roles": [
@@ -658,7 +713,7 @@
             "theorist",
             "data_analyst"
           ],
-          "objective": "Generate independent proposals or scoped revisions from the same frozen basis.",
+          "objective": "Generate independent proposals, scoped revisions, or evaluations of a researcher-proposed method from the same frozen basis.",
           "reads": [
             "p2.project_brief",
             "p2.literature_synthesis",
@@ -679,14 +734,15 @@
           "stage_id": "p2.cross_review",
           "applicable_modes": [
             "p2.full_catalog",
-            "p2.focused_method"
+            "p2.focused_method",
+            "p2.researcher_proposal"
           ],
           "execution": "parallel",
           "roles": [
             "theorist",
             "data_analyst"
           ],
-          "objective": "Cross-review definitions, assumptions, identifiability, implementation, data requirements, computation, and empirical distinguishability.",
+          "objective": "Cross-review definitions, assumptions, identifiability, implementation, data requirements, computation, empirical distinguishability, or the validity and novelty of a researcher-proposed method.",
           "reads": [
             "p2.project_brief",
             "p2.literature_synthesis",
@@ -708,13 +764,14 @@
           "stage_id": "p2.lead_reconciliation",
           "applicable_modes": [
             "p2.full_catalog",
-            "p2.focused_method"
+            "p2.focused_method",
+            "p2.researcher_proposal"
           ],
           "execution": "serial",
           "roles": [
             "research_lead"
           ],
-          "objective": "Reconcile or expose disagreements and produce the candidate scoped catalog change and decision summary.",
+          "objective": "Reconcile or expose disagreements and produce the candidate scoped catalog change and decision summary. For researcher proposals, decide whether the method warrants formal registration.",
           "reads": [
             "p2.project_brief",
             "p2.literature_synthesis",
@@ -854,7 +911,8 @@
           "binding_id": "p2.append_attention_items",
           "applicable_modes": [
             "p2.full_catalog",
-            "p2.focused_method"
+            "p2.focused_method",
+            "p2.researcher_proposal"
           ],
           "operation": "append",
           "output_ids": [
@@ -873,7 +931,8 @@
           "binding_id": "p2.upsert_method_records",
           "applicable_modes": [
             "p2.full_catalog",
-            "p2.focused_method"
+            "p2.focused_method",
+            "p2.researcher_proposal"
           ],
           "operation": "upsert_each",
           "output_ids": [
@@ -894,7 +953,8 @@
           "binding_id": "p2.rebuild_method_catalog",
           "applicable_modes": [
             "p2.full_catalog",
-            "p2.focused_method"
+            "p2.focused_method",
+            "p2.researcher_proposal"
           ],
           "operation": "replace",
           "output_ids": [
@@ -916,7 +976,8 @@
           "binding_id": "p2.replace_phase_decision",
           "applicable_modes": [
             "p2.full_catalog",
-            "p2.focused_method"
+            "p2.focused_method",
+            "p2.researcher_proposal"
           ],
           "operation": "replace",
           "output_ids": [
@@ -1001,7 +1062,8 @@
         "user_action_choice_ids": [
           "p2.selected_method",
           "p2.instructions",
-          "p2.selected_history"
+          "p2.selected_history",
+          "p2.researcher_method_spec"
         ]
       },
       "acceptance_scenarios": [
@@ -1054,13 +1116,32 @@
       ],
       "run_modes": [
         {
-          "mode_id": "p3.theory_update",
-          "label": "Theory run",
-          "purpose": "Create or replace the complete theory package for one exact method identity.",
+          "mode_id": "p3.theory_establishment",
+          "label": "Establish theory",
+          "purpose": "Establish the complete theoretical foundation: define assumptions, prove or disprove central claims, identify convergence and limitations.",
           "requires_method": true,
           "entry_conditions": [
             "The project brief, Phase 1 basis, and Phase 2 catalog are current.",
             "The selected method is active and current."
+          ],
+          "required_choice_ids": [
+            "p3.selected_method",
+            "p3.instructions"
+          ],
+          "optional_choice_ids": [
+            "p3.selected_history"
+          ],
+          "method_choice_id": "p3.selected_method"
+        },
+        {
+          "mode_id": "p3.theory_revision",
+          "label": "Revise theory",
+          "purpose": "Revise or strengthen the established theory: mend proof gaps, explore stronger claims, address audit findings, or extend results.",
+          "requires_method": true,
+          "entry_conditions": [
+            "The project brief, Phase 1 basis, and Phase 2 catalog are current.",
+            "The selected method is active and current.",
+            "A complete formal current theory record exists from a prior establishment run."
           ],
           "required_choice_ids": [
             "p3.selected_method",
@@ -1146,6 +1227,19 @@
           "presence": "required_on_rerun"
         },
         {
+          "input_id": "p3.prior_theory",
+          "record_type": "theory_record",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "exact",
+          "purpose": "Provide the established theory record that the revision refines. Required for theory revision mode.",
+          "condition": "Required for theory revision mode.",
+          "presence": "required_in_modes",
+          "required_in_modes": [
+            "p3.theory_revision"
+          ]
+        },
+        {
           "input_id": "p3.current_empirical_index",
           "record_type": "empirical_evidence_index",
           "publication_required": "formal",
@@ -1189,7 +1283,8 @@
           "sequence": 1,
           "stage_id": "p3.theorist",
           "applicable_modes": [
-            "p3.theory_update"
+            "p3.theory_establishment",
+            "p3.theory_revision"
           ],
           "execution": "serial",
           "roles": [
@@ -1202,6 +1297,7 @@
             "p3.method_catalog",
             "p3.method",
             "p3.current_theory",
+            "p3.prior_theory",
             "p3.current_empirical"
           ],
           "writes": [
@@ -1214,7 +1310,8 @@
           "sequence": 2,
           "stage_id": "p3.analyst",
           "applicable_modes": [
-            "p3.theory_update"
+            "p3.theory_establishment",
+            "p3.theory_revision"
           ],
           "execution": "serial",
           "roles": [
@@ -1239,7 +1336,8 @@
           "sequence": 3,
           "stage_id": "p3.lead",
           "applicable_modes": [
-            "p3.theory_update"
+            "p3.theory_establishment",
+            "p3.theory_revision"
           ],
           "execution": "serial",
           "roles": [
@@ -1376,7 +1474,8 @@
         {
           "binding_id": "p3.append_attention_items",
           "applicable_modes": [
-            "p3.theory_update"
+            "p3.theory_establishment",
+            "p3.theory_revision"
           ],
           "operation": "append",
           "output_ids": [
@@ -1394,7 +1493,8 @@
         {
           "binding_id": "p3.replace_theory_record",
           "applicable_modes": [
-            "p3.theory_update"
+            "p3.theory_establishment",
+            "p3.theory_revision"
           ],
           "operation": "replace",
           "output_ids": [
@@ -1412,7 +1512,8 @@
         {
           "binding_id": "p3.replace_phase_decision",
           "applicable_modes": [
-            "p3.theory_update"
+            "p3.theory_establishment",
+            "p3.theory_revision"
           ],
           "operation": "replace",
           "output_ids": [
@@ -1585,11 +1686,12 @@
         {
           "mode_id": "p4.comprehensive",
           "label": "Comprehensive",
-          "purpose": "Run a prespecified full evaluation with comparisons, sensitivity analyses, and robustness checks.",
+          "purpose": "Run a prespecified full evaluation with comparisons, sensitivity analyses, and robustness checks. Builds on validated preliminary implementation and evidence.",
           "requires_method": true,
           "entry_conditions": [
             "The project brief, Phase 1 basis, and Phase 2 catalog are current.",
-            "The selected method is active and current."
+            "The selected method is active and current.",
+            "A complete formal current preliminary evidence record exists from a prior preliminary run."
           ],
           "required_choice_ids": [
             "p4.selected_method",
@@ -1703,6 +1805,32 @@
           "purpose": "Expose assumptions, empirical implications, and boundary cases.",
           "condition": "Included when an exactly aligned Phase 3 record exists; Phase 3 is not a prerequisite.",
           "presence": "if_exists"
+        },
+        {
+          "input_id": "p4.prior_implementation",
+          "record_type": "implementation_record",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "exact",
+          "purpose": "Provide the validated code and environment identity from the preliminary run.",
+          "condition": "Required for comprehensive mode.",
+          "presence": "required_in_modes",
+          "required_in_modes": [
+            "p4.comprehensive"
+          ]
+        },
+        {
+          "input_id": "p4.prior_evidence",
+          "record_type": "empirical_synthesis",
+          "publication_required": "formal",
+          "position_required": "current",
+          "method_match": "exact",
+          "purpose": "Provide the preliminary evidence and conclusions that the comprehensive run extends.",
+          "condition": "Required for comprehensive mode.",
+          "presence": "required_in_modes",
+          "required_in_modes": [
+            "p4.comprehensive"
+          ]
         }
       ],
       "prepared_contexts": [],
@@ -1734,7 +1862,9 @@
             "p4.current_evidence_index",
             "p4.current_empirical",
             "p4.current_implementation",
-            "p4.current_theory"
+            "p4.current_theory",
+            "p4.prior_implementation",
+            "p4.prior_evidence"
           ],
           "writes": [
             "p4.protocol",

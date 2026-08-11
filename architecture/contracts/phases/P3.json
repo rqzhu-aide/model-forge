@@ -47,13 +47,32 @@
                      ],
     "run_modes":  [
                       {
-                          "mode_id":  "p3.theory_update",
-                          "label":  "Theory run",
-                          "purpose":  "Create or replace the complete theory package for one exact method identity.",
+                          "mode_id":  "p3.theory_establishment",
+                          "label":  "Establish theory",
+                          "purpose":  "Establish the complete theoretical foundation: define assumptions, prove or disprove central claims, identify convergence and limitations.",
                           "requires_method":  true,
                           "entry_conditions":  [
                                                    "The project brief, Phase 1 basis, and Phase 2 catalog are current.",
                                                    "The selected method is active and current."
+                                               ],
+                          "required_choice_ids":  [
+                                                      "p3.selected_method",
+                                                      "p3.instructions"
+                                                  ],
+                          "optional_choice_ids":  [
+                                                      "p3.selected_history"
+                                                  ],
+                          "method_choice_id":  "p3.selected_method"
+                      },
+                      {
+                          "mode_id":  "p3.theory_revision",
+                          "label":  "Revise theory",
+                          "purpose":  "Revise or strengthen the established theory: mend proof gaps, explore stronger claims, address audit findings, or extend results.",
+                          "requires_method":  true,
+                          "entry_conditions":  [
+                                                   "The project brief, Phase 1 basis, and Phase 2 catalog are current.",
+                                                   "The selected method is active and current.",
+                                                   "A complete formal current theory record exists from a prior establishment run."
                                                ],
                           "required_choice_ids":  [
                                                       "p3.selected_method",
@@ -139,6 +158,19 @@
                                 "presence":  "required_on_rerun"
                             },
                             {
+                                "input_id":  "p3.prior_theory",
+                                "record_type":  "theory_record",
+                                "publication_required":  "formal",
+                                "position_required":  "current",
+                                "method_match":  "exact",
+                                "purpose":  "Provide the established theory record that the revision refines. Required for theory revision mode.",
+                                "condition":  "Required for theory revision mode.",
+                                "presence":  "required_in_modes",
+                                "required_in_modes":  [
+                                                          "p3.theory_revision"
+                                                      ]
+                            },
+                            {
                                 "input_id":  "p3.current_empirical_index",
                                 "record_type":  "empirical_evidence_index",
                                 "publication_required":  "formal",
@@ -184,7 +216,8 @@
                             "sequence":  1,
                             "stage_id":  "p3.theorist",
                             "applicable_modes":  [
-                                                     "p3.theory_update"
+                                                     "p3.theory_establishment",
+                                                     "p3.theory_revision"
                                                  ],
                             "execution":  "serial",
                             "roles":  [
@@ -197,6 +230,7 @@
                                           "p3.method_catalog",
                                           "p3.method",
                                           "p3.current_theory",
+                                          "p3.prior_theory",
                                           "p3.current_empirical"
                                       ],
                             "writes":  [
@@ -209,7 +243,8 @@
                             "sequence":  2,
                             "stage_id":  "p3.analyst",
                             "applicable_modes":  [
-                                                     "p3.theory_update"
+                                                     "p3.theory_establishment",
+                                                     "p3.theory_revision"
                                                  ],
                             "execution":  "serial",
                             "roles":  [
@@ -234,7 +269,8 @@
                             "sequence":  3,
                             "stage_id":  "p3.lead",
                             "applicable_modes":  [
-                                                     "p3.theory_update"
+                                                     "p3.theory_establishment",
+                                                     "p3.theory_revision"
                                                  ],
                             "execution":  "serial",
                             "roles":  [
@@ -371,7 +407,8 @@
                                  {
                                      "binding_id":  "p3.append_attention_items",
                                      "applicable_modes":  [
-                                                              "p3.theory_update"
+                                                              "p3.theory_establishment",
+                                                     "p3.theory_revision"
                                                           ],
                                      "operation":  "append",
                                      "output_ids":  [
@@ -389,7 +426,8 @@
                                  {
                                      "binding_id":  "p3.replace_theory_record",
                                      "applicable_modes":  [
-                                                              "p3.theory_update"
+                                                              "p3.theory_establishment",
+                                                     "p3.theory_revision"
                                                           ],
                                      "operation":  "replace",
                                      "output_ids":  [
@@ -407,7 +445,8 @@
                                  {
                                      "binding_id":  "p3.replace_phase_decision",
                                      "applicable_modes":  [
-                                                              "p3.theory_update"
+                                                              "p3.theory_establishment",
+                                                     "p3.theory_revision"
                                                           ],
                                      "operation":  "replace",
                                      "output_ids":  [

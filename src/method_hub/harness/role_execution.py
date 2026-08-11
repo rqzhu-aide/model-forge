@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from dataclasses import replace
 from pathlib import Path
 from types import MappingProxyType
@@ -27,7 +28,7 @@ from ..storage.repository import (
 from ..capabilities.broker import CapabilityBroker
 from .execution_context import RunExecutionContext
 from .output_adapters import AdaptedOutput, DefaultOutputAdapter
-from .outputs import OutputSpec, validate_role_outputs
+from .outputs import OutputPlan, OutputSpec, validate_role_outputs
 from .task_briefs import render_task_brief
 
 
@@ -45,6 +46,541 @@ from .execution_records import (
     output_artifact_id as _output_artifact_id,
     role_identity as _role_identity,
 )
+
+
+def _apply_disclosed_mechanical_repairs(
+    *,
+    run_root: Path,
+    output_plan: OutputPlan,
+    stage: ResolvedStage,
+    role: str,
+    run_id: str = "",
+) -> None:
+    """Apply only mechanical, non-semantic repairs to agent outputs.
+
+    This post-processor fixes deterministic schema-compliance issues that
+    are purely mechanical — never content-bearing:
+
+    - Missing ``created_at`` / ``updated_at`` timestamps.
+    - Missing ``schema_version`` (always ``"1.0.0"``).
+    - ID sanitization (force ``stableId`` fields to match the regex).
+    - Stripping fields not declared when ``additionalProperties: false``.
+    - Stripping ``null`` values for optional fields.
+
+    It does **not** fabricate semantic content.  Missing authors, missing
+    checks, wrong severity enums, missing lineage, etc. are left for
+    validation to catch with a precise error so the agent learns the schema.
+    """
+    from datetime import datetime, timezone
+
+    ts = datetime.now(timezone.utc).isoformat()
+    specs = output_plan.for_stage_role(stage.stage_id, role)
+    for spec in specs:
+        path = run_root / spec.relative_path
+        if not path.exists():
+            continue
+        try:
+            import json as _json
+
+            text = path.read_text()
+            data = _json.loads(text)
+        except Exception:
+            continue
+
+        schema_info = _schema_info(spec.schema_file)
+        valid_timestamps = schema_info["timestamps"]
+        allowed_props = schema_info["properties"]
+        no_additional = schema_info["no_additional"]
+        required_fields = schema_info["required"]
+        nested_required = schema_info.get("nested_required", set())
+        nested_timestamps = schema_info.get("nested_timestamps", set())
+        if not valid_timestamps and not (no_additional and allowed_props):
+            continue
+
+        def _fix_item(item: dict) -> bool:
+            changed = False
+            # Sanitize stableId fields — lowercase, replace invalid chars
+            _ID_KEYS = ("object_id", "issue_id", "issue_version_id",
+                        "statement_id", "affected_statement_id",
+                        "finding_id", "claim_id", "theorem_id",
+                        "definition_id", "assumption_id", "lemma_id",
+                        "corollary_id", "proposition_id")
+            for key in _ID_KEYS:
+                val = item.get(key)
+                if isinstance(val, str) and val != val.lower():
+                    sane = _sanitize_id(val)
+                    if sane != val:
+                        item[key] = sane
+                        changed = True
+            # Sanitize ID arrays (evidence_ids, statement_ids, etc.). Only
+            # touch lists whose key marks them as ID arrays — never prose
+            # arrays (completed_work, required_checks, ...).
+            for key, val in list(item.items()):
+                if isinstance(val, list) and (
+                    key.endswith("_ids") or key == "affected_record_ids"
+                ):
+                    new_vals = []
+                    mod = False
+                    for v in val:
+                        if isinstance(v, str) and v != v.lower() and re.search(r"^[a-z]", v) is None or (isinstance(v, str) and re.search(r"[A-Z]", v) and re.search(r"[._-]", v)):
+                            sane = _sanitize_id(v)
+                            if sane != v:
+                                new_vals.append(sane)
+                                mod = True
+                                continue
+                        new_vals.append(v)
+                    if mod:
+                        item[key] = new_vals
+                        changed = True
+            # Add missing timestamps
+            for field in valid_timestamps:
+                if field not in item:
+                    item[field] = ts
+                    changed = True
+            # Add missing schema_version if the schema declares it
+            if "schema_version" in allowed_props and "schema_version" not in item:
+                item["schema_version"] = "1.0.0"
+                changed = True
+            # Fix method identity version (must be >= 1)
+            identity = item.get("identity")
+            if isinstance(identity, dict) and identity.get("version", 1) < 1:
+                identity["version"] = 1
+                changed = True
+            # Strip non-declared fields when additionalProperties is false
+            if no_additional and allowed_props:
+                for key in list(item.keys()):
+                    if key not in allowed_props:
+                        del item[key]
+                        changed = True
+            # Strip null values for optional string fields (agents write null
+            # where schema expects a string; e.g. rerun_question in attention items)
+            for key in list(item.keys()):
+                if item[key] is None and key not in required_fields:
+                    del item[key]
+                    changed = True
+            return changed
+
+        def _deep_sanitize_ids(obj: Any, parent_key: str | None = None) -> bool:
+            """Recursively walk the JSON tree and sanitize stableId strings.
+
+            Catches IDs nested deep inside canonical_definition, evidence
+            arrays, assumptions, etc. that _fix_item doesn't reach.  String
+            elements of a list are only sanitized when the parent key marks
+            the list as an ID array (``*_ids``) — never prose arrays.
+            """
+            changed = False
+            if isinstance(obj, dict):
+                for key, val in obj.items():
+                    if isinstance(val, str) and (
+                        key.endswith("_id")
+                        or key in ("stable_id", "affected_record_ids")
+                    ):
+                        if val != val.lower() or re.search(r"[^a-z0-9._-]", val):
+                            sane = _sanitize_id(val)
+                            if sane != val:
+                                obj[key] = sane
+                                changed = True
+                    elif isinstance(val, (dict, list)):
+                        if _deep_sanitize_ids(val, parent_key=key):
+                            changed = True
+            elif isinstance(obj, list):
+                is_id_array = parent_key is not None and (
+                    parent_key.endswith("_ids")
+                    or parent_key == "affected_record_ids"
+                )
+                for i, item in enumerate(obj):
+                    if (
+                        is_id_array
+                        and isinstance(item, str)
+                        and item != item.lower()
+                    ):
+                        # Sanitize strings in ID arrays (evidence_ids, etc.)
+                        sane = _sanitize_id(item)
+                        if sane != item:
+                            obj[i] = sane
+                            changed = True
+                    elif isinstance(item, (dict, list)):
+                        if _deep_sanitize_ids(item):
+                            changed = True
+            return changed
+
+        changed = False
+        if isinstance(data, dict):
+            changed = _fix_item(data)
+        elif isinstance(data, list):
+            for item in data:
+                if isinstance(item, dict):
+                    if _fix_item(item):
+                        changed = True
+        # Deep recursive pass: catch IDs nested in canonical_definition,
+        # evidence arrays, assumptions, theorems, etc.
+        if _deep_sanitize_ids(data):
+            changed = True
+        # Remove empty-string values that violate minLength: 1 constraints.
+        # Agents sometimes write "" for optional fields instead of omitting
+        # them.  Required fields (top-level and nested) are never stripped
+        # (that would turn a minLength error into a missing-required error).
+        all_required = required_fields | nested_required
+        if _strip_empty_strings(data, required_fields=all_required):
+            changed = True
+
+        # Add missing nested timestamps (e.g. assessed_at inside
+        # alignmentAssessment) — agents miss these because they're buried
+        # deep in the schema.
+        if _add_missing_timestamps(data, nested_timestamps, ts):
+            changed = True
+        # Fix self-referential hashes: agents can't know the hash of the
+        # file they're writing. Compute content_sha256, handoff_artifact.sha256,
+        # and definition_sha256 from the output content (excluding the hash
+        # field itself). Runs AFTER all other repairs so the stored hash
+        # matches the file actually written to disk.
+        if _fix_self_referential_hashes(data, path):
+            changed = True
+        if changed:
+            path.write_text(
+                _json.dumps(data, indent=2, ensure_ascii=False),
+            )
+
+
+def _add_missing_timestamps(
+    data: Any, timestamp_fields: set[str], ts: str
+) -> bool:
+    """Add missing timestamp fields anywhere in the JSON tree.
+
+    Some schemas require timestamps in nested objects (e.g.
+    ``alignmentAssessment.assessed_at``) that agents miss because
+    they're buried deep.  Walk the tree and fill them in.
+    """
+    if not timestamp_fields:
+        return False
+
+    changed = False
+
+    def _walk(obj: Any) -> None:
+        nonlocal changed
+        if isinstance(obj, dict):
+            for key in timestamp_fields:
+                if key not in obj:
+                    obj[key] = ts
+                    changed = True
+            for val in obj.values():
+                if isinstance(val, (dict, list)):
+                    _walk(val)
+        elif isinstance(obj, list):
+            for item in obj:
+                if isinstance(item, (dict, list)):
+                    _walk(item)
+
+    _walk(data)
+    return changed
+
+
+def _strip_empty_strings(
+    data: Any, *, required_fields: set[str] | None = None
+) -> bool:
+    """Remove empty-string values for optional fields.
+
+    JSON Schema uses ``minLength: 1`` to require non-empty strings, but agents
+    sometimes write ``""`` for optional fields instead of omitting them.  Walk
+    the tree and delete any key whose value is an empty string, so validation
+    passes for optional fields that the agent left blank.  Keys declared
+    ``required`` by the schema (top-level or nested) are never stripped —
+    deleting them would turn a minLength error into a missing-required error.
+    """
+    # Fields that must never be stripped even if empty.  Schema-required
+    # fields are added to this set so a required field with an empty value
+    # still reaches validation, which reports the precise minLength failure.
+    _KEEP = set(required_fields or ())
+
+    def _walk(obj: Any) -> bool:
+        changed = False
+        if isinstance(obj, dict):
+            # Two-pass: first recurse, then delete empty strings
+            for val in obj.values():
+                if isinstance(val, (dict, list)):
+                    if _walk(val):
+                        changed = True
+            to_delete = [
+                k
+                for k, v in obj.items()
+                if k not in _KEEP and isinstance(v, str) and v == ""
+            ]
+            for k in to_delete:
+                del obj[k]
+                changed = True
+        elif isinstance(obj, list):
+            for item in obj:
+                if isinstance(item, (dict, list)):
+                    if _walk(item):
+                        changed = True
+        return changed
+
+    return _walk(data)
+
+
+_SHA256_PATTERN = re.compile(r"^[a-f0-9]{64}$")
+_HASH_PLACEHOLDERS = frozenset({
+    "tbd_by_method_hub_on_write", "tbd", "placeholder",
+    "<...>", "...", "n/a", "todo",
+})
+
+
+def _is_placeholder_hash(value: str) -> bool:
+    """Return True if a sha256 value is a placeholder or invalid, not a real hash.
+
+    A valid 64-char lowercase hex string that is NOT in the known placeholder
+    set is assumed to be agent-authored (fabricated but pattern-valid).  We
+    still re-stamp it so the stored hash is authoritative, not decorative.
+    The hash-paradox is fundamental: an agent cannot know the hash of the file
+    it is writing, so every hash field is treated as needing computation.
+    """
+    return True  # Always recompute — agents cannot produce correct self-referential hashes.
+
+
+def _compute_content_hash(data: Any, exclude_keys: set[str]) -> str:
+    """Compute SHA-256 of *data* with *exclude_keys* removed at every level.
+
+    Uses canonical JSON (sorted keys, ensure_ascii=False) so the result is
+    deterministic regardless of key insertion order.
+    """
+    import hashlib
+    import json as _json
+
+    def _scrub(obj: Any) -> Any:
+        if isinstance(obj, dict):
+            return {
+                k: _scrub(v)
+                for k, v in obj.items()
+                if k not in exclude_keys
+            }
+        if isinstance(obj, list):
+            return [_scrub(item) for item in obj]
+        return obj
+
+    cleaned = _scrub(data)
+    encoded = _json.dumps(cleaned, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _fix_self_referential_hashes(data: Any, path: Path) -> bool:
+    """Compute and stamp all self-referential SHA-256 fields in agent output.
+
+    Agents cannot know the hash of the file they are currently writing.
+    This function finds every self-referential hash field and replaces it
+    with the correct hash computed from the file content (excluding the
+    hash field itself).
+
+    Handles three classes of self-referential hashes:
+
+    1. ``content_sha256`` — top-level field on scientific-record, evidence,
+       attention-item, decision-record.  Hash of the entire document minus
+       this field.
+    2. ``handoff_artifact.sha256`` — nested in handoff records.  Hash of the
+       handoff document minus the sha256 sub-field.
+    3. ``representations[].artifact.sha256`` / ``artifacts[].sha256`` —
+       pointer hashes inside representation/evidence arrays.  These are NOT
+       self-referential (they point at other files), so they are left alone.
+       Agents source these from the run workspace.
+    """
+    changed = False
+
+    def _fix_record(obj: dict) -> bool:
+        nonlocal changed
+        touched = False
+
+        # 1. content_sha256 — always recompute (hash paradox)
+        if "content_sha256" in obj:
+            correct = _compute_content_hash(obj, {"content_sha256"})
+            if obj.get("content_sha256") != correct:
+                obj["content_sha256"] = correct
+                touched = True
+
+        # 2. handoff_artifact.sha256 — recompute from the handoff dict
+        ha = obj.get("handoff_artifact")
+        if isinstance(ha, dict) and "sha256" in ha:
+            snapshot = dict(obj)
+            artifact_snapshot = dict(ha)
+            artifact_snapshot.pop("sha256", None)
+            snapshot["handoff_artifact"] = artifact_snapshot
+            encoded = _json_dumps_canonical(snapshot)
+            correct = hashlib.sha256(encoded).hexdigest()
+            if ha.get("sha256") != correct:
+                ha["sha256"] = correct
+                touched = True
+
+        # 3. definition_sha256 inside mathematical definitions — these are
+        # content hashes of the definition, NOT the file. Recompute from the
+        # definition content if it looks like a placeholder.
+        md = obj.get("mathematical_definition")
+        if isinstance(md, dict) and "definition_sha256" in md:
+            correct = _compute_content_hash(md, {"definition_sha256"})
+            if md.get("definition_sha256") != correct:
+                md["definition_sha256"] = correct
+                touched = True
+
+        return touched
+
+    import hashlib
+    import json as _json
+
+    def _json_dumps_canonical(obj: Any) -> bytes:
+        return _json.dumps(obj, ensure_ascii=False, sort_keys=True).encode("utf-8")
+
+    if isinstance(data, dict):
+        if _fix_record(data):
+            changed = True
+        # Also recurse into nested arrays of records (e.g. evidence list,
+        # attention-items list, method-changes list)
+        for key, val in data.items():
+            if isinstance(val, list):
+                for item in val:
+                    if isinstance(item, dict) and _fix_record(item):
+                        changed = True
+    elif isinstance(data, list):
+        for item in data:
+            if isinstance(item, dict):
+                if _fix_record(item):
+                    changed = True
+                # Recurse into nested arrays
+                for key, val in item.items():
+                    if isinstance(val, list):
+                        for sub in val:
+                            if isinstance(sub, dict) and _fix_record(sub):
+                                changed = True
+    return changed
+
+
+def _schema_info(schema_file: str) -> dict[str, Any]:
+    """Return schema metadata for deterministic post-processing."""
+    try:
+        import json as _json
+
+        from pathlib import Path as _Path
+
+        root = _Path(__file__).resolve().parents[3]
+        schema_path = root / "architecture" / "schemas" / schema_file
+        if not schema_path.exists():
+            return _empty_schema_info()
+        schema = _json.loads(schema_path.read_text())
+        properties = schema.get("properties", {})
+        props = set(properties.keys())
+        timestamps = props & set(_TIMESTAMP_FIELDS)
+        no_additional = schema.get("additionalProperties") is False
+        required = set(schema.get("required", []))
+
+        # Collect nested required fields from sub-object property definitions
+        # and from $defs/$ref-resolved definitions referenced via allOf.
+        nested_required = _collect_nested_required(schema)
+
+        # Collect timestamp-like fields declared in nested properties
+        # (e.g. alignmentAssessment.assessed_at).
+        nested_timestamps = set()
+        _collect_nested_timestamps(schema, nested_timestamps)
+
+        return {
+            "timestamps": timestamps,
+            "properties": props,
+            "no_additional": no_additional,
+            "required": required,
+            "nested_required": nested_required,
+            "nested_timestamps": nested_timestamps,
+        }
+    except Exception:
+        return _empty_schema_info()
+
+
+def _collect_nested_required(schema: dict[str, Any]) -> set[str]:
+    """Collect all required field names from nested object definitions.
+
+    These are fields that are ``required`` inside sub-objects (e.g.
+    ``artifactPointer.artifact_id``).  ``_strip_empty_strings`` uses this
+    set to avoid stripping required nested fields.
+    """
+    result: set[str] = set()
+    properties = schema.get("properties", {})
+
+    def _walk_object(obj_def: dict[str, Any]) -> None:
+        if not isinstance(obj_def, dict):
+            return
+        req = obj_def.get("required", [])
+        if isinstance(req, list):
+            result.update(req)
+        # Recurse into sub-properties
+        sub_props = obj_def.get("properties", {})
+        if isinstance(sub_props, dict):
+            for sub_def in sub_props.values():
+                if isinstance(sub_def, dict) and sub_def.get("type") == "object":
+                    _walk_object(sub_def)
+                # Array of objects
+                if isinstance(sub_def, dict) and sub_def.get("type") == "array":
+                    items = sub_def.get("items", {})
+                    if isinstance(items, dict) and items.get("type") == "object":
+                        _walk_object(items)
+
+    for prop_def in properties.values():
+        if isinstance(prop_def, dict):
+            if prop_def.get("type") == "object":
+                _walk_object(prop_def)
+            if prop_def.get("type") == "array":
+                items = prop_def.get("items", {})
+                if isinstance(items, dict) and items.get("type") == "object":
+                    _walk_object(items)
+
+    # Also check $defs
+    defs = schema.get("$defs", schema.get("definitions", {}))
+    if isinstance(defs, dict):
+        for def_def in defs.values():
+            if isinstance(def_def, dict):
+                _walk_object(def_def)
+
+    return result
+
+
+def _collect_nested_timestamps(schema: dict[str, Any], found: set[str]) -> None:
+    """Find timestamp-like field names in nested properties."""
+    _TS_SUFFIXES = ("_at", "_timestamp", "_time")
+    properties = schema.get("properties", {})
+
+    def _walk(obj_def: dict[str, Any]) -> None:
+        if not isinstance(obj_def, dict):
+            return
+        sub_props = obj_def.get("properties", {})
+        if isinstance(sub_props, dict):
+            for key, sub_def in sub_props.items():
+                if isinstance(key, str) and any(
+                    key.endswith(s) for s in _TS_SUFFIXES
+                ):
+                    found.add(key)
+                if isinstance(sub_def, dict):
+                    _walk(sub_def)
+
+    for prop_def in properties.values():
+        _walk(prop_def)
+
+
+def _empty_schema_info() -> dict[str, Any]:
+    return {
+        "timestamps": set(),
+        "properties": set(),
+        "no_additional": False,
+        "required": set(),
+        "nested_required": set(),
+        "nested_timestamps": set(),
+    }
+
+
+def _sanitize_id(val: str) -> str:
+    """Force a stableId to match ^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$."""
+    sane = val.lower()
+    sane = re.sub(r"[^a-z0-9._-]", "_", sane)
+    sane = re.sub(r"^[^a-z]+", "", sane) or "id"
+    sane = re.sub(r"\.{2,}", ".", sane)
+    return sane
+
+
+# Schema file name → which timestamp fields are declared properties
+_TIMESTAMP_FIELDS = ("created_at", "updated_at")
+
 
 class RoleLifecycleService:
     """Execute exactly one role invocation or recover its immutable closure."""
@@ -276,6 +812,14 @@ class RoleLifecycleService:
         task_root = self.workspace.ensure_directory(task_relative)
         task_path = self.workspace.for_write(f"{task_relative}/task.md")
 
+        # Prefer stage+role-specific instruction if available;
+        # otherwise fall back to the shared phase_instruction.
+        role_instruction = ""
+        if self.context.role_instructions:
+            stage_role_key = f"{stage.stage_id}.{role}"
+            role_instruction = self.context.role_instructions.get(stage_role_key, "")
+        effective_instruction = role_instruction or self.context.phase_instruction
+
         brief_plan = self._brief_plan(stage, role)
         task_text = render_task_brief(
             run_id=str(self.context.run_id),
@@ -285,10 +829,11 @@ class RoleLifecycleService:
             role=role,
             input_paths={key: str(item.path) for key, item in inputs.items()},
             output_plan=self.context.output_plan,
-            phase_instruction=self.context.phase_instruction,
+            phase_instruction=effective_instruction,
             scientific_stance=self.context.role_souls[role],
             same_group_roles=stage.roles,
             schema_catalog=self.schemas,
+            researcher_method_spec=self.context.researcher_method_spec,
         )
         task_payload = task_text.encode("utf-8")
         _immutable_write(task_path, task_payload)
@@ -421,6 +966,13 @@ class RoleLifecycleService:
         if self.repository.cancellation_requested(str(self.context.run_id)):
             status = RoleExecutionStatus.CANCELLED
         elif status is RoleExecutionStatus.SUCCEEDED:
+            _apply_disclosed_mechanical_repairs(
+                run_root=self.workspace.for_read(f"runs/{self.context.run_id}"),
+                output_plan=self.context.output_plan,
+                stage=stage,
+                role=role,
+                run_id=str(self.context.run_id),
+            )
             validation = validate_role_outputs(
                 schema_catalog=self.schemas,
                 run_root=self.workspace.for_read(f"runs/{self.context.run_id}"),

@@ -87,6 +87,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import logging
 import shutil
 import uuid
 from collections import deque
@@ -113,6 +114,8 @@ from .run_profile_assembler import (
     RunSealError,
     SealedRun,
 )
+
+logger = logging.getLogger(__name__)
 
 #: Default execution timeout when neither the argument nor ``user_choices``
 #: declares one (matches the :class:`RoleInvocation` default).
@@ -498,6 +501,36 @@ def launch_sealed_run(
             result = asyncio.run(executor.execute(invocation, heartbeat_observer))
             _write_captured_logs(run_dir, result)
             effective_status = _close(result.status.value, result)
+
+            # WP-E1/E2 closure: after a successful launch, validate the
+            # declared outputs against the sealed manifest, then promote
+            # allowlisted memory/session state for passing persistent runs.
+            # Failures here do NOT invalidate the launch record (which is
+            # already closed as succeeded); they are recorded as their own
+            # validation/promotion rows for the UI to surface.
+            if effective_status == "succeeded":
+                try:
+                    from .output_validation import validate_run_outputs
+
+                    validation_report = validate_run_outputs(assembler, sealed)
+                    if validation_report.verdict == "pass":
+                        from .state_promotion import promote_run_state
+
+                        try:
+                            promote_run_state(assembler, sealed)
+                        except Exception:
+                            logger.exception(
+                                "Promotion failed for invocation %s; "
+                                "the launch succeeded and validation passed.",
+                                sealed.invocation_id,
+                            )
+                except Exception:
+                    logger.exception(
+                        "Output validation failed for invocation %s; "
+                        "the launch succeeded.",
+                        sealed.invocation_id,
+                    )
+
             return LaunchResult(
                 launch_id=launch_id,
                 seal_id=sealed.seal_id,

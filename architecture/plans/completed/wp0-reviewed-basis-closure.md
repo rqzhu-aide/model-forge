@@ -40,7 +40,7 @@ all original code citations verified within ±1 line. Corrections:
    original draft sealed inputs, authority head, and method identity, but its
    own test case 7 (profile drift) was unimplementable and WP0 acceptance
    tests 4-5 in
-   [10-open-implementation-gaps.md](../10-open-implementation-gaps.md) require
+   [10-open-implementation-gaps.md](../../10-open-implementation-gaps.md) require
    rejecting profile, soul, skill, tool, and knowledge-resource drift. Without
    this, WP0 is not closed. Section "Proposed Fix" now includes role
    resources.

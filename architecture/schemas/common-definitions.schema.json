@@ -113,6 +113,8 @@
                                          "enum":  [
                                                       "none",
                                                       "monitor",
+                                                      "minor",
+                                                      "major",
                                                       "reassessment_required",
                                                       "blocking"
                                                   ]

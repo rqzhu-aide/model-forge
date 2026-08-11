@@ -4,7 +4,7 @@
     "title":  "Literature Source Record",
     "description":  "An immutable generation of one stable, deduplicated literature identity with bibliographic metadata, search provenance, and source status at creation.",
     "type":  "object",
-    "additionalProperties":  false,
+    "additionalProperties":  true,
     "required":  [
                      "schema_version",
                      "record_id",
@@ -74,7 +74,7 @@
                                            "minItems":  1,
                                            "items":  {
                                                          "type":  "object",
-                                                         "additionalProperties":  false,
+                                                         "additionalProperties":  true,
                                                          "required":  [
                                                                           "kind",
                                                                           "value"
@@ -107,7 +107,7 @@
                                                  "minItems":  1,
                                                  "items":  {
                                                                "type":  "object",
-                                                               "additionalProperties":  false,
+                                                               "additionalProperties":  true,
                                                                "required":  [
                                                                                 "run_id",
                                                                                 "role",

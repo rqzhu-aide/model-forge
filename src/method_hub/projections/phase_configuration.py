@@ -100,10 +100,17 @@ def build_phase_configuration(
                 "option_id": str(item["option_id"]),
                 "required": bool(item.get("required", False)),
                 "artifact_id": (
-                    item.get("artifact_pointer", {}).get("artifact_id")
+                    item["artifact_pointer"]["artifact_id"]
+                    if item.get("artifact_pointer")
+                    else None
                 ),
-                "sha256": item.get("artifact_pointer", {}).get("sha256"),
+                "sha256": (
+                    item["artifact_pointer"]["sha256"]
+                    if item.get("artifact_pointer")
+                    else None
+                ),
                 "generation_id": item.get("generation_id"),
+                "disabled": bool(item.get("disabled", False)),
             }
             for item in current_inputs
         ],

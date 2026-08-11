@@ -57,25 +57,36 @@ export async function invalidateProjectSummaryDependents(
 function initialTheme(): Theme {
   const saved = window.localStorage.getItem("method-hub-theme");
   if (saved === "light" || saved === "dark") return saved;
-  return "light";
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
 }
 
-function ThemeButton() {
+export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>(initialTheme);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     window.localStorage.setItem("method-hub-theme", theme);
   }, [theme]);
   return (
-    <button
-      type="button"
-      className="sidebar-button"
-      onClick={() => setTheme((current) => current === "light" ? "dark" : "light")}
-      aria-label={`Use ${theme === "light" ? "dark" : "light"} theme`}
-    >
-      <span className="sidebar-button__icon" aria-hidden="true">{theme === "light" ? "◐" : "○"}</span>
-      {theme === "light" ? "Dark theme" : "Light theme"}
-    </button>
+    <div className="theme-toggle" role="group" aria-label="Color theme">
+      <button
+        type="button"
+        className="theme-toggle__option"
+        aria-pressed={theme === "light"}
+        onClick={() => setTheme("light")}
+      >
+        <span aria-hidden="true">☀</span> Light
+      </button>
+      <button
+        type="button"
+        className="theme-toggle__option"
+        aria-pressed={theme === "dark"}
+        onClick={() => setTheme("dark")}
+      >
+        <span aria-hidden="true">☾</span> Dark
+      </button>
+    </div>
   );
 }
 
@@ -173,13 +184,13 @@ export function AppShell() {
               <span aria-hidden="true">@</span> Profiles and skills
             </NavLink>
           ) : null}
+          <ThemeToggle />
           <NavLink to="/configuration" className={({ isActive }) => isActive ? "sidebar-link is-active" : "sidebar-link"}>
             <span aria-hidden="true">⚙</span> Configuration
           </NavLink>
           <NavLink to="/settings" className={({ isActive }) => isActive ? "sidebar-link is-active" : "sidebar-link"}>
             <span aria-hidden="true">:</span> System settings
           </NavLink>
-          <ThemeButton />
           <p>Nothing runs without a user-authorized command.</p>
         </nav>
       </aside>

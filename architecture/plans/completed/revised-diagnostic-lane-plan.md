@@ -6,7 +6,7 @@ order.
 Implementation checkpoint: commit `009a50a`, audited 2026-08-04.
 Current plan:
 
-- [Trusted Local Hermes Execution Closure](next-block-local-hermes-execution-closure.md)
+- [Trusted Local Hermes Execution Closure](../next-block-local-hermes-execution-closure.md)
 
 ## Historical OCI implementation audit
 
@@ -474,7 +474,7 @@ quarantined and verified secret-free before they can become discoverable.
 
 ### 4.0 One-shot Hermes evidence checkpoint
 
-The [completed host observations](completed/spike-report-s5.0.md) establish
+The [completed host observations](spike-report-s5.0.md) establish
 useful Hermes v0.19.0 facts, but they are not sandbox or control evidence.
 
 Observed on the named host:

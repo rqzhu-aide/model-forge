@@ -4,7 +4,7 @@
     "title":  "Role Handoff",
     "description":  "An immutable run-local research communication record that states what changed, what is supported, and what the next role must check.",
     "type":  "object",
-    "additionalProperties":  false,
+    "additionalProperties":  true,
     "required":  [
                      "schema_version",
                      "handoff_id",
@@ -62,7 +62,7 @@
                                                 },
                        "completed_work":  {
                                               "type":  "array",
-                                              "minItems":  1,
+                                              "minItems":  0,
                                               "items":  {
                                                             "type":  "string",
                                                             "minLength":  1
@@ -94,7 +94,7 @@
                                                  "type":  "array",
                                                  "items":  {
                                                                "type":  "object",
-                                                               "additionalProperties":  false,
+                                                               "additionalProperties":  true,
                                                                "required":  [
                                                                                 "issue_id",
                                                                                 "category",
@@ -112,7 +112,11 @@
                                                                                                                 "validity",
                                                                                                                 "scope",
                                                                                                                 "research_attention",
-                                                                                                                "presentation"
+                                                                                                                "presentation",
+                                                                                                                "identifiability",
+                                                                                                                "computation",
+                                                                                                                "empirical_testability",
+                                                                                                                "reproducibility"
                                                                                                             ]
                                                                                                },
                                                                                   "severity":  {
@@ -136,7 +140,7 @@
                                              },
                        "required_checks":  {
                                                "type":  "array",
-                                               "minItems":  1,
+                                               "minItems":  0,
                                                "items":  {
                                                              "type":  "string",
                                                              "minLength":  1

@@ -595,7 +595,7 @@ class TestPhaseConsistency:
     ) -> None:
         sealed = _seal(assembler)
         doc = dict(_GOOD_THEORY)
-        doc["basis"] = {"assumptions": []}  # P3: no assumptions documented
+        doc["basis"] = []  # P3: no basis entries documented
         _write_output(sealed, "p3/complete_theory.json", json.dumps(doc))
         _write_output(sealed, "p3/notes.json", json.dumps({"note": "ok"}))
         _write_output(sealed, "p3/fig1.pdf", b"x")

@@ -3509,8 +3509,8 @@ def validate_global_invariants(schemas) -> list[str]:
                 contract,
                 contract_sha,
             )
-    if validated_mode_count != 8:
-        errors.append(f"RunCommand coverage found {validated_mode_count} modes, expected 8")
+    if validated_mode_count != 9:
+        errors.append(f"RunCommand coverage found {validated_mode_count} modes, expected 9")
 
     p1_probe, p1_contract, p1_sha = probe_by_mode[("P1", "p1.literature_update")]
     for scope_value in ("broad_update", "focused_update"):

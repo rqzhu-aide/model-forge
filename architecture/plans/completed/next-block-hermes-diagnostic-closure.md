@@ -4,7 +4,7 @@ Status: Historical safety baseline. OCI containment is deferred for Version 1.
 
 Current work order:
 
-- [Trusted Local Hermes Execution Closure](next-block-local-hermes-execution-closure.md)
+- [Trusted Local Hermes Execution Closure](../next-block-local-hermes-execution-closure.md)
 
 Prepared: 2026-08-03
 
@@ -20,7 +20,7 @@ Related plans:
 - [Hermes-Specific Diagnostic Revision](revised-diagnostic-lane-plan.md)
 - [Phase 0: Safe Hermes Execution](phase-0-safe-hermes-execution.md)
 - [Operational Completion Plan](operational-completion-plan.md)
-- [Completed Hermes Transport Findings](completed/phase-0-spike-findings.md)
+- [Completed Hermes Transport Findings](phase-0-spike-findings.md)
 
 ## 1. Target goal
 

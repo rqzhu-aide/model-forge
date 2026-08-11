@@ -4,7 +4,7 @@
     "title":  "Research Attention Item",
     "description":  "An immutable version of a research question or defect. Later disposition changes create a new version and current attention is derived separately.",
     "type":  "object",
-    "additionalProperties":  false,
+    "additionalProperties":  true,
     "required":  [
                      "schema_version",
                      "attention_id",
@@ -67,7 +67,11 @@
                                                         "resolved",
                                                         "deferred",
                                                         "accepted_limitation",
-                                                        "rejected"
+                                                        "rejected",
+                                                        "addressed",
+                                                        "fixed",
+                                                        "partially_fixed",
+                                                        "wont_fix"
                                                     ]
                                        },
                        "disposition_reason":  {

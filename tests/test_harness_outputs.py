@@ -7,7 +7,11 @@ from method_hub.harness.outputs import (
     build_output_plan,
     validate_role_outputs,
 )
-from method_hub.harness.task_briefs import render_task_brief
+from method_hub.harness.task_briefs import (
+    _extract_conditional_requirements,
+    _render_schema_constraints,
+    render_task_brief,
+)
 from method_hub.specification import SpecificationPackage
 
 
@@ -120,3 +124,45 @@ def test_task_brief_states_manual_and_parallel_boundaries() -> None:
     assert "Do not start another role, rerun, phase" in brief
     assert "negative, null, contradictory, or inconclusive" in brief
     assert json.dumps(dict(plan.choice_values), ensure_ascii=False, indent=2) in brief
+
+
+def test_conditional_fields_render_else_prohibitions() -> None:
+    package = SpecificationPackage.load(ARCHITECTURE)
+    schema = package.schemas.get("attention-item.schema.json")
+    entries = {
+        entry["field"]: entry
+        for entry in _extract_conditional_requirements(schema)
+    }
+
+    # if/then requirement: publication fields required for formal_generation
+    for field in ("publication_receipt_id", "published_at"):
+        entry = entries[field]
+        assert entry["condition"] == "`authority_at_creation` is `formal_generation`"
+        # else prohibition: same fields forbidden when the condition does not hold
+        assert entry["prohibited_when"] == (
+            "`authority_at_creation` is not `formal_generation`"
+        )
+
+    # plain if/then requirements (no else) keep working
+    reason = entries["disposition_reason"]
+    assert reason["condition"] is not None
+    assert reason["condition"].startswith("`disposition` is one of")
+    assert reason["prohibited_when"] is None
+    rerun = entries["rerun_question"]
+    assert rerun["condition"] == (
+        "`severity` is one of (`reassessment_required`, `blocking`); "
+        "AND `disposition` is `open`"
+    )
+
+    rendered = _render_schema_constraints("attention-item.schema.json", package.schemas)
+    assert "always provide these fields" not in rendered
+    assert (
+        "- `publication_receipt_id` — required only when: "
+        "`authority_at_creation` is `formal_generation`; do NOT include when: "
+        "`authority_at_creation` is not `formal_generation`" in rendered
+    )
+    assert (
+        "- `published_at` — required only when: "
+        "`authority_at_creation` is `formal_generation`; do NOT include when: "
+        "`authority_at_creation` is not `formal_generation`" in rendered
+    )

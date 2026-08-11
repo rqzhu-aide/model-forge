@@ -21,7 +21,7 @@ As of commit `a08604d` and ADR-012:
   promotion, and complete Web controls remain open.
 
 Production scientific execution remains disabled until the
-[Trusted Local Hermes Execution Closure](next-block-local-hermes-execution-closure.md)
+[Trusted Local Hermes Execution Closure](../next-block-local-hermes-execution-closure.md)
 passes. The local UI and WP0 reviewed-basis work can then complete before real
 five-phase pilots.
 

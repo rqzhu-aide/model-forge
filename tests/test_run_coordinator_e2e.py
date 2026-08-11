@@ -258,7 +258,7 @@ def test_fake_pipeline_requires_explicit_runs_and_parallel_phase_completion(
         phase_three = await service.get_phase_view(
             project.project_id,
             "P3",
-            mode="p3.theory_update",
+            mode="p3.theory_establishment",
             method_id=method_id,
         )
         phase_four = await service.get_phase_view(
@@ -320,7 +320,7 @@ def test_fake_pipeline_requires_explicit_runs_and_parallel_phase_completion(
 
         await launch(
             phase="P3",
-            mode="p3.theory_update",
+            mode="p3.theory_establishment",
             choices={
                 "p3.selected_method": method_choice,
                 "p3.instructions": "Develop and check the current theoretical argument.",

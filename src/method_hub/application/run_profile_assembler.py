@@ -563,6 +563,32 @@ class RunSealStore:
             ).fetchall()
         return [dict(row) for row in rows]
 
+    def list_running_launch_records(self) -> list[dict[str, Any]]:
+        """Return every launch record still in ``running`` status.
+
+        Used by restart reconciliation (WP-F follow-up) to find supervised
+        invocations whose Hermes process may have died when the server was
+        offline.  Each row carries ``invocation_id``, ``launch_id``, and
+        ``external_execution_id`` (the latter may be NULL if the process
+        was created but the observer had not yet recorded the identity).
+        """
+        with self._db.connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM run_launch_records WHERE status = 'running' "
+                "ORDER BY launched_at ASC",
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def list_all_sealed_invocations(self) -> list[dict[str, Any]]:
+        """Return every sealed invocation (invocation_id, seal_id, project_id,
+        role) for restart reconciliation."""
+        with self._db.connect() as conn:
+            rows = conn.execute(
+                "SELECT invocation_id, seal_id, project_id, role "
+                "FROM run_seals ORDER BY sealed_at ASC",
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     # -- validation reports (WP-E1) ------------------------------------
 
     def record_validation_report(

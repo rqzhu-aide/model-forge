@@ -8,6 +8,63 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..domain.identities import ArtifactPointer, MethodIdentity
+
+
+def _extract_summary(payload: dict[str, Any]) -> str | None:
+    """Extract a human-readable summary from a formal record payload.
+
+    Different record types store text in different fields. Try the most
+    informative ones first, then fall back to structural fields.
+    """
+    # Direct text fields — most informative
+    for key in ("summary", "current_conclusion", "synthesis", "abstract", "headline"):
+        value = payload.get(key)
+        if type(value) is str and value.strip():
+            return value.strip()
+    # Scientific outcome may be a dict with a "conclusion" or "label"
+    outcome = payload.get("scientific_outcome")
+    if type(outcome) is dict:
+        for key in ("conclusion", "label", "assessment", "summary"):
+            value = outcome.get(key)
+            if type(value) is str and value.strip():
+                return value.strip()
+    if type(outcome) is str and outcome.strip():
+        return outcome.strip()
+    # Method records: rationale gives the "why"
+    rationale = payload.get("rationale")
+    if type(rationale) is str and rationale.strip():
+        return rationale.strip()
+    # Project brief: research question is the most useful one-liner
+    rq = payload.get("research_question")
+    if type(rq) is str and rq.strip():
+        return rq.strip()
+    # Count-based records (library, catalog): summarize structurally
+    source_count = payload.get("source_count")
+    if source_count is not None:
+        return f"{source_count} indexed source(s)."
+    method_count = payload.get("method_count")
+    active = payload.get("active_method_count")
+    if method_count is not None:
+        active_str = f" ({active} active)" if active is not None else ""
+        return f"{method_count} method(s) in catalog{active_str}."
+    return None
+
+
+def _extract_highlight_artifact_id(payload: dict[str, Any]) -> str | None:
+    """Extract the layer-3 (compact decision view) artifact_id from representations."""
+    representations = payload.get("representations")
+    if type(representations) is not list:
+        return None
+    for rep in representations:
+        if type(rep) is not dict:
+            continue
+        if str(rep.get("information_layer", "")) == "compact_decision_view":
+            artifact = rep.get("artifact")
+            if type(artifact) is dict:
+                artifact_id = artifact.get("artifact_id")
+                if type(artifact_id) is str and artifact_id:
+                    return artifact_id
+    return None
 from ..harness.inputs import CurrentRecordReference
 from ..storage.repository import HubRepository, RepositoryNotFoundError
 
@@ -63,7 +120,8 @@ class RepositoryQueries:
                 connection.execute(
                     """
                     SELECT g.*, a.sha256 AS artifact_sha256,
-                           a.storage_uri AS artifact_storage_uri
+                           a.storage_uri AS artifact_storage_uri,
+                           a.size AS artifact_size
                     FROM formal_generations AS g
                     JOIN artifacts AS a ON a.artifact_id = g.artifact_id
                     WHERE g.project_id = ?""" + condition + """
@@ -153,7 +211,15 @@ class RepositoryQueries:
         match_policy: str,
     ) -> CurrentRecordReference | None:
         """Resolve a current formal record by type and optional exact method."""
-
+        # A method-scoped match policy with no selected method must match
+        # nothing: returning the newest record of the type regardless of
+        # method would silently bind method-specific context into a run
+        # that never asked for a method (e.g. P2 full_catalog mode).
+        if method_identity is None and match_policy in {
+            "exact",
+            "same_stable_method",
+        }:
+            return None
         candidates = [
             row
             for row in self.repository.list_current_records(project_id)
@@ -192,6 +258,9 @@ class RepositoryQueries:
         row, payload, candidate_method = matches[0]
         artifact_id = str(row["artifact_id"])
         digest = str(row["artifact_sha256"])
+        summary = _extract_summary(payload)
+        highlight_artifact_id = _extract_highlight_artifact_id(payload)
+        size_bytes = int(row["artifact_size"]) if row["artifact_size"] is not None else None
         return CurrentRecordReference(
             record_id=str(payload.get("record_id", row["generation_id"])),
             generation_id=str(row["generation_id"]),
@@ -205,6 +274,9 @@ class RepositoryQueries:
             ),
             method_identity=candidate_method,
             logical_slot=str(row["slot_key"]),
+            summary=summary,
+            highlight_artifact_id=highlight_artifact_id,
+            size_bytes=size_bytes,
         )
 
 

@@ -361,7 +361,7 @@ def _validate_phase_semantics(
             output = outputs.get(output_id)
             if output is None or type(output.document) is not dict:
                 continue
-            declared = output.document.get("method_identity")
+            declared = output.document.get("method_identity") or output.document.get("identity")
             if identity_required and declared is None:
                 findings.append(
                     _finding(
@@ -370,7 +370,11 @@ def _validate_phase_semantics(
                         output_id,
                     )
                 )
-            elif declared is not None and declared != expected:
+            elif declared is not None and (
+                declared.get("stable_id") != expected.get("stable_id")
+                or declared.get("version") != expected.get("version")
+                or declared.get("definition_sha256") != expected.get("definition_sha256")
+            ):
                 findings.append(
                     _finding(
                         "submission.method_identity_mismatch",

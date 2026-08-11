@@ -65,6 +65,9 @@ def require_complete_sealed_basis(
                 f"The reviewed basis does not seal current input {input_id!r} "
                 "that this run requires."
             )
+        # Disabled inputs (missing records) have no artifact to seal — skip.
+        if entry.get("disabled"):
+            continue
         if entry.get("generation_id") is None or entry.get("sha256") is None:
             raise ValueError(
                 f"The reviewed basis seals current input {input_id!r} without "

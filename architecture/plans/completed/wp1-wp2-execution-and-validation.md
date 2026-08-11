@@ -7,7 +7,7 @@ implemented. Both exit gates remain open.
 
 ADR-012 replaces rootless OCI with trusted local Hermes execution for Version
 1. The controlling implementation package is
-[Trusted Local Hermes Execution Closure](next-block-local-hermes-execution-closure.md).
+[Trusted Local Hermes Execution Closure](../next-block-local-hermes-execution-closure.md).
 
 WP1 now requires exact run-profile preparation, durable local process identity,
 bounded logs, whole-process-tree cancellation, restart reconciliation, state
@@ -29,7 +29,7 @@ failure-case material remains useful where it does not depend on OCI.
 
 Revision 1 was reviewed against the pre-`fb326de` source and an
 environment-specific passing backend baseline. It also used the
-[Phase 0 spike findings](completed/phase-0-spike-findings.md). Its inventory is
+[Phase 0 spike findings](phase-0-spike-findings.md). Its inventory is
 retained as design history. The current implementation status is the audit
 above. Revision 1 corrections were:
 
@@ -112,7 +112,7 @@ WP2 exit gates.
 | `RoleExecutor` protocol | ✅ Complete | `executors/protocol.py` - execute/cancel/reconcile + ExecutionObserver |
 | `DeterministicFakeExecutor` | ✅ Complete | `executors/fake.py` - deterministic output from schema examples |
 | `SchemaExampleFakeExecutor` | ✅ Complete | `executors/development.py` - extends fake with architecture examples |
-| `HermesKanbanExecutor` (Track A) | Partial, development-only | Status and retry handling, environment filtering, profile preflight, and one synthetic run are verified. Archived status does not prove worker termination. See the [spike findings](completed/phase-0-spike-findings.md). |
+| `HermesKanbanExecutor` (Track A) | Partial, development-only | Status and retry handling, environment filtering, profile preflight, and one synthetic run are verified. Archived status does not prove worker termination. See the [spike findings](phase-0-spike-findings.md). |
 | `OutputPlan` + `OutputSpec` | ✅ Complete | `harness/outputs.py` - contract-derived output planning |
 | `validate_role_outputs` | ✅ Complete | `harness/outputs.py:139` - structural acceptance (path safety, JSON shape, schema validation) |
 | `validate_submission` | ✅ Complete | `harness/submission_validation.py:34` - recheck bytes, provenance, schemas, method identity, phase semantics (`_validate_phase_semantics`, line 312) |

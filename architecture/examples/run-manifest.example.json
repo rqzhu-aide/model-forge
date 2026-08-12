@@ -3,11 +3,11 @@
   "run_id": "run.p4.preliminary.20260801t140000z",
   "project_id": "project.demo",
   "command_id": "command.p4.preliminary.001",
-  "command_sha256": "b8716e64012e2bc6082068a8e3998c50d43a31f8b1aa6ede62046179bbe6d920",
+  "command_sha256": "2553397528d032789ce3346b4069d24de372ef116a460bbbc6c3a1a113553988",
   "command_idempotency_key": "demo-p4-preliminary-20260801",
   "phase": "P4",
   "phase_contract_version": "2.0.0",
-  "phase_contract_sha256": "839ea754487601cb96a97bf3f6a8b73ddc2ffa49d363345fd52d45ceac1edebd",
+  "phase_contract_sha256": "f0ac6e0b4e76cf94e0f3db0d0967640cd15eb7833b0faa30e9f9be9098f4723e",
   "mode": "p4.preliminary",
   "initiated_by": {
     "user_id": "researcher.demo",
@@ -418,7 +418,7 @@
       "output_id": "output.protocol",
       "output_kind": "protocol",
       "relative_path": "roles/01-data_analyst/protocol.json",
-      "schema_uri": "../schemas/scientific-record.schema.json",
+      "schema_uri": "../schemas/empirical-protocol.schema.json",
       "required": true,
       "contract_output_id": "p4.protocol"
     },
@@ -513,5 +513,5 @@
     "wall_time_limit_seconds": 14400
   },
   "prepared_at": "2026-08-01T14:00:02Z",
-  "manifest_sha256": "1a7d32137300e2faafef7359483a1186e49558b2f583f9a3840a14c3adc0efb7"
+  "manifest_sha256": "a19226f3169669019504afa43bcd29a11ffbb00a11a76c86fcef79a763a98e42"
 }

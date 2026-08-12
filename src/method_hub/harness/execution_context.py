@@ -46,10 +46,12 @@ class RunExecutionContext:
     phase_instruction: str
     role_souls: Mapping[str, str]
     preloaded_skills: Mapping[str, tuple[str, ...]]
+    mode_instruction: str = ""
+    researcher_instruction: str = ""
     role_instructions: Mapping[str, str] = None  # type: ignore[assignment]
-    # Key format: "{stage_id}.{role}" → instruction text.
-    # When present, role_execution looks up by the current stage+role
-    # and falls back to role-only key, then phase_instruction.
+    # Key format: "{stage_id}.{role}" → stage-role assignment text.
+    # The task brief layers this mapping with the mode and researcher
+    # instruction fields; it never selects one scientific layer with `or`.
     researcher_method_spec: str = ""
     submission_from_status: str = "running"
     submission_to_status: str = "submitted"
@@ -68,6 +70,12 @@ class RunExecutionContext:
             raise TypeError("output_plan must be an OutputPlan.")
         if type(self.phase_instruction) is not str or not self.phase_instruction.strip():
             raise ValueError("phase_instruction must be nonempty text.")
+        if type(self.mode_instruction) is not str:
+            raise TypeError("mode_instruction must be text.")
+        if not self.mode_instruction.strip():
+            object.__setattr__(self, "mode_instruction", self.phase_instruction)
+        if type(self.researcher_instruction) is not str:
+            raise TypeError("researcher_instruction must be text.")
         if str(self.manifest_sha256) != self.recipe.sha256:
             raise ValueError("manifest_sha256 must equal the prepared recipe digest.")
 

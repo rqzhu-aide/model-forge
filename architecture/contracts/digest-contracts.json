@@ -318,6 +318,81 @@
                                                      ]
                       },
                       {
+                          "contract_id":  "empirical_protocol.content",
+                          "object_kind":  "empirical_protocol",
+                          "schema_file":  "empirical-protocol.schema.json",
+                          "instance_pointer":  "",
+                          "digest_location":  {
+                                                  "kind":  "embedded",
+                                                  "json_pointer":  "/content_sha256"
+                                              },
+                          "construction":  "rfc8785_sha256",
+                          "payload_pointer":  "",
+                          "excluded_json_pointers":  [
+                                                         "/content_sha256"
+                                                     ]
+                      },
+                      {
+                          "contract_id":  "manuscript_package.content",
+                          "object_kind":  "manuscript_package",
+                          "schema_file":  "manuscript-package.schema.json",
+                          "instance_pointer":  "",
+                          "digest_location":  {
+                                                  "kind":  "embedded",
+                                                  "json_pointer":  "/content_sha256"
+                                              },
+                          "construction":  "rfc8785_sha256",
+                          "payload_pointer":  "",
+                          "excluded_json_pointers":  [
+                                                         "/content_sha256"
+                                                     ]
+                      },
+                      {
+                          "contract_id":  "review_finding.content",
+                          "object_kind":  "review_finding",
+                          "schema_file":  "review-finding.schema.json",
+                          "instance_pointer":  "",
+                          "digest_location":  {
+                                                  "kind":  "embedded",
+                                                  "json_pointer":  "/content_sha256"
+                                              },
+                          "construction":  "rfc8785_sha256",
+                          "payload_pointer":  "",
+                          "excluded_json_pointers":  [
+                                                         "/content_sha256"
+                                                     ]
+                      },
+                      {
+                          "contract_id":  "review_report.content",
+                          "object_kind":  "review_report",
+                          "schema_file":  "review-report.schema.json",
+                          "instance_pointer":  "",
+                          "digest_location":  {
+                                                  "kind":  "embedded",
+                                                  "json_pointer":  "/content_sha256"
+                                              },
+                          "construction":  "rfc8785_sha256",
+                          "payload_pointer":  "",
+                          "excluded_json_pointers":  [
+                                                         "/content_sha256"
+                                                     ]
+                      },
+                      {
+                          "contract_id":  "theory_record.content",
+                          "object_kind":  "theory_record",
+                          "schema_file":  "theory-record.schema.json",
+                          "instance_pointer":  "",
+                          "digest_location":  {
+                                                  "kind":  "embedded",
+                                                  "json_pointer":  "/content_sha256"
+                                              },
+                          "construction":  "rfc8785_sha256",
+                          "payload_pointer":  "",
+                          "excluded_json_pointers":  [
+                                                         "/content_sha256"
+                                                     ]
+                      },
+                      {
                           "contract_id":  "run_cancellation_command.content",
                           "object_kind":  "run_cancellation_command",
                           "schema_file":  "run-cancellation-command.schema.json",

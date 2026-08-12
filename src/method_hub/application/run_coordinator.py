@@ -488,24 +488,20 @@ class RunCoordinator:
             if key.endswith(".instructions")
         )
 
-        # Resolve stage+role-specific instruction overrides.
-        #
-        # We populate ``role_instructions`` ONLY when a stage-specific
-        # template file actually exists at chain levels 1-2
-        # (``<stage_id>.<role>.md`` or ``<stage_id>.md``).  The mode-level
-        # templates (levels 3-6) are handled upstream by
-        # ``_apply_default_instruction`` in service.py, which replaces
-        # empty/placeholder instruction text with the mode-level default
-        # *before* the run is sealed.
-        #
-        # If the user authored custom instruction text, it is already in
-        # ``instruction`` and we must NOT shadow it with a stage template.
-        # Stage templates only override when the user left it empty (the
-        # upstream default is the mode-level text, which is a safe base
-        # for stage+role specialization).
+        # Resolve separate mode and stage-role instruction layers. The
+        # frozen choice remains untouched. When it differs from the
+        # rendered mode default, it is researcher-authored direction and
+        # is carried verbatim as the highest scientific-priority layer
+        # inside the immutable mode and method scope.
+        mode_instruction = instruction
+        researcher_instruction = ""
         role_instructions: dict[str, str] = {}
         try:
-            from .default_instructions import stage_template_exists, load_instruction
+            from .default_instructions import (
+                load_mode_instruction,
+                load_stage_instruction,
+                stage_template_exists,
+            )
             from .repository_views import row_json
 
             mode = plan.mode_id
@@ -517,15 +513,20 @@ class RunCoordinator:
             brief_payload = row_json(brief_row) if brief_row is not None else None
 
             if brief_payload is not None:
+                mode_instruction = load_mode_instruction(mode, brief_payload)
+                if instruction != mode_instruction:
+                    researcher_instruction = instruction
                 for stage in plan.stages:
                     for step in stage.role_steps:
                         role = step.role
                         stage_id = stage.stage_id
                         if stage_template_exists(mode, role, stage_id):
                             key = f"{stage_id}.{role}"
-                            role_instructions[key] = load_instruction(
-                                mode, brief_payload,
-                                role=role, stage_id=stage_id,
+                            role_instructions[key] = load_stage_instruction(
+                                mode,
+                                brief_payload,
+                                role=role,
+                                stage_id=stage_id,
                             )
         except Exception:
             logger.exception(
@@ -560,6 +561,8 @@ class RunCoordinator:
             phase_instruction=instruction,
             role_souls=souls,
             preloaded_skills=skills,
+            mode_instruction=mode_instruction,
+            researcher_instruction=researcher_instruction,
             role_instructions=role_instructions,
             researcher_method_spec=researcher_method_spec,
         )

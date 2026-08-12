@@ -59,3 +59,4 @@ Create a decision record for at least:
 - [ADR-010: Method Hub Product and Protocol Namespace](ADR-010-method-hub-namespace.md)
 - [ADR-011: Per-project Hermes Profile Memory and Session Model](ADR-011-per-project-memory-model.md)
 - [ADR-012: Trusted Local Hermes Execution for Version 1](ADR-012-trusted-local-hermes-execution.md)
+- [ADR-013: Layered Prompts and Phase-Specific Output Contracts](ADR-013-layered-prompts-and-phase-specific-output-contracts.md)

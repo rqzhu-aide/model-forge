@@ -9,10 +9,10 @@
     "artifact": {
       "artifact_id": "artifact.run_manifest.p4.001",
       "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.run_manifest.p4.001",
-      "sha256": "1a7d32137300e2faafef7359483a1186e49558b2f583f9a3840a14c3adc0efb7",
+      "sha256": "a19226f3169669019504afa43bcd29a11ffbb00a11a76c86fcef79a763a98e42",
       "media_type": "application/json"
     },
-    "manifest_sha256": "1a7d32137300e2faafef7359483a1186e49558b2f583f9a3840a14c3adc0efb7"
+    "manifest_sha256": "a19226f3169669019504afa43bcd29a11ffbb00a11a76c86fcef79a763a98e42"
   },
   "role_plan_step": {
     "sequence": 1,
@@ -120,7 +120,7 @@
       "contract_output_id": "p4.protocol",
       "output_kind": "protocol",
       "relative_path": "roles/01-data_analyst/protocol.json",
-      "schema_uri": "../schemas/scientific-record.schema.json",
+      "schema_uri": "../schemas/empirical-protocol.schema.json",
       "required": true
     },
     {
@@ -243,5 +243,5 @@
   },
   "role_write_root": "runs/P4/run.p4.preliminary.20260801t140000z/roles/01-data_analyst/",
   "started_at": "2026-08-01T14:00:05Z",
-  "start_sha256": "45bd56329f885bb05cafc4240e89e123a45196613c8481de245b304f33eb08a0"
+  "start_sha256": "0f759a514e4a88106b66616559961389f83b35d2227df3f5e326195917f7be91"
 }

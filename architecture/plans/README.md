@@ -12,11 +12,13 @@ specification or decision record before code relies on such a change.
   three moderate, three minor.
 - [Stage+Role Instruction Changes Review](stage-role-instructions-review.md) -
   review of the stage+role instruction plan and its uncommitted implementation
-  (2026-08-08, two audit rounds). P0-1 resolved (15 templates created);
-  P0-2 and P0-3 remain open.
+  (2026-08-08, two audit rounds). P0-1 and P0-2 are resolved. The related
+  P1-1, P1-2, P1-3, P2-2, P2-3, P3-1, and P3-2 findings are also addressed.
+  P0-3 and the remaining backend and frontend findings stay open.
 - [Instruction, Output-Integrity, and UI Fix Plan](instruction-output-integrity-fix-plan.md) -
-  ordered work packages FP-1 through FP-8 covering every open finding from
-  the review (2026-08-08). FP-1 and FP-2 gate further real runs.
+  active work packages FP-1 through FP-8. FP-3 is complete; FP-1, FP-4,
+  FP-5, and FP-6 are partially complete; FP-2, FP-7, and FP-8 remain open.
+  FP-2 remains the publication-integrity gate for further real runs.
 
 ## Active plans
 
@@ -31,11 +33,15 @@ specification or decision record before code relies on such a change.
   records the development baseline and research workflow that must be retained.
 - [Stage+Role Instruction Templates for P1, P3, P4, P5](stage-role-instructions-all-phases.md)
   adds stage+role-specific instruction templates matching the P2 pattern. The
-  15 template files are now created; see the review record above for the
-  remaining issues (P0-2, P0-3) outside the template scope.
+  15 template files are created. Layered composition and mode-specific P2
+  directives resolve the related routing issues; remaining non-template
+  findings stay in the active fix plan.
 
 [ADR-012](../decisions/ADR-012-trusted-local-hermes-execution.md) defines the
 boundary: Method Hub is a trusted, single-user local control plane.
+[ADR-013](../decisions/ADR-013-layered-prompts-and-phase-specific-output-contracts.md)
+defines layered prompt composition, phase-mode separation, and the dedicated
+theory, protocol, manuscript, and review output contracts.
 
 ## Completion order from the current checkpoint
 

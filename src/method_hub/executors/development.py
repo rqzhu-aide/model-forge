@@ -7,6 +7,10 @@ from pathlib import Path
 from typing import Any
 
 from ..json_io import load_json
+from .development_examples import (
+    adapt_dedicated_example,
+    load_dedicated_examples,
+)
 from .fake import DeterministicFakeExecutor
 from .protocol import RoleInvocation
 
@@ -33,6 +37,9 @@ class SchemaExampleFakeExecutor(DeterministicFakeExecutor):
             schema: load_json(example_root / filename)
             for schema, filename in _EXAMPLES.items()
         }
+        dedicated = load_dedicated_examples(example_root)
+        self._documents.update(dedicated)
+        self._dedicated_schema_files = frozenset(dedicated)
         super().__init__(self._example_output)
 
     def _example_output(self, invocation: RoleInvocation, offset: int) -> Any:
@@ -49,6 +56,12 @@ class SchemaExampleFakeExecutor(DeterministicFakeExecutor):
             raise ValueError(
                 f"No development example is registered for {schema_file!r}."
             ) from error
+        if schema_file in self._dedicated_schema_files:
+            document = adapt_dedicated_example(
+                schema_file=schema_file,
+                document=document,
+                invocation=invocation,
+            )
         application = specification["schema_application"]
         if application == "object":
             return document

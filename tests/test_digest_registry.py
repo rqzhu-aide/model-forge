@@ -52,12 +52,33 @@ def registry(schemas: SchemaCatalog) -> DigestContractRegistry:
 
 
 def test_registry_loads_every_declared_contract(registry: DigestContractRegistry) -> None:
-    assert len(registry) == 37
+    assert len(registry) == 42
     contract = registry.contract("phase_contract.content")
     assert contract.construction == "rfc8785_sha256"
     assert contract.digest_location.kind == "referenced"
     with pytest.raises(DigestContractNotFound):
         registry.contract("missing.contract")
+
+
+def test_specialized_research_outputs_have_exact_content_contracts(
+    registry: DigestContractRegistry,
+) -> None:
+    expected = {
+        "empirical_protocol.content": "empirical-protocol.schema.json",
+        "manuscript_package.content": "manuscript-package.schema.json",
+        "review_finding.content": "review-finding.schema.json",
+        "review_report.content": "review-report.schema.json",
+        "theory_record.content": "theory-record.schema.json",
+    }
+    for contract_id, schema_file in expected.items():
+        contract = registry.contract(contract_id)
+        assert contract.schema_file == schema_file
+        assert contract.instance_pointer == ""
+        assert contract.digest_location.kind == "embedded"
+        assert contract.digest_location.json_pointer == "/content_sha256"
+        assert contract.construction == "rfc8785_sha256"
+        assert contract.payload_pointer == ""
+        assert contract.excluded_json_pointers == ("/content_sha256",)
 
 
 def test_registry_mapping_is_immutable(registry: DigestContractRegistry) -> None:
@@ -254,7 +275,7 @@ def test_referenced_contract_requires_explicit_expected_digest(
     registry: DigestContractRegistry,
 ) -> None:
     phase = json.loads((CONTRACTS / "phases" / "P4.json").read_text("utf-8"))
-    expected = "839ea754487601cb96a97bf3f6a8b73ddc2ffa49d363345fd52d45ceac1edebd"
+    expected = "f0ac6e0b4e76cf94e0f3db0d0967640cd15eb7833b0faa30e9f9be9098f4723e"
     assert registry.require_match(
         "phase_contract.content", phase, expected=expected
     ) == expected

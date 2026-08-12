@@ -9,6 +9,7 @@ from method_hub.api.models import CreateProjectRequest, StartRunRequest
 from method_hub.api.ports import RawRequestBody
 from method_hub.application.bootstrap import build_service
 from method_hub.application.settings import ApplicationSettings
+from method_hub.domain import MethodIdentity as DomainMethodIdentity
 
 
 ARCHITECTURE = Path(__file__).resolve().parents[1] / "architecture"
@@ -253,6 +254,7 @@ def test_fake_pipeline_requires_explicit_runs_and_parallel_phase_completion(
         assert len(methods) == 1
         method = methods[0]
         method_choice = method.identity.model_dump()
+        selected_method = DomainMethodIdentity.from_dict(method_choice)
         method_id = method.identity.stable_id
 
         phase_three = await service.get_phase_view(
@@ -351,9 +353,42 @@ def test_fake_pipeline_requires_explicit_runs_and_parallel_phase_completion(
             method_id=method_id,
         )
         assert phase_five_run.publication_receipt is not None
+        current_manuscript = service.queries.current_record(
+            project_id=project.project_id,
+            record_type="manuscript",
+            method_identity=selected_method,
+            match_policy="same_stable_method",
+        )
+        assert current_manuscript is not None
+        assert current_manuscript.method_identity == selected_method
+
+        phase_five_review = await service.get_phase_view(
+            project.project_id,
+            "P5",
+            mode="p5.review_revision",
+            method_id=method_id,
+        )
+        review_action = next(
+            item
+            for item in phase_five_review.actions
+            if item.action_type == "start_run"
+        )
+        assert review_action.enabled is True
+        phase_five_review_run = await launch(
+            phase="P5",
+            mode="p5.review_revision",
+            choices={
+                "p5.selected_method": method_choice,
+                "p5.instructions": "Review and revise the current manuscript.",
+                "p5.selected_history": [],
+            },
+            key="start-full-p5-review",
+            method_id=method_id,
+        )
+        assert phase_five_review_run.publication_receipt is not None
         assert [
             item.phase
             for item in await service.list_runs(project.project_id, phase=None)
-        ] == ["P5", "P3", "P4", "P2", "P1", "P1"]
+        ] == ["P5", "P5", "P3", "P4", "P2", "P1", "P1"]
 
     asyncio.run(scenario())

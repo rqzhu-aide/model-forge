@@ -324,7 +324,7 @@
                                           "data_analyst",
                                           "outside_reviewer"
                                       ],
-                            "objective":  "Audit one immutable manuscript snapshot from mathematical, empirical, reproducibility, novelty, significance, validity, and reader perspectives.",
+                            "objective":  "Audit one immutable manuscript snapshot from mathematical, empirical, reproducibility, theory-to-implementation, novelty, significance, validity, and reader perspectives.",
                             "reads":  [
 
                                       ],
@@ -334,7 +334,7 @@
                                            "p5.outside_review"
                                        ],
                             "handoff_required":  true,
-                            "isolation_rule":  "The outside reviewer sees its frozen review packet but never specialist audits, internal deliberation, or later role output.",
+                            "isolation_rule":  "The outside reviewer receives only its frozen review packet as project-specific context and never specialist audits, internal deliberation, or later role output. Controlled public scholarly search remains allowed and must be reported.",
                             "role_reads":  [
                                                {
                                                    "role":  "theorist",
@@ -343,6 +343,7 @@
                                                                      "p5.current_manuscript",
                                                                      "p5.method",
                                                                      "p5.theory",
+                                                                     "p5.implementation_record",
                                                                      "p5.literature_synthesis"
                                                                  ]
                                                },
@@ -352,6 +353,7 @@
                                                                      "p5.review_packet",
                                                                      "p5.current_manuscript",
                                                                      "p5.method",
+                                                                     "p5.theory",
                                                                      "p5.empirical_index",
                                                                      "p5.empirical",
                                                                      "p5.implementation_record",
@@ -376,7 +378,7 @@
                             "roles":  [
                                           "research_lead"
                                       ],
-                            "objective":  "Receive all fixed reviews together, disposition every stable issue, and revise the complete manuscript against the exact current basis.",
+                            "objective":  "Receive all fixed parallel review outputs together, convert every open finding into a dispositioned issue, and revise the complete manuscript artifact against the exact current basis.",
                             "reads":  [
                                           "p5.project_brief",
                                           "p5.literature_library",
@@ -414,8 +416,8 @@
                                   "output_kind":  "publication_package",
                                   "producer":  "research_lead",
                                   "schema_application":  "object",
-                                  "schema_uri":  "architecture/schemas/scientific-record.schema.json",
-                                  "purpose":  "Provide one complete readable manuscript bound to the exact current upstream basis.",
+                                  "schema_uri":  "architecture/schemas/manuscript-package.schema.json",
+                                  "purpose":  "Provide one complete readable manuscript artifact and its package metadata, bound to the exact current upstream basis and a P1-P4 claim-support taxonomy.",
                                   "required":  true,
                                   "requirement":  "always"
                               },
@@ -510,8 +512,8 @@
                                   "output_kind":  "audit",
                                   "producer":  "theorist",
                                   "schema_application":  "each_item",
-                                  "schema_uri":  "architecture/schemas/review-issue.schema.json",
-                                  "purpose":  "Audit mathematical fidelity and proof reporting in review-revision mode.",
+                                  "schema_uri":  "architecture/schemas/review-finding.schema.json",
+                                  "purpose":  "Provide open mathematical and theory-to-implementation findings from the frozen manuscript, without lead dispositions.",
                                   "required":  false,
                                   "requirement":  "required_in_modes",
                                   "required_in_modes":  [
@@ -523,8 +525,8 @@
                                   "output_kind":  "audit",
                                   "producer":  "data_analyst",
                                   "schema_application":  "each_item",
-                                  "schema_uri":  "architecture/schemas/review-issue.schema.json",
-                                  "purpose":  "Audit implementation, evidence, reproducibility, and statistical interpretation in review-revision mode.",
+                                  "schema_uri":  "architecture/schemas/review-finding.schema.json",
+                                  "purpose":  "Provide open implementation, evidence, reproducibility, statistical-interpretation, and implementation-to-theory findings from the frozen manuscript.",
                                   "required":  false,
                                   "requirement":  "required_in_modes",
                                   "required_in_modes":  [
@@ -535,9 +537,9 @@
                                   "output_id":  "p5.outside_review",
                                   "output_kind":  "audit",
                                   "producer":  "outside_reviewer",
-                                  "schema_application":  "each_item",
-                                  "schema_uri":  "architecture/schemas/review-issue.schema.json",
-                                  "purpose":  "Provide an independent first-time-reader review from the frozen reviewer packet.",
+                                  "schema_application":  "object",
+                                  "schema_uri":  "architecture/schemas/review-report.schema.json",
+                                  "purpose":  "Provide an independent first-time-reader report with scope, missing materials, assessment, strengths, prioritized open findings, novelty-search boundary, and evidence that could change the assessment.",
                                   "required":  false,
                                   "requirement":  "required_in_modes",
                                   "required_in_modes":  [

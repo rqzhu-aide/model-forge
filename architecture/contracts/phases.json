@@ -1118,7 +1118,7 @@
         {
           "mode_id": "p3.theory_establishment",
           "label": "Establish theory",
-          "purpose": "Establish the complete theoretical foundation: define assumptions, prove or disprove central claims, identify convergence and limitations.",
+          "purpose": "Establish a complete theory account for the authorized scope: identify the method class and formal target, select only scientifically applicable properties, state assumptions, and prove, refute, or leave explicit obligations for the central claims.",
           "requires_method": true,
           "entry_conditions": [
             "The project brief, Phase 1 basis, and Phase 2 catalog are current.",
@@ -1136,12 +1136,12 @@
         {
           "mode_id": "p3.theory_revision",
           "label": "Revise theory",
-          "purpose": "Revise or strengthen the established theory: mend proof gaps, explore stronger claims, address audit findings, or extend results.",
+          "purpose": "Revise the current theory statement by statement: repair gaps where possible and weaken, narrow, condition, or retract claims when that is the more defensible result.",
           "requires_method": true,
           "entry_conditions": [
             "The project brief, Phase 1 basis, and Phase 2 catalog are current.",
             "The selected method is active and current.",
-            "A complete formal current theory record exists from a prior establishment run."
+            "A complete formal current theory record exists for the exact selected method identity."
           ],
           "required_choice_ids": [
             "p3.selected_method",
@@ -1232,7 +1232,7 @@
           "publication_required": "formal",
           "position_required": "current",
           "method_match": "exact",
-          "purpose": "Provide the established theory record that the revision refines. Required for theory revision mode.",
+          "purpose": "Provide the exact current theory generation that revision mode compares, repairs, weakens, or replaces statement by statement.",
           "condition": "Required for theory revision mode.",
           "presence": "required_in_modes",
           "required_in_modes": [
@@ -1290,7 +1290,7 @@
           "roles": [
             "theorist"
           ],
-          "objective": "Construct the complete theory and assess assumptions, results, proofs, counterexamples, limitations, and open obligations.",
+          "objective": "Follow the selected establishment or revision mode, construct a complete scoped theory record, and register assumptions, exact statements, proof support or counterexamples or open obligations, dependencies, limitations, and empirical implications.",
           "reads": [
             "p3.project_brief",
             "p3.literature_synthesis",
@@ -1317,7 +1317,7 @@
           "roles": [
             "data_analyst"
           ],
-          "objective": "Challenge identifiability, operational meaning, computation, empirical testability, boundary cases, and consistency with available evidence.",
+          "objective": "Challenge identifiability, operational meaning, computation, empirical testability, boundary cases, evidence consistency, and any unjustified status inflation or untracked weakening or retraction in revision mode.",
           "reads": [
             "p3.method",
             "p3.theory_candidate",
@@ -1343,7 +1343,7 @@
           "roles": [
             "research_lead"
           ],
-          "objective": "Integrate the theory and audit, resolve or expose disagreement, and state the current outcome and user-relevant changes.",
+          "objective": "Integrate the theory and audit without introducing unaudited formal content, resolve or expose disagreement, preserve all statement statuses and revision changes, and state the current outcome and user-relevant changes.",
           "reads": [
             "p3.project_brief",
             "p3.literature_synthesis",
@@ -1372,8 +1372,8 @@
           "output_kind": "primary_artifact",
           "producer": "theorist",
           "schema_application": "object",
-          "schema_uri": "architecture/schemas/scientific-record.schema.json",
-          "purpose": "Provide a complete readable theory manuscript rather than a patch.",
+          "schema_uri": "architecture/schemas/theory-record.schema.json",
+          "purpose": "Provide a complete readable primary theory artifact and structured statement-level theory record rather than a patch.",
           "required": true,
           "requirement": "always"
         },
@@ -1402,8 +1402,8 @@
           "output_kind": "scientific_record",
           "producer": "research_lead",
           "schema_application": "object",
-          "schema_uri": "architecture/schemas/scientific-record.schema.json",
-          "purpose": "Provide the complete candidate theory record with statements, dependencies, limitations, and issue dispositions.",
+          "schema_uri": "architecture/schemas/theory-record.schema.json",
+          "purpose": "Provide the complete candidate theory record with a primary artifact, exact statements, quantifiers and regimes, assumptions, proof or counterexample or obligation support, dependencies, empirical implications, limitations, revision accounting, and issue dispositions.",
           "required": true,
           "requirement": "always"
         },
@@ -1686,12 +1686,11 @@
         {
           "mode_id": "p4.comprehensive",
           "label": "Comprehensive",
-          "purpose": "Run a prespecified full evaluation with comparisons, sensitivity analyses, and robustness checks. Builds on validated preliminary implementation and evidence.",
+          "purpose": "Run a self-contained prespecified full evaluation with claim-linked comparisons, sensitivity analyses, robustness checks, and uncertainty assessment. Reuse prior code only when an exact current implementation exists and passes recorded verification checks.",
           "requires_method": true,
           "entry_conditions": [
             "The project brief, Phase 1 basis, and Phase 2 catalog are current.",
-            "The selected method is active and current.",
-            "A complete formal current preliminary evidence record exists from a prior preliminary run."
+            "The selected method is active and current."
           ],
           "required_choice_ids": [
             "p4.selected_method",
@@ -1792,7 +1791,7 @@
           "publication_required": "formal",
           "position_required": "current",
           "method_match": "exact",
-          "purpose": "Provide the exact current code, environment, and configuration identity that a rerun must verify or replace.",
+          "purpose": "Provide prior exact-method code, environment, and configuration when they exist. A run may reuse them only after recording digest, invariant, and fidelity checks; otherwise it replaces them.",
           "condition": "Required on reruns for the same exact identity and absent on the first run.",
           "presence": "required_on_rerun"
         },
@@ -1805,32 +1804,6 @@
           "purpose": "Expose assumptions, empirical implications, and boundary cases.",
           "condition": "Included when an exactly aligned Phase 3 record exists; Phase 3 is not a prerequisite.",
           "presence": "if_exists"
-        },
-        {
-          "input_id": "p4.prior_implementation",
-          "record_type": "implementation_record",
-          "publication_required": "formal",
-          "position_required": "current",
-          "method_match": "exact",
-          "purpose": "Provide the validated code and environment identity from the preliminary run.",
-          "condition": "Required for comprehensive mode.",
-          "presence": "required_in_modes",
-          "required_in_modes": [
-            "p4.comprehensive"
-          ]
-        },
-        {
-          "input_id": "p4.prior_evidence",
-          "record_type": "empirical_synthesis",
-          "publication_required": "formal",
-          "position_required": "current",
-          "method_match": "exact",
-          "purpose": "Provide the preliminary evidence and conclusions that the comprehensive run extends.",
-          "condition": "Required for comprehensive mode.",
-          "presence": "required_in_modes",
-          "required_in_modes": [
-            "p4.comprehensive"
-          ]
         }
       ],
       "prepared_contexts": [],
@@ -1853,7 +1826,7 @@
           "roles": [
             "data_analyst"
           ],
-          "objective": "Specify the protocol, verify exact implementation, execute the authorized scope, and produce reproducible evidence and synthesis.",
+          "objective": "Apply the selected preliminary or comprehensive scope, finalize a claim-linked empirical protocol before inspecting outcomes, verify the exact implementation, execute only that protocol, append deviations without rewriting it, and produce reproducible evidence and synthesis.",
           "reads": [
             "p4.project_brief",
             "p4.literature_synthesis",
@@ -1862,9 +1835,7 @@
             "p4.current_evidence_index",
             "p4.current_empirical",
             "p4.current_implementation",
-            "p4.current_theory",
-            "p4.prior_implementation",
-            "p4.prior_evidence"
+            "p4.current_theory"
           ],
           "writes": [
             "p4.protocol",
@@ -1885,7 +1856,7 @@
           "roles": [
             "theorist"
           ],
-          "objective": "Audit mathematical fidelity, definition-to-code correspondence, comparisons, interpretation, and consistency with available theory.",
+          "objective": "Audit mathematical fidelity, definition-to-code correspondence, protocol adherence, scope-appropriate comparisons and thresholds, interpretation, deviations, and consistency with available theory.",
           "reads": [
             "p4.method",
             "p4.protocol",
@@ -1911,7 +1882,7 @@
           "roles": [
             "research_lead"
           ],
-          "objective": "Integrate evidence and fidelity findings, retain applicable evidence, and state the scientific outcome and user-relevant changes.",
+          "objective": "Integrate evidence and fidelity findings without creating unaudited results, retain only applicable evidence, preserve protocol deviations and unresolved disagreement, and state a scope-calibrated scientific outcome and user-relevant changes.",
           "reads": [
             "p4.project_brief",
             "p4.literature_synthesis",
@@ -1944,8 +1915,8 @@
           "output_kind": "protocol",
           "producer": "data_analyst",
           "schema_application": "object",
-          "schema_uri": "architecture/schemas/scientific-record.schema.json",
-          "purpose": "Prespecify design, metrics, comparisons, diagnostics, and uncertainty analysis for the selected scope.",
+          "schema_uri": "architecture/schemas/empirical-protocol.schema.json",
+          "purpose": "Prespecify claim-to-test links, estimand, data or simulation unit, baselines, implementation strategy, tuning budget, metrics, repetitions and uncertainty, multiplicity, stopping, leakage checks, decision thresholds, and append-only deviations for the selected scope.",
           "required": true,
           "requirement": "always"
         },
@@ -2073,7 +2044,7 @@
           "validator_id": "p4.scope_completeness",
           "category": "scientific_completeness",
           "severity": "blocking",
-          "description": "Outputs satisfy the declared preliminary or comprehensive protocol without inferring scope from chronology."
+          "description": "Outputs satisfy the declared preliminary or comprehensive scientific scope, its prespecified claim-linked protocol, thresholds, and recorded deviations without inferring scope from chronology."
         },
         {
           "validator_id": "p4.evidence_applicability",
@@ -2624,7 +2595,7 @@
             "data_analyst",
             "outside_reviewer"
           ],
-          "objective": "Audit one immutable manuscript snapshot from mathematical, empirical, reproducibility, novelty, significance, validity, and reader perspectives.",
+          "objective": "Audit one immutable manuscript snapshot from mathematical, empirical, reproducibility, theory-to-implementation, novelty, significance, validity, and reader perspectives.",
           "reads": [],
           "writes": [
             "p5.theory_audit",
@@ -2632,7 +2603,7 @@
             "p5.outside_review"
           ],
           "handoff_required": true,
-          "isolation_rule": "The outside reviewer sees its frozen review packet but never specialist audits, internal deliberation, or later role output.",
+          "isolation_rule": "The outside reviewer receives only its frozen review packet as project-specific context and never specialist audits, internal deliberation, or later role output. Controlled public scholarly search remains allowed and must be reported.",
           "role_reads": [
             {
               "role": "theorist",
@@ -2641,6 +2612,7 @@
                 "p5.current_manuscript",
                 "p5.method",
                 "p5.theory",
+                "p5.implementation_record",
                 "p5.literature_synthesis"
               ]
             },
@@ -2650,6 +2622,7 @@
                 "p5.review_packet",
                 "p5.current_manuscript",
                 "p5.method",
+                "p5.theory",
                 "p5.empirical_index",
                 "p5.empirical",
                 "p5.implementation_record",
@@ -2674,7 +2647,7 @@
           "roles": [
             "research_lead"
           ],
-          "objective": "Receive all fixed reviews together, disposition every stable issue, and revise the complete manuscript against the exact current basis.",
+          "objective": "Receive all fixed parallel review outputs together, convert every open finding into a dispositioned issue, and revise the complete manuscript artifact against the exact current basis.",
           "reads": [
             "p5.project_brief",
             "p5.literature_library",
@@ -2712,8 +2685,8 @@
           "output_kind": "publication_package",
           "producer": "research_lead",
           "schema_application": "object",
-          "schema_uri": "architecture/schemas/scientific-record.schema.json",
-          "purpose": "Provide one complete readable manuscript bound to the exact current upstream basis.",
+          "schema_uri": "architecture/schemas/manuscript-package.schema.json",
+          "purpose": "Provide one complete readable manuscript artifact and its package metadata, bound to the exact current upstream basis and a P1-P4 claim-support taxonomy.",
           "required": true,
           "requirement": "always"
         },
@@ -2808,8 +2781,8 @@
           "output_kind": "audit",
           "producer": "theorist",
           "schema_application": "each_item",
-          "schema_uri": "architecture/schemas/review-issue.schema.json",
-          "purpose": "Audit mathematical fidelity and proof reporting in review-revision mode.",
+          "schema_uri": "architecture/schemas/review-finding.schema.json",
+          "purpose": "Provide open mathematical and theory-to-implementation findings from the frozen manuscript, without lead dispositions.",
           "required": false,
           "requirement": "required_in_modes",
           "required_in_modes": [
@@ -2821,8 +2794,8 @@
           "output_kind": "audit",
           "producer": "data_analyst",
           "schema_application": "each_item",
-          "schema_uri": "architecture/schemas/review-issue.schema.json",
-          "purpose": "Audit implementation, evidence, reproducibility, and statistical interpretation in review-revision mode.",
+          "schema_uri": "architecture/schemas/review-finding.schema.json",
+          "purpose": "Provide open implementation, evidence, reproducibility, statistical-interpretation, and implementation-to-theory findings from the frozen manuscript.",
           "required": false,
           "requirement": "required_in_modes",
           "required_in_modes": [
@@ -2833,9 +2806,9 @@
           "output_id": "p5.outside_review",
           "output_kind": "audit",
           "producer": "outside_reviewer",
-          "schema_application": "each_item",
-          "schema_uri": "architecture/schemas/review-issue.schema.json",
-          "purpose": "Provide an independent first-time-reader review from the frozen reviewer packet.",
+          "schema_application": "object",
+          "schema_uri": "architecture/schemas/review-report.schema.json",
+          "purpose": "Provide an independent first-time-reader report with scope, missing materials, assessment, strengths, prioritized open findings, novelty-search boundary, and evidence that could change the assessment.",
           "required": false,
           "requirement": "required_in_modes",
           "required_in_modes": [

@@ -70,7 +70,7 @@ Read the files in this order:
 5. [UI contract](04-ui-contract.md) defines how formal records and user commands are projected into the Web interface.
 6. `phases/` defines the scientific and operational contract for Phases 1 through 5.
 7. `contracts/` contains the executable phase registry, deterministic digest registry, and invariant-to-test traceability registry used by adapters and validators.
-8. `schemas/` contains 37 machine-validatable schemas, while `examples/` contains 58 valid examples and 16 focused invalid fixtures.
+8. `schemas/` contains 42 machine-validatable schemas, while `examples/` contains 58 valid examples and 16 focused invalid fixtures.
 9. `scenarios/` defines 12 end-to-end acceptance cases, including failures, method changes, control commands, and [S12 disjoint concurrent publication](scenarios/S12-disjoint-concurrent-publication.md).
 10. [Validation strategy](05-validation-strategy.md) defines how conformance is proved without treating software checks as scientific judgment.
 11. [Implementation roadmap](06-implementation-roadmap.md) gives the required build order and definition of done.

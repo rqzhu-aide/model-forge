@@ -134,6 +134,33 @@ def _replace_binding(
     }
 
 
+def _bundle_binding() -> dict[str, object]:
+    return {
+        "binding_id": "p5.publish_manuscript",
+        "applicable_modes": ["p5.assembly"],
+        "operation": "bundle",
+        "output_ids": ["p5.manuscript_candidate", "p5.claim_traceability"],
+        "components": [
+            {
+                "component_name": "manuscript",
+                "output_id": "p5.manuscript_candidate",
+            },
+            {
+                "component_name": "claim_traceability",
+                "output_id": "p5.claim_traceability",
+            },
+        ],
+        "target": {
+            "kind": "current_slot",
+            "slot_id": "p5.manuscript.current",
+            "record_type": "manuscript",
+        },
+        "prior_target_policy": "absent_or_match_current",
+        "publisher_transform": "deterministic_bundle",
+        "may_create_scientific_content": False,
+    }
+
+
 def test_append_and_replace_publish_atomically_without_changing_run_status(
     tmp_path: Path,
 ) -> None:
@@ -272,30 +299,7 @@ def test_method_bound_bundle_requires_explicit_scope_and_preserves_components(
         manuscript.contract_output_id: manuscript,
         trace.contract_output_id: trace,
     }
-    binding = {
-        "binding_id": "p5.publish_manuscript",
-        "applicable_modes": ["p5.assembly"],
-        "operation": "bundle",
-        "output_ids": ["p5.manuscript_candidate", "p5.claim_traceability"],
-        "components": [
-            {
-                "component_name": "manuscript",
-                "output_id": "p5.manuscript_candidate",
-            },
-            {
-                "component_name": "claim_traceability",
-                "output_id": "p5.claim_traceability",
-            },
-        ],
-        "target": {
-            "kind": "current_slot",
-            "slot_id": "p5.manuscript.current",
-            "record_type": "manuscript",
-        },
-        "prior_target_policy": "absent_or_match_current",
-        "publisher_transform": "deterministic_bundle",
-        "may_create_scientific_content": False,
-    }
+    binding = _bundle_binding()
     service = ContractPublicationService(repository)
     with pytest.raises(PublicationError) as missing_scope:
         service.publish(
@@ -330,6 +334,100 @@ def test_method_bound_bundle_requires_explicit_scope_and_preserves_components(
         "claim_traceability",
     ]
     assert bundle["components"][0]["document"] == manuscript.document
+    assert "method_identity" not in bundle
+
+
+def test_bundle_propagates_identity_and_rejects_conflicting_components(
+    tmp_path: Path,
+) -> None:
+    identity = {
+        "stable_id": "method.alpha",
+        "version": 1,
+        "definition_sha256": "a" * 64,
+    }
+    slot = "methods/method.alpha/v1/p5.manuscript.current"
+    repository = _repository(tmp_path)
+    run_id, command_id = _run(repository, "bundle_identity")
+    manuscript = _output(
+        repository,
+        "p5.manuscript_candidate",
+        {
+            "title": "A method manuscript",
+            "method_identity": identity,
+        },
+    )
+    trace = _output(
+        repository,
+        "p5.claim_traceability",
+        {"claims": ["claim.one"]},
+    )
+    result = ContractPublicationService(repository).publish(
+        project_id="project.publication",
+        run_id=run_id,
+        command_id=command_id,
+        bindings=[_bundle_binding()],
+        outputs={
+            manuscript.contract_output_id: manuscript,
+            trace.contract_output_id: trace,
+        },
+        expected_head=FrozenPublicationHead(0, ZERO_SHA256, 0, {slot: None}),
+        published_at=NOW,
+        slot_scope_prefix="methods/method.alpha/v1",
+    )
+    assert set(result.current_slots) == {slot}
+    current = repository.get_current_record("project.publication", slot)
+    assert current is not None
+    assert json.loads(current["payload_json"])["method_identity"] == identity
+
+    conflict_root = tmp_path / "conflict"
+    conflict_root.mkdir()
+    conflict_repository = _repository(conflict_root)
+    conflict_run_id, conflict_command_id = _run(
+        conflict_repository,
+        "bundle_identity_conflict",
+    )
+    conflict_manuscript = _output(
+        conflict_repository,
+        "p5.manuscript_candidate",
+        {
+            "title": "A method manuscript",
+            "method_identity": identity,
+        },
+    )
+    conflict_trace = _output(
+        conflict_repository,
+        "p5.claim_traceability",
+        {
+            "claims": ["claim.one"],
+            "method_identity": {
+                **identity,
+                "definition_sha256": "b" * 64,
+            },
+        },
+    )
+    with pytest.raises(PublicationError) as conflicting:
+        ContractPublicationService(conflict_repository).publish(
+            project_id="project.publication",
+            run_id=conflict_run_id,
+            command_id=conflict_command_id,
+            bindings=[_bundle_binding()],
+            outputs={
+                conflict_manuscript.contract_output_id: conflict_manuscript,
+                conflict_trace.contract_output_id: conflict_trace,
+            },
+            expected_head=FrozenPublicationHead(
+                0,
+                ZERO_SHA256,
+                0,
+                {slot: None},
+            ),
+            published_at=NOW,
+            slot_scope_prefix="methods/method.alpha/v1",
+        )
+    assert conflicting.value.code == "publication.conflicting_bundle_method_identity"
+    assert conflict_repository.get_project("project.publication")[
+        "authority_sequence"
+    ] == 0
 
 
 def test_deterministic_index_requires_exact_prepared_transform_basis(

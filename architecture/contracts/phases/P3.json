@@ -49,7 +49,7 @@
                       {
                           "mode_id":  "p3.theory_establishment",
                           "label":  "Establish theory",
-                          "purpose":  "Establish the complete theoretical foundation: define assumptions, prove or disprove central claims, identify convergence and limitations.",
+                          "purpose":  "Establish a complete theory account for the authorized scope: identify the method class and formal target, select only scientifically applicable properties, state assumptions, and prove, refute, or leave explicit obligations for the central claims.",
                           "requires_method":  true,
                           "entry_conditions":  [
                                                    "The project brief, Phase 1 basis, and Phase 2 catalog are current.",
@@ -67,12 +67,12 @@
                       {
                           "mode_id":  "p3.theory_revision",
                           "label":  "Revise theory",
-                          "purpose":  "Revise or strengthen the established theory: mend proof gaps, explore stronger claims, address audit findings, or extend results.",
+                          "purpose":  "Revise the current theory statement by statement: repair gaps where possible and weaken, narrow, condition, or retract claims when that is the more defensible result.",
                           "requires_method":  true,
                           "entry_conditions":  [
                                                    "The project brief, Phase 1 basis, and Phase 2 catalog are current.",
                                                    "The selected method is active and current.",
-                                                   "A complete formal current theory record exists from a prior establishment run."
+                                                   "A complete formal current theory record exists for the exact selected method identity."
                                                ],
                           "required_choice_ids":  [
                                                       "p3.selected_method",
@@ -163,7 +163,7 @@
                                 "publication_required":  "formal",
                                 "position_required":  "current",
                                 "method_match":  "exact",
-                                "purpose":  "Provide the established theory record that the revision refines. Required for theory revision mode.",
+                                "purpose":  "Provide the exact current theory generation that revision mode compares, repairs, weakens, or replaces statement by statement.",
                                 "condition":  "Required for theory revision mode.",
                                 "presence":  "required_in_modes",
                                 "required_in_modes":  [
@@ -223,7 +223,7 @@
                             "roles":  [
                                           "theorist"
                                       ],
-                            "objective":  "Construct the complete theory and assess assumptions, results, proofs, counterexamples, limitations, and open obligations.",
+                            "objective":  "Follow the selected establishment or revision mode, construct a complete scoped theory record, and register assumptions, exact statements, proof support or counterexamples or open obligations, dependencies, limitations, and empirical implications.",
                             "reads":  [
                                           "p3.project_brief",
                                           "p3.literature_synthesis",
@@ -250,7 +250,7 @@
                             "roles":  [
                                           "data_analyst"
                                       ],
-                            "objective":  "Challenge identifiability, operational meaning, computation, empirical testability, boundary cases, and consistency with available evidence.",
+                            "objective":  "Challenge identifiability, operational meaning, computation, empirical testability, boundary cases, evidence consistency, and any unjustified status inflation or untracked weakening or retraction in revision mode.",
                             "reads":  [
                                           "p3.method",
                                           "p3.theory_candidate",
@@ -276,7 +276,7 @@
                             "roles":  [
                                           "research_lead"
                                       ],
-                            "objective":  "Integrate the theory and audit, resolve or expose disagreement, and state the current outcome and user-relevant changes.",
+                            "objective":  "Integrate the theory and audit without introducing unaudited formal content, resolve or expose disagreement, preserve all statement statuses and revision changes, and state the current outcome and user-relevant changes.",
                             "reads":  [
                                           "p3.project_brief",
                                           "p3.literature_synthesis",
@@ -305,8 +305,8 @@
                                   "output_kind":  "primary_artifact",
                                   "producer":  "theorist",
                                   "schema_application":  "object",
-                                  "schema_uri":  "architecture/schemas/scientific-record.schema.json",
-                                  "purpose":  "Provide a complete readable theory manuscript rather than a patch.",
+                                  "schema_uri":  "architecture/schemas/theory-record.schema.json",
+                                  "purpose":  "Provide a complete readable primary theory artifact and structured statement-level theory record rather than a patch.",
                                   "required":  true,
                                   "requirement":  "always"
                               },
@@ -335,8 +335,8 @@
                                   "output_kind":  "scientific_record",
                                   "producer":  "research_lead",
                                   "schema_application":  "object",
-                                  "schema_uri":  "architecture/schemas/scientific-record.schema.json",
-                                  "purpose":  "Provide the complete candidate theory record with statements, dependencies, limitations, and issue dispositions.",
+                                  "schema_uri":  "architecture/schemas/theory-record.schema.json",
+                                  "purpose":  "Provide the complete candidate theory record with a primary artifact, exact statements, quantifiers and regimes, assumptions, proof or counterexample or obligation support, dependencies, empirical implications, limitations, revision accounting, and issue dispositions.",
                                   "required":  true,
                                   "requirement":  "always"
                               },

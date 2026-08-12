@@ -17,7 +17,7 @@
       "sha256": "754adfedcb93337a98a5051644514dae0ddcd846d96726e1cd310cba083e86f1",
       "media_type": "application/json"
     },
-    "start_sha256": "45bd56329f885bb05cafc4240e89e123a45196613c8481de245b304f33eb08a0"
+    "start_sha256": "0f759a514e4a88106b66616559961389f83b35d2227df3f5e326195917f7be91"
   },
   "terminal_status": "succeeded",
   "context_snapshot_binding": {
@@ -50,7 +50,7 @@
       "output_id": "output.protocol",
       "contract_output_id": "p4.protocol",
       "output_kind": "protocol",
-      "schema_uri": "../schemas/scientific-record.schema.json",
+      "schema_uri": "../schemas/empirical-protocol.schema.json",
       "source_artifact": {
         "artifact_id": "artifact.p4.protocol.source.001",
         "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.protocol.source.001",
@@ -154,5 +154,5 @@
     }
   ],
   "closed_at": "2026-08-01T14:55:12Z",
-  "closure_sha256": "9dfd98d6ddbd552403331b9e1e58e3b035f7d4e402fecdf429c4beda3ef8fbe4"
+  "closure_sha256": "139f42a2ae38dcc99cd62e2f3c926959e52d7ebab2160515eb554bcf95d0c285"
 }

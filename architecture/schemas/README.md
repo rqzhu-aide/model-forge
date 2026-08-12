@@ -11,6 +11,8 @@ not automatically scientifically correct, aligned, current, or publishable.
 
 ## Schema inventory
 
+The current inventory contains 42 schemas.
+
 | Schema | Object |
 |---|---|
 | `common-definitions.schema.json` | Shared IDs, exact method identity, states, artifact pointers, alignment, attention, and outcome definitions |
@@ -39,11 +41,16 @@ not automatically scientifically correct, aligned, current, or publishable.
 | `method.schema.json` | Immutable method generation with research-run or lifecycle-command lineage |
 | `literature-source.schema.json` | Immutable cumulative literature identity and search provenance |
 | `scientific-record.schema.json` | Immutable run-local candidate or formal scientific generation |
+| `theory-record.schema.json` | Complete Phase 3 theory account with a readable primary artifact, explicit assumptions, statement-level support and status, dependencies, empirical implications, limitations, and revision provenance |
+| `empirical-protocol.schema.json` | Prespecified Phase 4 protocol whose preliminary or comprehensive scope is independent of chronology and whose deviations are append-only |
+| `manuscript-package.schema.json` | Complete Phase 5 manuscript package with a readable primary artifact and a P1 through P4 claim-support index |
 | `statement.schema.json` | Immutable addressable scientific statement generation |
 | `evidence.schema.json` | Immutable evidence item and creation-time exact-method applicability |
 | `attention-item.schema.json` | Immutable version of a research question or defect requiring attention |
 | `handoff.schema.json` | Immutable run-local communication between roles |
 | `decision-record.schema.json` | Immutable lead synthesis for a user decision |
+| `review-finding.schema.json` | Open evidence-grounded finding raised by a frozen Phase 5 parallel review, without a lead disposition |
+| `review-report.schema.json` | Bounded outside-review report with prioritized open findings and an explicit novelty-search boundary |
 | `review-issue.schema.json` | Immutable Phase 5 review issue and disposition generation |
 | `publication-receipt.schema.json` | Atomic proof of one research-run or control-command transaction |
 | `authority-event.schema.json` | Append-only change to derived publication, position, alignment, attention, or eligibility state |

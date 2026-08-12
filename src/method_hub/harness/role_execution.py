@@ -547,7 +547,10 @@ def _collect_nested_timestamps(schema: dict[str, Any], found: set[str]) -> None:
         sub_props = obj_def.get("properties", {})
         if isinstance(sub_props, dict):
             for key, sub_def in sub_props.items():
-                if isinstance(key, str) and any(
+                # A search timestamp attests that an external search occurred.
+                # It is scientific provenance, not a mechanical write-time
+                # default, so the harness must require the producer to state it.
+                if key != "searched_at" and isinstance(key, str) and any(
                     key.endswith(s) for s in _TS_SUFFIXES
                 ):
                     found.add(key)
@@ -812,13 +815,14 @@ class RoleLifecycleService:
         task_root = self.workspace.ensure_directory(task_relative)
         task_path = self.workspace.for_write(f"{task_relative}/task.md")
 
-        # Prefer stage+role-specific instruction if available;
-        # otherwise fall back to the shared phase_instruction.
-        role_instruction = ""
+        # Keep the frozen mode, stage-role, and researcher directions as
+        # separate layers. The task renderer establishes their priority.
+        stage_role_instruction = ""
         if self.context.role_instructions:
             stage_role_key = f"{stage.stage_id}.{role}"
-            role_instruction = self.context.role_instructions.get(stage_role_key, "")
-        effective_instruction = role_instruction or self.context.phase_instruction
+            stage_role_instruction = self.context.role_instructions.get(
+                stage_role_key, ""
+            )
 
         brief_plan = self._brief_plan(stage, role)
         task_text = render_task_brief(
@@ -829,7 +833,10 @@ class RoleLifecycleService:
             role=role,
             input_paths={key: str(item.path) for key, item in inputs.items()},
             output_plan=self.context.output_plan,
-            phase_instruction=effective_instruction,
+            phase_instruction=self.context.phase_instruction,
+            mode_instruction=self.context.mode_instruction,
+            stage_role_instruction=stage_role_instruction,
+            researcher_instruction=self.context.researcher_instruction,
             scientific_stance=self.context.role_souls[role],
             same_group_roles=stage.roles,
             schema_catalog=self.schemas,

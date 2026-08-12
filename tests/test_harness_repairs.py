@@ -256,6 +256,14 @@ def test_schema_info_collects_nested_required() -> None:
     assert "method_match" in nested or "code_artifacts" in nested
 
 
+def test_schema_info_does_not_fabricate_search_provenance() -> None:
+    """Search occurrence time must be supplied by the producer, not repaired."""
+    from method_hub.harness.role_execution import _schema_info
+
+    info = _schema_info("review-report.schema.json")
+    assert "searched_at" not in info["nested_timestamps"]
+
+
 def test_schema_info_handles_missing_file() -> None:
     """_schema_info should return empty sets for unknown schemas."""
     from method_hub.harness.role_execution import _schema_info, _empty_schema_info

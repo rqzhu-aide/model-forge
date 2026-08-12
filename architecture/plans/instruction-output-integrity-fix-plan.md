@@ -1,7 +1,8 @@
 # Fix Plan: Instruction, Output-Integrity, and UI Findings
 
-Status: Proposed work packages, ordered by severity
+Status: Active, partially implemented
 Prepared: 2026-08-08
+Reviewed: 2026-08-11
 Basis: [Stage+role instruction changes review](stage-role-instructions-review.md)
 (rounds 1 and 2). Every finding there carries file:line evidence; this plan
 only sequences the fixes. Each package is sized as one dispatchable unit.
@@ -9,6 +10,31 @@ only sequences the fixes. Each package is sized as one dispatchable unit.
 Rule for all packages: backend suite green, `validate_package.py` exit 0,
 and `npm run build` plus vitest green when the frontend is touched. Leave
 the tree uncommitted per current convention unless Tez says otherwise.
+
+## Verified progress (2026-08-11)
+
+This section marks only work demonstrated in the current tree. Unlisted work
+remains open.
+
+- FP-1 is partially complete. Layered mode, stage-role, and verbatim researcher
+  direction are implemented, and task-brief rendering has regression coverage.
+  The empty or placeholder and missing stage-role coordinator cases in FP-1.3
+  still need direct integration tests.
+- FP-2 remains open. This change set does not alter or converge output repair
+  policy.
+- FP-3 is complete. All six P2 stage-role templates render distinct directives
+  for full catalog, focused method, and researcher proposal, with regression
+  coverage.
+- FP-4 is complete. Runtime examples are generated as complete, parseable,
+  identity-neutral schema skeletons rather than truncated domain examples.
+  Regression tests cover golden-content leakage and all five dedicated schemas.
+- FP-5 is partially complete. ADR-013 records the decisions, and all four
+  role-and-file guides match the current contracts. Narrative acceptance
+  scenarios remain open.
+- FP-6 is partially complete. The instruction-loader documentation, logged
+  coordinator failure, removal of the dead instruction fallback, and template
+  inventory test are complete. FP-6.1 through FP-6.3 remain open.
+- FP-7 and FP-8 remain open.
 
 ## FP-1 (P0): Stop discarding user-authored instructions (finding P0-2)
 
@@ -128,8 +154,7 @@ the tree uncommitted per current convention unless Tez says otherwise.
 
 ## Suggested order
 
-FP-1 and FP-2 first (both change what agents are told and what gets
-published; everything else is noise until these land). FP-3 and FP-4 next
-(they change brief content, so they should precede any new real runs).
-FP-5 can proceed in parallel (docs only). FP-6 and FP-7 are independent
-sweep-ups. FP-8 needs Tez's decision before any work.
+FP-2 remains the P0 publication-integrity gate. Close the remaining FP-1 and
+FP-4 acceptance checks next. FP-3 is complete. The remaining FP-5 scenario
+and role/file guide work can proceed with the open FP-6 and FP-7 items. FP-8
+still needs Tez's decision.

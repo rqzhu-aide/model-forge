@@ -75,7 +75,7 @@ Every implementation package in this plan must preserve these rules:
 
 | Area | Current state | Remaining boundary |
 |---|---|---|
-| Architecture package | 37 schemas, 58 valid examples, 16 rejected fixtures, 5 executable phase contracts, and cross-checked role/file guides | Several runtime representations and production attestations remain incomplete |
+| Architecture package | 42 schemas, 58 valid examples, 16 rejected fixtures, 5 executable phase contracts, and cross-checked role/file guides | Several runtime representations and production attestations remain incomplete |
 | Domain and storage | Typed identities, local durable storage, run state, publication, receipts, and deterministic reducers are implemented | Production concurrency, backup, restore, upgrade, and failure-injection evidence are incomplete |
 | Harness | Preparation, sequential stage advancement, closures, submission, validation, publication, cancellation, and restart recovery work with development executors; an initial command basis is embedded | Method-bound role resources and the complete executable basis are not sealed or verified fail closed |
 | Executors | Disabled, fake, development Kanban, and initial Bubblewrap, capability, and fencing scaffolds exist | No supported rootless OCI executor, verified termination, provider-only network boundary, or durable external-job fencing |

@@ -17,9 +17,10 @@ def _resolve_ref(
     ref: str, catalog: SchemaCatalog, current_file: str = ""
 ) -> tuple[dict[str, Any], str]:
     """Resolve a ``$ref`` and return ``(resolved_schema, source_file)``."""
-    if "#" not in ref:
-        return {}, current_file
-    file_part, pointer = ref.split("#", 1)
+    if "#" in ref:
+        file_part, pointer = ref.split("#", 1)
+    else:
+        file_part, pointer = ref, ""
     if not file_part:
         file_part = current_file
     if not file_part:
@@ -27,6 +28,7 @@ def _resolve_ref(
     parts = [p for p in pointer.strip("/").split("/") if p]
     schema: Any = catalog.get(file_part)
     for part in parts:
+        part = part.replace("~1", "/").replace("~0", "~")
         if not isinstance(schema, dict) or part not in schema:
             return {}, file_part
         schema = schema[part]
@@ -250,12 +252,10 @@ def _extract_prohibited_fields(block: Any) -> set[str]:
     return fields
 
 
-def _load_schema_example(schema_file: str) -> str | None:
-    """Load a compact JSON example for a schema, if one exists.
+def _load_fixture_example(schema_file: str) -> str | None:
+    """Load a neutralized fixture only for callers without a schema catalog.
 
-    Identity-bearing fields (``*_id``, ``run_id``, ``stable_id``,
-    ``*_sha256``, timestamps) are replaced with ``<...>`` placeholders so
-    agents do not copy concrete example identities into real outputs.
+    Runtime task briefs use schema-derived skeletons instead.
     """
     from pathlib import Path as _Path
 
@@ -275,10 +275,7 @@ def _load_schema_example(schema_file: str) -> str | None:
                 # Neutralize identity-bearing fields so agents don't
                 # copy concrete example values into real outputs.
                 data = _neutralize_identities(data)
-                # For array outputs, wrap in array
                 compact = _json.dumps(data, indent=2, ensure_ascii=False)
-                if len(compact) > 1500:
-                    compact = compact[:1500] + "\n  ... (truncated)"
                 return compact
             except Exception:
                 pass
@@ -312,6 +309,313 @@ def _neutralize_identities(obj: Any) -> Any:
     if isinstance(obj, list):
         return [_neutralize_identities(item) for item in obj]
     return obj
+
+
+_STRUCTURAL_SCHEMA_KEYS = frozenset({
+    "$ref",
+    "allOf",
+    "anyOf",
+    "const",
+    "contains",
+    "enum",
+    "items",
+    "oneOf",
+    "prefixItems",
+    "properties",
+    "required",
+    "type",
+})
+_CONDITIONAL_SCHEMA_KEYS = frozenset({"if", "then", "else"})
+
+
+def _has_structure(schema: Mapping[str, Any]) -> bool:
+    return bool(_STRUCTURAL_SCHEMA_KEYS.intersection(schema))
+
+
+def _is_conditional_schema(schema: Mapping[str, Any]) -> bool:
+    return bool(_CONDITIONAL_SCHEMA_KEYS.intersection(schema))
+
+
+def _contains_literal_structure(schema: Any) -> bool:
+    """Return whether a property carries a const/enum structural cue."""
+    if not isinstance(schema, Mapping):
+        return False
+    if "const" in schema or "enum" in schema:
+        return True
+    for key in ("contains", "allOf", "anyOf", "oneOf"):
+        value = schema.get(key)
+        if isinstance(value, Mapping) and _contains_literal_structure(value):
+            return True
+        if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+            if any(_contains_literal_structure(item) for item in value):
+                return True
+    return False
+
+
+def _combine_skeletons(base: Any, overlay: Any) -> Any:
+    if base is None:
+        return overlay
+    if overlay is None:
+        return base
+    if isinstance(base, dict) and isinstance(overlay, dict):
+        combined = dict(base)
+        for key, value in overlay.items():
+            combined[key] = _combine_skeletons(combined.get(key), value)
+        return combined
+    return overlay
+
+
+def _enum_placeholder(values: Sequence[Any]) -> str:
+    rendered = [
+        value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+        for value in values
+    ]
+    return f"<one of: {' | '.join(rendered)}>"
+
+
+def _scalar_placeholder(name: str, schema: Mapping[str, Any]) -> str:
+    value_format = schema.get("format")
+    if isinstance(value_format, str) and value_format:
+        return f"<{value_format}>"
+    pattern = schema.get("pattern")
+    if pattern == "^[a-f0-9]{64}$":
+        return "<64-character hexadecimal digest>"
+    return f"<{name or 'string'}>"
+
+
+def _schema_skeleton(
+    schema: Mapping[str, Any],
+    catalog: SchemaCatalog,
+    *,
+    current_file: str,
+    field_name: str = "",
+    seen_refs: frozenset[tuple[str, str]] = frozenset(),
+    depth: int = 0,
+) -> Any:
+    """Build parseable, scientifically neutral JSON guidance from a schema."""
+    if depth > 32:
+        return f"<{field_name or 'value'}>"
+    if not isinstance(schema, Mapping):
+        return f"<{field_name or 'value'}>"
+
+    reference = schema.get("$ref")
+    if isinstance(reference, str):
+        ref_key = (current_file, reference)
+        if ref_key in seen_refs:
+            return {}
+        resolved, source_file = _resolve_ref(reference, catalog, current_file)
+        if not resolved:
+            return f"<{field_name or 'value'}>"
+        base = _schema_skeleton(
+            resolved,
+            catalog,
+            current_file=source_file,
+            field_name=field_name,
+            seen_refs=seen_refs | {ref_key},
+            depth=depth + 1,
+        )
+        siblings = {key: value for key, value in schema.items() if key != "$ref"}
+        if _has_structure(siblings):
+            overlay = _schema_skeleton(
+                siblings,
+                catalog,
+                current_file=current_file,
+                field_name=field_name,
+                seen_refs=seen_refs,
+                depth=depth + 1,
+            )
+            return _combine_skeletons(base, overlay)
+        return base
+
+    if "const" in schema:
+        return schema["const"]
+    enum_values = schema.get("enum")
+    if isinstance(enum_values, Sequence) and not isinstance(enum_values, (str, bytes)):
+        return _enum_placeholder(enum_values)
+
+    for union_key in ("oneOf", "anyOf"):
+        variants = schema.get(union_key)
+        if isinstance(variants, Sequence) and not isinstance(variants, (str, bytes)):
+            candidates = [item for item in variants if isinstance(item, Mapping)]
+            preferred = next(
+                (item for item in candidates if item.get("type") != "null"),
+                candidates[0] if candidates else None,
+            )
+            if preferred is not None:
+                return _schema_skeleton(
+                    preferred,
+                    catalog,
+                    current_file=current_file,
+                    field_name=field_name,
+                    seen_refs=seen_refs,
+                    depth=depth + 1,
+                )
+
+    schema_type = schema.get("type")
+    if isinstance(schema_type, Sequence) and not isinstance(schema_type, (str, bytes)):
+        schema_type = next((item for item in schema_type if item != "null"), "null")
+    if not isinstance(schema_type, str):
+        if isinstance(schema.get("properties"), Mapping) or "required" in schema:
+            schema_type = "object"
+        elif "items" in schema or "prefixItems" in schema:
+            schema_type = "array"
+
+    if schema_type == "object":
+        properties = schema.get("properties", {})
+        if not isinstance(properties, Mapping):
+            properties = {}
+        required = [
+            item for item in schema.get("required", ()) if isinstance(item, str)
+        ]
+        selected = list(required)
+        if not selected:
+            selected.extend(str(name) for name in properties)
+        else:
+            selected.extend(
+                str(name)
+                for name, prop in properties.items()
+                if name not in selected and _contains_literal_structure(prop)
+            )
+        own = {
+            name: _schema_skeleton(
+                properties.get(name, {}),
+                catalog,
+                current_file=current_file,
+                field_name=name,
+                seen_refs=seen_refs,
+                depth=depth + 1,
+            )
+            for name in selected
+        }
+        result: Any = {}
+        for branch in schema.get("allOf", ()):
+            if (
+                not isinstance(branch, Mapping)
+                or _is_conditional_schema(branch)
+                or not _has_structure(branch)
+            ):
+                continue
+            result = _combine_skeletons(
+                result,
+                _schema_skeleton(
+                    branch,
+                    catalog,
+                    current_file=current_file,
+                    field_name=field_name,
+                    seen_refs=seen_refs,
+                    depth=depth + 1,
+                ),
+            )
+        return _combine_skeletons(result, own)
+
+    if schema_type == "array":
+        contained: list[Any] = []
+        containers = [schema]
+        containers.extend(
+            branch
+            for branch in schema.get("allOf", ())
+            if isinstance(branch, Mapping) and not _is_conditional_schema(branch)
+        )
+        for container in containers:
+            contains = container.get("contains")
+            if isinstance(contains, Mapping):
+                item = _schema_skeleton(
+                    contains,
+                    catalog,
+                    current_file=current_file,
+                    field_name=f"{field_name}_item" if field_name else "item",
+                    seen_refs=seen_refs,
+                    depth=depth + 1,
+                )
+                if item not in contained:
+                    contained.append(item)
+        if contained:
+            return contained
+        prefix_items = schema.get("prefixItems")
+        if isinstance(prefix_items, Sequence) and not isinstance(prefix_items, (str, bytes)):
+            return [
+                _schema_skeleton(
+                    item,
+                    catalog,
+                    current_file=current_file,
+                    field_name=f"{field_name}_item" if field_name else "item",
+                    seen_refs=seen_refs,
+                    depth=depth + 1,
+                )
+                for item in prefix_items
+                if isinstance(item, Mapping)
+            ]
+        minimum = schema.get("minItems", 0)
+        if isinstance(minimum, int) and not isinstance(minimum, bool) and minimum > 0:
+            items = schema.get("items", {})
+            return [
+                _schema_skeleton(
+                    items if isinstance(items, Mapping) else {},
+                    catalog,
+                    current_file=current_file,
+                    field_name=f"{field_name}_item" if field_name else "item",
+                    seen_refs=seen_refs,
+                    depth=depth + 1,
+                )
+            ]
+        return []
+
+    combined: Any = None
+    for branch in schema.get("allOf", ()):
+        if (
+            not isinstance(branch, Mapping)
+            or _is_conditional_schema(branch)
+            or not _has_structure(branch)
+        ):
+            continue
+        combined = _combine_skeletons(
+            combined,
+            _schema_skeleton(
+                branch,
+                catalog,
+                current_file=current_file,
+                field_name=field_name,
+                seen_refs=seen_refs,
+                depth=depth + 1,
+            ),
+        )
+    if combined is not None:
+        return combined
+
+    if schema_type == "boolean":
+        return "<boolean>"
+    if schema_type == "integer":
+        return "<integer>"
+    if schema_type == "number":
+        return "<number>"
+    if schema_type == "null":
+        return None
+    if schema_type == "string" or schema_type is None:
+        return _scalar_placeholder(field_name, schema)
+    return f"<{field_name or 'value'}>"
+
+
+def _load_schema_example(
+    schema_file: str,
+    catalog: SchemaCatalog | None = None,
+) -> str | None:
+    """Render a neutral schema skeleton, with fixture fallback for compatibility."""
+    if catalog is None:
+        return _load_fixture_example(schema_file)
+    try:
+        skeleton = _schema_skeleton(
+            catalog.get(schema_file),
+            catalog,
+            current_file=schema_file,
+        )
+        return json.dumps(
+            _neutralize_identities(skeleton),
+            indent=2,
+            ensure_ascii=False,
+        )
+    except Exception:
+        # A runtime brief must never fall back to domain-bearing golden content.
+        return None
 
 
 def _extract_conditional_requirements(schema: dict[str, Any]) -> list[dict[str, str | None]]:
@@ -379,6 +683,9 @@ def render_task_brief(
     input_paths: Mapping[str, str],
     output_plan: OutputPlan,
     phase_instruction: str,
+    mode_instruction: str = "",
+    stage_role_instruction: str = "",
+    researcher_instruction: str = "",
     scientific_stance: str = "",
     same_group_roles: Sequence[str] = (),
     schema_catalog: SchemaCatalog | None = None,
@@ -393,6 +700,7 @@ def render_task_brief(
         raise ValueError(
             f"Task brief is missing resolved inputs for {sorted(missing)}."
         )
+    mode_text = (mode_instruction or phase_instruction).strip()
     lines = [
         f"# {stage.stage_id}: {role}",
         "",
@@ -402,14 +710,39 @@ def render_task_brief(
         "",
         f"Current timestamp for `created_at`/`updated_at` fields: `{datetime.now(timezone.utc).isoformat()}`",
         "",
+        "## Immutable instruction boundary",
+        "",
+        "The frozen phase and mode, selected method identity, inputs, role, "
+        "output contract, parallel-isolation rule, and execution boundary are "
+        "immutable. Follow every applicable layer below. Researcher direction "
+        "has highest priority among scientific directions within those "
+        "boundaries, but it cannot change the mode, expand the authorized "
+        "method scope, or alter declared outputs.",
+        "",
         "## Scientific objective",
         "",
         stage.objective.strip(),
         "",
-        "## User direction",
+        "## Mode directive",
         "",
-        phase_instruction.strip(),
+        mode_text,
     ]
+    if stage_role_instruction.strip():
+        lines.extend([
+            "",
+            "## Stage-role assignment",
+            "",
+            stage_role_instruction.strip(),
+        ])
+    if researcher_instruction.strip():
+        lines.extend([
+            "",
+            "## Researcher direction (highest scientific priority within this mode)",
+            "",
+            "Apply the following text exactly within the immutable scope above:",
+            "",
+            researcher_instruction,
+        ])
     if researcher_method_spec.strip():
         lines.extend([
             "",
@@ -462,8 +795,7 @@ def render_task_brief(
             if constraints:
                 lines.append("")
                 lines.append(constraints)
-            # Include a compact example to anchor the agent on the correct structure
-            example = _load_schema_example(spec.schema_file)
+            example = _load_schema_example(spec.schema_file, schema_catalog)
             if example:
                 lines.append("")
                 if spec.schema_application == "each_item":

@@ -3,15 +3,26 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
+from method_hub.contracts import (
+    ResolvedPhasePlan,
+    ResolvedRoleStep,
+    ResolvedStage,
+)
+from method_hub.domain import PhaseContractIdentity
 from method_hub.harness.outputs import (
+    OutputPlan,
     build_output_plan,
     validate_role_outputs,
 )
 from method_hub.harness.task_briefs import (
     _extract_conditional_requirements,
+    _load_schema_example,
     _render_schema_constraints,
     render_task_brief,
 )
+from method_hub.schemas import SchemaCatalog
 from method_hub.specification import SpecificationPackage
 
 
@@ -166,3 +177,177 @@ def test_conditional_fields_render_else_prohibitions() -> None:
         "`authority_at_creation` is `formal_generation`; do NOT include when: "
         "`authority_at_creation` is not `formal_generation`" in rendered
     )
+
+
+def test_task_brief_layers_mode_stage_and_verbatim_researcher_direction() -> None:
+    custom = "  Preserve capitalization EXACTLY.\nSecond line stays verbatim.  "
+    stage = ResolvedStage(
+        sequence=1,
+        stage_id="p2.independent_proposals",
+        execution="parallel",
+        objective="Evaluate the proposal independently.",
+        role_steps=(
+            ResolvedRoleStep(
+                role="theorist",
+                input_ids=(),
+                output_ids=(),
+            ),
+        ),
+        writes=(),
+        handoff_required=True,
+        isolation_rule=None,
+    )
+    plan = ResolvedPhasePlan(
+        identity=PhaseContractIdentity(
+            phase_id="P2",
+            contract_version="1.0.0",
+            phase_contract_sha256="a" * 64,
+        ),
+        mode_id="p2.researcher_proposal",
+        choice_values={
+            "p2.instructions": custom,
+            "p2.researcher_method_spec": "A fully specified candidate method.",
+            "p2.selected_history": [],
+        },
+        context_policy="current_only",
+        stages=(stage,),
+        output_contracts=(),
+        prepared_contexts=(),
+        validation_rules=(),
+        publication_bindings=(),
+        promotion={},
+    )
+    brief = render_task_brief(
+        run_id="run.layered",
+        project_id="project.layered",
+        plan=plan,
+        stage=stage,
+        role="theorist",
+        input_paths={},
+        output_plan=OutputPlan(specs=()),
+        phase_instruction=custom,
+        mode_instruction="MODE LAYER",
+        stage_role_instruction="STAGE ROLE LAYER",
+        researcher_instruction=custom,
+        researcher_method_spec="A fully specified candidate method.",
+    )
+
+    assert "## Immutable instruction boundary" in brief
+    assert "## Mode directive\n\nMODE LAYER" in brief
+    assert "## Stage-role assignment\n\nSTAGE ROLE LAYER" in brief
+    assert custom in brief
+    assert brief.index("## Mode directive") < brief.index("## Stage-role assignment")
+    assert brief.index("## Stage-role assignment") < brief.index("## Researcher direction")
+
+
+def _neutral_schema_document(
+    catalog: SchemaCatalog,
+    schema_file: str,
+) -> tuple[str, dict[str, object]]:
+    rendered = _load_schema_example(schema_file, catalog)
+    assert rendered is not None
+    assert "truncated" not in rendered.lower()
+    document = json.loads(rendered)
+    assert isinstance(document, dict)
+    return rendered, document
+
+
+def _at_path(document: dict[str, object], path: tuple[str, ...]) -> object:
+    value: object = document
+    for part in path:
+        assert isinstance(value, dict)
+        value = value[part]
+    return value
+
+
+def _has_placeholder(value: object) -> bool:
+    if isinstance(value, str):
+        return value.startswith("<") and value.endswith(">")
+    if isinstance(value, dict):
+        return any(_has_placeholder(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_has_placeholder(item) for item in value)
+    return False
+
+
+def test_runtime_schema_examples_do_not_leak_golden_scientific_content() -> None:
+    catalog = SchemaCatalog.load(ARCHITECTURE / "schemas")
+    rendered: dict[str, str] = {}
+    documents: dict[str, dict[str, object]] = {}
+    for schema_file in (
+        "method.schema.json",
+        "handoff.schema.json",
+        "review-issue.schema.json",
+    ):
+        text, document = _neutral_schema_document(catalog, schema_file)
+        rendered[schema_file] = text
+        documents[schema_file] = document
+
+    combined = "\n".join(rendered.values()).lower()
+    for fixture_content in (
+        "overlap-stabilized",
+        "average treatment effect",
+        "orthogonal score",
+        "propensity",
+        "cross-fit",
+        "simulation",
+        "monte carlo",
+        "rmse",
+        "variance normalization",
+    ):
+        assert fixture_content not in combined
+
+    disposition = documents["review-issue.schema.json"]["disposition"]
+    assert disposition != "fixed"
+    assert disposition == "<one of: open | fixed | partially_fixed | deferred | rejected>"
+
+
+_NEW_SCHEMA_GUIDANCE = (
+    (
+        "empirical-protocol.schema.json",
+        {"protocol_id", "claim_tests", "estimand", "metrics", "protocol_status"},
+        {"phase": "P4", "protocol_status": "prespecified"},
+        (("mode",), ("p4.preliminary", "p4.comprehensive")),
+    ),
+    (
+        "manuscript-package.schema.json",
+        {"record_id", "manuscript_artifact", "sections_present", "claim_support_index"},
+        {"phase": "P5", "record_type": "manuscript"},
+        (("manuscript_kind",), ("assembly_candidate", "revised_candidate")),
+    ),
+    (
+        "review-finding.schema.json",
+        {"issue_id", "finding_type", "evidence_basis", "requested_resolution"},
+        {"status": "open", "authority_at_creation": "run_local_candidate"},
+        (("severity",), ("blocking", "major", "minor")),
+    ),
+    (
+        "review-report.schema.json",
+        {"report_id", "overall_assessment", "prioritized_issues", "novelty_search_boundary"},
+        {"reviewer_role": "outside_reviewer", "authority_at_creation": "run_local_candidate"},
+        (("novelty_search_boundary", "assessment_status"), ("bounded", "provisional", "not_assessed")),
+    ),
+    (
+        "theory-record.schema.json",
+        {"record_id", "theory_scope", "assumptions", "statements", "empirical_implications"},
+        {"phase": "P3", "record_type": "theory_record"},
+        (("development_mode",), ("p3.theory_establishment", "p3.theory_revision")),
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    ("schema_file", "expected_keys", "expected_constants", "enum_guidance"),
+    _NEW_SCHEMA_GUIDANCE,
+)
+def test_new_scientific_schemas_yield_neutral_structural_guidance(
+    schema_file: str,
+    expected_keys: set[str],
+    expected_constants: dict[str, str],
+    enum_guidance: tuple[tuple[str, ...], tuple[str, ...]],
+) -> None:
+    catalog = SchemaCatalog.load(ARCHITECTURE / "schemas")
+    _, document = _neutral_schema_document(catalog, schema_file)
+
+    assert expected_keys <= document.keys()
+    assert _has_placeholder(document)

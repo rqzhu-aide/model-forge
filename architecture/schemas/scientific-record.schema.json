@@ -114,6 +114,13 @@
                    },
     "allOf":  [
                   {
+                      "not":  {
+                                  "required":  [
+                                                   "record_position"
+                                               ]
+                              }
+                  },
+                  {
                       "if":  {
                                  "properties":  {
                                                     "phase":  {

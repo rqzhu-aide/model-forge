@@ -114,9 +114,10 @@ visible supporting material, and reviewer-facing instructions.
 The parallel review stage uses distinct frozen reads:
 
 - the theorist receives the review packet, current manuscript, exact method,
-  current theory, and literature synthesis;
+  current theory, implementation record, and literature synthesis;
 - the data analyst receives the review packet, current manuscript, exact method,
-  current empirical index, synthesis, implementation record, and literature synthesis;
+  current theory, current empirical index, synthesis, implementation record,
+  and literature synthesis;
 - the outside reviewer receives only `p5.review_packet`.
 
 The research lead receives all three fixed reports only in the later revision

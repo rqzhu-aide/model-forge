@@ -3,15 +3,19 @@ Scope: {{ scope }}
 {% if constraints %}Constraints: {{ constraints | join(", ") }}.
 {% endif %}{% if decision_criteria %}Decision criteria: {{ decision_criteria | join(", ") }}.
 {% endif %}
-Conduct a comprehensive literature review covering the theoretical
-foundations, existing methods, empirical comparisons, and known
-limitations relevant to this research question. Identify the key
-papers, algorithms, and theoretical tools that are directly
-applicable. Map out what is already established, what is contested,
-and where the concrete gap is that this project addresses. Structure
-the synthesis so that downstream method development can proceed
-without reading the primary sources. Prioritize relevance and
-specificity over breadth — a focused review of 15-25 directly
-relevant sources is more valuable than an exhaustive survey of
-tangential work. For each source, record its contribution, its
-relation to the project question, and its limitations.
+Update the literature basis across the theoretical foundations,
+existing methods, empirical comparisons, and known limitations that
+bear directly on this research question. Follow the selected broad or
+focused search scope. Record the search source, exact query, date,
+filters, and inclusion or exclusion decision so that coverage can be
+reconstructed.
+
+For each included source, verify its stable identifier and version,
+state whether full text or only limited material was inspected, and
+link each substantive claim to an exact source location. Distinguish
+what is established, disputed, inapplicable, and still unknown.
+Prioritize relevance and specificity over raw source count. Stop only
+when the declared scope is covered or remaining gaps and search limits
+are explicit. The synthesis should guide downstream work, but exact
+theorem assumptions, algorithms, datasets, and benchmark definitions
+must still point researchers to the primary source.

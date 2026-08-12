@@ -1,33 +1,21 @@
 # Files and Roles by Research Phase
 
-This page is the phase-by-phase cross-check of who reads and writes each
-research object. The executable sources are
-`architecture/contracts/phases/P1.json` through `P5.json`, all at contract
-version `2.0.0`. The IDs below are contract IDs, not required physical
-filenames.
+This page is the phase-centered cross-check of who reads and writes each
+research object. The executable sources are the split P1 through P5 contracts,
+all at contract version `2.0.0`. IDs below are contract IDs, not required
+physical filenames.
 
-## How to read this page
-
-Every role output is first written inside that role's active run workspace. A
-completed role workspace is closed before a later role can use its output. The
-harness verifies the output, records its digest, and exposes an accepted
-run-local reference to only the declared downstream roles.
-
-A run-local candidate becomes a formal project record only through a declared
-publication binding after submission and validation. Roles never write to the
-formal project store. A failed, rejected, cancelled, or conflicted run leaves
-the prior formal records unchanged.
-
-Historical records are excluded by default in every phase. They enter a run
-only when the user explicitly selects them through that phase's
-`selected_history` choice. Selected history supplements the declared current
-basis. It does not become current merely because a role reads it.
+Every output begins inside its producing role's run workspace. A later stage
+can read it only after the role closes and the harness accepts the artifact and
+digest. Formal records change only through declared publication bindings after
+submission and validation. Historical records are excluded unless the user
+selects them.
 
 ## Phase 1: Literature Basis
 
 Contract: `P1@2.0.0`
 
-Run mode: `p1.literature_update`
+Mode: `p1.literature_update`
 
 User choices:
 
@@ -35,15 +23,11 @@ User choices:
 - `p1.instructions`, required
 - `p1.selected_history`, optional
 
-The broad or focused search setting is a user choice within the literature
-update mode, not a separate run mode.
-
 Formal inputs:
 
-- `p1.project_brief`, always required
-- `p1.current_library`, required on a rerun and absent on the first run
-- `p1.current_synthesis`, required on a rerun and absent on the first run
-- `p1.current_coverage`, required on a rerun and absent on the first run
+- `p1.project_brief`, always
+- `p1.current_library`, `p1.current_synthesis`, and `p1.current_coverage`,
+  required on reruns and absent on the first run
 
 ### Role sequence
 
@@ -54,51 +38,51 @@ Formal inputs:
 | `p1.discovery`, parallel | Data analyst | `p1.project_brief`, `p1.current_library`, `p1.current_synthesis`, `p1.current_coverage` | `p1.empirical_discovery` |
 | `p1.lead_synthesis`, serial | Research lead | `p1.project_brief`, `p1.current_library`, `p1.current_synthesis`, `p1.current_coverage`, `p1.lead_discovery`, `p1.theory_discovery`, `p1.empirical_discovery` | `p1.source_changes`, `p1.synthesis_candidate`, `p1.coverage_candidate`, `p1.phase2_handoff`, `p1.attention_items`, `p1.decision` |
 
-The three discovery roles start from the same frozen basis and cannot see one
-another's current-run reports before closing their work. The outside reviewer
-does not participate.
+The three discovery roles share a frozen basis and cannot see one another's
+current-run outputs.
 
 ### Publication effects
 
 | Binding | Run-local source | Formal effect |
 |---|---|---|
-| `p1.append_literature_sources` | `p1.source_changes` | Append unique source records to `p1.literature_sources` |
-| `p1.rebuild_literature_library` | `p1.source_changes`, with prior `p1.current_library` when present | Deterministically replace `p1.literature_library.current` |
+| `p1.append_literature_sources` | `p1.source_changes` | Append unique sources to `p1.literature_sources` |
+| `p1.rebuild_literature_library` | `p1.source_changes` and prior library when present | Deterministically replace `p1.literature_library.current` |
 | `p1.replace_literature_synthesis` | `p1.synthesis_candidate` | Replace `p1.literature_synthesis.current` |
 | `p1.replace_literature_coverage` | `p1.coverage_candidate` | Replace `p1.literature_coverage.current` |
 | `p1.replace_phase_decision` | `p1.decision` | Replace `p1.phase_decision.current` |
 | `p1.append_attention_items` | `p1.attention_items` | Append to `project.attention_history` |
 
-The three discovery reports and `p1.phase2_handoff` remain run-local
-provenance. Phase 2 reads the promoted literature library, synthesis, and
-coverage, not a mutable handoff or the latest attempted Phase 1 run.
+Discovery reports and `p1.phase2_handoff` remain run-local provenance. Phase 2
+reads the promoted library, synthesis, and coverage.
 
 ## Phase 2: Method Catalog
 
 Contract: `P2@2.0.0`
 
-Run modes:
+Modes:
 
-- `p2.full_catalog`, which may add methods or update multiple methods
-- `p2.focused_method`, which may reassess exactly one selected stable method
+- `p2.full_catalog`: propose or revise multiple methods within the catalog scope
+- `p2.focused_method`: reassess exactly one selected stable method
+- `p2.researcher_proposal`: evaluate a researcher-supplied method specification
+  and decide whether it warrants formal registration
 
 User choices:
 
-- `p2.instructions`, required in both modes
+- `p2.instructions`, required in every mode
 - `p2.selected_method`, required only in `p2.focused_method`
+- `p2.researcher_method_spec`, required only in `p2.researcher_proposal`
 - `p2.selected_history`, optional
 
 Formal inputs:
 
-- `p2.project_brief`, always required
-- `p2.literature_synthesis`, always required
-- `p2.literature_library`, always required
-- `p2.literature_coverage`, always required
-- `p2.current_catalog`, required after the first catalog run and absent on the
-  first run
+- `p2.project_brief`, `p2.literature_synthesis`, `p2.literature_library`, and
+  `p2.literature_coverage`, always
+- `p2.current_catalog`, required on reruns and absent on the first run
+- Exact-match `p2.theory_result`, `p2.empirical_result`, and
+  `p2.manuscript_result`, included when they exist in focused mode
 
-The two modes use the same role sequence. Their difference is publication
-scope. Focused mode cannot change another method or add a different method.
+The three optional downstream results are phase inputs, but they do not appear
+in the current role-stage read allowlists. The table therefore omits them.
 
 ### Role sequence
 
@@ -111,61 +95,55 @@ scope. Focused mode cannot change another method or add a different method.
 | `p2.cross_review`, parallel | Data analyst | `p2.project_brief`, `p2.literature_synthesis`, `p2.literature_library`, `p2.literature_coverage`, `p2.current_catalog`, `p2.lead_proposal`, `p2.theory_proposal`, `p2.empirical_proposal` | `p2.empirical_review` |
 | `p2.lead_reconciliation`, serial | Research lead | `p2.project_brief`, `p2.literature_synthesis`, `p2.literature_library`, `p2.literature_coverage`, `p2.current_catalog`, `p2.lead_proposal`, `p2.theory_proposal`, `p2.empirical_proposal`, `p2.theory_review`, `p2.empirical_review` | `p2.method_changes`, `p2.attention_items`, `p2.decision` |
 
-The proposal roles cannot see one another's current-run proposals until all
-three proposals close. The two cross-review roles receive the same accepted
-proposal set and cannot see one another's current-run review before closure.
-The outside reviewer does not participate.
+The same stage sequence applies to all three modes. Isolation applies within
+both parallel stages.
 
 ### Publication effects
 
 | Binding | Run-local source | Formal effect |
 |---|---|---|
 | `p2.upsert_method_records` | `p2.method_changes` | Upsert complete method records in `p2.method_records` |
-| `p2.rebuild_method_catalog` | `p2.method_changes`, with prior `p2.current_catalog` when present | Deterministically replace `p2.method_catalog.current` |
+| `p2.rebuild_method_catalog` | `p2.method_changes` and prior catalog when present | Deterministically replace `p2.method_catalog.current` |
 | `p2.replace_phase_decision` | `p2.decision` | Replace `p2.phase_decision.current` |
 | `p2.append_attention_items` | `p2.attention_items` | Append to `project.attention_history` |
-
-The three proposals and two cross-reviews remain run-local provenance. The
-formal method records and catalog contain the lead's reconciled change set.
-The lead may compare or recommend methods, but the user selects the method for
-Phase 3 or Phase 4.
 
 ## Phase 3: Theory Development
 
 Contract: `P3@2.0.0`
 
-Run mode: `p3.theory_update`
+Modes:
 
-User choices:
+- `p3.theory_establishment`: construct the complete scoped theory account for
+  the exact selected method
+- `p3.theory_revision`: compare the current theory statement by statement and
+  repair, weaken, condition, contradict, or retract claims as warranted
 
-- `p3.selected_method`, required
-- `p3.instructions`, required
-- `p3.selected_history`, optional
+User choices: `p3.selected_method` and `p3.instructions`, required;
+`p3.selected_history`, optional.
 
 Formal inputs:
 
 - `p3.project_brief`, `p3.literature_synthesis`, `p3.method_catalog`, and
-  exact-match `p3.method`, always required
-- Exact-match `p3.current_theory`, required on a rerun for the same exact
-  method identity and absent on the first run
+  exact-match `p3.method`, always
+- Exact-match `p3.current_theory`, required on reruns and absent on the first run
+- Exact-match `p3.prior_theory`, required in `p3.theory_revision`
 - Exact-match `p3.current_empirical_index`, `p3.current_empirical`, and
   `p3.current_implementation`, included when aligned Phase 4 records exist
 
-Phase 4 is not a prerequisite. Records for another method version are not
-current inputs and may enter only as user-selected history.
+Phase 4 is not a prerequisite.
 
 ### Role sequence
 
 | Stage | Role | Reads | Writes |
 |---|---|---|---|
-| `p3.theorist`, serial | Theorist | `p3.project_brief`, `p3.literature_synthesis`, `p3.method_catalog`, `p3.method`, `p3.current_theory`, `p3.current_empirical` | `p3.theory_candidate`, `p3.theory_handoff` |
+| `p3.theorist`, serial | Theorist | `p3.project_brief`, `p3.literature_synthesis`, `p3.method_catalog`, `p3.method`, `p3.current_theory`, `p3.prior_theory`, `p3.current_empirical` | `p3.theory_candidate`, `p3.theory_handoff` |
 | `p3.analyst`, serial | Data analyst | `p3.method`, `p3.theory_candidate`, `p3.theory_handoff`, `p3.current_empirical_index`, `p3.current_empirical`, `p3.current_implementation` | `p3.analyst_audit`, `p3.analyst_handoff` |
 | `p3.lead`, serial | Research lead | `p3.project_brief`, `p3.literature_synthesis`, `p3.method_catalog`, `p3.method`, `p3.current_theory`, `p3.current_empirical_index`, `p3.current_empirical`, `p3.current_implementation`, `p3.theory_candidate`, `p3.theory_handoff`, `p3.analyst_audit`, `p3.analyst_handoff` | `p3.complete_theory`, `p3.attention_items`, `p3.decision` |
 
-Each later role starts only after the required earlier role closure succeeds.
-There is no hidden repair loop. Unresolved mathematical or empirical concerns
-remain explicit for the user's next run. The outside reviewer does not
-participate.
+`p3.theory_candidate` and `p3.complete_theory` use
+`theory-record.schema.json`. Each is a complete `TheoryRecord` with a readable
+primary artifact and statement-level proof, counterexample, or open-obligation
+support. A rerun publishes a full replacement, not a patch.
 
 ### Publication effects
 
@@ -175,38 +153,38 @@ participate.
 | `p3.replace_phase_decision` | `p3.decision` | Replace `p3.phase_decision.current` |
 | `p3.append_attention_items` | `p3.attention_items` | Append to `project.attention_history` |
 
-`p3.theory_candidate`, both handoffs, and `p3.analyst_audit` remain run-local
-provenance. The formal theory is the lead's complete integrated record, not the
-theorist's draft alone.
+The candidate, handoffs, and analyst audit remain run-local provenance.
 
 ## Phase 4: Empirical Evaluation
 
 Contract: `P4@2.0.0`
 
-Run modes:
+Modes:
 
-- `p4.preliminary`, a small set of decisive feasibility and diagnostic checks
-- `p4.comprehensive`, a prespecified full evaluation with comparisons,
-  sensitivity analyses, and robustness checks
+- `p4.preliminary`: a small set of decisive feasibility, implementation,
+  diagnostic, or falsification checks
+- `p4.comprehensive`: a self-contained, prespecified full evaluation with
+  claim-linked comparisons, sensitivity, robustness, uncertainty, ablations,
+  and scaling where relevant
 
-User choices:
+These are scientific scopes independent of chronology. Either scope may be
+selected on a first run or rerun. Comprehensive does not require a prior
+preliminary run.
 
-- `p4.selected_method`, required
-- `p4.instructions`, required
-- `p4.selected_history`, optional
+User choices: `p4.selected_method` and `p4.instructions`, required;
+`p4.selected_history`, optional.
 
 Formal inputs:
 
 - `p4.project_brief`, `p4.literature_synthesis`, `p4.method_catalog`, and
-  exact-match `p4.method`, always required
+  exact-match `p4.method`, always
 - Exact-match `p4.current_evidence_index`, `p4.current_empirical`, and
-  `p4.current_implementation`, required on a rerun for the same exact method
-  identity and absent on the first run
+  `p4.current_implementation`, required on reruns and absent on the first run
 - Exact-match `p4.current_theory`, included when an aligned Phase 3 record exists
 
-Phase 3 is not a prerequisite. The two modes have the same read and write IDs;
-their required scientific scope differs. Preliminary and comprehensive are
-explicit user choices, not labels inferred from run number.
+A current implementation may be reused only after digest, invariant, and
+mathematical-fidelity checks. Otherwise the run implements and versions the
+method itself. Phase 3 is not a prerequisite.
 
 ### Role sequence
 
@@ -216,8 +194,9 @@ explicit user choices, not labels inferred from run number.
 | `p4.theorist`, serial | Theorist | `p4.method`, `p4.protocol`, `p4.evidence`, `p4.analyst_synthesis`, `p4.analyst_handoff`, `p4.current_theory` | `p4.theory_audit`, `p4.theory_handoff` |
 | `p4.lead`, serial | Research lead | `p4.project_brief`, `p4.literature_synthesis`, `p4.method_catalog`, `p4.method`, `p4.current_evidence_index`, `p4.current_empirical`, `p4.current_implementation`, `p4.current_theory`, `p4.protocol`, `p4.evidence`, `p4.analyst_synthesis`, `p4.analyst_handoff`, `p4.theory_audit`, `p4.theory_handoff` | `p4.empirical_index_candidate`, `p4.empirical_synthesis_candidate`, `p4.implementation_record_candidate`, `p4.attention_items`, `p4.decision` |
 
-Each later role sees only accepted earlier outputs. There is no hidden repair
-loop. The outside reviewer does not participate.
+`p4.protocol` uses `empirical-protocol.schema.json`. The analyst fixes its
+prespecified fields before outcome inspection and appends later departures as
+deviations. The protocol, syntheses, audits, and handoffs remain run-local.
 
 ### Publication effects
 
@@ -230,39 +209,29 @@ loop. The outside reviewer does not participate.
 | `p4.replace_phase_decision` | `p4.decision` | Replace `p4.phase_decision.current` |
 | `p4.append_attention_items` | `p4.attention_items` | Append to `project.attention_history` |
 
-The protocol, analyst synthesis, theorist audit, and both handoffs remain
-run-local provenance. The evidence items become cumulative formal objects. The
-lead's three candidates become the current evidence index, synthesis, and
-implementation record in one atomic publication.
-
 ## Phase 5: Manuscript Assembly and Revision
 
 Contract: `P5@2.0.0`
 
-Run modes:
+Modes:
 
-- `p5.assembly`, which creates or updates a complete manuscript from the exact
-  current upstream basis
-- `p5.review_revision`, which freezes a current manuscript, obtains three
-  isolated reviews, and then revises the complete manuscript
+- `p5.assembly`: assemble or update a complete manuscript from the exact current
+  Phase 1 through Phase 4 basis
+- `p5.review_revision`: freeze a complete current manuscript, obtain three
+  isolated reviews, disposition their findings, and publish a complete revision
 
-User choices:
+User choices: `p5.selected_method` and `p5.instructions`, required;
+`p5.selected_history`, optional.
 
-- `p5.selected_method`, required
-- `p5.instructions`, required
-- `p5.selected_history`, optional
+Formal inputs in both modes are `p5.project_brief`, `p5.literature_library`,
+`p5.literature_synthesis`, `p5.literature_coverage`, `p5.method_catalog`, and
+exact-match `p5.method`, `p5.theory`, `p5.empirical_index`, `p5.empirical`, and
+`p5.implementation_record`.
 
-Formal inputs in both modes:
-
-- `p5.project_brief`, `p5.literature_library`, `p5.literature_synthesis`,
-  `p5.literature_coverage`, and `p5.method_catalog`
-- Exact-match `p5.method`, `p5.theory`, `p5.empirical_index`, `p5.empirical`,
-  and `p5.implementation_record`
-
-`p5.current_manuscript` is required in `p5.review_revision` and optional in
-`p5.assembly`. It must belong to the same stable method lineage, but it may use
-an older version of that method. `p5.review_issue_ledger` is included when it
-exists for the selected lineage in review-revision mode.
+`p5.current_manuscript` is required in review-revision and optional in assembly.
+It must use the same stable method lineage but may refer to an older method
+version. `p5.review_issue_ledger` is included when a current same-lineage ledger
+exists.
 
 ### Assembly mode
 
@@ -270,29 +239,27 @@ exists for the selected lineage in review-revision mode.
 |---|---|---|---|
 | `p5.assembly_lead`, serial | Research lead | `p5.project_brief`, `p5.literature_library`, `p5.literature_synthesis`, `p5.literature_coverage`, `p5.method_catalog`, `p5.method`, `p5.theory`, `p5.empirical_index`, `p5.empirical`, `p5.implementation_record`, `p5.current_manuscript` | `p5.manuscript_candidate`, `p5.claim_traceability`, `p5.upstream_basis_manifest`, `p5.citation_integrity_report`, `p5.limitations_record`, `p5.assembly_report`, `p5.attention_items`, `p5.decision` |
 
-The theorist, data analyst, and outside reviewer do not participate in assembly
-mode.
+`p5.manuscript_candidate` uses `manuscript-package.schema.json` and points to
+the complete readable manuscript artifact. No reviewer participates.
 
 ### Review-revision mode
 
-During preparation, the harness constructs immutable run-local context
-`p5.review_packet` from `p5.current_manuscript`, `p5.literature_library`, and
-reviewer-facing `p5.instructions`. This phase-specific review packet is
-different from the infrastructure `PreparedRoleContext` created for every role
-invocation.
+The harness constructs immutable `p5.review_packet` from the current manuscript,
+literature library, and reviewer-facing instructions. This scientific prepared
+input differs from the infrastructure `PreparedRoleContext` used for every role.
 
 | Stage | Role | Reads | Writes |
 |---|---|---|---|
-| `p5.parallel_reviews`, parallel | Theorist | `p5.review_packet`, `p5.current_manuscript`, `p5.method`, `p5.theory`, `p5.literature_synthesis` | `p5.theory_audit` |
-| `p5.parallel_reviews`, parallel | Data analyst | `p5.review_packet`, `p5.current_manuscript`, `p5.method`, `p5.empirical_index`, `p5.empirical`, `p5.implementation_record`, `p5.literature_synthesis` | `p5.empirical_audit` |
+| `p5.parallel_reviews`, parallel | Theorist | `p5.review_packet`, `p5.current_manuscript`, `p5.method`, `p5.theory`, `p5.implementation_record`, `p5.literature_synthesis` | `p5.theory_audit` |
+| `p5.parallel_reviews`, parallel | Data analyst | `p5.review_packet`, `p5.current_manuscript`, `p5.method`, `p5.theory`, `p5.empirical_index`, `p5.empirical`, `p5.implementation_record`, `p5.literature_synthesis` | `p5.empirical_audit` |
 | `p5.parallel_reviews`, parallel | Outside reviewer | `p5.review_packet` | `p5.outside_review` |
 | `p5.revision_lead`, serial | Research lead | `p5.project_brief`, `p5.literature_library`, `p5.current_manuscript`, `p5.review_issue_ledger`, `p5.method_catalog`, `p5.method`, `p5.theory`, `p5.empirical_index`, `p5.empirical`, `p5.implementation_record`, `p5.literature_synthesis`, `p5.literature_coverage`, `p5.theory_audit`, `p5.empirical_audit`, `p5.outside_review` | `p5.review_issues`, `p5.manuscript_candidate`, `p5.claim_traceability`, `p5.upstream_basis_manifest`, `p5.citation_integrity_report`, `p5.limitations_record`, `p5.revision_account`, `p5.attention_items`, `p5.decision` |
 
-The three reviewers assess the same frozen manuscript snapshot but have
-different read allowlists. They cannot see one another's current-run reports.
-The outside reviewer cannot resolve internal formal records, specialist audits,
-internal deliberation, hidden memory, or later role outputs. The lead starts
-only after all three review closures succeed.
+The specialist audits are arrays of open `ReviewFinding` objects using
+`review-finding.schema.json`. The outside review is one `ReviewReport` using
+`review-report.schema.json`. Reviewers do not disposition findings. The revision
+lead converts every open finding into a dispositioned `ReviewIssue`, writes the
+complete revised `ManuscriptPackage`, and preserves unresolved disagreement.
 
 ### Publication effects
 
@@ -300,31 +267,24 @@ only after all three review closures succeed.
 |---|---|---|
 | `p5.publish_assembly_manuscript` | Assembly: `p5.manuscript_candidate`, `p5.claim_traceability`, `p5.upstream_basis_manifest`, `p5.citation_integrity_report`, `p5.limitations_record`, `p5.assembly_report` | Deterministically bundle and replace `p5.manuscript.current` |
 | `p5.publish_reviewed_manuscript` | Review-revision: `p5.manuscript_candidate`, `p5.claim_traceability`, `p5.upstream_basis_manifest`, `p5.citation_integrity_report`, `p5.limitations_record`, `p5.theory_audit`, `p5.empirical_audit`, `p5.outside_review`, `p5.review_issues`, `p5.revision_account` | Deterministically bundle and replace `p5.manuscript.current` |
-| `p5.append_review_issues` | Review-revision: `p5.review_issues` | Append to `p5.review_issue_history` |
-| `p5.replace_review_issue_ledger` | Review-revision: `p5.review_issues`, with prior `p5.review_issue_ledger` when present | Deterministically replace `p5.review_issue_ledger.current` |
+| `p5.append_review_issues` | Review-revision `p5.review_issues` | Append to `p5.review_issue_history` |
+| `p5.replace_review_issue_ledger` | Review-revision `p5.review_issues` and prior ledger when present | Deterministically replace `p5.review_issue_ledger.current` |
 | `p5.replace_phase_decision` | Both modes: `p5.decision` | Replace `p5.phase_decision.current` |
 | `p5.append_attention_items` | Both modes: `p5.attention_items` | Append to `project.attention_history` |
 
-The original role outputs remain immutable in the source run even when the
-formal manuscript bundle copies or references them. `p5.review_packet` remains
-a run-local prepared input and is not a separate formal project record.
+`p5.review_packet` and all original role outputs remain immutable run-local
+provenance even when the formal manuscript bundle references them.
 
 ## Cross-phase checks
 
-- P1 grows the source collection and replaces its current synthesis and
-  coverage.
-- P2 replaces the current method catalog and in-scope method records. It does
-  not select a Phase 3 or Phase 4 branch for the user.
+- P1 grows the source collection and replaces its current assessment.
+- P2 has full-catalog, focused-method, and researcher-proposal modes. The user,
+  not P2, selects later work.
 - P3 and P4 are parallel research directions after P2. Either may run first.
-  Each uses an aligned sibling record only when one exists.
-- P3 replaces one complete theory record. It does not publish incremental proof
-  fragments.
-- P4 appends immutable evidence while replacing its complete current index,
-  synthesis, implementation record, and phase decision.
-- P5 requires the exact current P1 through P4 basis and replaces one complete
-  manuscript package. It never merges isolated paragraphs into the formal
-  manuscript.
-- No phase reads the latest attempted run as if it were formal. Downstream work
-  reads current formal generations and explicitly selected history.
-- Starting a valid run authorizes validation and publication. There is no
-  separate generic approval step after the work finishes.
+- P3 replaces one complete `TheoryRecord`; revision may weaken or retract.
+- P4 appends evidence and replaces its complete current index, synthesis,
+  implementation, and decision. Its scopes do not encode chronology.
+- P5 requires the exact current Phase 1 through Phase 4 basis and replaces one
+  complete `ManuscriptPackage`.
+- No phase treats the latest attempted run as formal or starts another phase
+  automatically.

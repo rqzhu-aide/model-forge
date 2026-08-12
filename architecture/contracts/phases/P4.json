@@ -69,12 +69,11 @@
                       {
                           "mode_id":  "p4.comprehensive",
                           "label":  "Comprehensive",
-                          "purpose":  "Run a prespecified full evaluation with comparisons, sensitivity analyses, and robustness checks. Builds on validated preliminary implementation and evidence.",
+                          "purpose":  "Run a self-contained prespecified full evaluation with claim-linked comparisons, sensitivity analyses, robustness checks, and uncertainty assessment. Reuse prior code only when an exact current implementation exists and passes recorded verification checks.",
                           "requires_method":  true,
                           "entry_conditions":  [
                                                    "The project brief, Phase 1 basis, and Phase 2 catalog are current.",
-                                                   "The selected method is active and current.",
-                                                   "A complete formal current preliminary evidence record exists from a prior preliminary run."
+                                                   "The selected method is active and current."
                                                ],
                           "required_choice_ids":  [
                                                       "p4.selected_method",
@@ -175,7 +174,7 @@
                                 "publication_required":  "formal",
                                 "position_required":  "current",
                                 "method_match":  "exact",
-                                "purpose":  "Provide the exact current code, environment, and configuration identity that a rerun must verify or replace.",
+                                "purpose":  "Provide prior exact-method code, environment, and configuration when they exist. A run may reuse them only after recording digest, invariant, and fidelity checks; otherwise it replaces them.",
                                 "condition":  "Required on reruns for the same exact identity and absent on the first run.",
                                 "presence":  "required_on_rerun"
                             },
@@ -188,32 +187,6 @@
                                 "purpose":  "Expose assumptions, empirical implications, and boundary cases.",
                                 "condition":  "Included when an exactly aligned Phase 3 record exists; Phase 3 is not a prerequisite.",
                                 "presence":  "if_exists"
-                            },
-                            {
-                                "input_id":  "p4.prior_implementation",
-                                "record_type":  "implementation_record",
-                                "publication_required":  "formal",
-                                "position_required":  "current",
-                                "method_match":  "exact",
-                                "purpose":  "Provide the validated code and environment identity from the preliminary run.",
-                                "condition":  "Required for comprehensive mode.",
-                                "presence":  "required_in_modes",
-                                "required_in_modes":  [
-                                                          "p4.comprehensive"
-                                                      ]
-                            },
-                            {
-                                "input_id":  "p4.prior_evidence",
-                                "record_type":  "empirical_synthesis",
-                                "publication_required":  "formal",
-                                "position_required":  "current",
-                                "method_match":  "exact",
-                                "purpose":  "Provide the preliminary evidence and conclusions that the comprehensive run extends.",
-                                "condition":  "Required for comprehensive mode.",
-                                "presence":  "required_in_modes",
-                                "required_in_modes":  [
-                                                          "p4.comprehensive"
-                                                      ]
                             }
                         ],
     "prepared_contexts":  [
@@ -238,7 +211,7 @@
                             "roles":  [
                                           "data_analyst"
                                       ],
-                            "objective":  "Specify the protocol, verify exact implementation, execute the authorized scope, and produce reproducible evidence and synthesis.",
+                            "objective":  "Apply the selected preliminary or comprehensive scope, finalize a claim-linked empirical protocol before inspecting outcomes, verify the exact implementation, execute only that protocol, append deviations without rewriting it, and produce reproducible evidence and synthesis.",
                             "reads":  [
                                           "p4.project_brief",
                                           "p4.literature_synthesis",
@@ -247,9 +220,7 @@
                                           "p4.current_evidence_index",
                                           "p4.current_empirical",
                                           "p4.current_implementation",
-                                          "p4.current_theory",
-                                          "p4.prior_implementation",
-                                          "p4.prior_evidence"
+                                          "p4.current_theory"
                                       ],
                             "writes":  [
                                            "p4.protocol",
@@ -270,7 +241,7 @@
                             "roles":  [
                                           "theorist"
                                       ],
-                            "objective":  "Audit mathematical fidelity, definition-to-code correspondence, comparisons, interpretation, and consistency with available theory.",
+                            "objective":  "Audit mathematical fidelity, definition-to-code correspondence, protocol adherence, scope-appropriate comparisons and thresholds, interpretation, deviations, and consistency with available theory.",
                             "reads":  [
                                           "p4.method",
                                           "p4.protocol",
@@ -296,7 +267,7 @@
                             "roles":  [
                                           "research_lead"
                                       ],
-                            "objective":  "Integrate evidence and fidelity findings, retain applicable evidence, and state the scientific outcome and user-relevant changes.",
+                            "objective":  "Integrate evidence and fidelity findings without creating unaudited results, retain only applicable evidence, preserve protocol deviations and unresolved disagreement, and state a scope-calibrated scientific outcome and user-relevant changes.",
                             "reads":  [
                                           "p4.project_brief",
                                           "p4.literature_synthesis",
@@ -329,8 +300,8 @@
                                   "output_kind":  "protocol",
                                   "producer":  "data_analyst",
                                   "schema_application":  "object",
-                                  "schema_uri":  "architecture/schemas/scientific-record.schema.json",
-                                  "purpose":  "Prespecify design, metrics, comparisons, diagnostics, and uncertainty analysis for the selected scope.",
+                                  "schema_uri":  "architecture/schemas/empirical-protocol.schema.json",
+                                  "purpose":  "Prespecify claim-to-test links, estimand, data or simulation unit, baselines, implementation strategy, tuning budget, metrics, repetitions and uncertainty, multiplicity, stopping, leakage checks, decision thresholds, and append-only deviations for the selected scope.",
                                   "required":  true,
                                   "requirement":  "always"
                               },
@@ -458,7 +429,7 @@
                                  "validator_id":  "p4.scope_completeness",
                                  "category":  "scientific_completeness",
                                  "severity":  "blocking",
-                                 "description":  "Outputs satisfy the declared preliminary or comprehensive protocol without inferring scope from chronology."
+                                 "description":  "Outputs satisfy the declared preliminary or comprehensive scientific scope, its prespecified claim-linked protocol, thresholds, and recorded deviations without inferring scope from chronology."
                              },
                              {
                                  "validator_id":  "p4.evidence_applicability",

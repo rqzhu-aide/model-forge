@@ -2,99 +2,109 @@
 
 ## Purpose
 
-This page explains the files and structured records that researchers encounter in Method Hub. It is a researcher-facing guide derived from the [architecture specification](../architecture/README.md), especially the [storage and authority model](../architecture/03-storage-and-authority.md), [run harness](../architecture/02-run-harness.md), and executable [phase contracts](../architecture/contracts/phases/).
-
-The architecture contracts and schemas remain normative. This page does not define a second storage contract. A logical record may be implemented as a filesystem object, database row, or object-store entry as long as its identity, access rules, and update behavior remain the same.
+This page explains the files and structured records that researchers encounter
+in Method Hub. The executable [phase contracts](../architecture/contracts/phases/)
+and [schemas](../architecture/schemas/) remain normative. A logical record may
+be stored as a file, database row, or object-store entry as long as its identity,
+access rules, and update behavior remain unchanged.
 
 ## 1. Information depth
 
-Information depth describes how much scientific detail an object exposes. It does not determine whether the object is valid, formal, current, or aligned with the current method.
+Information depth describes how much scientific detail an object exposes. It
+does not determine whether the object is valid, formal, current, or aligned.
 
 | Information type | Purpose | Typical contents |
 |---|---|---|
 | Primary artifact | Preserve detailed scientific work and source evidence | Source paper, proof manuscript, code, data reference, simulation output, figure, log, or manuscript source |
-| Structured scientific record | Make scientific claims, assumptions, evidence, dependencies, and changes addressable | Literature source, method record, theory record, evidence index, empirical synthesis, statement registry, or review issue |
-| Compact decision view | Help the researcher understand the current conclusion and choose the next action | Phase decision, method table row, change summary, unresolved-question summary, or status card |
+| Structured scientific record | Make claims, assumptions, evidence, dependencies, and changes addressable | Literature source, method, theory, protocol, evidence index, empirical synthesis, manuscript package, or review record |
+| Compact decision view | Help the researcher understand the current conclusion and choose an action | Phase decision, method table row, change summary, unresolved-question summary, or status card |
 
-A primary artifact can be incomplete run-local work. A compact decision view can summarize a formal current record. Neither is more authoritative because of its length or format. Formal authority is established only by validation and atomic publication.
-
-The information type is recorded as metadata. It must not be inferred from a filename, extension, directory, or file size.
+The information type is metadata. It must not be inferred from a filename,
+extension, directory, or file size. Formal authority is established only by
+validation and atomic publication.
 
 ## 2. Scientific file and record types
 
-| Type | Scientific purpose | Typical use |
+| Type | Scientific purpose | Contract use |
 |---|---|---|
-| Primary artifact | Holds detailed work that should not be compressed into a structured summary | Proofs, source material, executable code, numerical outputs, figures, and manuscript files |
-| `LiteratureSource` | Identifies a reference and records bibliographic, source, and provenance information | Phase 1 cumulative literature basis |
-| `MethodRecord` | Defines one method with stable identity, mathematical version, provenance, assumptions, scope, and limitations | Phase 2 method catalog and the exact basis for Phases 3 through 5 |
-| `ScientificRecord` | Represents a structured scientific account | Literature synthesis, coverage assessment, theory record, protocol, empirical synthesis, implementation record, or limitations record |
-| `Statement` | Gives a stable identity to a definition, assumption, claim, theorem, or manuscript statement | Proof dependencies and manuscript claim traceability |
-| `Evidence` | Identifies one empirical result and its exact method, code, data, configuration, environment, and output basis | Phase 4 cumulative empirical evidence |
-| `Handoff` | Communicates accepted work, assumptions, changes, open issues, and requested checks to a later role | Within-run role communication and downstream phase guidance |
-| `AttentionItem` | Records a concrete scientific question that may require reassessment | Literature, theory, evidence, or manuscript changes that deserve researcher attention |
-| `ReviewIssue` | Records one stable specialist or outside-review concern and its disposition | Phase 5 review-revision workflow |
-| `DecisionRecord` | States the current conclusion, material change, uncertainty, and meaningful user-controlled actions | Compact Web UI decision view for every phase |
+| Primary artifact | Holds detailed work that should not be compressed into a summary | Proofs, sources, executable code, numerical outputs, figures, and manuscript files |
+| `LiteratureSource` | Records bibliographic identity, source location, and provenance | Phase 1 cumulative literature basis |
+| `MethodRecord` | Defines one method with stable identity, mathematical version, provenance, assumptions, scope, and limitations | Phase 2 catalog and the exact method basis for Phases 3 through 5 |
+| `ScientificRecord` | Represents a general structured scientific account | Syntheses, coverage, audits, indexes, implementation records, and limitations records that do not have a more specific schema |
+| `TheoryRecord` | Represents a complete theory account with a primary artifact and statement-level proof ledger | `p3.theory_candidate` and `p3.complete_theory`; `theory-record.schema.json` |
+| `EmpiricalProtocol` | Prespecifies the claim-linked design and appends any later deviations without rewriting the plan | `p4.protocol`; `empirical-protocol.schema.json` |
+| `ManuscriptPackage` | Represents the complete readable manuscript and its upstream claim-support index | `p5.manuscript_candidate`; `manuscript-package.schema.json` |
+| `Statement` | Gives a stable identity to a definition, assumption, theorem, empirical claim, or manuscript statement | Proof dependencies and manuscript claim traceability |
+| `Evidence` | Identifies one empirical result and its exact method, code, data, configuration, environment, and output basis | Phase 4 cumulative evidence |
+| `Handoff` | Communicates accepted work, assumptions, changes, open questions, and requested checks | Within-run communication and selected reports |
+| `AttentionItem` | Records a concrete scientific question that may require reassessment | Literature, theory, evidence, or manuscript attention history |
+| `ReviewFinding` | Records one open, evidence-grounded specialist finding without a lead disposition | Items in `p5.theory_audit` and `p5.empirical_audit`, and findings carried by the outside report; `review-finding.schema.json` |
+| `ReviewReport` | Packages the outside review, its reviewer boundary, assessment, prioritized open findings, and novelty-search limits | `p5.outside_review`; `review-report.schema.json` |
+| `ReviewIssue` | Records the revision lead's disposition of an open review finding while preserving stable issue lineage | `p5.review_issues` and the formal review issue ledger |
+| `DecisionRecord` | States the current conclusion, material changes, uncertainty, and meaningful user actions | Compact decision output for every phase |
 
-Structured records link to their supporting primary artifacts. Compact decision views link to the structured record and do not replace the underlying proof, code, evidence, or manuscript.
+Review findings and review issues have different owners. The theorist and data
+analyst write open `ReviewFinding` items. The outside reviewer writes a
+`ReviewReport` containing its open findings. The revision lead reads all three
+review outputs and writes dispositioned `ReviewIssue` records. A reviewer does
+not mark its own finding fixed, rejected, or accepted.
+
+Structured records link to supporting primary artifacts. Compact decision views
+link to the structured record and do not replace the proof, code, evidence, or
+manuscript.
 
 ## 3. Run-control and execution records
 
-Every run is a controlled operation. These records describe what the user requested, what each role was permitted to see and produce, and what was submitted for validation.
-
 | Record | Written by | Meaning |
 |---|---|---|
-| `RunCommand` | Command service from an authenticated user action | Exact phase, mode, method when applicable, instructions, selected context, and selected history |
-| `RunManifest` | Run harness | Sealed run recipe containing frozen inputs, role order, profiles, output obligations, permissions, and publication bindings |
+| `RunCommand` | Command service from an authenticated user action | Exact phase, mode, method when applicable, instructions, context, and selected history |
+| `RunManifest` | Run harness | Sealed recipe containing frozen inputs, role order, profiles, output obligations, permissions, and publication bindings |
 | `PreparedRoleContext` | Run harness | Exact context assembled for one role invocation |
 | `RoleInvocationStart` | Run harness | Exact role profile, accepted inputs, capabilities, executor, write root, and expected outputs at role start |
 | Role workspace artifacts | Active role | Scientific outputs written only inside that role's assigned run-local root |
 | `RoleInvocationClosure` | Run harness | Terminal status, accepted outputs, handoffs, access record, and failure or cancellation information |
-| `RunSubmission` | Run harness | Immutable package containing the complete successful role-closure chain and all candidate publication artifacts |
-| Validation report | Validator | Structural, identity, provenance, phase, consistency, and publication-safety findings |
+| `RunSubmission` | Run harness | Immutable package containing the complete successful closure chain and all candidate publication artifacts |
+| Validation report | Validator | Structural, identity, provenance, scientific, and publication-safety findings |
 | Publication plan | Publisher | Exact atomic operations proposed for formal storage |
 
-Roles do not write directly to the formal project store. A role writes only within:
+Roles write only within:
 
 ```text
 runs/{phase_id}/{run_id}/roles/{sequence}-{role_id}/
 ```
 
-After a role closes, the harness verifies its declared outputs and makes accepted artifacts available to authorized later roles. A later stage reads only the exact accepted upstream outputs named by its invocation start. Parallel roles cannot read one another's in-group work.
-
-The lead prepares candidate formal components under the lead's role root. The harness assembles the immutable submission. Validators inspect it, and only the publisher may create formal generations or change current projections.
+After a role closes, the harness verifies its declared outputs and exposes only
+accepted artifacts to authorized later roles. Parallel roles cannot read one
+another's in-group work. The lead prepares candidate formal components, but
+only the publisher may create formal generations or change current projections.
 
 ## 4. Formal storage and authority records
 
 | Record | Meaning | Mutation rule |
 |---|---|---|
 | Immutable formal generation | One validated published version of a scientific record and its frozen basis | Never edited after publication |
-| `AuthorityEvent` | Append-only event recording publication, supersession, withdrawal, invalidation, alignment, attention, or evidence eligibility | Never rewritten; later changes append another event |
-| `RecordState` | Rebuildable projection of publication state, current or historical position, alignment, attention, and evidence eligibility | Recomputed from authority events |
-| `CurrentIndex` | Sole backend source for resolving current formal records | Replaced atomically from replayed authority state |
-| `PublicationReceipt` | Proof of the exact source operation and the generations, events, projections, and index committed together. A research-run receipt binds its exact `RunSubmission`; a control-command receipt instead binds its exact authorized command transaction. | Immutable |
+| `AuthorityEvent` | Publication, supersession, withdrawal, invalidation, alignment, attention, or evidence-eligibility event | Append-only |
+| `RecordState` | Rebuildable projection of publication state, position, alignment, attention, and evidence eligibility | Recomputed from authority events |
+| `CurrentIndex` | Backend source for resolving current formal records | Replaced atomically from replayed authority state |
+| `PublicationReceipt` | Proof of the source operation and all generations, events, projections, and index changes committed together | Immutable |
 | `CommandAttemptAuditEvent` | Tamper-evident operational record of accepted or rejected user commands | Append-only and separate from scientific authority |
 
-These authority dimensions remain separate:
-
-- Publication state records whether an object is run-local, submitted, validated, formal, withdrawn, or invalid.
-- Record position records whether a formal generation is current or historical.
-- Alignment records whether hard dependencies match the current scientific basis.
-- Research attention records questions that require scientific consideration.
-- Scientific outcome records what the research supports, contradicts, or leaves unresolved.
-
-A negative or incomplete scientific outcome can still be a formal current record. Conversely, a detailed and persuasive artifact is not formal until publication commits.
+Publication state, current position, method alignment, research attention, and
+scientific outcome remain separate. A negative or incomplete result may be a
+formal current record. A persuasive artifact is not formal until publication.
 
 ## 5. Update semantics by phase
 
 | Phase | Cumulative content | Replaced current content | Important rule |
 |---|---|---|---|
-| Phase 1, literature basis | Unique literature sources, provenance, corrections, retractions, and attention items | Literature library projection, synthesis, coverage assessment, and phase decision | Existing sources are preserved. A rerun normally adds unique references and updates the current synthesis. |
-| Phase 2, method catalog | Method lineage and attention items | Scoped method records, method catalog, and phase decision | Full-catalog mode may change multiple methods. Focused-method mode may change only the selected stable method. Retirement requires an explicit authorized action. |
-| Phase 3, theory development | Attention items and immutable earlier generations | Complete theory record and phase decision for one exact method identity | A rerun publishes a complete replacement, not a patch. The earlier complete theory generation becomes historical. |
-| Phase 4, empirical evaluation | New immutable evidence items and attention items | Evidence index, empirical synthesis, implementation record, and phase decision | Evidence accumulates. Evidence for an earlier mathematical definition remains traceable but is not applicable to the new version. Preliminary or comprehensive scope is selected by the user on every run. |
-| Phase 5, manuscript assembly and revision | Attention items and, in review-revision mode, review issues | Complete manuscript package, review issue ledger when applicable, and phase decision | A rerun publishes one complete manuscript package tied to exact current Phase 1 through Phase 4 records. Earlier manuscript generations remain historical. |
+| Phase 1, literature basis | Unique sources, provenance, corrections, retractions, and attention items | Literature library projection, synthesis, coverage, and decision | Existing sources are preserved; reruns add unique references and update the current assessment. |
+| Phase 2, method catalog | Method lineage and attention items | In-scope method records, catalog, and decision | Full-catalog may change several methods; focused-method may change only the selected stable method; researcher-proposal evaluates a supplied specification and may register it. |
+| Phase 3, theory development | Attention items and immutable earlier generations | Complete `TheoryRecord` and decision for one exact method identity | Establishment builds the scoped account. Revision publishes a complete replacement and may strengthen, weaken, condition, contradict, or retract claims. |
+| Phase 4, empirical evaluation | New immutable evidence and attention items | Evidence index, empirical synthesis, implementation record, and decision | Preliminary and comprehensive are user-selected scientific scopes, not chronological steps. Comprehensive does not require a prior preliminary run. Prior code may be reused only after exact-method verification. |
+| Phase 5, manuscript assembly and revision | Attention items and, in review-revision, review issues | Complete `ManuscriptPackage`, review issue ledger when applicable, and decision | Reviewers produce open findings or a report. The revision lead owns issue disposition and publishes one complete revised package. |
 
-No phase launches another phase or rerun automatically. Successful publication exposes updated information and available actions; the researcher decides what to run next.
+No phase launches another phase or rerun automatically. Publication exposes
+updated information and actions; the researcher decides what to run next.
 
 ## 6. Method identity and digest rules
 
@@ -108,31 +118,23 @@ An exact method identity contains:
 }
 ```
 
-The stable ID never changes. The positive integer version advances when a calculation-defining mathematical component changes. `definition_sha256` covers only the canonical mathematical definition. A prose or presentation edit may change the whole-record digest without changing the method version or definition digest.
+The stable ID never changes. The positive integer version advances when a
+calculation-defining mathematical component changes. `definition_sha256`
+covers only the canonical mathematical definition. A prose edit may change the
+whole-record digest without changing the method version or definition digest.
 
-Method-bound theory, evidence, implementation, and manuscript records carry the exact method identity. A definition-digest mismatch is `outdated` and cannot be treated as compatible.
+Method-bound theory, protocol, evidence, implementation, and manuscript records
+carry the exact method identity. A definition-digest mismatch is `outdated` and
+cannot be treated as compatible.
 
-Structured JSON digests use the exact registered RFC 8785 contract. A primary artifact pointer hashes the exact referenced bytes. Implementations must not substitute a hash of a filename, display text, or reserialized artifact.
+Structured JSON digests use the registered RFC 8785 contract. A primary artifact
+pointer hashes the exact referenced bytes, not a filename or display text.
 
-## 7. Naming, references, and logical paths
+## 7. Naming and logical references
 
-Stable identifiers are opaque and permanent. They must not encode mutable names, scientific status, phase completion, or filesystem paths. Common prefixes include:
-
-| Object | Example prefix |
-|---|---|
-| Project | `prj_` |
-| Method | `mth_` |
-| Run | `run_` |
-| Record | `rec_` |
-| Generation | `gen_` |
-| Artifact | `art_` |
-| Statement | `stm_` |
-| Evidence | `evd_` |
-| Attention item | `att_` |
-| Review issue | `iss_` |
-| Publication receipt | `pub_` |
-
-Persistent dependencies use typed logical references with immutable identities and digests. Examples include:
+Stable identifiers are permanent and must not encode mutable status, phase
+completion, or filesystem paths. Persistent dependencies use typed logical
+references and immutable identities, for example:
 
 ```text
 generation://{record_type}/{record_id}/{generation_id}
@@ -141,16 +143,7 @@ statement://{statement_id}
 evidence://{evidence_id}
 ```
 
-A reference such as `record://method/{method_id}/theory/current` is a resolver query. The harness resolves it during preparation and freezes the resulting generation identity and digest. A persisted scientific dependency must not point to a mutable `current` location.
-
-The recommended logical namespaces are:
-
-```text
-project/
-  records/       # Read-only current projections
-  generations/   # Immutable formal generations
-  runs/          # Controlled run workspaces and submissions
-  control/       # Authority events, projections, receipts, and command audit
-```
-
-Filenames are labels, not trusted paths or scientific identities. Storage services must reject path traversal, cross-project access without policy, digest mismatches, and references to mutable role workspaces. No code may infer authority, current status, alignment, or scientific outcome from a directory name or file presence.
+A `current` reference is a resolver query. The harness resolves it during
+preparation and freezes the resulting generation identity and digest. Persisted
+scientific dependencies do not point to mutable role workspaces or `current`
+locations.

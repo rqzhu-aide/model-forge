@@ -143,7 +143,7 @@ INVALID_EXPECTED_SCHEMA_ERRORS = {
         ("user_request/choice_values/p4.selected_history", "maxItems"),
     ],
     "scientific-record-mutable-position.invalid.json": [
-        ("<root>", "additionalProperties"),
+        ("<root>", "not"),
     ],
     "action-descriptor-cross-family.invalid.json": [
         ("<root>", "oneOf"),
@@ -271,6 +271,11 @@ def validate_digest_contract_registry(schemas, registry) -> list[str]:
         "current_index.content",
         "decision_record.content",
         "evidence_item.content",
+        "empirical_protocol.content",
+        "manuscript_package.content",
+        "review_finding.content",
+        "review_report.content",
+        "theory_record.content",
         "formal_generation_withdrawal_command.content",
         "literature_source.content",
         "method_lifecycle_command.content",
@@ -315,6 +320,50 @@ def validate_digest_contract_registry(schemas, registry) -> list[str]:
         )
 
     by_id = {item.get("contract_id"): item for item in contracts}
+    exact_specialized_content_contracts = {
+        "empirical_protocol.content": (
+            "empirical_protocol",
+            "empirical-protocol.schema.json",
+        ),
+        "manuscript_package.content": (
+            "manuscript_package",
+            "manuscript-package.schema.json",
+        ),
+        "review_finding.content": (
+            "review_finding",
+            "review-finding.schema.json",
+        ),
+        "review_report.content": (
+            "review_report",
+            "review-report.schema.json",
+        ),
+        "theory_record.content": (
+            "theory_record",
+            "theory-record.schema.json",
+        ),
+    }
+    for contract_id, (object_kind, schema_file) in (
+        exact_specialized_content_contracts.items()
+    ):
+        expected = {
+            "contract_id": contract_id,
+            "object_kind": object_kind,
+            "schema_file": schema_file,
+            "instance_pointer": "",
+            "digest_location": {
+                "kind": "embedded",
+                "json_pointer": "/content_sha256",
+            },
+            "construction": "rfc8785_sha256",
+            "payload_pointer": "",
+            "excluded_json_pointers": ["/content_sha256"],
+        }
+        if by_id.get(contract_id) != expected:
+            errors.append(
+                f"digest contract {contract_id} is not the exact whole-record "
+                "content construction"
+            )
+
     for contract in contracts:
         schema_file = contract.get("schema_file")
         if schema_file not in schemas:
@@ -2354,12 +2403,14 @@ def validate_contracts(schemas, registry) -> tuple[list[str], dict]:
             "p5.current_manuscript",
             "p5.method",
             "p5.theory",
+            "p5.implementation_record",
             "p5.literature_synthesis",
         ],
         "data_analyst": [
             "p5.review_packet",
             "p5.current_manuscript",
             "p5.method",
+            "p5.theory",
             "p5.empirical_index",
             "p5.empirical",
             "p5.implementation_record",
@@ -2819,8 +2870,14 @@ def validate_contracts(schemas, registry) -> tuple[list[str], dict]:
         phase_id: {item["mode_id"] for item in contract["run_modes"]}
         for phase_id, contract in contracts.items()
     }
-    if mode_ids.get("P2") != {"p2.full_catalog", "p2.focused_method"}:
-        errors.append("P2 must expose full-catalog and focused-method modes")
+    if mode_ids.get("P2") != {
+        "p2.full_catalog",
+        "p2.focused_method",
+        "p2.researcher_proposal",
+    }:
+        errors.append(
+            "P2 must expose full-catalog, focused-method, and researcher-proposal modes"
+        )
     if mode_ids.get("P4") != {"p4.preliminary", "p4.comprehensive"}:
         errors.append("P4 must expose preliminary and comprehensive modes on every run")
     if mode_ids.get("P5") != {"p5.assembly", "p5.review_revision"}:
@@ -3509,8 +3566,8 @@ def validate_global_invariants(schemas) -> list[str]:
                 contract,
                 contract_sha,
             )
-    if validated_mode_count != 9:
-        errors.append(f"RunCommand coverage found {validated_mode_count} modes, expected 9")
+    if validated_mode_count != 10:
+        errors.append(f"RunCommand coverage found {validated_mode_count} modes, expected 10")
 
     p1_probe, p1_contract, p1_sha = probe_by_mode[("P1", "p1.literature_update")]
     for scope_value in ("broad_update", "focused_update"):

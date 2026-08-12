@@ -1049,24 +1049,45 @@ def _bundle_document(
     outputs: Mapping[str, RegisteredValidatedOutput],
 ) -> tuple[dict[str, Any], RegisteredArtifactMetadata]:
     components = []
+    method_identity: dict[str, Any] | None = None
     for component in binding["components"]:
         output = outputs[str(component["output_id"])]
+        document = output.document
+        if isinstance(document, Mapping) and "method_identity" in document:
+            declared_identity = document["method_identity"]
+            if not isinstance(declared_identity, Mapping):
+                raise _fail(
+                    "publication.invalid_bundle_method_identity",
+                    f"Bundle component {output.contract_output_id!r} declares a "
+                    "non-object method identity.",
+                )
+            candidate_identity = dict(declared_identity)
+            if method_identity is None:
+                method_identity = candidate_identity
+            elif candidate_identity != method_identity:
+                raise _fail(
+                    "publication.conflicting_bundle_method_identity",
+                    "Bundle components declare conflicting method identities.",
+                )
         components.append(
             {
                 "component_name": str(component["component_name"]),
                 "contract_output_id": output.contract_output_id,
                 "document_sha256": output.document_sha256,
                 "artifact": output.artifact.to_dict(),
-                "document": output.document,
+                "document": document,
             }
         )
+    bundle = {
+        "format": "method-hub.deterministic-bundle",
+        "format_version": "1.0.0",
+        "publication_binding_id": str(binding["binding_id"]),
+        "components": components,
+    }
+    if method_identity is not None:
+        bundle["method_identity"] = method_identity
     return (
-        {
-            "format": "method-hub.deterministic-bundle",
-            "format_version": "1.0.0",
-            "publication_binding_id": str(binding["binding_id"]),
-            "components": components,
-        },
+        bundle,
         outputs[str(binding["components"][0]["output_id"])].artifact,
     )
 

@@ -60,3 +60,4 @@ Create a decision record for at least:
 - [ADR-011: Per-project Hermes Profile Memory and Session Model](ADR-011-per-project-memory-model.md)
 - [ADR-012: Trusted Local Hermes Execution for Version 1](ADR-012-trusted-local-hermes-execution.md)
 - [ADR-013: Layered Prompts and Phase-Specific Output Contracts](ADR-013-layered-prompts-and-phase-specific-output-contracts.md)
+- [ADR-014: Independent Lifecycle Axes and Validation Policy](ADR-014-independent-lifecycle-axes-and-validation-policy.md)

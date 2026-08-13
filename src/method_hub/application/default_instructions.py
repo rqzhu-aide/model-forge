@@ -41,6 +41,16 @@ _jinja_env = Environment(
     autoescape=False,
 )
 
+# Harness-owned vs agent-authored field separation (HV-4.6). Appended to
+# every rendered instruction layer unless the template already carries the
+# exact sentence, so the guidance renders exactly once per layer and also
+# covers templates that predate this note.
+_HARNESS_FIELD_OWNERSHIP_GUIDANCE = (
+    "You are responsible for the scientific content of your output. "
+    "The harness populates identity, provenance, timestamps, and digest "
+    "fields automatically. Do not attempt to write these fields."
+)
+
 
 def instructions_dir() -> Path:
     """Return the base directory holding instruction ``.md`` templates."""
@@ -178,7 +188,10 @@ def _render(
     rendered = template.render(**context)
     while "\n\n\n" in rendered:
         rendered = rendered.replace("\n\n\n", "\n\n")
-    return rendered.strip()
+    rendered = rendered.strip()
+    if _HARNESS_FIELD_OWNERSHIP_GUIDANCE not in rendered:
+        rendered = f"{rendered}\n\n{_HARNESS_FIELD_OWNERSHIP_GUIDANCE}"
+    return rendered
 
 
 def load_mode_instruction(

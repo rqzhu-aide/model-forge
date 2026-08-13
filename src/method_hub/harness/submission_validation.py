@@ -8,7 +8,7 @@ from typing import Any
 
 from ..contracts import ResolvedPhasePlan
 from ..domain.identities import MethodIdentity
-from ..domain.validation import ValidationFinding, ValidationSeverity
+from ..domain.validation import ValidationFinding, ValidationSeverity, make_finding
 from ..json_io import JsonLoadError, loads_json
 from ..schemas import SchemaCatalog
 from ..storage import ArtifactStore
@@ -28,7 +28,7 @@ class SubmissionValidationResult:
     @property
     def passed(self) -> bool:
         return not any(
-            item.severity is ValidationSeverity.ERROR for item in self.findings
+            item.blocks_publication for item in self.findings
         )
 
 
@@ -407,12 +407,11 @@ def _finding(
     object_id: str,
     pointer: str = "",
 ) -> ValidationFinding:
-    return ValidationFinding(
+    return make_finding(
         code=code,
         message=message,
-        severity=ValidationSeverity.ERROR,
         object_id=object_id,
-        json_pointer=pointer,
+        pointer=pointer,
     )
 
 

@@ -1,0 +1,1477 @@
+_meta:
+  title: HV-0.1 Finding Code Inventory
+  plan: architecture/plans/HV-0-architecture-and-failure-baseline.md
+  commit: 53efd014d87b34ca9e1189df9b37ed391f212b92
+  date: '2026-08-12'
+  method: Static extraction of first-positional-argument literals of _finding(...) calls (plan lines 62-72 recipe), plus code=
+    literals passed to finding-emitting helpers (_unique_ids, _require_resolved_ids, _validate_primary_artifact), direct ValidationFinding(...)
+    constructors (inputs.py; outputs.py:158), f-string composed codes (p2.{field}_empty, {code_prefix}.primary_artifact_not_represented),
+    and dynamically composed codes (json.*, schema.<validator>). Non-code pN.* constants (mode names p2.focused_method, p3.theory_revision,
+    p5.review_revision, p5.assembly; output/object-id literals p4.protocol, p4.decision, p5.assembly, p4.empirical_index_candidate,
+    etc.) were manually excluded.
+  counts:
+    scientific_literals: 67
+    submission_literals: 19
+    input_literals: 7
+    output_literals: 8
+    json_load_error_codes: 5
+    schema_dynamic_patterns: 1
+    total_entries: 107
+  default_policy_note: 'All codes are emitted with ValidationSeverity.ERROR and pass/fail is any(severity == ERROR) (domain/validation.py),
+    so every code currently blocks publication (blocks_publication: true for all). The schema.<validator> code family is unbounded
+    (jsonschema validator names) and must default to blocking under the HV-2 registry fail-closed policy.'
+  provisional_class_legend:
+    integrity_blocker: Plan 5.2 - identity/provenance/digest mismatches, unsafe paths, mode/phase violations; never silently
+      repaired, no V1 override.
+    correctable_contract_error: Plan 5.3 - shape/schema violations, missing or misshapen fields, duplicate or dangling references,
+      malformed JSON; run enters needs_output_correction.
+    scientific_claim_blocker: Plan 5.4 - claims/statements/evidence asserted without required support or exact-method binding;
+      publication withheld.
+    scientific_attention: Plan 5.5 - reserved; zero codes currently (all would require severity reclassification).
+    information: Plan 5.6 - reserved; zero codes currently.
+  class_counts:
+    correctable_contract_error: 59
+    integrity_blocker: 33
+    scientific_claim_blocker: 15
+findings:
+- code: p1.duplicate_source_id
+  lane: scientific
+  phase: P1
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes:
+  - p1.literature_update
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p1
+  call_sites:
+  - - scientific_validators.py
+    - 88
+  user_guidance: A source appears more than once in the update; remove or merge the duplicate source entry.
+- code: p1.duplicate_source_identifier
+  lane: scientific
+  phase: P1
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes:
+  - p1.literature_update
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p1
+  call_sites:
+  - - scientific_validators.py
+    - 110
+  user_guidance: The same external source identifier is repeated; de-duplicate identifiers across the added sources.
+- code: p1.search_provenance_missing
+  lane: scientific
+  phase: P1
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes:
+  - p1.literature_update
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p1
+  call_sites:
+  - - scientific_validators.py
+    - 122
+  user_guidance: Every added source must preserve search provenance (query, role, run, timestamp); add it or the literature
+    basis is not reproducible.
+- code: p2.assumptions_empty
+  lane: scientific
+  phase: P2
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: &id001
+  - p2.full_catalog
+  - p2.focused_method
+  - p2.independent_proposals
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_method_definition
+  call_sites:
+  - - scientific_validators.py
+    - 295
+  user_guidance: The method record must state its assumptions; use an explicit not-applicable entry when justified.
+- code: p2.canonical_definition_empty
+  lane: scientific
+  phase: P2
+  default_severity: ERROR
+  provisional_class: scientific_claim_blocker
+  blocks_publication: true
+  applicable_modes: *id001
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_method_definition
+  call_sites:
+  - - scientific_validators.py
+    - 268
+  user_guidance: The canonical method definition must state a substantive target or estimating equation.
+- code: p2.defining_components_empty
+  lane: scientific
+  phase: P2
+  default_severity: ERROR
+  provisional_class: scientific_claim_blocker
+  blocks_publication: true
+  applicable_modes: *id001
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_method_definition
+  call_sites:
+  - - scientific_validators.py
+    - 279
+  user_guidance: The method record must enumerate the components that determine its calculation.
+- code: p2.focused_initial_lineage
+  lane: scientific
+  phase: P2
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: &id002
+  - p2.focused_method
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p2
+  call_sites:
+  - - scientific_validators.py
+    - 184
+  user_guidance: An existing focused method cannot be emitted with initial lineage; name the real predecessor instead.
+- code: p2.focused_method_identity_missing
+  lane: scientific
+  phase: P2
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: *id002
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p2
+  call_sites:
+  - - scientific_validators.py
+    - 156
+  user_guidance: Focused-method work must declare the exact selected method identity before any method record is accepted.
+- code: p2.focused_scope_exceeded
+  lane: scientific
+  phase: P2
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: *id002
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p2
+  call_sites:
+  - - scientific_validators.py
+    - 165
+  user_guidance: Focused-method work may return at most one method record; reduce the update to the single selected method.
+- code: p2.limitations_empty
+  lane: scientific
+  phase: P2
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id001
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_method_definition
+  call_sites:
+  - - scientific_validators.py
+    - 295
+  user_guidance: The method record must state its limitations; use an explicit not-applicable entry when justified.
+- code: p2.literature_provenance_empty
+  lane: scientific
+  phase: P2
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id001
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_method_definition
+  call_sites:
+  - - scientific_validators.py
+    - 295
+  user_guidance: The method record must state its literature provenance; use an explicit not-applicable entry when justified.
+- code: p2.mathematical_digest_unchanged
+  lane: scientific
+  phase: P2
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: *id002
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p2
+  call_sites:
+  - - scientific_validators.py
+    - 245
+  user_guidance: A calculation-defining revision must change the definition digest.
+- code: p2.mathematical_stable_id_changed
+  lane: scientific
+  phase: P2
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: *id002
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p2
+  call_sites:
+  - - scientific_validators.py
+    - 223
+  user_guidance: A mathematical revision must preserve the stable method ID.
+- code: p2.mathematical_version_not_advanced
+  lane: scientific
+  phase: P2
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: *id002
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p2
+  call_sites:
+  - - scientific_validators.py
+    - 232
+  user_guidance: A mathematical revision must advance the method version by exactly one.
+- code: p2.nonmathematical_identity_changed
+  lane: scientific
+  phase: P2
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: *id002
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p2
+  call_sites:
+  - - scientific_validators.py
+    - 213
+  user_guidance: Editorial and lifecycle updates must preserve method ID, version, and definition digest.
+- code: p2.predecessor_generation_missing
+  lane: scientific
+  phase: P2
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id002
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p2
+  call_sites:
+  - - scientific_validators.py
+    - 202
+  user_guidance: The focused method must name the predecessor generation it revises or reassesses.
+- code: p2.predecessor_identity_mismatch
+  lane: scientific
+  phase: P2
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: *id002
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p2
+  call_sites:
+  - - scientific_validators.py
+    - 193
+  user_guidance: The focused method must name the exact selected version as its predecessor.
+- code: p3.contradiction_without_evidence
+  lane: scientific
+  phase: P3
+  default_severity: ERROR
+  provisional_class: scientific_claim_blocker
+  blocks_publication: true
+  applicable_modes: &id003
+  - p3.theory_establishment
+  - p3.theory_revision
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_theory_statement
+  call_sites:
+  - - scientific_validators.py
+    - 557
+  user_guidance: A contradicted statement must point to a counterexample or empirical evidence artifact.
+- code: p3.development_mode_mismatch
+  lane: scientific
+  phase: P3
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: *id003
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p3
+  call_sites:
+  - - scientific_validators.py
+    - 353
+  user_guidance: The theory record development mode must match the authorized run mode.
+- code: p3.duplicate_assumption_id
+  lane: scientific
+  phase: P3
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id003
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p3 (via _unique_ids)
+  call_sites:
+  - - scientific_validators.py
+    - 378
+  user_guidance: An assumption identifier occurs more than once in the theory record.
+- code: p3.duplicate_implication_id
+  lane: scientific
+  phase: P3
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id003
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p3 (via _unique_ids)
+  call_sites:
+  - - scientific_validators.py
+    - 394
+  user_guidance: An empirical implication identifier occurs more than once in the theory record.
+- code: p3.duplicate_statement_id
+  lane: scientific
+  phase: P3
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id003
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p3 (via _unique_ids)
+  call_sites:
+  - - scientific_validators.py
+    - 386
+  user_guidance: A statement identifier occurs more than once in the theory record.
+- code: p3.established_statement_unsupported
+  lane: scientific
+  phase: P3
+  default_severity: ERROR
+  provisional_class: scientific_claim_blocker
+  blocks_publication: true
+  applicable_modes: *id003
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_theory_statement
+  call_sites:
+  - - scientific_validators.py
+    - 535
+  user_guidance: An established formal statement requires a proof or derivation artifact; attach it or lower the status.
+- code: p3.incomplete_statement_without_obligation
+  lane: scientific
+  phase: P3
+  default_severity: ERROR
+  provisional_class: scientific_claim_blocker
+  blocks_publication: true
+  applicable_modes: *id003
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_theory_statement
+  call_sites:
+  - - scientific_validators.py
+    - 547
+  user_guidance: An incomplete statement must identify the remaining proof obligation.
+- code: p3.method_identity_mismatch
+  lane: scientific
+  phase: P3
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: *id003
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p3
+  call_sites:
+  - - scientific_validators.py
+    - 343
+  user_guidance: The theory record must use the exact selected method ID, version, and definition digest.
+- code: p3.no_assumptions_documented
+  lane: scientific
+  phase: P3
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id003
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p3
+  call_sites:
+  - - scientific_validators.py
+    - 325
+  user_guidance: The theory record must document at least one basis record.
+- code: p3.primary_artifact_not_represented
+  lane: scientific
+  phase: P3
+  default_severity: ERROR
+  provisional_class: scientific_claim_blocker
+  blocks_publication: true
+  applicable_modes: *id003
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p3 (via _validate_primary_artifact)
+  call_sites:
+  - - scientific_validators.py
+    - 361
+  user_guidance: The declared primary artifact must be the primary-artifact representation of the theory record.
+- code: p3.revision_account_missing
+  lane: scientific
+  phase: P3
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: &id004
+  - p3.theory_revision
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p3
+  call_sites:
+  - - scientific_validators.py
+    - 489
+  user_guidance: Theory revision requires an explicit account of changed and unresolved statements.
+- code: p3.self_dependent_statement
+  lane: scientific
+  phase: P3
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id003
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p3
+  call_sites:
+  - - scientific_validators.py
+    - 437
+  user_guidance: A theory statement cannot depend on itself; remove the self-reference.
+- code: p3.statement_dependency_cycle
+  lane: scientific
+  phase: P3
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id003
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p3
+  call_sites:
+  - - scientific_validators.py
+    - 464
+  user_guidance: The theory statement dependency graph contains a cycle; break it before publication.
+- code: p3.unknown_assumption_reference
+  lane: scientific
+  phase: P3
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id003
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p3 (via _require_resolved_ids)
+  call_sites:
+  - - scientific_validators.py
+    - 419
+  user_guidance: A theory statement refers to an assumption absent from this record.
+- code: p3.unknown_empirical_implication
+  lane: scientific
+  phase: P3
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id003
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p3 (via _require_resolved_ids)
+  call_sites:
+  - - scientific_validators.py
+    - 450
+  user_guidance: A theory statement refers to an empirical implication absent from this record.
+- code: p3.unknown_implication_statement
+  lane: scientific
+  phase: P3
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id003
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p3 (via _require_resolved_ids)
+  call_sites:
+  - - scientific_validators.py
+    - 478
+  user_guidance: An empirical implication refers to a statement absent from this record.
+- code: p3.unknown_revision_statement
+  lane: scientific
+  phase: P3
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id004
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p3 (via _require_resolved_ids)
+  call_sites:
+  - - scientific_validators.py
+    - 509
+  user_guidance: The revision account refers to a statement absent from the replacement theory record.
+- code: p3.unknown_statement_dependency
+  lane: scientific
+  phase: P3
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id003
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p3 (via _require_resolved_ids)
+  call_sites:
+  - - scientific_validators.py
+    - 429
+  user_guidance: A theory statement depends on a statement absent from this record.
+- code: p3.unknown_statement_reference
+  lane: scientific
+  phase: P3
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id003
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p3 (via _require_resolved_ids)
+  call_sites:
+  - - scientific_validators.py
+    - 404
+  user_guidance: An assumption refers to a statement absent from this theory record.
+- code: p4.duplicate_metric_id
+  lane: scientific
+  phase: P4
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: &id005
+  - p4.preliminary
+  - p4.comprehensive
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_empirical_protocol (via _unique_ids)
+  call_sites:
+  - - scientific_validators.py
+    - 716
+  user_guidance: A metric identifier occurs more than once in the protocol.
+- code: p4.duplicate_test_id
+  lane: scientific
+  phase: P4
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id005
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_empirical_protocol (via _unique_ids)
+  call_sites:
+  - - scientific_validators.py
+    - 708
+  user_guidance: A claim test identifier occurs more than once in the protocol.
+- code: p4.duplicate_threshold_id
+  lane: scientific
+  phase: P4
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id005
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_empirical_protocol (via _unique_ids)
+  call_sites:
+  - - scientific_validators.py
+    - 724
+  user_guidance: A decision threshold identifier occurs more than once in the protocol.
+- code: p4.evidence_method_mismatch
+  lane: scientific
+  phase: P4
+  default_severity: ERROR
+  provisional_class: scientific_claim_blocker
+  blocks_publication: true
+  applicable_modes: *id005
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p4
+  call_sites:
+  - - scientific_validators.py
+    - 637
+  user_guidance: Method-bound evidence must match the selected method ID, version, and definition digest.
+- code: p4.evidence_missing_method_identity
+  lane: scientific
+  phase: P4
+  default_severity: ERROR
+  provisional_class: scientific_claim_blocker
+  blocks_publication: true
+  applicable_modes: *id005
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p4
+  call_sites:
+  - - scientific_validators.py
+    - 628
+  user_guidance: Method-bound evidence must carry a method identity.
+- code: p4.evidence_not_exactly_applicable
+  lane: scientific
+  phase: P4
+  default_severity: ERROR
+  provisional_class: scientific_claim_blocker
+  blocks_publication: true
+  applicable_modes: *id005
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p4
+  call_sites:
+  - - scientific_validators.py
+    - 652
+  user_guidance: New method-bound evidence must be assessed as exactly applicable to the selected method.
+- code: p4.incomplete_four_slot_update
+  lane: scientific
+  phase: P4
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: *id005
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p4
+  call_sites:
+  - - scientific_validators.py
+    - 684
+  user_guidance: Phase 4 four-slot update is partial; the evidence index, synthesis, implementation record, and decision must
+    be jointly updated.
+- code: p4.protocol_finalized_after_evidence
+  lane: scientific
+  phase: P4
+  default_severity: ERROR
+  provisional_class: scientific_claim_blocker
+  blocks_publication: true
+  applicable_modes: *id005
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p4
+  call_sites:
+  - - scientific_validators.py
+    - 666
+  user_guidance: The protocol was finalized after evidence was created, so prespecification cannot be established.
+- code: p4.protocol_method_mismatch
+  lane: scientific
+  phase: P4
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: *id005
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p4
+  call_sites:
+  - - scientific_validators.py
+    - 596
+  user_guidance: The empirical protocol must use the exact selected method identity.
+- code: p4.protocol_mode_mismatch
+  lane: scientific
+  phase: P4
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: *id005
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p4
+  call_sites:
+  - - scientific_validators.py
+    - 585
+  user_guidance: The empirical protocol scope must match the authorized run mode.
+- code: p4.reproducibility_artifact_missing
+  lane: scientific
+  phase: P4
+  default_severity: ERROR
+  provisional_class: scientific_claim_blocker
+  blocks_publication: true
+  applicable_modes: *id005
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_reproducibility
+  call_sites:
+  - - scientific_validators.py
+    - 806
+  user_guidance: Reproducibility metadata must include at least one code, configuration, and environment artifact entry.
+- code: p4.reproducibility_missing
+  lane: scientific
+  phase: P4
+  default_severity: ERROR
+  provisional_class: scientific_claim_blocker
+  blocks_publication: true
+  applicable_modes: *id005
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_reproducibility
+  call_sites:
+  - - scientific_validators.py
+    - 790
+  user_guidance: Computational or empirical evidence requires a reproducibility record.
+- code: p4.simulation_seed_missing
+  lane: scientific
+  phase: P4
+  default_severity: ERROR
+  provisional_class: scientific_claim_blocker
+  blocks_publication: true
+  applicable_modes: *id005
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_reproducibility
+  call_sites:
+  - - scientific_validators.py
+    - 817
+  user_guidance: Simulation evidence must record the random seeds used.
+- code: p4.unknown_decision_threshold
+  lane: scientific
+  phase: P4
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id005
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_empirical_protocol (via _require_resolved_ids)
+  call_sites:
+  - - scientific_validators.py
+    - 738
+  user_guidance: A claim test refers to a decision threshold absent from the protocol.
+- code: p4.unknown_deviation_test
+  lane: scientific
+  phase: P4
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id005
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_empirical_protocol (via _require_resolved_ids)
+  call_sites:
+  - - scientific_validators.py
+    - 773
+  user_guidance: A protocol deviation refers to a claim test absent from the protocol.
+- code: p4.unknown_threshold_claim
+  lane: scientific
+  phase: P4
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id005
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_empirical_protocol
+  call_sites:
+  - - scientific_validators.py
+    - 758
+  user_guidance: A decision threshold refers to a claim absent from the protocol claim tests.
+- code: p4.unknown_threshold_metric
+  lane: scientific
+  phase: P4
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id005
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_empirical_protocol
+  call_sites:
+  - - scientific_validators.py
+    - 749
+  user_guidance: A decision threshold refers to a metric absent from the protocol.
+- code: p5.claim_without_evidence
+  lane: scientific
+  phase: P5
+  default_severity: ERROR
+  provisional_class: scientific_claim_blocker
+  blocks_publication: true
+  applicable_modes: &id007
+  - p5.assembly
+  - p5.review_revision
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p5
+  call_sites:
+  - - scientific_validators.py
+    - 859
+  user_guidance: A manuscript claim must have supporting evidence or counterevidence, or be an explicit limitation or open
+    question.
+- code: p5.disposition_reason_missing
+  lane: scientific
+  phase: P5
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: &id006
+  - p5.review_revision
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p5
+  call_sites:
+  - - scientific_validators.py
+    - 969
+  user_guidance: A deferred or rejected issue requires a scientific justification.
+- code: p5.duplicate_issue_disposition
+  lane: scientific
+  phase: P5
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id006
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p5
+  call_sites:
+  - - scientific_validators.py
+    - 935
+  user_guidance: A review issue has more than one final disposition in this run.
+- code: p5.issue_undispositioned
+  lane: scientific
+  phase: P5
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id006
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p5
+  call_sites:
+  - - scientific_validators.py
+    - 947
+  user_guidance: Every review finding must receive a final lead disposition in review-revision mode.
+- code: p5.manuscript_basis_missing
+  lane: scientific
+  phase: P5
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id007
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_manuscript_package
+  call_sites:
+  - - scientific_validators.py
+    - 1023
+  - - scientific_validators.py
+    - 1032
+  user_guidance: The manuscript package must identify its frozen upstream basis.
+- code: p5.manuscript_kind_mismatch
+  lane: scientific
+  phase: P5
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id007
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_manuscript_package
+  call_sites:
+  - - scientific_validators.py
+    - 1002
+  user_guidance: The manuscript package kind must match the authorized Phase 5 mode (assembly or revised candidate).
+- code: p5.manuscript_missing
+  lane: scientific
+  phase: P5
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id007
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p5
+  call_sites:
+  - - scientific_validators.py
+    - 870
+  user_guidance: Phase 5 requires one complete replacement manuscript package.
+- code: p5.method_identity_mismatch
+  lane: scientific
+  phase: P5
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: *id007
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_manuscript_package
+  call_sites:
+  - - scientific_validators.py
+    - 1013
+  user_guidance: The manuscript package must use the exact selected method identity.
+- code: p5.primary_artifact_not_represented
+  lane: scientific
+  phase: P5
+  default_severity: ERROR
+  provisional_class: scientific_claim_blocker
+  blocks_publication: true
+  applicable_modes: *id007
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_manuscript_package (via _validate_primary_artifact)
+  call_sites:
+  - - scientific_validators.py
+    - 1043
+  user_guidance: The declared primary artifact must be the primary-artifact representation of the manuscript package.
+- code: p5.review_finding_not_dispositioned
+  lane: scientific
+  phase: P5
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id006
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p5
+  call_sites:
+  - - scientific_validators.py
+    - 980
+  user_guidance: Every review finding must receive a lead disposition before the revision can close.
+- code: p5.review_role_mismatch
+  lane: scientific
+  phase: P5
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: *id006
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_open_review_finding
+  call_sites:
+  - - scientific_validators.py
+    - 1089
+  user_guidance: The review finding is attributed to the wrong research role.
+- code: p5.revision_location_missing
+  lane: scientific
+  phase: P5
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id006
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_p5
+  call_sites:
+  - - scientific_validators.py
+    - 958
+  user_guidance: A fixed or partially fixed issue must identify the resulting manuscript location.
+- code: p5.specialist_prejudged_disposition
+  lane: scientific
+  phase: P5
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: *id006
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_open_review_finding
+  call_sites:
+  - - scientific_validators.py
+    - 1080
+  user_guidance: Reviewers report open findings only; only the research lead assigns dispositions.
+- code: p5.unknown_claim_support_reference
+  lane: scientific
+  phase: P5
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: *id007
+  responsible_file: src/method_hub/harness/scientific_validators.py
+  validator: _validate_manuscript_package
+  call_sites:
+  - - scientific_validators.py
+    - 1059
+  user_guidance: Claim-support categories must refer only to claims present in the traceability record.
+- code: p1.duplicate_source_identity
+  lane: submission
+  phase: P1
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes:
+  - p1.literature_update
+  responsible_file: src/method_hub/harness/submission_validation.py
+  validator: _validate_phase_semantics
+  call_sites:
+  - - submission_validation.py
+    - 332
+  user_guidance: Phase 1 source changes repeat a stable literature identity.
+- code: submission.artifact_identity_mismatch
+  lane: submission
+  phase: all
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/submission_validation.py
+  validator: _verify_output
+  call_sites:
+  - - submission_validation.py
+    - 259
+  user_guidance: The artifact does not match the submitted project and digest.
+- code: submission.artifact_invalid
+  lane: submission
+  phase: all
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/submission_validation.py
+  validator: _verify_output
+  call_sites:
+  - - submission_validation.py
+    - 272
+  user_guidance: The artifact cannot be verified; correct or regenerate the artifact and resubmit.
+- code: submission.artifact_pointer_missing
+  lane: submission
+  phase: all
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/submission_validation.py
+  validator: _verify_output
+  call_sites:
+  - - submission_validation.py
+    - 236
+  user_guidance: An output entry lacks an artifact pointer.
+- code: submission.artifact_unavailable
+  lane: submission
+  phase: all
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/submission_validation.py
+  validator: _verify_output
+  call_sites:
+  - - submission_validation.py
+    - 250
+  user_guidance: The referenced artifact cannot be read; publication cannot verify the bytes.
+- code: submission.digest_mismatch
+  lane: submission
+  phase: all
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/submission_validation.py
+  validator: validate_submission
+  call_sites:
+  - - submission_validation.py
+    - 83
+  user_guidance: Submission content does not match its sealed digest; do not attempt repair.
+- code: submission.duplicate_output
+  lane: submission
+  phase: all
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/submission_validation.py
+  validator: validate_submission
+  call_sites:
+  - - submission_validation.py
+    - 153
+  user_guidance: An output occurs more than once in the submission; keep exactly one entry per output.
+- code: submission.invalid_document
+  lane: submission
+  phase: all
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/submission_validation.py
+  validator: validate_submission
+  call_sites:
+  - - submission_validation.py
+    - 72
+  user_guidance: The submission document must be a JSON object.
+- code: submission.invalid_output_entry
+  lane: submission
+  phase: all
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/submission_validation.py
+  validator: validate_submission
+  call_sites:
+  - - submission_validation.py
+    - 164
+  user_guidance: Submitted output entries must be objects.
+- code: submission.method_identity_mismatch
+  lane: submission
+  phase: all
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/submission_validation.py
+  validator: _validate_phase_semantics
+  call_sites:
+  - - submission_validation.py
+    - 379
+  user_guidance: A published output does not match the exact selected method.
+- code: submission.method_identity_missing
+  lane: submission
+  phase: all
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/submission_validation.py
+  validator: validate_submission / _validate_phase_semantics
+  call_sites:
+  - - submission_validation.py
+    - 342
+  - - submission_validation.py
+    - 367
+  user_guidance: A method-bound submission or published output must state the exact selected method identity.
+- code: submission.missing
+  lane: submission
+  phase: all
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/submission_validation.py
+  validator: validate_submission
+  call_sites:
+  - - submission_validation.py
+    - 55
+  user_guidance: The immutable run submission is unavailable; the run cannot be published.
+- code: submission.output_identity_mismatch
+  lane: submission
+  phase: all
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/submission_validation.py
+  validator: _verify_output
+  call_sites:
+  - - submission_validation.py
+    - 225
+  user_guidance: An output has the wrong output identity.
+- code: submission.output_provenance_mismatch
+  lane: submission
+  phase: all
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/submission_validation.py
+  validator: _verify_output
+  call_sites:
+  - - submission_validation.py
+    - 217
+  user_guidance: An output is not bound to its declared producer closure.
+- code: submission.output_shape_mismatch
+  lane: submission
+  phase: all
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/submission_validation.py
+  validator: _verify_output
+  call_sites:
+  - - submission_validation.py
+    - 286
+  user_guidance: An output has the wrong JSON shape for its declared schema application.
+- code: submission.phase_mismatch
+  lane: submission
+  phase: all
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/submission_validation.py
+  validator: validate_submission
+  call_sites:
+  - - submission_validation.py
+    - 105
+  user_guidance: The submission phase or mode differs from the frozen plan.
+- code: submission.project_mismatch
+  lane: submission
+  phase: all
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/submission_validation.py
+  validator: validate_submission
+  call_sites:
+  - - submission_validation.py
+    - 95
+  user_guidance: The submission belongs to another project and cannot be published here.
+- code: submission.required_output_missing
+  lane: submission
+  phase: all
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/submission_validation.py
+  validator: validate_submission
+  call_sites:
+  - - submission_validation.py
+    - 137
+  user_guidance: A required output is absent from the submission; add it and resubmit.
+- code: submission.unexpected_output
+  lane: submission
+  phase: all
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/submission_validation.py
+  validator: validate_submission
+  call_sites:
+  - - submission_validation.py
+    - 145
+  user_guidance: An undeclared output is present in the submission; remove it or declare it in the contract.
+- code: input.method_identity_mismatch
+  lane: input
+  phase: all
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/inputs.py
+  validator: resolve_run_inputs
+  call_sites:
+  - - inputs.py
+    - 193
+  user_guidance: The current record is not aligned to the exact selected method.
+- code: input.method_identity_missing
+  lane: input
+  phase: all
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/inputs.py
+  validator: resolve_run_inputs
+  call_sites:
+  - - inputs.py
+    - 177
+  user_guidance: The current record does not declare the method identity required by this run.
+- code: input.method_lineage_mismatch
+  lane: input
+  phase: all
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/inputs.py
+  validator: resolve_run_inputs
+  call_sites:
+  - - inputs.py
+    - 203
+  user_guidance: The current record belongs to another method lineage.
+- code: input.p4_prior_package_incomplete
+  lane: input
+  phase: P4
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: *id005
+  responsible_file: src/method_hub/harness/inputs.py
+  validator: resolve_run_inputs
+  call_sites:
+  - - inputs.py
+    - 228
+  user_guidance: The Phase 4 evidence index, empirical synthesis, and implementation record must be jointly present or jointly
+    absent.
+- code: input.required_context_not_selected
+  lane: input
+  phase: all
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/inputs.py
+  validator: resolve_run_inputs
+  call_sites:
+  - - inputs.py
+    - 153
+  user_guidance: A required current context must remain selected for this run.
+- code: input.required_current_record_missing
+  lane: input
+  phase: all
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/inputs.py
+  validator: resolve_run_inputs
+  call_sites:
+  - - inputs.py
+    - 164
+  user_guidance: A required current record is unavailable; supply it before running.
+- code: input.unknown_context_selection
+  lane: input
+  phase: all
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/inputs.py
+  validator: resolve_run_inputs
+  call_sites:
+  - - inputs.py
+    - 99
+  user_guidance: A selected current-context option is not declared for this run; deselect it.
+- code: json.decode_error
+  lane: output
+  phase: all
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/outputs.py
+  validator: validate_role_outputs / validate_submission (JsonLoadError handler; code defined in json_io.py)
+  call_sites:
+  - - outputs.py
+    - 207
+  - - submission_validation.py
+    - 66
+  - - src/method_hub/json_io.py
+    - 88
+  user_guidance: The document is not decodable JSON; fix the syntax and resubmit.
+- code: json.duplicate_key
+  lane: output
+  phase: all
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/outputs.py
+  validator: validate_role_outputs / validate_submission (JsonLoadError handler; code defined in json_io.py)
+  call_sites:
+  - - outputs.py
+    - 207
+  - - submission_validation.py
+    - 66
+  - - src/method_hub/json_io.py
+    - 19
+  user_guidance: The document repeats a JSON object key, which is not allowed under strict JSON semantics; remove the duplicate
+    key.
+- code: json.invalid_input_type
+  lane: output
+  phase: all
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/outputs.py
+  validator: validate_role_outputs / validate_submission (JsonLoadError handler; code defined in json_io.py)
+  call_sites:
+  - - outputs.py
+    - 207
+  - - submission_validation.py
+    - 66
+  - - src/method_hub/json_io.py
+    - 64
+  user_guidance: The input is not a JSON document (wrong input type); supply a JSON payload.
+- code: json.non_finite_number
+  lane: output
+  phase: all
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/outputs.py
+  validator: validate_role_outputs / validate_submission (JsonLoadError handler; code defined in json_io.py)
+  call_sites:
+  - - outputs.py
+    - 207
+  - - submission_validation.py
+    - 66
+  - - src/method_hub/json_io.py
+    - 28
+  user_guidance: The document contains a non-finite number (NaN or Infinity), which is not valid JSON; replace it.
+- code: json.read_error
+  lane: output
+  phase: all
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/outputs.py
+  validator: validate_role_outputs / validate_submission (JsonLoadError handler; code defined in json_io.py)
+  call_sites:
+  - - outputs.py
+    - 207
+  - - submission_validation.py
+    - 66
+  - - src/method_hub/json_io.py
+    - 104
+  user_guidance: The JSON source could not be read; check the file or storage before resubmitting.
+- code: output.expected_array
+  lane: output
+  phase: all
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/outputs.py
+  validator: validate_role_outputs
+  call_sites:
+  - - outputs.py
+    - 227
+  user_guidance: An output declared with each-item schema application must be a JSON array.
+- code: output.expected_object
+  lane: output
+  phase: all
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/outputs.py
+  validator: validate_role_outputs
+  call_sites:
+  - - outputs.py
+    - 238
+  user_guidance: An output declared with object schema application must be a JSON object.
+- code: output.not_regular_file
+  lane: output
+  phase: all
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/outputs.py
+  validator: validate_role_outputs
+  call_sites:
+  - - outputs.py
+    - 194
+  user_guidance: An output must be a regular JSON file, not a symlink or directory.
+- code: output.required_missing
+  lane: output
+  phase: all
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/outputs.py
+  validator: validate_role_outputs
+  call_sites:
+  - - outputs.py
+    - 176
+  user_guidance: A required output was not produced; regenerate it before publication.
+- code: output.role_has_no_contract
+  lane: output
+  phase: all
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/outputs.py
+  validator: validate_role_outputs
+  call_sites:
+  - - outputs.py
+    - 158
+  user_guidance: A role has no declared outputs in the stage; the contract must declare the role's outputs.
+- code: output.unknown_schema_application
+  lane: output
+  phase: all
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/outputs.py
+  validator: validate_role_outputs
+  call_sites:
+  - - outputs.py
+    - 248
+  user_guidance: An output declares an unsupported schema application; correct the contract.
+- code: output.unreadable
+  lane: output
+  phase: all
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/outputs.py
+  validator: validate_role_outputs
+  call_sites:
+  - - outputs.py
+    - 215
+  user_guidance: An output cannot be read; fix permissions or regenerate the file.
+- code: output.unsafe_path
+  lane: output
+  phase: all
+  default_severity: ERROR
+  provisional_class: integrity_blocker
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/outputs.py
+  validator: validate_role_outputs
+  call_sites:
+  - - outputs.py
+    - 185
+  user_guidance: An output does not resolve safely inside the run; the path or symlink must be corrected.
+- code: schema.<jsonschema_validator>
+  lane: output
+  phase: all
+  default_severity: ERROR
+  provisional_class: correctable_contract_error
+  blocks_publication: true
+  applicable_modes: all
+  responsible_file: src/method_hub/harness/outputs.py
+  validator: validate_role_outputs / validate_submission (SchemaCatalog.validate issue handler; composed in schemas/catalog.py)
+  call_sites:
+  - - outputs.py
+    - 262
+  - - submission_validation.py
+    - 91
+  - - submission_validation.py
+    - 298
+  user_guidance: A document violates its declared schema (e.g. schema.required, schema.type, schema.enum); correct the document
+    against the schema.

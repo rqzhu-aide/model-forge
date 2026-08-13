@@ -317,6 +317,84 @@ def test_p3_accepts_documented_contradiction_and_negative_outcome() -> None:
     assert findings == []
 
 
+def test_p3_conditional_statement_requires_conditioning_assumption() -> None:
+    theory = _theory_record()
+    theory["statements"][0]["status"] = "conditional"
+    theory["statements"][0]["assumption_ids"] = []
+
+    findings = _validate(
+        "P3",
+        "p3.theory_establishment",
+        {"p3.complete_theory": theory},
+    )
+    assert "p3.conditional_statement_without_assumption" in _codes(findings)
+
+    theory["statements"][0]["assumption_ids"] = ["assumption.regularity.001"]
+    assert (
+        _validate(
+            "P3",
+            "p3.theory_establishment",
+            {"p3.complete_theory": theory},
+        )
+        == []
+    )
+
+
+def test_p3_untested_statement_requires_open_obligation() -> None:
+    theory = _theory_record()
+    theory["statements"][0]["status"] = "untested"
+
+    findings = _validate(
+        "P3",
+        "p3.theory_establishment",
+        {"p3.complete_theory": theory},
+    )
+    assert "p3.untested_statement_without_obligation" in _codes(findings)
+
+    theory["statements"][0]["justification"] = {
+        "kind": "open_obligation",
+        "summary": "The statement remains untested.",
+        "open_obligation": "Provide a proof or a counterexample in a future generation.",
+    }
+    assert (
+        _validate(
+            "P3",
+            "p3.theory_establishment",
+            {"p3.complete_theory": theory},
+        )
+        == []
+    )
+
+
+def test_p3_retracted_statement_requires_reason() -> None:
+    theory = _theory_record()
+    theory["statements"][0]["status"] = "retracted"
+    theory["statements"][0]["justification"] = {
+        "kind": "counterexample",
+        "summary": "",
+        "artifacts": [deepcopy(ARTIFACT)],
+    }
+
+    findings = _validate(
+        "P3",
+        "p3.theory_establishment",
+        {"p3.complete_theory": theory},
+    )
+    assert "p3.retracted_statement_without_reason" in _codes(findings)
+
+    theory["statements"][0]["justification"]["summary"] = (
+        "A boundary construction invalidates the claim; it is superseded by statement.main.002."
+    )
+    assert (
+        _validate(
+            "P3",
+            "p3.theory_establishment",
+            {"p3.complete_theory": theory},
+        )
+        == []
+    )
+
+
 def _protocol(
     *,
     identity: dict[str, Any] | None = None,
@@ -422,7 +500,7 @@ def test_p4_requires_reproducibility_artifacts_and_simulation_seeds() -> None:
 
     findings = _validate(
         "P4",
-        "p4.preliminary",
+        "p4.comprehensive",
         {
             "p4.protocol": _protocol(),
             "p4.evidence": [missing, empty],
@@ -553,6 +631,20 @@ def test_p5_open_reviewer_findings_receive_lead_dispositions() -> None:
     assert "p5.issue_undispositioned" in codes
     assert "p5.revision_location_missing" in codes
     assert "p5.review_finding_not_dispositioned" in codes
+
+
+def test_p5_dead_disposition_members_are_not_treated_as_live() -> None:
+    outputs = _valid_review_outputs()
+    addressed = _review_issue("issue.theory.001", disposition="addressed", locations=[])
+    addressed["disposition_reason"] = ""
+    wont_fix = _review_issue("issue.empirical.001", disposition="wont_fix")
+    wont_fix["disposition_reason"] = ""
+    outputs["p5.review_issues"] = [addressed, wont_fix]
+
+    codes = _codes(_validate("P5", "p5.review_revision", outputs))
+
+    assert "p5.revision_location_missing" not in codes
+    assert "p5.disposition_reason_missing" not in codes
 
 
 def test_p5_manuscript_requires_exact_identity_and_known_supported_claims() -> None:

@@ -1,0 +1,12 @@
+{
+  "phase": "P2",
+  "scientific_payload": {
+    "identity": {
+      "stable_id": "method.test",
+      "version": 1,
+      "definition_sha256": "deadbeef00000000000000000000000000000000000000000000000000000000"
+    },
+    "canonical_definition": "f(x) = x^2"
+  },
+  "actual_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+}

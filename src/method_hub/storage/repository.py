@@ -397,7 +397,10 @@ class HubRepository:
         return row
 
     def list_incomplete_runs(self) -> tuple[sqlite3.Row, ...]:
-        terminal = ("cancelled", "published", "failed", "rejected", "conflicted")
+        terminal = (
+            "cancelled", "published", "failed", "rejected", "conflicted",
+            "correction_exhausted",
+        )
         placeholders = ", ".join("?" for _ in terminal)
         with self._database.connect() as connection:
             return tuple(
@@ -625,6 +628,93 @@ class HubRepository:
             return connection.execute(
                 "SELECT * FROM run_submissions WHERE run_id = ?", (run_id,)
             ).fetchone()
+
+    def insert_submission_attempt(
+        self,
+        run_id: str,
+        attempt_id: str,
+        submission_id: str,
+        attempt_ordinal: int,
+        payload_json: str,
+        submission_sha256: str,
+        correction_command_id: str | None = None,
+        correction_type: str | None = None,
+    ) -> sqlite3.Row:
+        run_id = _text(run_id, "run_id")
+        attempt_id = _text(attempt_id, "attempt_id")
+        submission_id = _text(submission_id, "submission_id")
+        if type(attempt_ordinal) is not int or attempt_ordinal < 1:
+            raise RepositoryValidationError(
+                "repository.invalid_ordinal",
+                "attempt_ordinal must be a positive integer.",
+            )
+        payload_json = _text(payload_json, "payload_json")
+        submission_sha256 = _digest(submission_sha256, "submission_sha256")
+        if correction_command_id is not None:
+            correction_command_id = _text(
+                correction_command_id, "correction_command_id"
+            )
+        if correction_type is not None and correction_type not in (
+            "revalidate",
+            "normalize",
+            "packaging",
+            "scientific",
+        ):
+            raise RepositoryValidationError(
+                "repository.invalid_correction_type",
+                "correction_type must be one of 'revalidate', 'normalize', "
+                "'packaging', or 'scientific'.",
+            )
+        with self._database.immediate_transaction() as connection:
+            self._require_run(connection, run_id)
+            connection.execute(
+                """
+                INSERT INTO run_submission_attempts(
+                    attempt_id, run_id, submission_id, attempt_ordinal,
+                    payload_json, submission_sha256, submitted_at,
+                    correction_command_id, correction_type
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    attempt_id,
+                    run_id,
+                    submission_id,
+                    attempt_ordinal,
+                    payload_json,
+                    submission_sha256,
+                    _time(None),
+                    correction_command_id,
+                    correction_type,
+                ),
+            )
+            row = connection.execute(
+                "SELECT * FROM run_submission_attempts WHERE attempt_id = ?",
+                (attempt_id,),
+            ).fetchone()
+            assert row is not None
+            return row
+
+    def get_latest_submission_attempt(self, run_id: str) -> sqlite3.Row | None:
+        with self._database.connect() as connection:
+            return connection.execute(
+                """
+                SELECT * FROM run_submission_attempts
+                WHERE run_id = ?
+                ORDER BY attempt_ordinal DESC, attempt_id
+                LIMIT 1
+                """,
+                (run_id,),
+            ).fetchone()
+
+    def count_submission_attempts(self, run_id: str) -> int:
+        with self._database.connect() as connection:
+            row = connection.execute(
+                "SELECT COUNT(*) AS n FROM run_submission_attempts "
+                "WHERE run_id = ?",
+                (run_id,),
+            ).fetchone()
+        assert row is not None
+        return int(row["n"])
 
     def get_or_create_execution(
         self,

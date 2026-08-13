@@ -2774,8 +2774,41 @@ dd {
   background: var(--danger, #c00);
 }
 
+.tl-correction {
+  background: var(--warning, #b45309);
+}
+
 .tl-cancelled {
   background: var(--muted, #999);
+}
+
+.tl-conflicted {
+  background: var(--warning, #b45309);
+}
+
+/* Findings grouped by class (HV-3.4: run detail diagnostics) */
+.finding-groups {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.finding-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.finding-group__count {
+  font-weight: 600;
+}
+
+.finding-group__codes {
+  font-size: 0.85em;
+  color: var(--muted);
 }
 
 .tl-running {

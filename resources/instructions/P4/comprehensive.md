@@ -25,3 +25,5 @@ The final phase outcome states which conclusions hold across the evaluated
 matrix, which remain conditional, and which are refuted or inconclusive. This
 mode does not authorize an unselected follow-up run. The stage-role assignment
 exclusively determines prespecification, execution, audit, and synthesis duties.
+
+You are responsible for the scientific content of your output. The harness populates identity, provenance, timestamps, and digest fields automatically. Do not attempt to write these fields.

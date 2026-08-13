@@ -1,0 +1,6 @@
+{
+  "phase": "publication",
+  "run_id": "run-001",
+  "basis_at_submission": "abc123",
+  "basis_at_promotion": "def456"
+}

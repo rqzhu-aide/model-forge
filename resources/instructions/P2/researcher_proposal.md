@@ -20,3 +20,5 @@ insufficient evidence, or not viable. Register a new method only when it is
 viable now, sufficiently specified, and supported as distinct. Otherwise
 state the smallest correction or evidence needed and do not fabricate a
 complete method record.
+
+You are responsible for the scientific content of your output. The harness populates identity, provenance, timestamps, and digest fields automatically. Do not attempt to write these fields.

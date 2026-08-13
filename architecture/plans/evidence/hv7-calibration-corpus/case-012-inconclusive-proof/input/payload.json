@@ -1,0 +1,15 @@
+{
+  "phase": "P3",
+  "scientific_payload": {
+    "statements": [
+      {
+        "id": "s1",
+        "statement": "Conjecture: the bound is tight.",
+        "status": "incomplete",
+        "open_obligation": "Resolve tightness bound in future work."
+      }
+    ],
+    "assumptions": [],
+    "implications": []
+  }
+}

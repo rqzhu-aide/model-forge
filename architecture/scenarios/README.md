@@ -28,7 +28,7 @@ The exact identifiers, invariant links, test groups, phase suites, and milestone
 | S02 | `s02.phase2_scopes` | Full-catalog and focused P2 reruns | P2 | M5 |
 | S03 | `s03.phase4_before_phase3` | P4 runs before P3 | P3, P4 | M6 |
 | S04 | `s04.method_definition_change` | Calculation-defining method change | P2, P3, P4 | M5, M6 |
-| S05 | `s05.failed_run` | Failed or cancelled run preserves current state | P3 | M3, M6 |
+| S05 | `s05.failed_run` | Failed, cancelled, or nonconforming run preserves current state | P3 | M3, M6 |
 | S06 | `s06.optional_history` | Optional historical context | P1, P3 | M3, M4, M6 |
 | S07 | `s07.evidence_revalidation` | P4 evidence revalidation | P4 | M6 |
 | S08 | `s08.phase5_workflow` | P5 assembly and review-revision | P5 | M7 |
@@ -48,3 +48,8 @@ The exact identifiers, invariant links, test groups, phase suites, and milestone
 | S22 | `s22.failed_promotion_preserves_last_known_good` | Failed promotion preserves last known good state byte-identically | Trusted-local suite | M3 |
 | S23 | `s23.bounded_logs_flood_overlong` | Bounded logs under output flood and over-long lines | Trusted-local suite | M3, M9 |
 | S24 | `s24.safe_session_snapshot` | Safe session snapshot with verified SQLite backup | Trusted-local suite | M9 |
+| S25 | `s25.deterministic_normalization` | Allowlisted mechanical normalization disclosed and applied | Validation suite | M3 |
+| S26 | `s26.output_correction` | User-requested targeted output correction with bounded scope | Validation suite | M3 |
+| S27 | `s27.revalidation` | Revalidation after validator policy change with unchanged digest | Validation suite | M3 |
+| S28 | `s28.integrity_rejection` | Wrong identity, basis, or digest strictly rejected | Validation suite | M3 |
+| S29 | `s29.warning_only_publication` | Honest negative or inconclusive result publishes with advisory findings | Validation suite | M6, M7 |

@@ -31,6 +31,10 @@ class RunStatus(StrEnum):
     FAILED = "failed"
     REJECTED = "rejected"
     CONFLICTED = "conflicted"
+    # HV-5 correction states
+    CORRECTION_AUTHORIZED = "correction_authorized"
+    CORRECTING = "correcting"
+    CORRECTION_EXHAUSTED = "correction_exhausted"
 
 
 TERMINAL_RUN_STATUSES = frozenset(
@@ -40,6 +44,7 @@ TERMINAL_RUN_STATUSES = frozenset(
         RunStatus.FAILED,
         RunStatus.REJECTED,
         RunStatus.CONFLICTED,
+        RunStatus.CORRECTION_EXHAUSTED,
     }
 )
 
@@ -76,11 +81,19 @@ _TRANSITIONS: Mapping[RunStatus, frozenset[RunStatus]] = {
     RunStatus.PROMOTING: frozenset(
         {RunStatus.PUBLISHED, RunStatus.CONFLICTED, RunStatus.FAILED}
     ),
+    # HV-5: correction flow transitions
+    RunStatus.FAILED: frozenset({RunStatus.CORRECTION_AUTHORIZED}),
+    RunStatus.REJECTED: frozenset({RunStatus.CORRECTION_AUTHORIZED}),
+    RunStatus.CORRECTION_AUTHORIZED: frozenset(
+        {RunStatus.CORRECTING, RunStatus.CORRECTION_EXHAUSTED}
+    ),
+    RunStatus.CORRECTING: frozenset(
+        {RunStatus.SUBMITTED, RunStatus.CORRECTION_EXHAUSTED}
+    ),
     RunStatus.CANCELLED: frozenset(),
     RunStatus.PUBLISHED: frozenset(),
-    RunStatus.FAILED: frozenset(),
-    RunStatus.REJECTED: frozenset(),
     RunStatus.CONFLICTED: frozenset(),
+    RunStatus.CORRECTION_EXHAUSTED: frozenset(),
 }
 
 

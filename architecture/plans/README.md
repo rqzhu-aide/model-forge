@@ -22,6 +22,14 @@ specification or decision record before code relies on such a change.
 
 ## Active plans
 
+- [Harness Validation and Output Recovery](harness-validation-and-output-recovery-plan.md)
+  separates execution failure from output conformance and adds bounded,
+  user-controlled recovery. Implementation is indexed in
+  [harness-validation-index.md](harness-validation-index.md) (packages HV-0
+  through HV-7). Revision 2 (2026-08-12) applied the corrections from the
+  [coder review](harness-validation-review-2026-08-12.md): verified code
+  counts, registry totality, correction basis pinning, submission re-entry
+  mechanics, HV-4 rescope, and the traceability procedure for new scenarios.
 - [Trusted Local Execution Program](trusted-local-execution-program.md) is
   the program-level plan for Version 1 execution work (WP-A through WP-I).
   WP-A through WP-H are complete (WP-G: `8edeeb1`; WP-H1: `f494aa0`; WP-H2:

@@ -1,0 +1,7 @@
+{
+  "decision": "rejected",
+  "blocking_codes": [
+    "submission.method_identity_mismatch"
+  ],
+  "advisory_codes": []
+}

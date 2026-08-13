@@ -37,3 +37,5 @@ implications, and limitations. The result may be stronger, narrower, negative,
 or inconclusive. This mode does not authorize another method, branch, or run.
 The stage-role assignment exclusively determines who constructs, audits, and
 reconciles the artifacts.
+
+You are responsible for the scientific content of your output. The harness populates identity, provenance, timestamps, and digest fields automatically. Do not attempt to write these fields.

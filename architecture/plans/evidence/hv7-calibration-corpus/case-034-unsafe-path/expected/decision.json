@@ -1,0 +1,7 @@
+{
+  "decision": "rejected",
+  "blocking_codes": [
+    "output.unsafe_path"
+  ],
+  "advisory_codes": []
+}

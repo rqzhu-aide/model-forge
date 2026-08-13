@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping, Sequence
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from ..contracts import ResolvedPhasePlan, ResolvedStage
 from ..schemas import SchemaCatalog
+from .envelope import agent_authored_fields, harness_owned_fields
 from .outputs import OutputPlan
 
 
@@ -708,7 +708,8 @@ def render_task_brief(
         f"Project: `{project_id}`",
         f"Phase and mode: `{plan.identity.phase_id}` / `{plan.mode_id}`",
         "",
-        f"Current timestamp for `created_at`/`updated_at` fields: `{datetime.now(timezone.utc).isoformat()}`",
+        "Timestamps (`created_at`, `updated_at`, `finalized_at`, `published_at`) "
+        "are stamped by the harness from sealed run facts — do not write them.",
         "",
         "## Immutable instruction boundary",
         "",
@@ -790,7 +791,24 @@ def render_task_brief(
             f"- `{spec.contract_output_id}`: `{output_filename}`; {shape}; "
             f"schema `{spec.schema_file}`."
         )
-        if schema_catalog is not None:
+        if schema_catalog is not None and hasattr(schema_catalog, "get"):
+            schema = schema_catalog.get(spec.schema_file)
+            schema_props = frozenset(schema.get("properties", {}))
+            harness_owned = sorted(harness_owned_fields(spec.schema_file) & schema_props)
+            agent_authored = sorted(agent_authored_fields(spec.schema_file, schema_props))
+            lines.append("")
+            lines.append(
+                "The harness will populate: "
+                + ", ".join(f"`{name}`" for name in harness_owned)
+                + ". These fields are filled automatically from sealed run "
+                "facts — do not attempt to write them."
+            )
+            if agent_authored:
+                lines.append(
+                    "Agent-authored fields (your responsibility): "
+                    + ", ".join(f"`{name}`" for name in agent_authored)
+                    + ". Focus your scientific writing on these fields."
+                )
             constraints = _render_schema_constraints(spec.schema_file, schema_catalog)
             if constraints:
                 lines.append("")

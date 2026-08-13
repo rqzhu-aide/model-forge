@@ -1,0 +1,7 @@
+{
+  "decision": "rejected",
+  "blocking_codes": [
+    "output.digest_mismatch"
+  ],
+  "advisory_codes": []
+}

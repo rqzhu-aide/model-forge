@@ -272,3 +272,355 @@ def test_schema_info_handles_missing_file() -> None:
     assert info == _empty_schema_info()
     assert "nested_required" in info
     assert "nested_timestamps" in info
+
+
+# --------------------------------------------------------------------------- #
+# HV-1.1+1.2: Seal raw output before repair + OutputTransformationRecord      #
+# --------------------------------------------------------------------------- #
+
+def test_repair_returns_transformation_record_with_source_digest(tmp_path: Path) -> None:
+    """The repair function must return a record with the pre-repair digest."""
+    from method_hub.harness.role_execution import _apply_disclosed_mechanical_repairs
+    from method_hub.harness.outputs import OutputPlan, OutputSpec
+    from method_hub.contracts import (
+        ResolvedPhasePlan,
+        ResolvedRoleStep,
+        ResolvedStage,
+    )
+    from method_hub.domain import PhaseContractIdentity
+    import json as _json
+    import hashlib
+
+    # Create a minimal output file that needs timestamp injection
+    output_path = tmp_path / "output.json"
+    raw_content = {"record_id": "rec.test", "title": "Test"}
+    output_path.write_text(_json.dumps(raw_content))
+
+    source_sha = hashlib.sha256(
+        output_path.read_text().encode("utf-8")
+    ).hexdigest()
+
+    spec = OutputSpec(
+        contract_output_id="test.output",
+        output_id="test.output.v1",
+        output_kind="record",
+        producer="theorist",
+        stage_id="test",
+        stage_sequence=1,
+        schema_file="method.schema.json",
+        schema_application="",
+        relative_path="output.json",
+        required=True,
+    )
+    plan = ResolvedPhasePlan(
+        identity=PhaseContractIdentity(
+            phase_id="P3",
+            contract_version="1.0.0",
+            phase_contract_sha256="a" * 64,
+        ),
+        mode_id="p3.theory_establishment",
+        choice_values={},
+        context_policy="current_only",
+        stages=(ResolvedStage(
+            sequence=1,
+            stage_id="test",
+            execution="serial",
+            objective="test",
+            role_steps=(ResolvedRoleStep(role="theorist", input_ids=(), output_ids=("test.output",)),),
+            writes=(),
+            handoff_required=False,
+            isolation_rule=None,
+        ),),
+        output_contracts=(),
+        prepared_contexts=(),
+        validation_rules=(),
+        publication_bindings=(),
+        promotion={},
+    )
+    output_plan = OutputPlan(specs=(spec,))
+    stage = plan.stages[0]
+
+    records = _apply_disclosed_mechanical_repairs(
+        run_root=tmp_path,
+        output_plan=output_plan,
+        stage=stage,
+        role="theorist",
+    )
+
+    assert "test.output" in records
+    record = records["test.output"]
+    assert record.source_sha256 == source_sha
+    # The repaired content should differ (timestamps injected)
+    assert record.changed
+    assert record.result_sha256 != source_sha
+
+
+def test_repair_identity_transform_when_no_changes(tmp_path: Path) -> None:
+    """When no repair applies, source and result digests are identical."""
+    from method_hub.harness.role_execution import _apply_disclosed_mechanical_repairs
+    from method_hub.harness.outputs import OutputPlan, OutputSpec
+    from method_hub.contracts import (
+        ResolvedPhasePlan,
+        ResolvedRoleStep,
+        ResolvedStage,
+    )
+    from method_hub.domain import PhaseContractIdentity
+    import json as _json
+    import hashlib
+
+    # Create a file with an unknown schema (no timestamps/properties to repair)
+    output_path = tmp_path / "output.json"
+    raw_content = {"foo": "bar"}
+    output_path.write_text(_json.dumps(raw_content))
+    source_sha = hashlib.sha256(
+        output_path.read_text().encode("utf-8")
+    ).hexdigest()
+
+    spec = OutputSpec(
+        contract_output_id="test.output",
+        output_id="test.output.v1",
+        output_kind="record",
+        producer="research_lead",
+        stage_id="test",
+        stage_sequence=1,
+        schema_file="nonexistent.schema.json",
+        schema_application="",
+        relative_path="output.json",
+        required=True,
+    )
+    plan = ResolvedPhasePlan(
+        identity=PhaseContractIdentity(
+            phase_id="P1",
+            contract_version="1.0.0",
+            phase_contract_sha256="a" * 64,
+        ),
+        mode_id="p1.literature_update",
+        choice_values={},
+        context_policy="current_only",
+        stages=(ResolvedStage(
+            sequence=1,
+            stage_id="test",
+            execution="serial",
+            objective="test",
+            role_steps=(ResolvedRoleStep(role="research_lead", input_ids=(), output_ids=("test.output",)),),
+            writes=(),
+            handoff_required=False,
+            isolation_rule=None,
+        ),),
+        output_contracts=(),
+        prepared_contexts=(),
+        validation_rules=(),
+        publication_bindings=(),
+        promotion={},
+    )
+    output_plan = OutputPlan(specs=(spec,))
+    stage = plan.stages[0]
+
+    records = _apply_disclosed_mechanical_repairs(
+        run_root=tmp_path,
+        output_plan=output_plan,
+        stage=stage,
+        role="research_lead",
+    )
+
+    record = records["test.output"]
+    assert record.source_sha256 == source_sha
+    assert record.result_sha256 == source_sha
+    assert not record.changed
+
+
+def test_classify_transformations_captures_field_stripping() -> None:
+    """_classify_transformations must record additional_properties_strip."""
+    from method_hub.harness.role_execution import _classify_transformations
+
+    raw = {"title": "real", "undeclared_field": "data", "note": ""}
+    repaired = {"title": "real"}
+    entries = _classify_transformations(raw, repaired)
+
+    codes = {e.code for e in entries}
+    assert "additional_properties_strip" in codes or "empty_string_strip" in codes
+    assert any(e.json_pointer for e in entries)
+
+
+def test_classify_transformations_captures_timestamp_injection() -> None:
+    """_classify_transformations must record timestamp_injection."""
+    from method_hub.harness.role_execution import _classify_transformations
+
+    raw = {"title": "real"}
+    repaired = {"title": "real", "created_at": "2026-01-01T00:00:00Z"}
+    entries = _classify_transformations(raw, repaired)
+
+    ts_entry = next(e for e in entries if e.code == "timestamp_injection")
+    assert "created_at" in ts_entry.detail
+
+
+def test_classify_transformations_captures_hash_recomputation() -> None:
+    """_classify_transformations must record hash_recomputation."""
+    from method_hub.harness.role_execution import _classify_transformations
+
+    raw = {"content_sha256": "placeholder"}
+    repaired = {"content_sha256": "a" * 64}
+    entries = _classify_transformations(raw, repaired)
+
+    hash_entry = next(e for e in entries if e.code == "hash_recomputation")
+    assert "content_sha256" in hash_entry.detail
+
+
+def test_classify_transformations_empty_when_identical() -> None:
+    """No entries when raw and repaired are identical."""
+    from method_hub.harness.role_execution import _classify_transformations
+
+    raw = {"title": "real", "nested": {"a": 1}}
+    entries = _classify_transformations(raw, dict(raw))
+    assert entries == []
+
+
+# --------------------------------------------------------------------------- #
+# HV-1.3: Schema-path-aware timestamp injection                               #
+# --------------------------------------------------------------------------- #
+
+def test_timestamp_injection_respects_parent_key_scope() -> None:
+    """Timestamps should only be injected into dicts under the correct parent key."""
+    from method_hub.harness.role_execution import _add_missing_timestamps
+
+    data = {
+        "title": "real",
+        "assumptions": {"text": "no timestamps here"},
+        "alignment_assessment": {"state": "exact"},
+    }
+    ts_map = {"alignment_assessment": {"assessed_at"}}
+    changed = _add_missing_timestamps(data, ts_map, "2026-01-01T00:00:00Z")
+
+    assert changed
+    # assessed_at injected ONLY under alignment_assessment
+    assert "assessed_at" in data["alignment_assessment"]
+    # NOT injected into the assumptions dict
+    assert "assessed_at" not in data["assumptions"]
+    # NOT injected at the top level
+    assert "assessed_at" not in data
+
+
+def test_timestamp_injection_handles_array_of_objects() -> None:
+    """Timestamps should be injected into array elements under the parent key."""
+    from method_hub.harness.role_execution import _add_missing_timestamps
+
+    data = {
+        "assessments": [
+            {"state": "exact"},
+            {"state": "compatible"},
+        ],
+    }
+    ts_map = {"assessments": {"assessed_at"}}
+    changed = _add_missing_timestamps(data, ts_map, "2026-01-01T00:00:00Z")
+
+    assert changed
+    assert "assessed_at" in data["assessments"][0]
+    assert "assessed_at" in data["assessments"][1]
+
+
+def test_collect_nested_timestamps_returns_parent_keyed_map() -> None:
+    """_collect_nested_timestamps should return a dict, not a flat set."""
+    from method_hub.harness.role_execution import _collect_nested_timestamps
+
+    schema = {
+        "properties": {
+            "alignment_assessment": {
+                "type": "object",
+                "properties": {
+                    "state": {"type": "string"},
+                    "assessed_at": {"type": "string", "format": "date-time"},
+                },
+            },
+            "evidence": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "collected_at": {"type": "string", "format": "date-time"},
+                    },
+                },
+            },
+        },
+    }
+    found: dict[str, set[str]] = {}
+    _collect_nested_timestamps(schema, found)
+
+    assert "alignment_assessment" in found
+    assert "assessed_at" in found["alignment_assessment"]
+    assert "evidence" in found
+    assert "collected_at" in found["evidence"]
+
+
+# --------------------------------------------------------------------------- #
+# HV-1.5/1.6: Mode shim fix                                                   #
+# --------------------------------------------------------------------------- #
+
+def test_build_plan_from_manifest_passes_real_mode() -> None:
+    """The plan built from the manifest must carry the real mode_id."""
+    from method_hub.application.output_validation import _build_plan_from_manifest
+
+    manifest = {
+        "phase": "P3",
+        "mode": "p3.theory_revision",
+        "phase_contract_version": "1.0.0",
+        "phase_contract_sha256": "a" * 64,
+    }
+    plan = _build_plan_from_manifest(manifest)
+    assert plan.mode_id == "p3.theory_revision"
+    assert plan.identity.phase_id == "P3"
+
+
+def test_build_plan_from_manifest_defaults_safely() -> None:
+    """Missing mode/phase should default safely without raising."""
+    from method_hub.application.output_validation import _build_plan_from_manifest
+
+    # Empty manifest — phase defaults to "run" (not a valid PhaseContractIdentity
+    # phase_id, but this function doesn't validate; it constructs for the
+    # validator dispatch which handles unknown phases by skipping).
+    plan = _build_plan_from_manifest({})
+    assert plan.mode_id == ""
+
+
+# --------------------------------------------------------------------------- #
+# OutputTransformationRecord and TransformationEntry dataclasses              #
+# --------------------------------------------------------------------------- #
+
+def test_output_transformation_record_serialization() -> None:
+    """OutputTransformationRecord.to_dict() should serialize all fields."""
+    from method_hub.domain.validation import (
+        OutputTransformationRecord,
+        TransformationEntry,
+    )
+
+    record = OutputTransformationRecord(
+        contract_output_id="test.output",
+        source_sha256="a" * 64,
+        result_sha256="b" * 64,
+        entries=(
+            TransformationEntry(
+                code="timestamp_injection",
+                json_pointer="/created_at",
+                detail="injected missing timestamp",
+            ),
+        ),
+    )
+    d = record.to_dict()
+    assert d["contract_output_id"] == "test.output"
+    assert d["source_sha256"] == "a" * 64
+    assert d["result_sha256"] == "b" * 64
+    assert d["changed"] is True
+    assert len(d["entries"]) == 1
+    assert d["entries"][0]["code"] == "timestamp_injection"
+    assert d["primary_artifact_unchanged"] is True
+
+
+def test_output_transformation_record_unchanged_when_same_digest() -> None:
+    """The changed property should be False when source == result."""
+    from method_hub.domain.validation import OutputTransformationRecord
+
+    record = OutputTransformationRecord(
+        contract_output_id="test.output",
+        source_sha256="a" * 64,
+        result_sha256="a" * 64,
+    )
+    assert not record.changed

@@ -1,0 +1,7 @@
+{
+  "decision": "correction_required",
+  "blocking_codes": [
+    "json.decode_error"
+  ],
+  "advisory_codes": []
+}

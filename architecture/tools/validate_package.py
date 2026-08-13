@@ -307,6 +307,9 @@ def validate_digest_contract_registry(schemas, registry) -> list[str]:
         "command_attempt_audit.content",
         "command_attempt_audit.root",
         "publication_receipt.content",
+        "validation_attempt.content",
+        "output_transformation_record.content",
+        "run_submission_attempt.content",
     }
     contracts = digest_registry.get("contracts", [])
     contract_ids = [item.get("contract_id") for item in contracts]
@@ -2968,9 +2971,9 @@ def validate_traceability_registry(schemas, registry, complete: dict) -> list[st
     registered_scenarios = traceability["scenarios"]
     scenario_ids = [item["scenario_id"] for item in registered_scenarios]
     scenario_codes = [item["scenario_code"] for item in registered_scenarios]
-    expected_codes = [f"S{number:02d}" for number in range(1, 25)]
+    expected_codes = [f"S{number:02d}" for number in range(1, 30)]
     if scenario_codes != expected_codes or len(scenario_ids) != len(set(scenario_ids)):
-        errors.append("traceability scenarios must register S01 through S24 exactly once and in order")
+        errors.append("traceability scenarios must register S01 through S29 exactly once and in order")
     scenario_by_id = {item["scenario_id"]: item for item in registered_scenarios}
     registered_documents = {item["document"] for item in registered_scenarios}
     actual_documents = {

@@ -11,7 +11,7 @@ not automatically scientifically correct, aligned, current, or publishable.
 
 ## Schema inventory
 
-The current inventory contains 42 schemas.
+The current inventory contains 46 schemas.
 
 | Schema | Object |
 |---|---|
@@ -57,6 +57,10 @@ The current inventory contains 42 schemas.
 | `record-state.schema.json` | Rebuildable current state for a record generation or evidence item |
 | `current-index.schema.json` | Rebuildable mapping from each logical current slot to one formal generation |
 | `phase-contract.schema.json` | Executable Phase 1 to Phase 5 behavior, prepared contexts, roles, validation, and publication |
+| `validation-attempt.schema.json` | Immutable record of one validation pass with complete structured findings, policy version, and conformance decision |
+| `output-transformation-record.schema.json` | Immutable record of one mechanical transformation with source and result digests and confirmation that no scientific artifact changed |
+| `output-correction-command.schema.json` | Authenticated user authorization to correct a specified role output without repeating completed scientific work |
+| `run-submission-attempt.schema.json` | Immutable submission-attempt record for correction re-entry, extending the base run-submission row without rewriting it |
 
 ## Immutable research objects and derived current state
 

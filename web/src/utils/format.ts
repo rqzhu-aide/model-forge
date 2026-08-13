@@ -1,4 +1,4 @@
-import type { PhaseId, RunLifecycleState } from "../api/types";
+import type { PhaseId, RunLifecycleProjection, RunLifecycleState } from "../api/types";
 
 export const phaseNames: Record<PhaseId, string> = {
   P1: "Literature basis",
@@ -43,7 +43,16 @@ export function sentenceCase(value: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-export function isRunActive(state: RunLifecycleState): boolean {
+export function isRunActive(
+  state: RunLifecycleState,
+  recoverySummary?: RunLifecycleProjection["recovery_summary"],
+): boolean {
+  // A run awaiting output correction (recovery_summary =
+  // "needs_output_correction") is no longer executing even though its state
+  // machine label is a terminal "failed"/"rejected". Every terminal recovery
+  // summary means the run is not active; only "in_progress" keeps it active.
+  // When no projection is available we fall back to the state axis alone.
+  if (recoverySummary && recoverySummary !== "in_progress") return false;
   return [
     "created",
     "preparing",
@@ -53,5 +62,7 @@ export function isRunActive(state: RunLifecycleState): boolean {
     "submitted",
     "validating",
     "promoting",
+    "correction_authorized",
+    "correcting",
   ].includes(state);
 }

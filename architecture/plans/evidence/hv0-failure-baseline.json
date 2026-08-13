@@ -1,0 +1,652 @@
+{
+  "meta": {
+    "plan": "HV-0.2",
+    "purpose": "Failure baseline 'before' metrics for HV-7 shadow comparison",
+    "collected_at": "2026-08-12",
+    "formal_db": "/home/tez/.method-hub/method-hub.sqlite3",
+    "pilot_db": "/home/tez/method-hub-data/pilot-eld/hub.sqlite3",
+    "read_only": true,
+    "notes": [
+      "Formal lane: findings persisted on role_execution_closures.payload_json.findings; run terminal_reason carries submission-validator codes.",
+      "Pilot lane: only store with persisted validation reports (run_validation_reports.report_json); checks are the validator codes.",
+      "No runs rows exist in the pilot DB; its lifecycle is launch records + seals + validation reports + promotions.",
+      "Classification: structural = schema.*/output.*/input.*/submission.* codes (shape, format, integrity); semantic = scientific-claim codes (pN.* scientific validators)."
+    ]
+  },
+  "formal_lane": {
+    "runs_total": 39,
+    "runs_by_status": {
+      "published": 11,
+      "failed": 26,
+      "rejected": 2,
+      "cancelled": 0
+    },
+    "closures_total": 204,
+    "closures_by_failure_code": {
+      "none": 177,
+      "output.structural_validation_failed": 27
+    },
+    "closures_by_status": {
+      "failed": 27,
+      "succeeded": 177
+    },
+    "findings_total": 175,
+    "findings_by_code": {
+      "schema.required": 78,
+      "schema.minItems": 33,
+      "schema.additionalProperties": 17,
+      "schema.type": 12,
+      "schema.enum": 10,
+      "schema.pattern": 8,
+      "schema.const": 5,
+      "output.required_missing": 3,
+      "schema.maxLength": 3,
+      "schema.minimum": 2,
+      "schema.oneOf": 2,
+      "output.expected_array": 1,
+      "schema.minLength": 1
+    },
+    "findings_by_code_outcome": {
+      "output.expected_array": {
+        "failed": 1
+      },
+      "output.required_missing": {
+        "failed": 3
+      },
+      "schema.additionalProperties": {
+        "failed": 17
+      },
+      "schema.const": {
+        "failed": 5
+      },
+      "schema.enum": {
+        "failed": 10
+      },
+      "schema.maxLength": {
+        "failed": 3
+      },
+      "schema.minItems": {
+        "failed": 33
+      },
+      "schema.minLength": {
+        "failed": 1
+      },
+      "schema.minimum": {
+        "failed": 2
+      },
+      "schema.oneOf": {
+        "failed": 2
+      },
+      "schema.pattern": {
+        "failed": 8
+      },
+      "schema.required": {
+        "failed": 78
+      },
+      "schema.type": {
+        "failed": 12
+      }
+    },
+    "findings_structural_vs_semantic": {
+      "structural": 175
+    },
+    "runs_by_phase": {
+      "P1": 2,
+      "P2": 34,
+      "P3": 1,
+      "P4": 2
+    },
+    "runs_by_mode": {
+      "p1.literature_update": 2,
+      "p2.focused_method": 6,
+      "p2.full_catalog": 27,
+      "p2.researcher_proposal": 1,
+      "p3.theory_establishment": 1,
+      "p4.preliminary": 2
+    },
+    "runs_by_status_x_phase": {
+      "P1": {
+        "published": 2
+      },
+      "P2": {
+        "failed": 25,
+        "published": 7,
+        "rejected": 2
+      },
+      "P3": {
+        "published": 1
+      },
+      "P4": {
+        "failed": 1,
+        "published": 1
+      }
+    },
+    "closures_by_phase": {
+      "P1": 8,
+      "P2": 189,
+      "P3": 3,
+      "P4": 4
+    },
+    "closures_by_mode": {
+      "p1.literature_update": 8,
+      "p2.focused_method": 35,
+      "p2.full_catalog": 148,
+      "p2.researcher_proposal": 6,
+      "p3.theory_establishment": 3,
+      "p4.preliminary": 4
+    },
+    "closures_by_role": {
+      "data_analyst": 69,
+      "research_lead": 67,
+      "theorist": 68
+    },
+    "by_phase_mode_role": {
+      "P1|p1.literature_update|data_analyst": {
+        "phase": "P1",
+        "mode": "p1.literature_update",
+        "role": "data_analyst",
+        "closures_total": 2,
+        "closures_by_status": {
+          "succeeded": 2
+        },
+        "closures_by_failure_code": {
+          "none": 2
+        },
+        "findings_total": 0,
+        "findings_by_code": {}
+      },
+      "P1|p1.literature_update|research_lead": {
+        "phase": "P1",
+        "mode": "p1.literature_update",
+        "role": "research_lead",
+        "closures_total": 4,
+        "closures_by_status": {
+          "succeeded": 4
+        },
+        "closures_by_failure_code": {
+          "none": 4
+        },
+        "findings_total": 0,
+        "findings_by_code": {}
+      },
+      "P1|p1.literature_update|theorist": {
+        "phase": "P1",
+        "mode": "p1.literature_update",
+        "role": "theorist",
+        "closures_total": 2,
+        "closures_by_status": {
+          "succeeded": 2
+        },
+        "closures_by_failure_code": {
+          "none": 2
+        },
+        "findings_total": 0,
+        "findings_by_code": {}
+      },
+      "P2|p2.focused_method|data_analyst": {
+        "phase": "P2",
+        "mode": "p2.focused_method",
+        "role": "data_analyst",
+        "closures_total": 12,
+        "closures_by_status": {
+          "succeeded": 12
+        },
+        "closures_by_failure_code": {
+          "none": 12
+        },
+        "findings_total": 0,
+        "findings_by_code": {}
+      },
+      "P2|p2.focused_method|research_lead": {
+        "phase": "P2",
+        "mode": "p2.focused_method",
+        "role": "research_lead",
+        "closures_total": 11,
+        "closures_by_status": {
+          "failed": 2,
+          "succeeded": 9
+        },
+        "closures_by_failure_code": {
+          "none": 9,
+          "output.structural_validation_failed": 2
+        },
+        "findings_total": 2,
+        "findings_by_code": {
+          "schema.maxLength": 1,
+          "schema.minLength": 1
+        }
+      },
+      "P2|p2.focused_method|theorist": {
+        "phase": "P2",
+        "mode": "p2.focused_method",
+        "role": "theorist",
+        "closures_total": 12,
+        "closures_by_status": {
+          "failed": 1,
+          "succeeded": 11
+        },
+        "closures_by_failure_code": {
+          "none": 11,
+          "output.structural_validation_failed": 1
+        },
+        "findings_total": 1,
+        "findings_by_code": {
+          "schema.pattern": 1
+        }
+      },
+      "P2|p2.full_catalog|data_analyst": {
+        "phase": "P2",
+        "mode": "p2.full_catalog",
+        "role": "data_analyst",
+        "closures_total": 50,
+        "closures_by_status": {
+          "failed": 4,
+          "succeeded": 46
+        },
+        "closures_by_failure_code": {
+          "none": 46,
+          "output.structural_validation_failed": 4
+        },
+        "findings_total": 6,
+        "findings_by_code": {
+          "schema.pattern": 2,
+          "schema.required": 2,
+          "schema.minItems": 1,
+          "schema.type": 1
+        }
+      },
+      "P2|p2.full_catalog|research_lead": {
+        "phase": "P2",
+        "mode": "p2.full_catalog",
+        "role": "research_lead",
+        "closures_total": 48,
+        "closures_by_status": {
+          "failed": 17,
+          "succeeded": 31
+        },
+        "closures_by_failure_code": {
+          "none": 31,
+          "output.structural_validation_failed": 17
+        },
+        "findings_total": 162,
+        "findings_by_code": {
+          "schema.required": 74,
+          "schema.minItems": 32,
+          "schema.additionalProperties": 16,
+          "schema.type": 11,
+          "schema.enum": 10,
+          "schema.const": 5,
+          "schema.pattern": 5,
+          "output.required_missing": 3,
+          "schema.maxLength": 2,
+          "schema.minimum": 2,
+          "schema.oneOf": 2
+        }
+      },
+      "P2|p2.full_catalog|theorist": {
+        "phase": "P2",
+        "mode": "p2.full_catalog",
+        "role": "theorist",
+        "closures_total": 50,
+        "closures_by_status": {
+          "failed": 2,
+          "succeeded": 48
+        },
+        "closures_by_failure_code": {
+          "none": 48,
+          "output.structural_validation_failed": 2
+        },
+        "findings_total": 3,
+        "findings_by_code": {
+          "schema.required": 2,
+          "schema.additionalProperties": 1
+        }
+      },
+      "P2|p2.researcher_proposal|data_analyst": {
+        "phase": "P2",
+        "mode": "p2.researcher_proposal",
+        "role": "data_analyst",
+        "closures_total": 2,
+        "closures_by_status": {
+          "succeeded": 2
+        },
+        "closures_by_failure_code": {
+          "none": 2
+        },
+        "findings_total": 0,
+        "findings_by_code": {}
+      },
+      "P2|p2.researcher_proposal|research_lead": {
+        "phase": "P2",
+        "mode": "p2.researcher_proposal",
+        "role": "research_lead",
+        "closures_total": 2,
+        "closures_by_status": {
+          "succeeded": 2
+        },
+        "closures_by_failure_code": {
+          "none": 2
+        },
+        "findings_total": 0,
+        "findings_by_code": {}
+      },
+      "P2|p2.researcher_proposal|theorist": {
+        "phase": "P2",
+        "mode": "p2.researcher_proposal",
+        "role": "theorist",
+        "closures_total": 2,
+        "closures_by_status": {
+          "succeeded": 2
+        },
+        "closures_by_failure_code": {
+          "none": 2
+        },
+        "findings_total": 0,
+        "findings_by_code": {}
+      },
+      "P3|p3.theory_establishment|data_analyst": {
+        "phase": "P3",
+        "mode": "p3.theory_establishment",
+        "role": "data_analyst",
+        "closures_total": 1,
+        "closures_by_status": {
+          "succeeded": 1
+        },
+        "closures_by_failure_code": {
+          "none": 1
+        },
+        "findings_total": 0,
+        "findings_by_code": {}
+      },
+      "P3|p3.theory_establishment|research_lead": {
+        "phase": "P3",
+        "mode": "p3.theory_establishment",
+        "role": "research_lead",
+        "closures_total": 1,
+        "closures_by_status": {
+          "succeeded": 1
+        },
+        "closures_by_failure_code": {
+          "none": 1
+        },
+        "findings_total": 0,
+        "findings_by_code": {}
+      },
+      "P3|p3.theory_establishment|theorist": {
+        "phase": "P3",
+        "mode": "p3.theory_establishment",
+        "role": "theorist",
+        "closures_total": 1,
+        "closures_by_status": {
+          "succeeded": 1
+        },
+        "closures_by_failure_code": {
+          "none": 1
+        },
+        "findings_total": 0,
+        "findings_by_code": {}
+      },
+      "P4|p4.preliminary|data_analyst": {
+        "phase": "P4",
+        "mode": "p4.preliminary",
+        "role": "data_analyst",
+        "closures_total": 2,
+        "closures_by_status": {
+          "failed": 1,
+          "succeeded": 1
+        },
+        "closures_by_failure_code": {
+          "none": 1,
+          "output.structural_validation_failed": 1
+        },
+        "findings_total": 1,
+        "findings_by_code": {
+          "output.expected_array": 1
+        }
+      },
+      "P4|p4.preliminary|research_lead": {
+        "phase": "P4",
+        "mode": "p4.preliminary",
+        "role": "research_lead",
+        "closures_total": 1,
+        "closures_by_status": {
+          "succeeded": 1
+        },
+        "closures_by_failure_code": {
+          "none": 1
+        },
+        "findings_total": 0,
+        "findings_by_code": {}
+      },
+      "P4|p4.preliminary|theorist": {
+        "phase": "P4",
+        "mode": "p4.preliminary",
+        "role": "theorist",
+        "closures_total": 1,
+        "closures_by_status": {
+          "succeeded": 1
+        },
+        "closures_by_failure_code": {
+          "none": 1
+        },
+        "findings_total": 0,
+        "findings_by_code": {}
+      }
+    },
+    "validator_codes": {
+      "persisted_closure_finding_codes": {
+        "schema.required": 78,
+        "schema.minItems": 33,
+        "schema.additionalProperties": 17,
+        "schema.type": 12,
+        "schema.enum": 10,
+        "schema.pattern": 8,
+        "schema.const": 5,
+        "output.required_missing": 3,
+        "schema.maxLength": 3,
+        "schema.minimum": 2,
+        "schema.oneOf": 2,
+        "output.expected_array": 1,
+        "schema.minLength": 1
+      },
+      "terminal_reason_codes": {
+        "output.structural_validation_failed": 26,
+        "submission.validation_failed": 2
+      }
+    },
+    "terminal_reason_codes": {
+      "output.structural_validation_failed": 26,
+      "submission.validation_failed": 2
+    },
+    "terminal_reason_codes_by_run_status": {
+      "none": {
+        "published": 11
+      },
+      "output.structural_validation_failed": {
+        "failed": 26
+      },
+      "submission.validation_failed": {
+        "rejected": 2
+      }
+    },
+    "submissions_total": 13,
+    "submissions_by_phase": {
+      "P1": 2,
+      "P2": 9,
+      "P3": 1,
+      "P4": 1
+    },
+    "submissions_by_mode": {
+      "p1.literature_update": 2,
+      "p2.focused_method": 3,
+      "p2.full_catalog": 5,
+      "p2.researcher_proposal": 1,
+      "p3.theory_establishment": 1,
+      "p4.preliminary": 1
+    },
+    "submissions_by_run_status": {
+      "published": 11,
+      "rejected": 2
+    },
+    "publication_receipts_total": 13,
+    "publication_receipts_without_run_id": 2,
+    "publication_receipts_by_run_status": {
+      "no_run_id": 2,
+      "published": 11
+    },
+    "outcome_summary": {
+      "runs_total": 39,
+      "published_runs": 11,
+      "failed_runs": 26,
+      "rejected_runs": 2,
+      "cancelled_runs": 0,
+      "closure_failures": 27,
+      "closure_successes": 177,
+      "findings_total": 175,
+      "findings_structural": 175,
+      "findings_semantic": 0,
+      "findings_unclassified": 0,
+      "submissions_total": 13
+    }
+  },
+  "pilot_lane": {
+    "seals_total": 7,
+    "launch_records_total": 8,
+    "validation_reports_total": 7,
+    "promotion_records_total": 6,
+    "seals_by_role": {
+      "data_analyst": 2,
+      "research_lead": 2,
+      "theorist": 3
+    },
+    "seals_by_project": {
+      "project-004-eld": 7
+    },
+    "launch_records_by_status": {
+      "failed": 1,
+      "succeeded": 7
+    },
+    "launch_records_by_role": {
+      "data_analyst": 2,
+      "research_lead": 2,
+      "theorist": 4
+    },
+    "promotion_records_by_status": {
+      "succeeded": 6
+    },
+    "promotion_records_by_role": {
+      "data_analyst": 2,
+      "research_lead": 2,
+      "theorist": 2
+    },
+    "validation_reports_by_verdict": {
+      "fail": 1,
+      "pass": 6
+    },
+    "validation_reports_by_role": {
+      "data_analyst": 2,
+      "research_lead": 2,
+      "theorist": 3
+    },
+    "validation_reports_by_phase": {
+      "P2": 7
+    },
+    "validation_reports_by_verdict_x_role": {
+      "data_analyst": {
+        "pass": 2
+      },
+      "research_lead": {
+        "pass": 2
+      },
+      "theorist": {
+        "fail": 1,
+        "pass": 2
+      }
+    },
+    "checks_by_name_status": {
+      "companions": {
+        "pass": 7
+      },
+      "identity": {
+        "pass": 7
+      },
+      "inventory": {
+        "fail": 1,
+        "pass": 6
+      },
+      "nonempty_scientific_fields": {
+        "pass": 7
+      },
+      "phase_consistency": {
+        "skipped": 7
+      },
+      "safe_paths": {
+        "pass": 7
+      },
+      "schema": {
+        "pass": 7
+      }
+    },
+    "checks_failed_details": {
+      "inventory": [
+        {
+          "detail": "method_proposals: declared output is missing or not a regular file: 'method-proposals.json'",
+          "invocation_id": "p2s1-theorist-001",
+          "role": "theorist",
+          "verdict": "fail"
+        }
+      ]
+    },
+    "validator_codes_by_frequency": {
+      "inventory": 7,
+      "safe_paths": 7,
+      "schema": 7,
+      "nonempty_scientific_fields": 7,
+      "companions": 7,
+      "identity": 7,
+      "phase_consistency": 7
+    },
+    "validator_codes_by_failure": {
+      "companions": 0,
+      "identity": 0,
+      "inventory": 1,
+      "nonempty_scientific_fields": 0,
+      "phase_consistency": 0,
+      "safe_paths": 0,
+      "schema": 0
+    },
+    "findings_structural_vs_semantic": {
+      "structural": 42,
+      "semantic": 0,
+      "skipped_checks": 7
+    },
+    "findings_structural": {
+      "pass": 41,
+      "fail": 1,
+      "skipped": 7
+    },
+    "launch_failures": [
+      {
+        "launch_id": "5891b64a586740c49094b422b7da6151",
+        "seal_id": "f658f0bd2ae642e5ab8757245ecaab35",
+        "exit_code": null,
+        "role": "theorist"
+      }
+    ],
+    "outcome_summary": {
+      "seals_total": 7,
+      "launch_records_total": 8,
+      "launches_succeeded": 7,
+      "launches_failed": 1,
+      "validation_reports_total": 7,
+      "validation_passed": 6,
+      "validation_failed": 1,
+      "promotion_records_total": 6,
+      "promotions_succeeded": 6,
+      "checks_total": 49,
+      "checks_failed": 1,
+      "checks_skipped": 7,
+      "findings_semantic": 0
+    }
+  }
+}

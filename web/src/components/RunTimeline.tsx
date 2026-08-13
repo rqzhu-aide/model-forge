@@ -60,7 +60,7 @@ export function RunTimeline({ run }: { run: RunDetail }) {
       <div className="run-timeline__summary">
         <div>
           <p className="eyebrow">Execution state</p>
-          <RunStatePill state={run.state} />
+          <RunStatePill state={run.state} recoverySummary={run.lifecycle_projection?.recovery_summary} />
         </div>
         <div>
           <span>Mode</span>

@@ -15,3 +15,5 @@ identify every calculation-defining difference, advance the version by
 exactly one, produce a new definition digest, and state which downstream
 P3, P4, or P5 records require reassessment. A genuinely distinct alternative
 may be recorded only as a recommendation for a future full-catalog run.
+
+You are responsible for the scientific content of your output. The harness populates identity, provenance, timestamps, and digest fields automatically. Do not attempt to write these fields.

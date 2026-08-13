@@ -1,0 +1,57 @@
+{
+  "description": "HV-7.3 operational metrics tracked before and after the harness validation program",
+  "metrics": {
+    "first_pass_conformance_rate": {
+      "definition": "Fraction of runs that pass validation on first attempt",
+      "target": "increase",
+      "baseline": null,
+      "current": null
+    },
+    "correction_success_rate": {
+      "definition": "Fraction of correction attempts that achieve conformance",
+      "target": "track",
+      "baseline": null,
+      "current": null
+    },
+    "agent_completed_nonconforming_rate": {
+      "definition": "Fraction of runs where Hermes succeeded but validation failed",
+      "target": "decrease",
+      "baseline": null,
+      "current": null
+    },
+    "hard_integrity_rejection_rate_by_code": {
+      "definition": "Count of each integrity-blocker code",
+      "target": "track",
+      "baseline": {},
+      "current": {}
+    },
+    "confirmed_false_rejection_rate": {
+      "definition": "Fraction of old-failed runs that new policy would pass",
+      "target": "quantify",
+      "baseline": null,
+      "current": null
+    },
+    "complete_phase_reruns_avoided": {
+      "definition": "Count of reruns avoided by correction",
+      "target": "increase",
+      "baseline": 0,
+      "current": 0
+    },
+    "median_time_output_to_publication": {
+      "definition": "Wall-clock from role closure to publication (seconds)",
+      "target": "decrease",
+      "baseline": null,
+      "current": null
+    }
+  },
+  "shadow_comparison": {
+    "status": "not_yet_run",
+    "total_comparisons": 0,
+    "false_rejections_fixed": 0,
+    "new_catches": 0,
+    "recovery_enabled": 0,
+    "old_blocking_rate": null,
+    "new_blocking_rate": null,
+    "improvement_rate": null
+  }
+}

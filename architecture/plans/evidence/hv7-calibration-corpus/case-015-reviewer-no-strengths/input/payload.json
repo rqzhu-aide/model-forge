@@ -1,0 +1,18 @@
+{
+  "phase": "P5",
+  "scientific_payload": {
+    "review_report": {
+      "strengths": [],
+      "prioritized_issues": [
+        {
+          "id": "issue-1",
+          "finding_type": "methodological_concern",
+          "severity": "major",
+          "confidence": "high",
+          "resolution_class": "must_address",
+          "content": "The sample size is too small for the claimed power."
+        }
+      ]
+    }
+  }
+}

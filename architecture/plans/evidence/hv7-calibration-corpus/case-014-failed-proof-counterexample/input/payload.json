@@ -1,0 +1,15 @@
+{
+  "phase": "P3",
+  "scientific_payload": {
+    "statements": [
+      {
+        "id": "s1",
+        "statement": "Conjecture P\u2260NP.",
+        "status": "untested",
+        "open_obligation": "No proof found; remains the central open question."
+      }
+    ],
+    "assumptions": [],
+    "implications": []
+  }
+}

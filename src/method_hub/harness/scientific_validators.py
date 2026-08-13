@@ -14,7 +14,7 @@ from typing import Any
 
 from ..contracts import ResolvedPhasePlan
 from ..domain.identities import MethodIdentity
-from ..domain.validation import ValidationFinding, ValidationSeverity
+from ..domain.validation import ValidationFinding, make_finding
 from .publication import RegisteredValidatedOutput
 
 
@@ -561,6 +561,38 @@ def _validate_theory_statement(
                     f"/statements/{offset}/justification",
                 )
             )
+    if status == "conditional":
+        if not _string_set(statement.get("assumption_ids")):
+            findings.append(
+                _finding(
+                    "p3.conditional_statement_without_assumption",
+                    "A conditional statement must reference at least one conditioning assumption.",
+                    "p3.complete_theory",
+                    f"/statements/{offset}/assumption_ids",
+                )
+            )
+    if status == "untested":
+        if kind != "open_obligation" or not _text(
+            justification.get("open_obligation")
+        ):
+            findings.append(
+                _finding(
+                    "p3.untested_statement_without_obligation",
+                    "An untested statement must identify the explicit open obligation that remains.",
+                    "p3.complete_theory",
+                    f"/statements/{offset}/justification",
+                )
+            )
+    if status == "retracted":
+        if not _text(justification.get("summary")):
+            findings.append(
+                _finding(
+                    "p3.retracted_statement_without_reason",
+                    "A retracted statement must give the reason for its retraction.",
+                    "p3.complete_theory",
+                    f"/statements/{offset}/justification",
+                )
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -617,6 +649,7 @@ def _validate_p4(
         "external_validation",
     }
     protocol_time = _parse_datetime(protocol.get("finalized_at")) if protocol else None
+    comprehensive = plan.mode_id == "p4.comprehensive"
     for offset, item in enumerate(evidence):
         if not isinstance(item, Mapping):
             continue
@@ -651,14 +684,19 @@ def _validate_p4(
                 findings.append(
                     _finding(
                         "p4.evidence_not_exactly_applicable",
-                        "New method-bound evidence must be assessed as exactly applicable to the selected method.",
+                        "Evidence is preserved but not exactly applicable to the selected method; it is excluded from current-method synthesis.",
                         "p4.evidence",
                         f"/{offset}/applicability_at_creation/method_match",
                     )
                 )
 
         if kind in reproducible_kinds:
-            _validate_reproducibility(item, offset=offset, findings=findings)
+            _validate_reproducibility(
+                item,
+                offset=offset,
+                enforce=comprehensive,
+                findings=findings,
+            )
 
         evidence_time = _parse_datetime(item.get("created_at"))
         if protocol_time is not None and evidence_time is not None and protocol_time > evidence_time:
@@ -782,8 +820,16 @@ def _validate_reproducibility(
     evidence: Mapping[str, Any],
     *,
     offset: int,
+    enforce: bool,
     findings: list[ValidationFinding],
 ) -> None:
+    """Require a complete reproducibility record for reproducible evidence.
+
+    Enforcement is mode-aware: preliminary studies may omit reproducibility
+    (exploratory scope), comprehensive studies must provide it.
+    """
+    if not enforce:
+        return
     reproducibility = evidence.get("reproducibility")
     if not isinstance(reproducibility, Mapping):
         findings.append(
@@ -951,7 +997,7 @@ def _validate_p5(
                     f"/{offset}/disposition",
                 )
             )
-        if disposition in {"fixed", "partially_fixed", "addressed", "accepted"}:
+        if disposition in {"fixed", "partially_fixed"}:
             locations = issue.get("revision_locations")
             if not isinstance(locations, list) or not locations:
                 findings.append(
@@ -962,7 +1008,7 @@ def _validate_p5(
                         f"/{offset}/revision_locations",
                     )
                 )
-        if disposition in {"deferred", "rejected", "wont_fix"} and not _text(
+        if disposition in {"deferred", "rejected"} and not _text(
             issue.get("disposition_reason")
         ):
             findings.append(
@@ -1293,10 +1339,9 @@ def _finding(
     object_id: str,
     pointer: str = "",
 ) -> ValidationFinding:
-    return ValidationFinding(
+    return make_finding(
         code=code,
         message=message,
-        severity=ValidationSeverity.ERROR,
         object_id=object_id,
-        json_pointer=pointer,
+        pointer=pointer,
     )

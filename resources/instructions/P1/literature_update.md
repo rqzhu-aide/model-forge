@@ -19,3 +19,5 @@ when the declared scope is covered or remaining gaps and search limits
 are explicit. The synthesis should guide downstream work, but exact
 theorem assumptions, algorithms, datasets, and benchmark definitions
 must still point researchers to the primary source.
+
+You are responsible for the scientific content of your output. The harness populates identity, provenance, timestamps, and digest fields automatically. Do not attempt to write these fields.

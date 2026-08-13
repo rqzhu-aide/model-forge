@@ -8,7 +8,7 @@ from typing import Protocol
 
 from ..contracts.runtime import RuntimePhaseContract
 from ..domain.identities import ArtifactPointer, MethodIdentity
-from ..domain.validation import ValidationFinding, ValidationSeverity
+from ..domain.validation import ValidationFinding, ValidationSeverity, make_finding
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,7 +42,7 @@ class InputResolutionResult:
     @property
     def passed(self) -> bool:
         return not any(
-            finding.severity == ValidationSeverity.ERROR for finding in self.findings
+            finding.blocks_publication for finding in self.findings
         )
 
 
@@ -95,13 +95,12 @@ def resolve_run_inputs(
                 (),
                 (),
                 tuple(
-                    ValidationFinding(
+                    make_finding(
                         code="input.unknown_context_selection",
                         message=(
                             f"Selected current context {input_id!r} is not declared "
                             "for this run."
                         ),
-                        severity=ValidationSeverity.ERROR,
                         object_id=input_id,
                     )
                     for input_id in unknown
@@ -149,10 +148,9 @@ def resolve_run_inputs(
             continue
         if required and selected is not None and input_id not in selected:
             findings.append(
-                ValidationFinding(
+                make_finding(
                     code="input.required_context_not_selected",
                     message=f"Required current context {input_id!r} must remain selected.",
-                    severity=ValidationSeverity.ERROR,
                     object_id=input_id,
                 )
             )
@@ -160,26 +158,24 @@ def resolve_run_inputs(
         if record is None:
             if required:
                 findings.append(
-                    ValidationFinding(
+                    make_finding(
                         code="input.required_current_record_missing",
                         message=(
                             f"Required current {input_contract['record_type']} is unavailable "
                             f"for {input_contract['input_id']}."
                         ),
-                        severity=ValidationSeverity.ERROR,
                         object_id=str(input_contract["input_id"]),
                     )
                 )
             continue
         if query_method is not None and record.method_identity is None:
             findings.append(
-                ValidationFinding(
+                make_finding(
                     code="input.method_identity_missing",
                     message=(
                         f"Current {record.record_type} does not declare the method identity "
                         "required by this run."
                     ),
-                    severity=ValidationSeverity.ERROR,
                     object_id=str(input_contract["input_id"]),
                 )
             )
@@ -189,20 +185,18 @@ def resolve_run_inputs(
             same_stable = record.method_identity.stable_id == query_method.stable_id
             if match_policy == "exact" and not exact:
                 findings.append(
-                    ValidationFinding(
+                    make_finding(
                         code="input.method_identity_mismatch",
                         message=f"Current {record.record_type} is not aligned to the exact selected method.",
-                        severity=ValidationSeverity.ERROR,
                         object_id=str(input_contract["input_id"]),
                     )
                 )
                 continue
             if match_policy == "same_stable_method" and not same_stable:
                 findings.append(
-                    ValidationFinding(
+                    make_finding(
                         code="input.method_lineage_mismatch",
                         message=f"Current {record.record_type} belongs to another method lineage.",
-                        severity=ValidationSeverity.ERROR,
                         object_id=str(input_contract["input_id"]),
                     )
                 )
@@ -224,13 +218,12 @@ def resolve_run_inputs(
         present = {item.contract_input_id for item in resolved} & prior_ids
         if present and present != prior_ids:
             findings.append(
-                ValidationFinding(
+                make_finding(
                     code="input.p4_prior_package_incomplete",
                     message=(
                         "The current Phase 4 evidence index, empirical synthesis, and "
                         "implementation record must be jointly present or jointly absent."
                     ),
-                    severity=ValidationSeverity.ERROR,
                     object_id="p4.prior_package",
                 )
             )

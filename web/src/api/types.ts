@@ -13,7 +13,10 @@ export type RunLifecycleState =
   | "failed"
   | "rejected"
   | "conflicted"
-  | "cancelled";
+  | "cancelled"
+  | "correction_authorized"
+  | "correcting"
+  | "correction_exhausted";
 
 export type StageState =
   | "pending"
@@ -31,7 +34,10 @@ export type ActionType =
   | "withdraw_formal_generation"
   | "save_profile"
   | "install_skill"
-  | "update_project_brief";
+  | "update_project_brief"
+  | "revalidate_run"
+  | "normalize_run_outputs"
+  | "request_output_correction";
 
 export interface MethodIdentity {
   stable_id: string;
@@ -364,6 +370,46 @@ export interface RunStage {
   stale_after_seconds?: number;
 }
 
+export type FindingClass =
+  | "operational_failure"
+  | "integrity_blocker"
+  | "correctable_contract_error"
+  | "scientific_claim_blocker"
+  | "scientific_attention"
+  | "information";
+
+export interface FindingGroup {
+  finding_class: FindingClass;
+  count: number;
+  sample_codes: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Lifecycle projection (HV-3): separates execution success from output
+// conformance from publication from scientific outcome. Computed server-side
+// from the run's status, closure findings, validation report, and publication
+// receipt — no new state-machine states are introduced.
+// ---------------------------------------------------------------------------
+
+export interface RunLifecycleProjection {
+  execution_state: "not_started" | "running" | "completed" | "failed" | "cancelled";
+  conformance_state: "not_checked" | "passed" | "correction_required" | "integrity_rejected";
+  publication_state: "not_attempted" | "published" | "withheld" | "conflicted";
+  recovery_summary:
+    | "ok"
+    | "needs_output_correction"
+    | "failed"
+    | "rejected"
+    | "conflicted"
+    | "cancelled"
+    | "in_progress";
+  blocking_finding_count: number;
+  correctable_finding_count: number;
+  scientific_outcome: string | null;
+  finding_groups: FindingGroup[];
+  available_recovery_controls: string[];
+}
+
 export interface RunSummary {
   run_id: string;
   phase: PhaseId;
@@ -374,6 +420,7 @@ export interface RunSummary {
   updated_at: string;
   current_stage_label?: string;
   actions: ActionDescriptor[];
+  lifecycle_projection?: RunLifecycleProjection;
 }
 
 export interface RunEvent {
@@ -414,6 +461,7 @@ export interface RunDetail extends RunSummary {
     published_at: string;
     href?: string;
   };
+  lifecycle_projection?: RunLifecycleProjection;
 }
 
 export interface SkillStatus {

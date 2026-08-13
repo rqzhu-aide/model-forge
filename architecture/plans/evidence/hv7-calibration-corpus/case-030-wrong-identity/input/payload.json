@@ -1,0 +1,14 @@
+{
+  "phase": "P2",
+  "scientific_payload": {
+    "identity": {
+      "stable_id": "method.WRONG",
+      "version": 1,
+      "definition_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  "expected_identity": {
+    "stable_id": "method.correct",
+    "version": 1
+  }
+}

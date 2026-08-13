@@ -1,8 +1,11 @@
-# S05: Failed or Cancelled Run Preserves Current State
+# S05: Failed, Cancelled, or Nonconforming Run Preserves Current State
 
 ## Purpose
 
-Verify that failed, cancelled, incomplete, or invalid work cannot displace a valid current record, and that cancellation cannot race past immutable submission.
+Verify that failed, cancelled, incomplete, or invalid work cannot displace a
+valid current record, that cancellation cannot race past immutable submission,
+and that completed work requiring output correction is not mislabeled as an
+execution failure.
 
 ## Initial state
 
@@ -30,6 +33,18 @@ expires or is revoked after acceptance but before the fence also fails with
 DELEGATION_NOT_ACTIVE. Each rejection embeds the complete stable CommandError in
 its audit event and changes no run or scientific state.
 
+## Output-correction branch
+
+In a separate trial, Hermes completes all assigned roles successfully, but one
+role output has a correctable contract defect: a missing harness-owned field,
+a malformed envelope, or another structural issue that does not alter the
+scientific content. The harness preserves the raw output, records any
+mechanical transformation, and withholds formal publication. The run does not
+enter `failed` as an execution failure. The previous P3 current record remains
+unchanged. The researcher can inspect every preserved output, validation
+finding, and transformation record before deciding whether to authorize a
+targeted correction or launch a full rerun.
+
 ## Expected behavior
 
 - The run folder preserves the completed role artifacts, event record, and
@@ -43,6 +58,9 @@ its audit event and changes no run or scientific state.
   input.
 - The UI reports what failed, what run-local work remains available, and the
   smallest user-controlled rerun action.
+- A completed but nonconforming run preserves all role work, surfaces
+  `needs_output_correction`, and never displays "Execution failed".
+- The UI states whether formal project state changed.
 
 ## Prohibited behavior
 
@@ -52,3 +70,5 @@ its audit event and changes no run or scientific state.
 - An unauthenticated, stale, expired-delegation, or post-submission cancellation cannot change run state.
 - A complete negative or inconclusive scientific result cannot be mislabeled as
   an execution failure.
+- A completed run with a correctable output defect cannot be mislabeled as an
+  execution failure.

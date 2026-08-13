@@ -42,3 +42,5 @@ Phase 3, EMPIRICAL_GAP: for Phase 4 evidence or design, or
 IMPLEMENTATION_GAP: for Phase 4 implementation fidelity. Name the affected
 claim and the smallest question the upstream phase must answer. Never launch
 that phase automatically.
+
+You are responsible for the scientific content of your output. The harness populates identity, provenance, timestamps, and digest fields automatically. Do not attempt to write these fields.

@@ -1,0 +1,15 @@
+{
+  "phase": "P2",
+  "scientific_payload": {
+    "identity": {
+      "stable_id": "method.test",
+      "version": 1,
+      "definition_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "canonical_definition": "f(x) = x^2"
+  },
+  "missing_fields": [
+    "schema_version",
+    "content_sha256"
+  ]
+}

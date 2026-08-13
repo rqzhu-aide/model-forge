@@ -30,6 +30,9 @@ RunLifecycleState = Literal[
     "rejected",
     "conflicted",
     "cancelled",
+    "correction_authorized",
+    "correcting",
+    "correction_exhausted",
 ]
 StageState = Literal[
     "pending", "running", "stopping", "succeeded", "failed", "cancelled"
@@ -43,6 +46,9 @@ ActionType = Literal[
     "update_project_brief",
     "save_profile",
     "install_skill",
+    "revalidate_run",
+    "normalize_run_outputs",
+    "request_output_correction",
 ]
 
 
@@ -392,6 +398,7 @@ class RunSummary(StrictModel):
     updated_at: NonEmptyString
     current_stage_label: str | None = None
     actions: list[ActionDescriptor]
+    lifecycle_projection: RunLifecycleProjection | None = None
 
 
 class RunEvent(StrictModel):
@@ -426,6 +433,56 @@ class ValidationReportView(StrictModel):
     status: Literal["pending", "passed", "failed"]
     summary: str
     href: NonEmptyString | None = None
+
+
+class FindingGroupView(StrictModel):
+    """A group of findings sharing the same finding class."""
+
+    finding_class: Literal[
+        "operational_failure",
+        "integrity_blocker",
+        "correctable_contract_error",
+        "scientific_claim_blocker",
+        "scientific_attention",
+        "information",
+    ]
+    count: int = Field(ge=0)
+    sample_codes: list[NonEmptyString] = Field(default_factory=list)
+
+
+class RunLifecycleProjection(StrictModel):
+    """Derived multi-axis projection of a run's true state.
+
+    Separates execution success from output conformance from publication
+    from scientific outcome.  Computed from the run's status, closure
+    findings, validation report, and publication receipt — no new state-
+    machine states are introduced.
+    """
+
+    execution_state: Literal[
+        "not_started", "running", "completed", "failed", "cancelled"
+    ]
+    conformance_state: Literal[
+        "not_checked", "passed", "correction_required", "integrity_rejected"
+    ]
+    publication_state: Literal[
+        "not_attempted", "published", "withheld", "conflicted"
+    ]
+    recovery_summary: Literal[
+        "ok",
+        "needs_output_correction",
+        "correction_exhausted",
+        "failed",
+        "rejected",
+        "conflicted",
+        "cancelled",
+        "in_progress",
+    ]
+    blocking_finding_count: int = Field(ge=0)
+    correctable_finding_count: int = Field(ge=0)
+    scientific_outcome: str | None = None
+    finding_groups: list[FindingGroupView] = Field(default_factory=list)
+    available_recovery_controls: list[NonEmptyString] = Field(default_factory=list)
 
 
 class PublicationReceiptView(StrictModel):
@@ -882,3 +939,5 @@ class ConflictDetailView(StrictModel):
 MethodRow.model_rebuild()
 ProjectOverview.model_rebuild()
 PhaseView.model_rebuild()
+RunSummary.model_rebuild()
+RunDetail.model_rebuild()

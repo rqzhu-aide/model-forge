@@ -591,6 +591,32 @@ _PREFLIGHT_REPORT_SCHEMA = (
 )
 
 
+#: One correction submission attempt per row (HV-5).  The base
+#: ``run_submissions`` row is never touched; a correction attempt records
+#: the resubmitted payload, its digest, and the link to the
+#: OutputCorrectionCommand that produced it.  Rows are immutable like the
+#: base submission table.
+_SUBMISSION_ATTEMPTS_SCHEMA = (
+    """
+    CREATE TABLE run_submission_attempts (
+        attempt_id TEXT PRIMARY KEY,
+        run_id TEXT NOT NULL REFERENCES run_submissions(run_id),
+        submission_id TEXT NOT NULL,
+        attempt_ordinal INTEGER NOT NULL,
+        payload_json TEXT NOT NULL,
+        submission_sha256 TEXT NOT NULL,
+        submitted_at TEXT NOT NULL,
+        correction_command_id TEXT,
+        correction_type TEXT CHECK (correction_type IN ('revalidate', 'normalize', 'packaging', 'scientific'))
+    )
+    """,
+    """
+    CREATE INDEX run_submission_attempts_run_ordinal
+        ON run_submission_attempts(run_id, attempt_ordinal)
+    """,
+) + _immutable_triggers("run_submission_attempts")
+
+
 HUB_MIGRATIONS = (
     Migration(1, _CONTROL_SCHEMA, name="control and run storage"),
     Migration(2, _EXECUTION_SCHEMA, name="role execution and submission storage"),
@@ -625,6 +651,11 @@ HUB_MIGRATIONS = (
         10,
         _PREFLIGHT_REPORT_SCHEMA,
         name="supervised-run preflight reports (WP-F1c)",
+    ),
+    Migration(
+        11,
+        _SUBMISSION_ATTEMPTS_SCHEMA,
+        name="HV-5 correction submission attempts",
     ),
 )
 

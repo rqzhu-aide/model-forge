@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type {
   ConfigurationAssetStatus,
   ConfigurationOverallStatus,
+  RunLifecycleProjection,
   RunLifecycleState,
   ScientificStatus,
 } from "../api/types";
@@ -23,13 +24,29 @@ const runLabels: Record<RunLifecycleState, string> = {
   rejected: "Validation rejected",
   conflicted: "Publication conflict",
   cancelled: "Cancelled",
+  correction_authorized: "Correction authorized",
+  correcting: "Correcting output",
+  correction_exhausted: "Correction exhausted",
 };
 
 export function runStateTone(state: RunLifecycleState): Tone {
   if (state === "published") return "positive";
   if (state === "failed" || state === "rejected") return "danger";
+  if (state === "correction_exhausted") return "warning";
   if (state === "conflicted" || state === "cancellation_requested") return "warning";
-  if (["created", "preparing", "prepared", "running", "submitted", "validating", "promoting"].includes(state)) {
+  if (
+    [
+      "created",
+      "preparing",
+      "prepared",
+      "running",
+      "submitted",
+      "validating",
+      "promoting",
+      "correction_authorized",
+      "correcting",
+    ].includes(state)
+  ) {
     return "information";
   }
   return "neutral";
@@ -65,7 +82,19 @@ export function StatusPill({
   );
 }
 
-export function RunStatePill({ state }: { state: RunLifecycleState }) {
+export function RunStatePill({
+  state,
+  recoverySummary,
+}: {
+  state: RunLifecycleState;
+  recoverySummary?: RunLifecycleProjection["recovery_summary"];
+}) {
+  // A run awaiting output correction completed its execution — the state axis
+  // label ("failed"/"rejected") would misrepresent it as an execution failure.
+  // Show the projection-aware label instead (HV-3.4).
+  if (recoverySummary === "needs_output_correction") {
+    return <StatusPill tone="neutral">Output needs correction</StatusPill>;
+  }
   return <StatusPill tone={runStateTone(state)}>{runLabels[state]}</StatusPill>;
 }
 

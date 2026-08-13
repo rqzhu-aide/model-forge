@@ -12,6 +12,7 @@ from ..contracts import ResolvedPhasePlan, ResolvedStage
 from ..domain.validation import (
     ValidationFinding,
     ValidationSeverity,
+    make_finding,
 )
 from ..json_io import JsonLoadError, loads_json
 from ..schemas import SchemaCatalog
@@ -66,7 +67,7 @@ class OutputValidationResult:
     @property
     def passed(self) -> bool:
         return not any(
-            finding.severity == ValidationSeverity.ERROR for finding in self.findings
+            finding.blocks_publication for finding in self.findings
         )
 
 
@@ -127,12 +128,11 @@ def _finding(
     spec: OutputSpec,
     pointer: str = "",
 ) -> ValidationFinding:
-    return ValidationFinding(
+    return make_finding(
         code=code,
         message=message,
-        severity=ValidationSeverity.ERROR,
         object_id=spec.contract_output_id,
-        json_pointer=pointer,
+        pointer=pointer,
     )
 
 
@@ -155,10 +155,9 @@ def validate_role_outputs(
     accepted: list[ValidatedOutput] = []
     if not specs:
         findings.append(
-            ValidationFinding(
+            make_finding(
                 "output.role_has_no_contract",
                 f"Role {role!r} has no declared outputs in stage {stage.stage_id!r}.",
-                ValidationSeverity.ERROR,
                 object_id=stage.stage_id,
             )
         )

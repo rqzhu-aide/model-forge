@@ -7,11 +7,12 @@ import re
 from dataclasses import replace
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 
 from ..contracts import ResolvedPhasePlan, ResolvedStage
 from ..digests.jcs import canonicalize
 from ..domain.runs import isoformat_utc, thaw_json, utc_now
+from ..domain.validation import OutputTransformationRecord, TransformationEntry
 from ..executors import (
     RoleExecutionResult,
     RoleExecutionStatus,
@@ -55,26 +56,21 @@ def _apply_disclosed_mechanical_repairs(
     stage: ResolvedStage,
     role: str,
     run_id: str = "",
-) -> None:
-    """Apply only mechanical, non-semantic repairs to agent outputs.
+) -> dict[str, "OutputTransformationRecord"]:
+    """Apply mechanical repairs to agent outputs and record every change.
 
-    This post-processor fixes deterministic schema-compliance issues that
-    are purely mechanical — never content-bearing:
-
-    - Missing ``created_at`` / ``updated_at`` timestamps.
-    - Missing ``schema_version`` (always ``"1.0.0"``).
-    - ID sanitization (force ``stableId`` fields to match the regex).
-    - Stripping fields not declared when ``additionalProperties: false``.
-    - Stripping ``null`` values for optional fields.
-
-    It does **not** fabricate semantic content.  Missing authors, missing
-    checks, wrong severity enums, missing lineage, etc. are left for
-    validation to catch with a precise error so the agent learns the schema.
+    Returns a mapping of ``contract_output_id`` → ``OutputTransformationRecord``
+    capturing source digest, result digest, and classified transformation
+    entries.  The repaired data is written to disk so that downstream
+    validation reads the candidate, not the raw bytes.
     """
+    from copy import deepcopy
     from datetime import datetime, timezone
 
     ts = datetime.now(timezone.utc).isoformat()
     specs = output_plan.for_stage_role(stage.stage_id, role)
+    records: dict[str, OutputTransformationRecord] = {}
+
     for spec in specs:
         path = run_root / spec.relative_path
         if not path.exists():
@@ -87,6 +83,13 @@ def _apply_disclosed_mechanical_repairs(
         except Exception:
             continue
 
+        # Compute source digest from the raw file bytes.
+        source_bytes = text.encode("utf-8")
+        source_sha256 = hashlib.sha256(source_bytes).hexdigest()
+
+        # Snapshot before repair for transformation classification.
+        raw_snapshot = deepcopy(data)
+
         schema_info = _schema_info(spec.schema_file)
         valid_timestamps = schema_info["timestamps"]
         allowed_props = schema_info["properties"]
@@ -95,11 +98,17 @@ def _apply_disclosed_mechanical_repairs(
         nested_required = schema_info.get("nested_required", set())
         nested_timestamps = schema_info.get("nested_timestamps", set())
         if not valid_timestamps and not (no_additional and allowed_props):
+            # No repair applicable — record identity transform.
+            records[spec.contract_output_id] = OutputTransformationRecord(
+                contract_output_id=spec.contract_output_id,
+                source_sha256=source_sha256,
+                result_sha256=source_sha256,
+                entries=(),
+            )
             continue
 
         def _fix_item(item: dict) -> bool:
             changed = False
-            # Sanitize stableId fields — lowercase, replace invalid chars
             _ID_KEYS = ("object_id", "issue_id", "issue_version_id",
                         "statement_id", "affected_statement_id",
                         "finding_id", "claim_id", "theorem_id",
@@ -112,9 +121,6 @@ def _apply_disclosed_mechanical_repairs(
                     if sane != val:
                         item[key] = sane
                         changed = True
-            # Sanitize ID arrays (evidence_ids, statement_ids, etc.). Only
-            # touch lists whose key marks them as ID arrays — never prose
-            # arrays (completed_work, required_checks, ...).
             for key, val in list(item.items()):
                 if isinstance(val, list) and (
                     key.endswith("_ids") or key == "affected_record_ids"
@@ -132,28 +138,22 @@ def _apply_disclosed_mechanical_repairs(
                     if mod:
                         item[key] = new_vals
                         changed = True
-            # Add missing timestamps
             for field in valid_timestamps:
                 if field not in item:
                     item[field] = ts
                     changed = True
-            # Add missing schema_version if the schema declares it
             if "schema_version" in allowed_props and "schema_version" not in item:
                 item["schema_version"] = "1.0.0"
                 changed = True
-            # Fix method identity version (must be >= 1)
             identity = item.get("identity")
             if isinstance(identity, dict) and identity.get("version", 1) < 1:
                 identity["version"] = 1
                 changed = True
-            # Strip non-declared fields when additionalProperties is false
             if no_additional and allowed_props:
                 for key in list(item.keys()):
                     if key not in allowed_props:
                         del item[key]
                         changed = True
-            # Strip null values for optional string fields (agents write null
-            # where schema expects a string; e.g. rerun_question in attention items)
             for key in list(item.keys()):
                 if item[key] is None and key not in required_fields:
                     del item[key]
@@ -161,13 +161,6 @@ def _apply_disclosed_mechanical_repairs(
             return changed
 
         def _deep_sanitize_ids(obj: Any, parent_key: str | None = None) -> bool:
-            """Recursively walk the JSON tree and sanitize stableId strings.
-
-            Catches IDs nested deep inside canonical_definition, evidence
-            arrays, assumptions, etc. that _fix_item doesn't reach.  String
-            elements of a list are only sanitized when the parent key marks
-            the list as an ID array (``*_ids``) — never prose arrays.
-            """
             changed = False
             if isinstance(obj, dict):
                 for key, val in obj.items():
@@ -194,7 +187,6 @@ def _apply_disclosed_mechanical_repairs(
                         and isinstance(item, str)
                         and item != item.lower()
                     ):
-                        # Sanitize strings in ID arrays (evidence_ids, etc.)
                         sane = _sanitize_id(item)
                         if sane != item:
                             obj[i] = sane
@@ -212,66 +204,231 @@ def _apply_disclosed_mechanical_repairs(
                 if isinstance(item, dict):
                     if _fix_item(item):
                         changed = True
-        # Deep recursive pass: catch IDs nested in canonical_definition,
-        # evidence arrays, assumptions, theorems, etc.
         if _deep_sanitize_ids(data):
             changed = True
-        # Remove empty-string values that violate minLength: 1 constraints.
-        # Agents sometimes write "" for optional fields instead of omitting
-        # them.  Required fields (top-level and nested) are never stripped
-        # (that would turn a minLength error into a missing-required error).
         all_required = required_fields | nested_required
         if _strip_empty_strings(data, required_fields=all_required):
             changed = True
-
-        # Add missing nested timestamps (e.g. assessed_at inside
-        # alignmentAssessment) — agents miss these because they're buried
-        # deep in the schema.
         if _add_missing_timestamps(data, nested_timestamps, ts):
             changed = True
-        # Fix self-referential hashes: agents can't know the hash of the
-        # file they're writing. Compute content_sha256, handoff_artifact.sha256,
-        # and definition_sha256 from the output content (excluding the hash
-        # field itself). Runs AFTER all other repairs so the stored hash
-        # matches the file actually written to disk.
         if _fix_self_referential_hashes(data, path):
             changed = True
+
+        # Build transformation entries by diffing raw vs repaired.
+        entries = _classify_transformations(raw_snapshot, data)
+
         if changed:
-            path.write_text(
-                _json.dumps(data, indent=2, ensure_ascii=False),
-            )
+            repaired_text = _json.dumps(data, indent=2, ensure_ascii=False)
+            path.write_text(repaired_text)
+            result_bytes = repaired_text.encode("utf-8")
+            result_sha256 = hashlib.sha256(result_bytes).hexdigest()
+        else:
+            result_sha256 = source_sha256
+
+        records[spec.contract_output_id] = OutputTransformationRecord(
+            contract_output_id=spec.contract_output_id,
+            source_sha256=source_sha256,
+            result_sha256=result_sha256,
+            entries=tuple(entries),
+            primary_artifact_unchanged=_primary_artifact_unchanged(entries),
+        )
+
+    return records
+
+
+def _classify_transformations(
+    raw: Any, repaired: Any, pointer: str = ""
+) -> list[TransformationEntry]:
+    """Diff the raw snapshot against the repaired data, classifying changes.
+
+    Walks both trees in parallel and emits a TransformationEntry for each
+    difference found.  The codes identify what kind of mechanical repair
+    occurred at each location.
+    """
+    entries: list[TransformationEntry] = []
+
+    # Fast path: identical objects mean no changes.
+    if raw == repaired:
+        return entries
+
+    _TS_SUFFIXES = ("_at", "_timestamp", "_time")
+
+    def _walk(raw_obj: Any, rep_obj: Any, ptr: str) -> None:
+        if raw_obj == rep_obj:
+            return
+        if isinstance(raw_obj, dict) and isinstance(rep_obj, dict):
+            raw_keys = set(raw_obj.keys())
+            rep_keys = set(rep_obj.keys())
+            # Keys removed from repaired (stripped/deleted)
+            for key in sorted(raw_keys - rep_keys):
+                child_ptr = f"{ptr}/{key}"
+                if key.endswith("_at") or key.endswith("_timestamp") or key.endswith("_time"):
+                    if raw_obj[key] is None:
+                        entries.append(TransformationEntry(
+                            code="null_strip",
+                            json_pointer=child_ptr,
+                            detail=f"removed null optional field '{key}'",
+                        ))
+                    else:
+                        entries.append(TransformationEntry(
+                            code="additional_properties_strip",
+                            json_pointer=child_ptr,
+                            detail=f"removed undeclared field '{key}'",
+                        ))
+                elif raw_obj[key] is None:
+                    entries.append(TransformationEntry(
+                        code="null_strip",
+                        json_pointer=child_ptr,
+                        detail=f"removed null optional field '{key}'",
+                    ))
+                elif isinstance(raw_obj[key], str) and raw_obj[key] == "":
+                    entries.append(TransformationEntry(
+                        code="empty_string_strip",
+                        json_pointer=child_ptr,
+                        detail=f"removed empty-string field '{key}'",
+                    ))
+                else:
+                    entries.append(TransformationEntry(
+                        code="additional_properties_strip",
+                        json_pointer=child_ptr,
+                        detail=f"removed undeclared field '{key}'",
+                    ))
+            # Keys added to repaired (injected)
+            for key in sorted(rep_keys - raw_keys):
+                child_ptr = f"{ptr}/{key}"
+                if any(key.endswith(s) for s in _TS_SUFFIXES):
+                    entries.append(TransformationEntry(
+                        code="timestamp_injection",
+                        json_pointer=child_ptr,
+                        detail=f"injected missing timestamp '{key}'",
+                    ))
+                elif key == "schema_version":
+                    entries.append(TransformationEntry(
+                        code="schema_version_injection",
+                        json_pointer=child_ptr,
+                        detail="injected missing schema_version",
+                    ))
+                else:
+                    entries.append(TransformationEntry(
+                        code="field_injection",
+                        json_pointer=child_ptr,
+                        detail=f"injected field '{key}'",
+                    ))
+            # Keys present in both — recurse or classify value change
+            for key in sorted(raw_keys & rep_keys):
+                child_ptr = f"{ptr}/{key}"
+                rv = raw_obj[key]
+                pv = rep_obj[key]
+                if rv == pv:
+                    continue
+                if isinstance(rv, (dict, list)) and isinstance(pv, (dict, list)):
+                    _walk(rv, pv, child_ptr)
+                elif (
+                    isinstance(rv, str)
+                    and isinstance(pv, str)
+                    and rv != rv.lower()
+                    and (
+                        key.endswith("_id")
+                        or key in ("stable_id",)
+                        or key.endswith("_ids")
+                        or key == "affected_record_ids"
+                    )
+                ):
+                    entries.append(TransformationEntry(
+                        code="id_sanitization",
+                        json_pointer=child_ptr,
+                        detail=f"sanitized identifier '{key}': {rv} → {pv}",
+                    ))
+                elif key in ("content_sha256", "definition_sha256") or (
+                    key == "sha256" and ptr.endswith("/handoff_artifact")
+                ):
+                    entries.append(TransformationEntry(
+                        code="hash_recomputation",
+                        json_pointer=child_ptr,
+                        detail=f"recomputed self-referential hash '{key}'",
+                    ))
+                elif key == "version" and ptr.endswith("/identity"):
+                    entries.append(TransformationEntry(
+                        code="identity_version_bump",
+                        json_pointer=child_ptr,
+                        detail=f"bumped identity.version: {rv} → {pv}",
+                    ))
+                else:
+                    entries.append(TransformationEntry(
+                        code="value_rewrite",
+                        json_pointer=child_ptr,
+                        detail=f"changed '{key}': {rv!r} → {pv!r}",
+                    ))
+        elif isinstance(raw_obj, list) and isinstance(rep_obj, list):
+            max_len = max(len(raw_obj), len(rep_obj))
+            for i in range(max_len):
+                child_ptr = f"{ptr}/{i}"
+                if i < len(raw_obj) and i < len(rep_obj):
+                    if raw_obj[i] != rep_obj[i]:
+                        _walk(raw_obj[i], rep_obj[i], child_ptr)
+                # Length changes are rare for mechanical repair; skip detail.
+        # Scalar mismatch that wasn't caught above (e.g. type changed)
+        elif raw_obj != rep_obj:
+            entries.append(TransformationEntry(
+                code="value_rewrite",
+                json_pointer=ptr,
+                detail=f"{raw_obj!r} → {rep_obj!r}",
+            ))
+
+    _walk(raw, repaired, pointer)
+    return entries
+
+
+def _primary_artifact_unchanged(
+    entries: Iterable[TransformationEntry],
+) -> bool:
+    """True only when every transformation was a digest recomputation.
+
+    The primary artifact counts as unchanged only when the repair pass
+    touched nothing but self-referential hash fields (``hash_recomputation``).
+    Any other entry — id sanitization, value rewrites, timestamp/field
+    injection, strips, version bumps — alters content the agent authored,
+    so the primary artifact is no longer byte-identical in substance.
+    """
+    return all(entry.code == "hash_recomputation" for entry in entries)
 
 
 def _add_missing_timestamps(
-    data: Any, timestamp_fields: set[str], ts: str
+    data: Any, timestamp_map: dict[str, set[str]], ts: str
 ) -> bool:
-    """Add missing timestamp fields anywhere in the JSON tree.
+    """Add missing timestamp fields at schema-declared locations only.
 
-    Some schemas require timestamps in nested objects (e.g.
-    ``alignmentAssessment.assessed_at``) that agents miss because
-    they're buried deep.  Walk the tree and fill them in.
+    *timestamp_map* maps parent property names to the set of timestamp
+    fields declared inside that property's object definition.  We only
+    inject a timestamp into a dict that is the value of a known parent
+    key — never into arbitrary nested objects.
     """
-    if not timestamp_fields:
+    if not timestamp_map:
         return False
 
     changed = False
 
-    def _walk(obj: Any) -> None:
+    def _walk(obj: Any, parent_key: str | None = None) -> None:
         nonlocal changed
         if isinstance(obj, dict):
-            for key in timestamp_fields:
-                if key not in obj:
-                    obj[key] = ts
-                    changed = True
-            for val in obj.values():
+            # Only inject timestamps when we descended through a known
+            # parent key (e.g. "alignment_assessment").
+            if parent_key and parent_key in timestamp_map:
+                for field in timestamp_map[parent_key]:
+                    if field not in obj:
+                        obj[field] = ts
+                        changed = True
+            for key, val in obj.items():
                 if isinstance(val, (dict, list)):
-                    _walk(val)
+                    _walk(val, parent_key=key)
         elif isinstance(obj, list):
+            # For arrays, propagate the parent key — each element inherits
+            # the context of the array property.
             for item in obj:
                 if isinstance(item, (dict, list)):
-                    _walk(item)
+                    _walk(item, parent_key=parent_key)
 
-    _walk(data)
+    _walk(data, parent_key=None)
     return changed
 
 
@@ -473,8 +630,8 @@ def _schema_info(schema_file: str) -> dict[str, Any]:
         nested_required = _collect_nested_required(schema)
 
         # Collect timestamp-like fields declared in nested properties
-        # (e.g. alignmentAssessment.assessed_at).
-        nested_timestamps = set()
+        # (e.g. alignmentAssessment.assessed_at) as a parent_key → fields map.
+        nested_timestamps: dict[str, set[str]] = {}
         _collect_nested_timestamps(schema, nested_timestamps)
 
         return {
@@ -536,29 +693,48 @@ def _collect_nested_required(schema: dict[str, Any]) -> set[str]:
     return result
 
 
-def _collect_nested_timestamps(schema: dict[str, Any], found: set[str]) -> None:
-    """Find timestamp-like field names in nested properties."""
+def _collect_nested_timestamps(schema: dict[str, Any], found: dict[str, set[str]]) -> None:
+    """Build a parent_key → {timestamp_field} map from nested schema properties.
+
+    For each object property that contains timestamp-like fields (``_at``,
+    ``_timestamp``, ``_time`` suffixes, excluding ``searched_at``), record
+    the parent property name → set of timestamp fields.  This lets the
+    injector add timestamps only at schema-declared locations.
+    """
     _TS_SUFFIXES = ("_at", "_timestamp", "_time")
     properties = schema.get("properties", {})
 
-    def _walk(obj_def: dict[str, Any]) -> None:
-        if not isinstance(obj_def, dict):
-            return
-        sub_props = obj_def.get("properties", {})
-        if isinstance(sub_props, dict):
-            for key, sub_def in sub_props.items():
-                # A search timestamp attests that an external search occurred.
-                # It is scientific provenance, not a mechanical write-time
-                # default, so the harness must require the producer to state it.
-                if key != "searched_at" and isinstance(key, str) and any(
-                    key.endswith(s) for s in _TS_SUFFIXES
-                ):
-                    found.add(key)
-                if isinstance(sub_def, dict):
-                    _walk(sub_def)
-
-    for prop_def in properties.values():
-        _walk(prop_def)
+    # Walk top-level properties
+    for prop_name, prop_def in properties.items():
+        if isinstance(prop_def, dict):
+            sub_props = prop_def.get("properties", {})
+            if isinstance(sub_props, dict):
+                local_ts: set[str] = set()
+                for key, sub_def in sub_props.items():
+                    if (
+                        key != "searched_at"
+                        and isinstance(key, str)
+                        and any(key.endswith(s) for s in _TS_SUFFIXES)
+                    ):
+                        local_ts.add(key)
+                if local_ts:
+                    found[prop_name] = local_ts
+            # Arrays of objects
+            if prop_def.get("type") == "array":
+                items = prop_def.get("items", {})
+                if isinstance(items, dict) and items.get("type") == "object":
+                    item_props = items.get("properties", {})
+                    if isinstance(item_props, dict):
+                        local_ts = set()
+                        for key, sub_def in item_props.items():
+                            if (
+                                key != "searched_at"
+                                and isinstance(key, str)
+                                and any(key.endswith(s) for s in _TS_SUFFIXES)
+                            ):
+                                local_ts.add(key)
+                        if local_ts:
+                            found[prop_name] = local_ts
 
 
 def _empty_schema_info() -> dict[str, Any]:
@@ -568,7 +744,7 @@ def _empty_schema_info() -> dict[str, Any]:
         "no_additional": False,
         "required": set(),
         "nested_required": set(),
-        "nested_timestamps": set(),
+        "nested_timestamps": {},
     }
 
 
@@ -968,12 +1144,32 @@ class RoleLifecycleService:
     ) -> RoleClosureResult:
         status = RoleExecutionStatus(result.status)
         failure_code: str | None = None
+        raw_seal_sha256: str | None = None
         sealed_outputs: tuple[SealedRoleOutput, ...] = ()
         findings: list[dict[str, Any]] = []
+        transformation_summaries: list[dict[str, Any]] = []
         if self.repository.cancellation_requested(str(self.context.run_id)):
             status = RoleExecutionStatus.CANCELLED
         elif status is RoleExecutionStatus.SUCCEEDED:
-            _apply_disclosed_mechanical_repairs(
+            # HV-1.1: Seal the raw output bytes BEFORE any mechanical repair
+            # rewrites the workspace in place.  Repair and validation failure
+            # must never destroy the agent's original bytes: the sealed raw
+            # snapshot is always recoverable from the artifact store.
+            raw_seal_sha256 = None
+            try:
+                from .output_adapters import preserve_raw_output
+                raw_seal_sha256 = preserve_raw_output(
+                    workspace=invocation.workspace,
+                    run_id=invocation.run_id,
+                    role=role,
+                    artifacts=self.artifacts,
+                )
+            except Exception:
+                raw_seal_sha256 = None
+            # Apply mechanical repairs to a copy of the raw output. The
+            # repair function records source/result digests and classified
+            # transformation entries for each output.
+            repair_records = _apply_disclosed_mechanical_repairs(
                 run_root=self.workspace.for_read(f"runs/{self.context.run_id}"),
                 output_plan=self.context.output_plan,
                 stage=stage,
@@ -995,6 +1191,10 @@ class RoleLifecycleService:
                 self._seal_output(item.spec, item.path, item.sha256)
                 for item in validation.outputs
             )
+            # Store transformation records on the closure for auditability.
+            transformation_summaries = [
+                record.to_dict() for record in repair_records.values()
+            ]
             # Adapt validated outputs to capture linked artifacts
             for item in validation.outputs:
                 self._adapter.adapt(
@@ -1005,16 +1205,17 @@ class RoleLifecycleService:
         elif status is RoleExecutionStatus.FAILED:
             failure_code = "executor.role_failed"
             # Preserve raw output for debugging even on failure
+            raw_seal_sha256 = None
             try:
                 from .output_adapters import preserve_raw_output
-                preserve_raw_output(
+                raw_seal_sha256 = preserve_raw_output(
                     workspace=invocation.workspace,
                     run_id=invocation.run_id,
                     role=role,
                     artifacts=self.artifacts,
                 )
             except Exception:
-                pass
+                raw_seal_sha256 = None
 
         if status is RoleExecutionStatus.CANCELLED:
             failure_code = None
@@ -1042,6 +1243,8 @@ class RoleLifecycleService:
             "failure_code": failure_code,
             "outputs": [self._output_document(item) for item in sealed_outputs],
             "findings": findings,
+            "output_transformations": transformation_summaries,
+            "raw_output_sha256": raw_seal_sha256,
             "closed_at": closed_at,
         }
         closure_sha256 = document_sha256(closure_document)

@@ -1,0 +1,21 @@
+{
+  "phase": "P3",
+  "scientific_payload": {
+    "statements": [
+      {
+        "id": "s1",
+        "statement": "Algorithm X converges in O(1) iterations.",
+        "status": "contradicted",
+        "refuting_evidence": "Counterexample found: see evidence artifact E-12."
+      }
+    ],
+    "assumptions": [
+      {
+        "id": "a1",
+        "statement": "Input distribution is uniform.",
+        "status": "active"
+      }
+    ],
+    "implications": []
+  }
+}

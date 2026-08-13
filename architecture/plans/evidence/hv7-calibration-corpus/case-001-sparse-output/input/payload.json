@@ -1,0 +1,15 @@
+{
+  "phase": "P3",
+  "scientific_payload": {
+    "statements": [
+      {
+        "id": "s1",
+        "statement": "All convex functions are continuous.",
+        "status": "established",
+        "proof": "Standard result in real analysis."
+      }
+    ],
+    "assumptions": [],
+    "implications": []
+  }
+}

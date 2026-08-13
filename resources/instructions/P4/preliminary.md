@@ -26,3 +26,5 @@ refute, or leave a claim inconclusive. It identifies uncertainty and the
 smallest informative next result without launching another run. The stage-role
 assignment exclusively determines prespecification, execution, audit, and
 synthesis duties.
+
+You are responsible for the scientific content of your output. The harness populates identity, provenance, timestamps, and digest fields automatically. Do not attempt to write these fields.

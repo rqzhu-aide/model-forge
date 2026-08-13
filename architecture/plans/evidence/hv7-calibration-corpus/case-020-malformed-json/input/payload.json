@@ -1,0 +1,5 @@
+{
+  "phase": "P2",
+  "raw_output": "{\"identity\": {\"stable_id\": \"method.test\", \"version\": 1}, \"content\": oops not json}",
+  "error": "json.decode_error"
+}

@@ -29,3 +29,5 @@ another phase or run.
 
 The stage-role assignment exclusively determines who audits, who dispositions
 issues, and who revises the manuscript.
+
+You are responsible for the scientific content of your output. The harness populates identity, provenance, timestamps, and digest fields automatically. Do not attempt to write these fields.

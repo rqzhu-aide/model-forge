@@ -7,6 +7,7 @@ import type {
   PhaseId,
   PhaseView,
   ProjectOverview,
+  RunLifecycleProjection,
   RunSummary,
   ScientificStatus,
 } from "../api/types";
@@ -17,6 +18,28 @@ import { StatusPill } from "../components/Status";
 import { NotFoundPage } from "./NotFoundPage";
 
 /* ── Helpers ───────────────────────────────────────────────────────── */
+
+function runRecoverySummary(run: RunSummary): RunLifecycleProjection["recovery_summary"] | undefined {
+  return run.lifecycle_projection?.recovery_summary;
+}
+
+// A run awaiting output correction is a completed execution whose output
+// failed conformance checks — it is NOT an executor failure (HV-3.5).
+function isCorrectionRequired(run: RunSummary): boolean {
+  return runRecoverySummary(run) === "needs_output_correction";
+}
+
+function isTerminalFailure(run: RunSummary): boolean {
+  const recovery = runRecoverySummary(run);
+  if (recovery) return recovery === "failed" || recovery === "rejected";
+  // Fallback for responses without the lifecycle projection: keep the old
+  // state-axis behavior.
+  return run.state === "failed" || run.state === "rejected";
+}
+
+function runStatusLabel(run: RunSummary): string {
+  return isCorrectionRequired(run) ? "correction required" : run.state;
+}
 
 function phaseStatusTone(tone: ReturnType<typeof getPhaseWorkspaceStatus>["tone"]) {
   if (tone === "current") return "positive" as const;
@@ -249,16 +272,19 @@ function RunTimeline({ runs, basePath }: {
     return ((new Date(iso).getTime() - minMs) / span) * 100;
   }
 
-  function dotClass(state: RunSummary["state"]): string {
-    if (state === "published") return "tl-published";
-    if (state === "failed" || state === "rejected") return "tl-failed";
-    if (state === "cancelled") return "tl-cancelled";
+  function dotClass(run: RunSummary): string {
+    if (run.state === "published") return "tl-published";
+    if (run.state === "conflicted") return "tl-conflicted";
+    if (isCorrectionRequired(run)) return "tl-correction";
+    if (isTerminalFailure(run)) return "tl-failed";
+    if (run.state === "cancelled") return "tl-cancelled";
     return "tl-running";
   }
 
   const activePhases = phases.filter((p) => (byPhase.get(p)?.length ?? 0) > 0);
   const published = runs.filter((r) => r.state === "published").length;
-  const failed = runs.filter((r) => r.state === "failed" || r.state === "rejected").length;
+  const failed = runs.filter(isTerminalFailure).length;
+  const correctionRequired = runs.filter(isCorrectionRequired).length;
 
   // Recent events: last 5 runs by time, newest first
   const recent = [...runs]
@@ -276,10 +302,15 @@ function RunTimeline({ runs, basePath }: {
     >
       <div className="timeline-legend">
         <span><i className="tl-dot tl-published" /> Published</span>
-        <span><i className="tl-dot tl-failed" /> Failed</span>
+        <span><i className="tl-dot tl-failed" /> Failed / rejected</span>
+        <span><i className="tl-dot tl-correction" /> Correction required</span>
+        <span><i className="tl-dot tl-conflicted" /> Conflicted</span>
         <span><i className="tl-dot tl-cancelled" /> Cancelled</span>
         <span><i className="tl-dot tl-running" /> Running</span>
-        <span className="timeline-count">{runs.length} runs · {published} published · {failed} failed</span>
+        <span className="timeline-count">
+          {runs.length} runs · {published} published · {failed} failed
+          {correctionRequired > 0 ? ` · ${correctionRequired} correction required` : ""}
+        </span>
       </div>
       <div className="timeline-chart">
         {activePhases.map((phase) => {
@@ -293,10 +324,10 @@ function RunTimeline({ runs, basePath }: {
                 {phaseRuns.map((run, i) => (
                   <Link
                     to={`${basePath}/runs/${run.run_id}`}
-                    className={`tl-dot ${dotClass(run.state)}`}
+                    className={`tl-dot ${dotClass(run)}`}
                     style={{ left: `${positionPct(run.requested_at)}%` }}
                     key={run.run_id}
-                    title={`Run ${i + 1} · ${run.mode} · ${run.state} · ${formatTime(run.requested_at)}`}
+                    title={`Run ${i + 1} · ${run.mode} · ${runStatusLabel(run)} · ${formatTime(run.requested_at)}`}
                   />
                 ))}
               </div>
@@ -310,7 +341,7 @@ function RunTimeline({ runs, basePath }: {
           <div className="tl-event" key={run.run_id}>
             <time className="tl-event-time">{formatTime(run.requested_at)}</time>
             <span className="tl-event-text">
-              <strong>{run.phase} {PHASE_NAMES[run.phase]}</strong>: {run.state}
+              <strong>{run.phase} {PHASE_NAMES[run.phase]}</strong>: {runStatusLabel(run)}
             </span>
           </div>
         ))}

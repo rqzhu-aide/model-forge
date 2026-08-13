@@ -8,12 +8,13 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 from ..configuration.resources import RoleResourceCatalog
 from ..contracts.runtime import RuntimePhaseContract, resolve_runtime_contract
 from ..domain.identities import MethodIdentity
 from ..domain.runs import RunStatus, isoformat_utc, utc_now
+from ..domain.validation import ValidationFinding
 from ..executors import RoleExecutor
 from ..harness.execution_context import RunExecutionContext
 from ..harness.index_reducers import prepare_index_transforms
@@ -50,7 +51,8 @@ logger = logging.getLogger(__name__)
 
 
 _TERMINAL = frozenset(
-    {"published", "failed", "rejected", "conflicted", "cancelled"}
+    {"published", "failed", "rejected", "conflicted", "cancelled",
+     "correction_exhausted"}
 )
 
 
@@ -137,6 +139,11 @@ class RunCoordinator:
                             self._validate(run_id)
                         elif status == "promoting":
                             self._promote(run_id)
+                        elif status in ("correction_authorized", "correcting"):
+                            # HV-5.8: Never auto-advance correction states.
+                            # These require explicit user authorization and
+                            # must not be relanched on restart.
+                            return
                         else:
                             raise RuntimeError(f"Unsupported active run status {status!r}.")
                     except asyncio.CancelledError:
@@ -340,6 +347,7 @@ class RunCoordinator:
                 run_id,
                 "submission.validation_failed",
                 summary or "Submission validation failed.",
+                findings=validation.findings,
             )
             return
         prepared_at = isoformat_utc(utc_now())
@@ -851,30 +859,48 @@ class RunCoordinator:
             },
         )
 
-    def _reject(self, run_id: str, code: str, message: str) -> None:
+    def _reject(
+        self,
+        run_id: str,
+        code: str,
+        message: str,
+        findings: Sequence[ValidationFinding] | None = None,
+    ) -> None:
+        payload: dict[str, Any] = {
+            "validation_report": {"status": "failed", "summary": message},
+            "terminal_reason": {
+                "code": code,
+                "message": message,
+                "smallest_correction": "Review the validation result and launch a new run after correcting the basis or instructions.",
+            },
+        }
+        if findings:
+            payload["closure_findings"] = [f.to_dict() for f in findings]
         self.lifecycle.transition(
             run_id,
             RunStatus.REJECTED,
             "Submission validation failed. Formal project records were unchanged.",
-            payload_updates={
-                "validation_report": {"status": "failed", "summary": message},
-                "terminal_reason": {
-                    "code": code,
-                    "message": message,
-                    "smallest_correction": "Review the validation result and launch a new run after correcting the basis or instructions.",
-                },
-            },
+            payload_updates=payload,
         )
 
-    def _fail(self, run_id: str, code: str, message: str) -> None:
+    def _fail(
+        self,
+        run_id: str,
+        code: str,
+        message: str,
+        findings: Sequence[ValidationFinding] | None = None,
+    ) -> None:
+        payload: dict[str, Any] = {
+            "terminal_reason": {"code": code, "message": message},
+            "current_stage_label": None,
+        }
+        if findings:
+            payload["closure_findings"] = [f.to_dict() for f in findings]
         self.lifecycle.transition(
             run_id,
             RunStatus.FAILED,
             message,
-            payload_updates={
-                "terminal_reason": {"code": code, "message": message},
-                "current_stage_label": None,
-            },
+            payload_updates=payload,
         )
 
     def _handle_error(self, run_id: str, error: Exception) -> bool:

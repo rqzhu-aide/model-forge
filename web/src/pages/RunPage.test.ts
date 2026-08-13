@@ -21,6 +21,26 @@ describe("terminal run reason presentation", () => {
       role: "status",
     });
   });
+
+  it("treats a correctable output check as a warning, not an execution failure", () => {
+    expect(terminalReasonPresentation("failed", "needs_output_correction")).toEqual({
+      className: "message message--warning",
+      role: "status",
+    });
+    expect(terminalReasonPresentation("rejected", "needs_output_correction").role).toBe("status");
+  });
+
+  it("keeps executor failures and integrity rejections as error alerts", () => {
+    expect(terminalReasonPresentation("failed", "failed").role).toBe("alert");
+    expect(terminalReasonPresentation("rejected", "rejected")).toEqual({
+      className: "message message--error",
+      role: "alert",
+    });
+    expect(terminalReasonPresentation("conflicted", "conflicted")).toEqual({
+      className: "message message--warning",
+      role: "status",
+    });
+  });
 });
 
 describe("cancellation request cache consistency", () => {

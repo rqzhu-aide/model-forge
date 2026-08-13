@@ -38,3 +38,5 @@ open obligations. It may be positive, negative, mixed, or inconclusive.
 Completeness does not claim to exhaust every possible property. This mode does
 not authorize another method, branch, or run. The stage-role assignment
 exclusively determines who constructs, audits, and reconciles the artifacts.
+
+You are responsible for the scientific content of your output. The harness populates identity, provenance, timestamps, and digest fields automatically. Do not attempt to write these fields.

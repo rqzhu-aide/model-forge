@@ -9,6 +9,7 @@ const TERMINAL_RUN_STATES: ReadonlySet<RunLifecycleState> = new Set([
   "rejected",
   "conflicted",
   "cancelled",
+  "correction_exhausted",
 ]);
 
 export function isTerminalRunState(state: RunLifecycleState): boolean {

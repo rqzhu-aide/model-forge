@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client";
-import type { RunDetail, RunLifecycleState } from "../api/types";
+import type { FindingGroup, RunDetail, RunLifecycleProjection, RunLifecycleState } from "../api/types";
 import { ConfirmActionDialog } from "../components/ConfirmActionDialog";
 import { EmptyState, ErrorState, LoadingState } from "../components/Feedback";
 import { Panel } from "../components/Panel";
@@ -11,33 +11,76 @@ import { FrozenBasis, RunEventList, RunTimeline, runIsStale } from "../component
 import { StatusPill } from "../components/Status";
 import { useRunEvents } from "../hooks/useRunEvents";
 import { useTerminalRunRefresh } from "../hooks/useTerminalRunRefresh";
-import { formatDate, isRunActive } from "../utils/format";
+import { formatDate, isRunActive, sentenceCase } from "../utils/format";
 import { NotFoundPage } from "./NotFoundPage";
 
+export type RecoverySummary = RunLifecycleProjection["recovery_summary"];
+
+function recoverySummaryOf(run: RunDetail): RecoverySummary | undefined {
+  return run.lifecycle_projection?.recovery_summary;
+}
+
+function findingClassTone(
+  findingClass: FindingGroup["finding_class"],
+): "danger" | "warning" | "neutral" {
+  if (
+    findingClass === "operational_failure" ||
+    findingClass === "integrity_blocker" ||
+    findingClass === "scientific_claim_blocker"
+  ) {
+    return "danger";
+  }
+  if (findingClass === "correctable_contract_error" || findingClass === "scientific_attention") {
+    return "warning";
+  }
+  return "neutral";
+}
+
 function recoveryGuidance(run: RunDetail): string | undefined {
+  const recovery = recoverySummaryOf(run);
+  if (recovery === "needs_output_correction") {
+    return "The recorded output checks must be corrected before this work can become formal project state. Your current project record was not changed. Return to the phase to configure a corrected rerun.";
+  }
+  if (recovery === "failed") {
+    return "Inspect the terminal reason and progress events, then return to the phase to configure a corrected rerun. The failed attempt did not replace formal project state.";
+  }
+  if (recovery === "rejected") {
+    return "Review the validation report and correct the stated contract or scientific output before starting a new run. Material that fails integrity checks cannot become formal project state.";
+  }
   if (run.state === "failed") {
     return "Inspect the terminal reason and progress events, then return to the phase to configure a corrected rerun. The failed attempt did not replace formal project state.";
   }
   if (run.state === "rejected") {
     return "Review the validation report and correct the stated contract or scientific output before starting a new run. Rejected output was not published.";
   }
-  if (run.state === "conflicted") {
+  if (recovery === "conflicted" || run.state === "conflicted") {
     return "Compare this run's frozen basis with the current phase record. If the current basis should be used, return to the phase and start a new run with that context.";
   }
-  if (run.state === "cancelled") {
+  if (recovery === "cancelled" || run.state === "cancelled") {
     return "The run stopped without changing the current formal result. Return to the phase when you want to revise the instructions or start another run.";
   }
   return undefined;
 }
 
-export function terminalReasonPresentation(state: RunLifecycleState): {
+export function terminalReasonPresentation(
+  state: RunLifecycleState,
+  recoverySummary?: RecoverySummary,
+): {
   className: string;
   role: "alert" | "status";
 } {
+  // A completed Hermes exit with correctable output checks is NOT an execution
+  // failure — never present it as an error alert (HV-3.4).
+  if (recoverySummary === "needs_output_correction") {
+    return { className: "message message--warning", role: "status" };
+  }
+  if (recoverySummary === "failed" || recoverySummary === "rejected") {
+    return { className: "message message--error", role: "alert" };
+  }
   if (state === "failed" || state === "rejected") {
     return { className: "message message--error", role: "alert" };
   }
-  if (state === "conflicted") {
+  if (recoverySummary === "conflicted" || state === "conflicted") {
     return { className: "message message--warning", role: "status" };
   }
   return { className: "message message--neutral", role: "status" };
@@ -67,7 +110,7 @@ export function RunPage() {
     enabled: Boolean(projectId && runId),
     refetchInterval: (query) => {
       const run = query.state.data;
-      return run && isRunActive(run.state) ? 4_000 : false;
+      return run && isRunActive(run.state, run.lifecycle_projection?.recovery_summary) ? 4_000 : false;
     },
   });
   const eventsQuery = useRunEvents(projectId ?? "", runQuery.data);
@@ -93,10 +136,15 @@ export function RunPage() {
   if (!runQuery.data) return <NotFoundPage />;
 
   const run = runQuery.data;
-  const recovery = recoveryGuidance(run);
+  const projection = run.lifecycle_projection;
+  const recovery = recoverySummaryOf(run);
+  const guidance = recoveryGuidance(run);
+  const correctionCount = projection
+    ? Math.max(projection.correctable_finding_count, projection.blocking_finding_count)
+    : 0;
   const stale = runIsStale(run);
   const cancelReasonId = `cancel-run-disabled-${run.run_id}`;
-  const terminalPresentation = terminalReasonPresentation(run.state);
+  const terminalPresentation = terminalReasonPresentation(run.state, recovery);
 
   return (
     <div className="page-stack">
@@ -143,7 +191,22 @@ export function RunPage() {
         </div>
       ) : null}
 
-      {run.terminal_reason ? (
+      {recovery === "needs_output_correction" && projection ? (
+        <div className="message message--warning" role="status">
+          <div>
+            <strong>Hermes completed the assigned work.</strong>
+            <p>
+              Formal publication was withheld because {correctionCount} output{" "}
+              {correctionCount === 1 ? "check" : "checks"} require correction. Your current project
+              record was not changed.
+            </p>
+            <p className="run-monitor-note">
+              Run-local outputs from the completed work are preserved on disk and remain available
+              for inspection.
+            </p>
+          </div>
+        </div>
+      ) : run.terminal_reason ? (
         <div className={terminalPresentation.className} role={terminalPresentation.role}>
           <div>
             <strong>{run.terminal_reason.message}</strong>
@@ -153,6 +216,32 @@ export function RunPage() {
             ) : null}
           </div>
         </div>
+      ) : null}
+
+      {projection && projection.finding_groups.length > 0 ? (
+        <Panel title="Findings by class" eyebrow="Output checks">
+          <ul className="finding-groups">
+            {projection.finding_groups.map((group) => (
+              <li key={group.finding_class} className="finding-group">
+                <StatusPill tone={findingClassTone(group.finding_class)}>
+                  {sentenceCase(group.finding_class)}
+                </StatusPill>
+                <span className="finding-group__count">
+                  {group.count} {group.count === 1 ? "finding" : "findings"}
+                </span>
+                {group.sample_codes.length > 0 ? (
+                  <code className="finding-group__codes">{group.sample_codes.join(", ")}</code>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          {recovery === "needs_output_correction" ? (
+            <p className="run-monitor-note">
+              These checks are correctable, but in-place correction controls are not yet available
+              in this release. Return to the phase to configure a corrected rerun.
+            </p>
+          ) : null}
+        </Panel>
       ) : null}
 
       <div className="run-detail-grid">
@@ -209,7 +298,7 @@ export function RunPage() {
           ) : (
             <EmptyState title="No publication receipt">
               <p>
-                {recovery
+                {guidance
                   ? "This operation did not replace the current formal result."
                   : "Run-local work remains separate from formal project state until validation and publication complete."}
               </p>
@@ -218,9 +307,9 @@ export function RunPage() {
         </Panel>
       </div>
 
-      {recovery ? (
+      {guidance ? (
         <Panel title="What to do next" eyebrow="Recovery guidance">
-          <p>{run.terminal_reason?.smallest_correction ?? recovery}</p>
+          <p>{run.terminal_reason?.smallest_correction ?? guidance}</p>
           <Link to={`/projects/${encodeURIComponent(projectId)}/phases/${run.phase}#configure-run`} className="button button--quiet">
             Return to {run.phase} run controls
           </Link>

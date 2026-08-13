@@ -52,7 +52,7 @@ def registry(schemas: SchemaCatalog) -> DigestContractRegistry:
 
 
 def test_registry_loads_every_declared_contract(registry: DigestContractRegistry) -> None:
-    assert len(registry) == 42
+    assert len(registry) == 45
     contract = registry.contract("phase_contract.content")
     assert contract.construction == "rfc8785_sha256"
     assert contract.digest_location.kind == "referenced"

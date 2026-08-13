@@ -11,8 +11,8 @@ ARCHITECTURE = Path(__file__).resolve().parents[1] / "architecture"
 def test_specification_package_loads_complete_contract_kernel() -> None:
     package = SpecificationPackage.load(ARCHITECTURE)
     assert package.architecture_root == ARCHITECTURE.resolve()
-    assert len(package.schemas) == 42
-    assert len(package.digests) == 42
+    assert len(package.schemas) == 46
+    assert len(package.digests) == 45
     assert len(package.phases) == 5
     assert len(package.phases.mode_ids) == 10
 

@@ -28,3 +28,5 @@ falsifiable advantage, decisive downstream investigation, and principal
 theoretical, empirical, and computational risks. Compare options under the
 stated decision criteria. You may identify dominated or nonviable options,
 but do not choose a P3 or P4 branch for the user.
+
+You are responsible for the scientific content of your output. The harness populates identity, provenance, timestamps, and digest fields automatically. Do not attempt to write these fields.

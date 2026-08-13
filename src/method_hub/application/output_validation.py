@@ -437,22 +437,29 @@ def _parse_method_identity(manifest: Mapping[str, Any]) -> MethodIdentity | None
         return None
 
 
-def _phase_plan_shim(phase: str) -> ResolvedPhasePlan:
-    """Minimal plan carrying the phase identity for validator dispatch.
+def _build_plan_from_manifest(manifest: Mapping[str, Any]) -> ResolvedPhasePlan:
+    """Build a real ``ResolvedPhasePlan`` from manifest fields.
 
-    The phase-specific validators in ``harness/scientific_validators.py``
-    dispatch on ``plan.identity.phase_id`` only; every other field is
-    unused by them.  The manifest does not carry the phase-contract choice
-    bindings needed to resolve a full plan, so the shim keeps the reuse
-    honest without fabricating contract choices.
+    The phase-specific validators dispatch on ``plan.identity.phase_id``
+    and ``plan.mode_id``.  The manifest carries both ``phase`` and
+    ``mode``, so we build the plan from those values instead of hardcoding
+    an empty mode — the old shim caused spurious mode-mismatch failures
+    on P3/P4 records and skipped mode-specific checks on P2/P5 records.
     """
+    phase = manifest.get("phase", "")
+    mode = manifest.get("mode", "")
+    contract_version = manifest.get("phase_contract_version", "1.0.0")
+    contract_sha256 = manifest.get("phase_contract_sha256", "0" * 64)
+    # PhaseContractIdentity validates phase_id; default to P1 for empty/invalid.
+    valid_phases = {"P1", "P2", "P3", "P4", "P5"}
+    phase_id = str(phase) if phase in valid_phases else "P1"
     return ResolvedPhasePlan(
         identity=PhaseContractIdentity(
-            phase_id=phase,
-            contract_version="1.0.0",
-            phase_contract_sha256="0" * 64,
+            phase_id=phase_id,
+            contract_version=str(contract_version),
+            phase_contract_sha256=str(contract_sha256),
         ),
-        mode_id="",
+        mode_id=str(mode) if mode else "",
         choice_values={},
         context_policy="",
         stages=(),
@@ -821,7 +828,7 @@ def _check_phase_consistency(
         )
     findings: list[Any] = []
     validate_phase_scientific(
-        plan=_phase_plan_shim(phase),
+        plan=_build_plan_from_manifest(manifest),
         outputs=outputs_map,
         selected_method=_parse_method_identity(manifest),
         findings=findings,

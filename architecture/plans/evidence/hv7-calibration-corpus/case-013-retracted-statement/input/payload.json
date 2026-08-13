@@ -1,0 +1,16 @@
+{
+  "phase": "P3",
+  "scientific_payload": {
+    "statements": [
+      {
+        "id": "s1",
+        "statement": "Old claim that was later found wrong.",
+        "status": "retracted",
+        "retraction_reason": "Assumption a2 was invalidated by new evidence.",
+        "superseded_by": "s2"
+      }
+    ],
+    "assumptions": [],
+    "implications": []
+  }
+}

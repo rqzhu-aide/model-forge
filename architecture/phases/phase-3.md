@@ -11,6 +11,7 @@ Phase 3 is parallel in pipeline status to Phase 4. It may run before or after Ph
 Before launch, the user chooses:
 
 - One active method and its exact current version
+- Establish-theory mode, which constructs the complete theory account for the authorized scope, or revise-theory mode, which revises the current theory statement by statement: repairing gaps where possible and weakening, narrowing, conditioning, or retracting claims when that is the more defensible result
 - Additional theoretical or scientific instructions
 - Optional current project context
 - Whether to include selected historical Phase 3, Phase 4, or other run material
@@ -48,7 +49,7 @@ The run records absent sibling or prior records explicitly. Current records for 
 
 The role order is fixed.
 
-1. The theorist performs the primary Phase 3 work and produces a complete candidate theory record, using the frozen current record as the basis on a rerun.
+1. The theorist performs the primary Phase 3 work and produces a complete candidate theory record, using the frozen current record as the basis on a rerun. In revise-theory mode the theorist revises the current theory statement by statement, repairing gaps where possible and weakening, narrowing, conditioning, or retracting claims when that is the more defensible result.
 2. The data analyst receives the frozen basis and theorist output, then examines identifiability, operational meaning, computational implications, empirical testability, boundary cases, and consistency with current Phase 4 evidence when available.
 3. The research lead receives the frozen project, literature, method catalog, selected method, prior theory, and available empirical basis together with both role outputs, resolves or exposes disagreements, and produces the candidate formal theory record and user decision summary.
 

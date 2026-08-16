@@ -12,11 +12,16 @@ Before launch, the user chooses:
 
 - Full-catalog mode, which may add or update multiple methods
 - Focused-method mode, which may update only one selected existing method
+- Researcher-proposal mode, which evaluates a researcher-proposed method specification and, if valid, registers it as a new method in the catalog
 - Additional scientific instructions
 - Optional current project context
 - Whether to include selected historical run material
 
-In focused-method mode, the selected stable method ID is mandatory. Current formal records are included by default, and history is excluded unless selected. After completion, the user decides whether to rerun Phase 2, retire or reactivate a method through an explicit catalog action, or select a method in Phase 3 or Phase 4.
+In focused-method mode, the selected stable method ID is mandatory. In
+researcher-proposal mode, the researcher supplies the exact proposed method
+specification as a launch choice; roles evaluate it rather than authoring
+their own new method. Current formal records are included by default, and
+history is excluded unless selected. After completion, the user decides whether to rerun Phase 2, retire or reactivate a method through an explicit catalog action, or select a method in Phase 3 or Phase 4.
 
 ## 3. Prerequisites
 
@@ -50,7 +55,7 @@ Phase 2 has three stages.
 
 1. The research lead, theorist, and data analyst independently generate method proposals or scoped revisions from the same frozen basis. They do not see one another's in-run proposals before submitting their own.
 2. The theorist and data analyst cross-review all in-scope proposals against the frozen project, literature, and catalog basis. The theorist examines mathematical definition, assumptions, identifiability, and inferential claims. The data analyst examines implementability, study design, data requirements, computational behavior, and empirical distinguishability.
-3. The research lead receives the frozen project, literature, and catalog basis together with the independent proposals and cross-reviews, reconciles disagreements, and produces the candidate catalog update and user decision record.
+3. The research lead receives the frozen project, literature, and catalog basis together with the independent proposals and cross-reviews, reconciles disagreements, and produces the candidate catalog update and user decision record. In researcher-proposal mode the lead additionally decides whether the proposed method warrants formal registration.
 
 The lead may recommend later investigation or retirement but cannot choose the user's Phase 3 or Phase 4 branch. The outside reviewer does not participate in Phase 2.
 

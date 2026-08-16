@@ -290,3 +290,33 @@ ISS-9 (positive examples for the 5 new phase schemas).
  `value_rewrite` rather than `id_sanitization` - cosmetic labeling only.
 
 Remaining: ISS-9 (positive examples for the 5 new phase schemas).
+
+### 2026-08-16: ISS-9 (commit b53a434, subagent package, second pass)
+
+- Five positive examples created and registered:
+  `theory-record.example.json` (exercises the counterexample variant:
+  a contradicted proposition with `justification.kind: "counterexample"`,
+  alongside proof-backed and definition statements - the HV-6 acceptance
+  structure), `empirical-protocol.example.json` (p4.preliminary,
+  `authority_at_creation` correctly omitted - that schema is
+  additionalProperties:false), `manuscript-package.example.json`
+  (P5 assembly candidate, all 8 mandatory sections),
+  `review-finding.example.json`, `review-report.example.json` (two embedded
+  outside-reviewer findings + bounded novelty search). All use an isolated
+  `*.example_*` identity namespace, no connected-set citations.
+- Registration: 5 VALID_EXAMPLES entries; the FOUR machine-checked count
+  prose spots bumped 58 -> 63 (architecture/README.md,
+  schemas/README.md, examples/README.md, tools/README.md - the fourth was
+  found by the first pass and added to the re-dispatch brief);
+  examples/README.md gained the standalone-examples paragraph.
+- Validator re-verification (independent): gate exit 0, summary "Valid
+  examples: 63"; all five `content_sha256` values recomputed from the
+  files and match; suite 1071 green; commit scope exactly the 10 listed
+  files.
+- Dispatch note: pass 1 died at the iteration cap during READS (16 calls,
+  zero writes). The re-dispatch brief pinned every fact (write order,
+  digest fixup recipe, exact count locations) and pass 2 completed in 22
+  calls. Same lesson as WP-F4: for packages whose reads are deep, pre-pin
+  the read results in the brief and demand writes first.
+
+**AUDIT CLOSED: ISS-1 through ISS-9 all landed and verified.**

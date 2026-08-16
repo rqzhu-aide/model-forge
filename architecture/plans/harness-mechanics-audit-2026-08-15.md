@@ -251,3 +251,42 @@ ISS-9 (positive examples for the 5 new phase schemas).
   the theory-record example should exercise the newly allowed proof-only /
   definition-focused / impossibility / counterexample structures where the
   schema permits (see HV-6 plan line ~104).
+
+### 2026-08-16: ISS-7, ISS-8 (commit b31c59d, subagent package)
+
+- **ISS-7**: `_stableid_positions(schema_file)` (cached) walks each output
+ schema for `$ref` chains reaching `common-definitions$defs.stableId` and
+ derives the exact covered scalar/array key sets (verified against an
+ independent scan for statement/evidence/handoff); heuristic fallback on
+ load failure. `_deep_sanitize_ids` moved to module level, triggers on
+ stableId-pattern fullmatch failure (catches lowercase-but-invalid), runs
+ for EVERY parsed output (the early-continue now guards only the
+ item-level repairs via a `skip_item_repairs` flag), and records renames
+ for the new `_rewrite_id_references` document-wide same-value pass.
+- **ISS-8**: `_ID_KEYS` loop and the operator-tangled `_ids` clause deleted
+ from `_fix_item`. 7 of 13 legacy keys are schema-declared stableId
+ positions; the 6 undeclared ones (`finding_id`, `theorem_id`,
+ `definition_id`, `lemma_id`, `corollary_id`, `proposition_id`) keep
+ coverage via `_LEGACY_UNDECLARED_ID_KEYS` as the brief directed.
+- Tests: `tests/test_id_sanitization.py` (9 tests). Suite 1062 -> 1071
+ green; `validate_package.py` exit 0 (both re-verified by the validator).
+- **Live probe** (validator-run, beyond the suite): the exact failed
+ production values at the exact failed positions under the REAL production
+ schema for `p2.empirical_review` (handoff.schema.json, per the P2
+ contract) now sanitize to pattern-valid ids; valid ids, free text, and
+ non-covered keys untouched; same-valued references rewritten
+ consistently.
+- **EVIDENCE CORRECTION to the ISS-7 audit narrative**: the probed schema
+ (handoff.schema.json) declares `created_at`, so the old early-continue
+ never skipped it; and `_deep_sanitize_ids` was only introduced in
+ `6f121dc` (2026-08-10) - the failed closure is from 2026-08-08, two days
+ BEFORE any ID sanitization existed. The 2026-08-08 failure therefore does
+ not demonstrate a coverage gap; it predates the sanitizer. The coverage
+ gaps the fix closes (early-continue schemas like statement.schema.json,
+ `assumptions[]`-style positions, dangling references) are real but were
+ not the mechanism of that specific production failure.
+- Out-of-scope find reported by the subagent (not fixed, per scope):
+ `_classify_transformations` labels the new sanitizations as generic
+ `value_rewrite` rather than `id_sanitization` - cosmetic labeling only.
+
+Remaining: ISS-9 (positive examples for the 5 new phase schemas).

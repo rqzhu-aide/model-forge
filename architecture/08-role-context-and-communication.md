@@ -18,6 +18,12 @@ Every role stage uses a versioned `RoleProfileManifest`. The manifest records:
 - role, applicable phases, applicable modes, and exact `applicable_stage_ids`;
 - scientific stance, also called the role's soul;
 - phase-specific task instruction;
+
+See [02b §1](02b-phase-run-walkthroughs.md) for how instruction layers are
+implemented today: Jinja2 templates under `resources/instructions/<Phase>/`
+rendered per stage-role and mode layer per ADR-013, with task briefs rendered
+from schema skeletons by `harness/task_briefs.py`.
+
 - required output and handoff contracts as immutable artifact pointers with digests;
 - context visibility and isolation rules;
 - memory policy;
@@ -307,7 +313,11 @@ and role-profile artifacts, not through an open metadata map.
 
 ## 6. Instruction precedence
 
-When instructions conflict, apply this order:
+Instructions are delivered as separate sealed layers per
+[ADR-013](decisions/ADR-013-layered-prompts-and-phase-specific-output-contracts.md):
+the mode directive and the stage-role assignment render as distinct prompt
+layers (never a single fallback chain), and researcher-authored direction
+reaches the role verbatim. When instructions conflict, apply this order:
 
 1. system invariants, safety, and access boundaries;
 2. the versioned phase contract;

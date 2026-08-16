@@ -256,7 +256,7 @@ export function SupervisedRunsPage() {
   const [briefText, setBriefText] = useState("");
   const [expectedOutputs, setExpectedOutputs] = useState<ExpectedOutputDraft[]>([emptyDraft()]);
   const [memoryPolicy, setMemoryPolicy] = useState<SupervisedMemoryPolicy>("persistent");
-  const [timeoutSeconds, setTimeoutSeconds] = useState("1200");
+  const [timeoutSeconds, setTimeoutSeconds] = useState("14400");
   const [formProblem, setFormProblem] = useState<string | undefined>(undefined);
   const [startedDetail, setStartedDetail] = useState<SupervisedRunDetail | null>(null);
 
@@ -501,7 +501,10 @@ export function SupervisedRunsPage() {
                 value={timeoutSeconds}
                 onChange={(event) => setTimeoutSeconds(event.target.value)}
               />
-              <small>Recorded in the seal manifest; the launcher resolves the effective timeout.</small>
+              <small>
+                Default: 4 hours (long studies need well over 20 minutes).
+                The launcher enforces this limit.
+              </small>
             </label>
           </div>
 

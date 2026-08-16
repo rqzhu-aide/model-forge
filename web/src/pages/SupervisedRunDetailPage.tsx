@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { ApiError, api } from "../api/client";
@@ -50,6 +51,20 @@ export function checkStatusLabel(status: string | undefined): string {
   return status ? sentenceCase(status) : "Not recorded";
 }
 
+export function formatElapsedBetween(
+  launchedAt: string,
+  now: number,
+): string | undefined {
+  const start = new Date(launchedAt).getTime();
+  if (Number.isNaN(start) || now < start) return undefined;
+  const totalSeconds = Math.round((now - start) / 1000);
+  if (totalSeconds < 60) return `${totalSeconds}s`;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes < 60) return `${minutes}m ${seconds}s`;
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+}
+
 export function formatElapsedTime(
   launchedAt: string,
   closedAt: string | null | undefined,
@@ -70,7 +85,7 @@ export function smallestSafeNextAction(detail: SupervisedRunDetail): string {
   if (!latest) return "Start this run from the list page";
   if (latest.status === "running") return "Wait or cancel";
   if (latest.status === "failed" || latest.status === "cancelled") {
-    return "Investigate the logs, then start a new invocation";
+    return "Open the run logs below, then start a new invocation";
   }
   if (detail.validation?.verdict === "fail") {
     return "Review the failed checks; the run changed no state";
@@ -301,6 +316,14 @@ export function PreflightPanel({ detail }: { detail: SupervisedRunDetail }) {
 }
 
 export function LaunchRecordsPanel({ detail }: { detail: SupervisedRunDetail }) {
+  const hasRunning = detail.launches.some((launch) => launch.status === "running");
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!hasRunning) return undefined;
+    const timer = window.setInterval(() => setNow(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, [hasRunning]);
   if (detail.launches.length === 0) {
     return (
       <EmptyState title="Not launched">
@@ -349,7 +372,13 @@ export function LaunchRecordsPanel({ detail }: { detail: SupervisedRunDetail }) 
             <div><dt>Closed at</dt><dd>{launch.closed_at ? formatDate(launch.closed_at) : "—"}</dd></div>
             <div>
               <dt>Elapsed</dt>
-              <dd>{formatElapsedTime(launch.launched_at, launch.closed_at) ?? "—"}</dd>
+              <dd>
+                {launch.status === "running" && !launch.closed_at
+                  ? formatElapsedBetween(launch.launched_at, now) ??
+                    formatElapsedTime(launch.launched_at, launch.closed_at) ??
+                    "—"
+                  : formatElapsedTime(launch.launched_at, launch.closed_at) ?? "—"}
+              </dd>
             </div>
           </dl>
         </li>
@@ -462,6 +491,107 @@ export function SupervisedCancelError({ error }: { error: unknown }) {
 // Page
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Run logs panel (trust package): bounded log tails + outputs listing
+// ---------------------------------------------------------------------------
+
+function RunLogsPanel({
+  projectId,
+  invocationId,
+  isRunning,
+}: {
+  projectId: string;
+  invocationId: string;
+  isRunning: boolean;
+}) {
+  const logsQuery = useQuery({
+    queryKey: ["supervised-run-logs", projectId, invocationId],
+    queryFn: () => api.getSupervisedRunLogs(projectId, invocationId),
+    enabled: Boolean(projectId && invocationId),
+    refetchInterval: isRunning ? 5000 : false,
+  });
+
+  if (logsQuery.isLoading) {
+    return <LoadingState label="Loading run logs..." />;
+  }
+  if (logsQuery.error) {
+    return (
+      <ErrorState
+        error={logsQuery.error}
+        title="Run logs are unavailable"
+      />
+    );
+  }
+  const logs = logsQuery.data;
+  if (!logs) return null;
+  if (!logs.run_dir_available) {
+    return (
+      <div className="message message--neutral" role="status">
+        <div>
+          <strong>Log files are not available for this run.</strong>
+          <p>The run directory is missing or was moved.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const sections: Array<{ label: string; content: string }> = [];
+  if (logs.heartbeat_tail) {
+    sections.push({
+      label: isRunning ? "Heartbeat (live)" : "Heartbeat",
+      content: logs.heartbeat_tail,
+    });
+  }
+  if (logs.stdout_tail) {
+    sections.push({ label: "Captured output (after exit)", content: logs.stdout_tail });
+  }
+  if (logs.stderr_tail) {
+    sections.push({ label: "Captured errors (after exit)", content: logs.stderr_tail });
+  }
+
+  return (
+    <div className="run-logs">
+      <div className="run-logs__toolbar">
+        <span className="run-logs__hint">
+          {isRunning
+            ? "The heartbeat refreshes every few seconds while the run is active."
+            : "Captured after the process exited. The heartbeat was recorded live."}
+        </span>
+        <button
+          type="button"
+          className="button button--quiet button--small"
+          onClick={() => logsQuery.refetch()}
+        >
+          Refresh
+        </button>
+      </div>
+      {sections.length === 0 ? (
+        <p className="run-logs__empty">No log output was recorded for this run.</p>
+      ) : (
+        sections.map((section) => (
+          <div key={section.label} className="run-logs__section">
+            <p className="eyebrow">{section.label}</p>
+            <pre className="run-logs__pre">{section.content}</pre>
+          </div>
+        ))
+      )}
+      {logs.outputs.length > 0 ? (
+        <div className="run-logs__outputs">
+          <p className="eyebrow">Output files</p>
+          <ul>
+            {logs.outputs.map((output) => (
+              <li key={output.relative_path}>
+                <code>{output.relative_path}</code>{" "}
+                <small>({output.size_bytes.toLocaleString()} bytes)</small>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function SupervisedRunDetailPage() {
   const { projectId, invocationId } = useParams();
   const queryClient = useQueryClient();
@@ -501,6 +631,7 @@ export function SupervisedRunDetailPage() {
   const latestLaunch: SupervisedLaunchRecord | undefined =
     detail.launches[detail.launches.length - 1];
   const canCancel = latestLaunch?.status === "running";
+  const isClosed = latestLaunch !== undefined && latestLaunch.status !== "running";
 
   return (
     <div className="page-stack">
@@ -559,6 +690,22 @@ export function SupervisedRunDetailPage() {
       >
         {cancelMutation.error ? <SupervisedCancelError error={cancelMutation.error} /> : null}
         <LaunchRecordsPanel detail={detail} />
+      </Panel>
+
+      <Panel
+        title="Run logs"
+        eyebrow="Heartbeat and captured output"
+        description={
+          isClosed
+            ? "What the run printed, captured after it finished."
+            : "Live heartbeat while the run is active; captured output appears after exit."
+        }
+      >
+        <RunLogsPanel
+          projectId={projectId}
+          invocationId={invocationId}
+          isRunning={Boolean(canCancel)}
+        />
       </Panel>
 
       <Panel

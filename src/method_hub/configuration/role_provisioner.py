@@ -19,6 +19,7 @@ import json
 import os
 import shutil
 import stat
+import time
 import uuid
 from dataclasses import dataclass
 from enum import Enum
@@ -99,6 +100,8 @@ class RoleProvisionResult:
     assets_written: tuple[str, ...]
     skills_installed: tuple[SkillInstallation, ...]
     rolled_back: bool
+    backups_created: tuple[str, ...] = ()
+    kept_custom: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -476,6 +479,28 @@ def _write_file_atomic(target: Path, content: str) -> None:
     os.replace(staging, target)
 
 
+def _backup_customized_file(target: Path) -> str | None:
+    """Rename a soon-to-be-overwritten customized file to a recovery copy.
+
+    Safety net for force-overwrite: the reference content will replace this
+    file, so the user's custom version is kept as
+    ``<file_name>.mh-custom-<UTC timestamp>`` beside it.  The backup is
+    intentionally untracked and never cleaned up by the provisioner.
+    """
+    if not target.exists():
+        return None
+    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    backup_name = f"{target.name}.mh-custom-{stamp}"
+    destination = target.parent / backup_name
+    counter = 1
+    while destination.exists():
+        backup_name = f"{target.name}.mh-custom-{stamp}-{counter}"
+        destination = target.parent / backup_name
+        counter += 1
+    os.replace(target, destination)
+    return backup_name
+
+
 def _provision_asset(
     profile_home: Path,
     file_name: str,
@@ -485,15 +510,25 @@ def _provision_asset(
     role_id: str,
     *,
     force_overwrite: bool = False,
+    skip: bool = False,
+    backups: list[str] | None = None,
+    kept: list[str] | None = None,
 ) -> bool:
     """
     Write one asset file if it is missing or already matches.
     Returns True if the file was created or updated, False if already present.
 
     Raises CustomizationConflict if the file exists with different content
-    and force_overwrite is False.
+    and force_overwrite is False.  When ``skip`` is True the existing file is
+    left completely untouched (the 'keep custom' action) and no conflict is
+    raised.  When force-overwriting a customized file, a recovery copy
+    ``<name>.mh-custom-<ts>`` is created first and recorded in ``backups``.
     """
     target = profile_home / file_name
+    if skip and target.exists():
+        if kept is not None:
+            kept.append(file_name)
+        return False
     exists, existing = _read_profile_file(profile_home, file_name)
     if exists:
         if existing is not None:
@@ -512,6 +547,10 @@ def _provision_asset(
                 expected_sha256=expected_sha256,
                 actual_sha256=existing_sha or ("0" * 64),
             )
+        if force_overwrite and backups is not None:
+            backup_name = _backup_customized_file(target)
+            if backup_name is not None:
+                backups.append(backup_name)
     _write_file_atomic(target, content)
     written_sha = _sha256_file(target)
     if written_sha != expected_sha256:
@@ -529,6 +568,7 @@ def provision_role_definition(
     install_skills: bool = True,
     force_overwrite_assets: bool = False,
     force_overwrite_skills: bool = False,
+    skip_assets: tuple[str, ...] = (),
     pre_skill_hook: Callable[[str], None] | None = None,
 ) -> RoleProvisionResult:
     """
@@ -560,6 +600,21 @@ def provision_role_definition(
     assets_written: list[str] = []
     skills_installed: list[SkillInstallation] = []
     rolled_back = False
+    backups_created: list[str] = []
+    kept_custom: list[str] = []
+
+    # Validate skip entries against the asset file names this role owns.
+    known_assets = {
+        "SOUL.md",
+        resource.base_configuration.file_name,
+        resource.library_guidance.file_name,
+    }
+    unknown_skips = set(skip_assets) - known_assets
+    if unknown_skips:
+        raise ProvisioningError(
+            f"Unknown asset name(s) in skip_assets: "
+            f"{sorted(unknown_skips)}. Known assets: {sorted(known_assets)}."
+        )
 
     try:
         # Provision SOUL
@@ -571,6 +626,9 @@ def provision_role_definition(
             "soul",
             resource.role_id,
             force_overwrite=force_overwrite_assets,
+            skip="SOUL.md" in skip_assets,
+            backups=backups_created,
+            kept=kept_custom,
         ):
             assets_written.append("SOUL.md")
 
@@ -583,6 +641,9 @@ def provision_role_definition(
             "base_configuration",
             resource.role_id,
             force_overwrite=force_overwrite_assets,
+            skip=resource.base_configuration.file_name in skip_assets,
+            backups=backups_created,
+            kept=kept_custom,
         ):
             assets_written.append(resource.base_configuration.file_name)
 
@@ -595,6 +656,9 @@ def provision_role_definition(
             "library_guidance",
             resource.role_id,
             force_overwrite=force_overwrite_assets,
+            skip=resource.library_guidance.file_name in skip_assets,
+            backups=backups_created,
+            kept=kept_custom,
         ):
             assets_written.append(resource.library_guidance.file_name)
 
@@ -639,6 +703,8 @@ def provision_role_definition(
         assets_written=tuple(assets_written),
         skills_installed=tuple(skills_installed),
         rolled_back=rolled_back,
+        backups_created=tuple(backups_created),
+        kept_custom=tuple(kept_custom),
     )
 
 

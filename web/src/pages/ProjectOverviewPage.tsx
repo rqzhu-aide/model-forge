@@ -389,6 +389,12 @@ export function ProjectOverviewPage() {
   const overview = overviewQuery.data;
   const basePath = `/projects/${encodeURIComponent(projectId)}`;
 
+  // First-run guidance: nothing published anywhere yet → offer the start.
+  const noProgressYet =
+    overview.phases.length > 0 &&
+    overview.phases.every((p) => p.navigation_state === "no_current_record") &&
+    overview.active_runs.length === 0;
+
   return (
     <div className="page-stack project-overview-page">
       <header className="page-header project-heading">
@@ -399,6 +405,23 @@ export function ProjectOverviewPage() {
         </div>
         <Link to={`${basePath}/settings/profiles`} className="button button--quiet">Profiles and skills</Link>
       </header>
+
+      {noProgressYet ? (
+        <div className="start-here-banner" role="region" aria-label="Start your study">
+          <div>
+            <p className="eyebrow">Get started</p>
+            <h2>Start Phase 1 — Literature basis</h2>
+            <p>
+              Phase 1 builds the literature corpus and the first synthesis of
+              what is known, disputed, and missing for your question. Every
+              later phase builds on it.
+            </p>
+          </div>
+          <Link to={`${basePath}/phases/P1`} className="button button--primary">
+            Open Phase 1
+          </Link>
+        </div>
+      ) : null}
 
       {/* Panel 1: Literature at a glance (P1 only) */}
       <LiteratureCard p1Phase={p1Query.data} overview={overview} basePath={basePath} />
@@ -446,7 +469,7 @@ export function ProjectOverviewPage() {
         <Panel
           eyebrow="Shared scientific context"
           title="Project brief"
-          actions={<Link to={`${basePath}/settings`}>Edit brief</Link>}
+          actions={<Link to={`${basePath}/settings/brief`}>Edit brief</Link>}
         >
           <h3>Research question</h3>
           <p>{overview.project_brief.research_question}</p>

@@ -475,12 +475,12 @@ describe("smallest safe next action", () => {
     [
       "failed",
       { launches: [launchRecord({ status: "failed" })] },
-      "Investigate the logs, then start a new invocation",
+      "Open the run logs below, then start a new invocation",
     ],
     [
       "cancelled",
       { launches: [launchRecord({ status: "cancelled", exit_code: null })] },
-      "Investigate the logs, then start a new invocation",
+      "Open the run logs below, then start a new invocation",
     ],
     [
       "succeeded with failing validation",
@@ -513,7 +513,7 @@ describe("smallest safe next action", () => {
     );
     expect(
       smallestSafeNextAction(detail({ launches: [launchRecord({ status: "failed" })] })),
-    ).toBe("Investigate the logs, then start a new invocation");
+    ).toBe("Open the run logs below, then start a new invocation");
   });
 });
 

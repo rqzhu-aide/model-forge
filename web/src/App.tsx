@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router-dom";
 import { AppShell } from "./components/AppShell";
+import { BriefEditPage } from "./pages/BriefEditPage";
 import { ConfigurationPage } from "./pages/ConfigurationPage";
 import { NewProjectPage } from "./pages/NewProjectPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
@@ -23,6 +24,7 @@ export function App() {
         <Route path="projects/:projectId/phases/:phaseId" element={<PhasePage />} />
         <Route path="projects/:projectId/runs/:runId" element={<RunPage />} />
         <Route path="projects/:projectId/settings/profiles" element={<ProfilesPage />} />
+        <Route path="projects/:projectId/settings/brief" element={<BriefEditPage />} />
         <Route path="projects/:projectId/supervised" element={<SupervisedRunsPage />} />
         <Route
           path="projects/:projectId/supervised/:invocationId"

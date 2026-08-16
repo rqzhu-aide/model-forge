@@ -726,6 +726,21 @@ export interface SupervisedRunDetail {
   promotions: SupervisedPromotionRecord[];
 }
 
+export interface SupervisedRunLogFile {
+  relative_path: string;
+  size_bytes: number;
+  sha256: string | null;
+}
+
+export interface SupervisedRunLogs {
+  invocation_id: string;
+  heartbeat_tail: string;
+  stdout_tail: string;
+  stderr_tail: string;
+  outputs: SupervisedRunLogFile[];
+  run_dir_available: boolean;
+}
+
 export interface StartRunRequest {
   action_descriptor_id: string;
   phase: PhaseId;

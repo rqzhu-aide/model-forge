@@ -41,6 +41,8 @@ from ..api.models import (
     StartRunRequest,
     StartSupervisedRunRequest,
     SupervisedRunDetail,
+    SupervisedRunLogFile,
+    SupervisedRunLogs,
     SupervisedRunSummary,
     SystemSettingsView,
     UpdateProjectBriefRequest,
@@ -235,6 +237,9 @@ class MethodHubService:
         #: thread at close time so a signal death classifies as
         #: ``cancelled`` rather than ``failed``.  Never set automatically.
         self._cancel_requests: dict[str, threading.Event] = {}
+        #: Reconcile watchers by launch id (restart-gap fix).  One watcher
+        #: per still-running launch found at startup reconcile.
+        self._reconcile_watchers: dict[str, asyncio.Task[None]] = {}
 
     @property
     def run_seal_store(self) -> RunSealStore:
@@ -365,6 +370,135 @@ class MethodHubService:
                 )
             # If result is None, the executor could not parse the identity
             # or the process is still running — leave the record running.
+            if result is None and external_id is not None:
+                # Restart gap fix: the original monitoring thread died
+                # with the previous process.  Spawn a completion watcher
+                # so that when hermes exits, the record is closed and the
+                # post-exit validation/promotion path still runs instead
+                # of the UI polling a zombie record forever.
+                self._spawn_reconcile_watcher(
+                    executor, store, launch_id, invocation_id, str(external_id)
+                )
+
+    def _spawn_reconcile_watcher(
+        self,
+        executor: LocalHermesExecutor,
+        store: RunSealStore,
+        launch_id: str,
+        invocation_id: str,
+        external_id: str,
+    ) -> None:
+        """Watch one still-running reconciled launch; close it on exit."""
+        if launch_id in self._reconcile_watchers:
+            return
+        task = asyncio.create_task(
+            self._watch_reconciled_run(
+                executor, store, launch_id, invocation_id, external_id
+            )
+        )
+        self._reconcile_watchers[launch_id] = task
+
+        def _discard(_task: object) -> None:
+            self._reconcile_watchers.pop(launch_id, None)
+
+        task.add_done_callback(_discard)
+
+    async def _watch_reconciled_run(
+        self,
+        executor: LocalHermesExecutor,
+        store: RunSealStore,
+        launch_id: str,
+        invocation_id: str,
+        external_id: str,
+    ) -> None:
+        logger.info(
+            "Reconcile watcher started for launch %s (invocation %s).",
+            launch_id,
+            invocation_id,
+        )
+        try:
+            while True:
+                await asyncio.sleep(5)
+                try:
+                    result = await executor.reconcile(external_id)
+                except Exception:
+                    logger.exception(
+                        "Reconcile watcher poll failed for %s; retrying.",
+                        invocation_id,
+                    )
+                    continue
+                if result is None:
+                    continue  # still running
+                status_value = (
+                    "succeeded"
+                    if result.status.value == "succeeded"
+                    else "failed"
+                )
+                store.close_launch_record(
+                    launch_id,
+                    status=status_value,
+                    external_execution_id=external_id,
+                    exit_code=result.exit_code,
+                    closed_at=isoformat_utc(utc_now()),
+                )
+                logger.info(
+                    "Reconcile watcher closed launch %s as %s (exit %s).",
+                    launch_id,
+                    status_value,
+                    result.exit_code,
+                )
+                if status_value == "succeeded":
+                    self._run_post_exit_validation(invocation_id)
+                return
+        except asyncio.CancelledError:
+            # Server shutdown — the next restart re-reconciles this record.
+            logger.info(
+                "Reconcile watcher cancelled for launch %s; the next "
+                "restart will re-reconcile it.",
+                launch_id,
+            )
+            raise
+
+    def _run_post_exit_validation(self, invocation_id: str) -> None:
+        """Best-effort validation/promotion after a reconciled exit."""
+        try:
+            assembler = self.run_profile_assembler
+            store = self.run_seal_store
+            record = store.find_by_invocation_id(invocation_id)
+            if record is None or assembler is None:
+                return
+            from .run_profile_assembler import SealedRun
+
+            sealed = SealedRun(
+                seal_id=record["seal_id"],
+                invocation_id=record["invocation_id"],
+                project_id=record["project_id"],
+                role=record["role"],
+                idempotency_key=record.get("idempotency_key", ""),
+                run_dir=Path(str(record["run_dir"])),
+                manifest_sha256=record.get("manifest_sha256", ""),
+                manifest={},
+                sealed_at=record.get("sealed_at", ""),
+            )
+            from .output_validation import validate_run_outputs
+
+            validation_report = validate_run_outputs(assembler, sealed)
+            if validation_report.verdict == "pass":
+                from .state_promotion import promote_run_state
+
+                try:
+                    promote_run_state(assembler, sealed)
+                except Exception:
+                    logger.exception(
+                        "Promotion failed for reconciled invocation %s.",
+                        invocation_id,
+                    )
+        except Exception:
+            logger.exception(
+                "Post-exit validation failed for reconciled invocation %s.",
+                invocation_id,
+            )
+
     async def preserve_raw_request(
         self, raw_request: RawRequestBody
     ) -> RawRequestReceipt:
@@ -1148,6 +1282,75 @@ class MethodHubService:
                 RepositoryNotFoundError("supervised run", invocation_id)
             )
         return supervised_run_detail(record, store)
+
+    async def get_supervised_run_logs(
+        self, project_id: str, invocation_id: str, tail_max_bytes: int = 65536
+    ) -> SupervisedRunLogs:
+        """Return bounded log tails and the outputs listing for a run.
+
+        The run directory is resolved from the seal registry — never from
+        client input — and only the three well-known log names under
+        ``<run_dir>/logs`` plus a listing of ``<run_dir>/outputs`` are
+        ever read, so no path traversal is possible.
+        """
+        store = self.run_seal_store
+        record = store.find_by_invocation_id(invocation_id)
+        if record is None or record["project_id"] != project_id:
+            raise _not_found(
+                RepositoryNotFoundError("supervised run", invocation_id)
+            )
+
+        run_dir = Path(str(record["run_dir"]))
+        tail_cap = max(1024, min(int(tail_max_bytes), 1024 * 1024))
+
+        def _tail(path: Path) -> tuple[str, int]:
+            try:
+                size = path.stat().st_size
+                with path.open("rb") as handle:
+                    if size > tail_cap:
+                        handle.seek(-tail_cap, os.SEEK_END)
+                    data = handle.read(tail_cap)
+                return data.decode("utf-8", errors="replace"), size
+            except (OSError, ValueError):
+                return "", 0
+
+        if not run_dir.is_dir():
+            return SupervisedRunLogs(
+                invocation_id=invocation_id,
+                run_dir_available=False,
+            )
+
+        logs_dir = run_dir / "logs"
+        heartbeat, _ = _tail(logs_dir / "heartbeat.log")
+        stdout, _ = _tail(logs_dir / "stdout.log")
+        stderr, _ = _tail(logs_dir / "stderr.log")
+
+        outputs: list[SupervisedRunLogFile] = []
+        outputs_dir = run_dir / "outputs"
+        if outputs_dir.is_dir():
+            for entry in sorted(outputs_dir.iterdir()):
+                if not entry.is_file():
+                    continue
+                try:
+                    stat = entry.stat()
+                except OSError:
+                    continue
+                outputs.append(
+                    SupervisedRunLogFile(
+                        relative_path=entry.name,
+                        size_bytes=stat.st_size,
+                        sha256=None,
+                    )
+                )
+
+        return SupervisedRunLogs(
+            invocation_id=invocation_id,
+            heartbeat_tail=heartbeat,
+            stdout_tail=stdout,
+            stderr_tail=stderr,
+            outputs=outputs,
+            run_dir_available=True,
+        )
 
     async def start_supervised_run(
         self,
@@ -2113,6 +2316,7 @@ class MethodHubService:
                 install_skills=command.install_skills,
                 force_overwrite_assets=command.force_overwrite_assets,
                 force_overwrite_skills=command.force_overwrite_skills,
+                skip_assets=tuple(command.skip_assets),
             )
         except CustomizationConflict as error:
             conflict_detail = build_conflict_detail(error)
@@ -2137,6 +2341,7 @@ class MethodHubService:
                         "file or force-overwrite it with the reference, then "
                         "provision again."
                     ),
+                    detail=conflict_detail.model_dump(),
                 )
             ) from error
         except (SkillConflictError, SkillInstallationError) as error:
@@ -2173,6 +2378,8 @@ class MethodHubService:
             assets_written=list(result.assets_written),
             skills_installed=[s.skill_id for s in result.skills_installed],
             rolled_back=result.rolled_back,
+            backups_created=list(result.backups_created),
+            kept_custom=list(result.kept_custom),
         )
 
     def _attach_raw_request(

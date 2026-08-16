@@ -322,7 +322,7 @@ describe("SupervisedRunsPage start form", () => {
         { output_id: "table", path: "results/table.csv", required_fields: ["value", "se"] },
       ],
       memory_policy: "persistent",
-      timeout_seconds: 1200,
+      timeout_seconds: 14400,
     });
 
     expect(await screen.findByText("Supervised run started")).toBeInTheDocument();
@@ -415,7 +415,7 @@ describe("supervised run request builder", () => {
     briefText: "Run the estimator.",
     expectedOutputs: [{ outputId: "", path: "", requiredFields: "" }],
     memoryPolicy: "persistent" as const,
-    timeoutSeconds: "1200",
+    timeoutSeconds: "14400",
   };
 
   it("omits optional fields when left blank", () => {

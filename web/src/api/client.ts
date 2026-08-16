@@ -20,6 +20,7 @@ import type {
   StartRunRequest,
   StartSupervisedRunRequest,
   SupervisedRunDetail,
+  SupervisedRunLogs,
   SupervisedRunSummary,
   SystemSettingsView,
   UpdateProjectBriefRequest,
@@ -245,6 +246,15 @@ export const api = {
   getSupervisedRun: (projectId: string, invocationId: string) =>
     request<SupervisedRunDetail>(
       `/projects/${encodeURIComponent(projectId)}/supervised-runs/${encodeURIComponent(invocationId)}`,
+    ),
+
+  getSupervisedRunLogs: (
+    projectId: string,
+    invocationId: string,
+    tailMaxBytes = 65536,
+  ) =>
+    request<SupervisedRunLogs>(
+      `/projects/${encodeURIComponent(projectId)}/supervised-runs/${encodeURIComponent(invocationId)}/logs?tail_max_bytes=${tailMaxBytes}`,
     ),
 
   startSupervisedRun: (projectId: string, input: StartSupervisedRunRequest) =>

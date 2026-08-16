@@ -3437,3 +3437,83 @@ p.run-monitor-note {
   font-size: 0.78rem;
   white-space: nowrap;
 }
+
+/* ── Run logs panel (trust package) ─────────────────────────────── */
+.run-logs__toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2, 0.5rem);
+  margin-bottom: var(--space-3, 0.75rem);
+}
+.run-logs__hint {
+  color: var(--text-muted, #666);
+  font-size: 0.875rem;
+}
+.run-logs__pre {
+  background: var(--surface-raised, #111318);
+  border: 1px solid var(--border-subtle, #2a2d35);
+  border-radius: 6px;
+  padding: var(--space-3, 0.75rem);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 24rem;
+  overflow-y: auto;
+  font-size: 0.8rem;
+  margin: 0 0 var(--space-3, 0.75rem);
+}
+.run-logs__empty {
+  color: var(--text-muted, #666);
+}
+.run-logs__outputs ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.run-logs__outputs li {
+  padding: var(--space-1, 0.25rem) 0;
+}
+
+/* ── First-run start banner ─────────────────────────────────────── */
+.start-here-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4, 1rem);
+  padding: var(--space-4, 1rem) var(--space-5, 1.25rem);
+  border: 1px solid var(--border-accent, #4a7dab);
+  border-radius: 8px;
+  background: var(--surface-accent-muted, rgba(74, 125, 171, 0.08));
+}
+.start-here-banner h2 {
+  margin: 0.25rem 0;
+  font-size: 1.1rem;
+}
+.start-here-banner p {
+  margin: 0.25rem 0 0;
+  color: var(--text-muted, #666);
+  max-width: 46rem;
+}
+
+/* ── Brief edit form ────────────────────────────────────────────── */
+.brief-form {
+  display: grid;
+  gap: var(--space-4, 1rem);
+}
+.brief-form label {
+  display: grid;
+  gap: var(--space-2, 0.5rem);
+  font-weight: 600;
+}
+.brief-form textarea {
+  font-weight: 400;
+}
+.brief-form__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 0.75rem);
+}
+.brief-form__saved {
+  color: var(--success, #3a9d5d);
+}

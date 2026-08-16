@@ -671,6 +671,25 @@ class SupervisedRunDetail(StrictModel):
     promotions: list[SupervisedPromotionRecord]
 
 
+class SupervisedRunLogFile(StrictModel):
+    """One captured log tail for a supervised run."""
+
+    relative_path: NonEmptyString
+    size_bytes: int = Field(ge=0)
+    sha256: str | None = None
+
+
+class SupervisedRunLogs(StrictModel):
+    """Bounded log tails and output listing for one supervised invocation."""
+
+    invocation_id: NonEmptyString
+    heartbeat_tail: str = ""
+    stdout_tail: str = ""
+    stderr_tail: str = ""
+    outputs: list[SupervisedRunLogFile] = []
+    run_dir_available: bool = True
+
+
 class SkillStatus(StrictModel):
     skill_id: NonEmptyString
     name: NonEmptyString
@@ -910,6 +929,9 @@ class ProvisionRoleRequest(StrictModel):
     install_skills: bool = True
     force_overwrite_assets: bool = False
     force_overwrite_skills: bool = False
+    #: Asset file names whose existing customized content is kept untouched
+    #: (the 'keep custom' resolution) instead of conflicting.
+    skip_assets: list[NonEmptyString] = Field(default_factory=list)
 
 
 class ProvisionResultView(StrictModel):
@@ -918,6 +940,10 @@ class ProvisionResultView(StrictModel):
     assets_written: list[NonEmptyString]
     skills_installed: list[NonEmptyString]
     rolled_back: bool
+    #: Recovery copies created by force-overwrite (``*.mh-custom-<ts>``).
+    backups_created: list[NonEmptyString] = Field(default_factory=list)
+    #: Asset file names left untouched because of ``skip_assets``.
+    kept_custom: list[NonEmptyString] = Field(default_factory=list)
 
 
 class ConflictDetailView(StrictModel):

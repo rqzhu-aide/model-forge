@@ -37,6 +37,7 @@ from .models import (
     StartSupervisedRunRequest,
     StrictModel,
     SupervisedRunDetail,
+    SupervisedRunLogs,
     SupervisedRunSummary,
     SystemSettingsView,
     UpdateProjectBriefRequest,
@@ -330,6 +331,22 @@ def create_api_router() -> APIRouter:
     ) -> SupervisedRunDetail:
         """Return the durable detail view of one supervised invocation."""
         return await service.get_supervised_run(project_id, invocation_id)
+
+    @router.get(
+        "/projects/{project_id}/supervised-runs/{invocation_id}/logs",
+        response_model=SupervisedRunLogs,
+        response_model_exclude_none=True,
+    )
+    async def get_supervised_run_logs(
+        project_id: str,
+        invocation_id: str,
+        service: Service,
+        tail_max_bytes: Annotated[int, Query(ge=1024, le=1048576)] = 65536,
+    ) -> SupervisedRunLogs:
+        """Return bounded log tails and outputs for one supervised run."""
+        return await service.get_supervised_run_logs(
+            project_id, invocation_id, tail_max_bytes=tail_max_bytes
+        )
 
     @router.post(
         "/projects/{project_id}/supervised-runs",

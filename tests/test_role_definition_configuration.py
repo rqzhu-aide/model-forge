@@ -1159,3 +1159,96 @@ def test_configuration_health_unavailable_skills_conditions(tmp_path: Path) -> N
     assert view.overall_status == "unavailable"
     assert "skill_unavailable" in view.conditions
     assert "bundle_missing" in view.conditions
+
+
+# --------------------------------------------------------------------------- #
+# Safety net: backup-before-overwrite, skip_assets ('keep custom')
+# --------------------------------------------------------------------------- #
+
+
+def test_force_overwrite_creates_recovery_backup(tmp_path: Path) -> None:
+    """Force-overwrite of a customized SOUL leaves an .mh-custom-* copy."""
+    catalog = RoleResourceCatalog.load(RESOURCE_ROOT)
+    bundle = ROOT / "resources" / "skills"
+    hermes_root = tmp_path / "hermes"
+    profiles = _make_profile_dirs(hermes_root)
+    resource = catalog.role("theorist")
+    profile_home = profiles["theorist"]
+
+    provision_role_definition(resource, profile_home, bundle)
+    custom_text = "My very own theorist soul that I spent hours on.\n"
+    (profile_home / "SOUL.md").write_text(custom_text, encoding="utf-8")
+
+    result = provision_role_definition(
+        resource, profile_home, bundle, force_overwrite_assets=True
+    )
+
+    backups = list(profile_home.glob("SOUL.md.mh-custom-*"))
+    assert len(backups) == 1, "force-overwrite must create one recovery copy"
+    assert backups[0].read_text(encoding="utf-8") == custom_text
+    assert (profile_home / "SOUL.md").read_text(encoding="utf-8") == (
+        resource.soul_text
+    )
+    assert len(result.backups_created) == 1
+    assert result.backups_created[0].startswith("SOUL.md.mh-custom-")
+
+
+def test_skip_assets_keeps_customized_file_untouched(tmp_path: Path) -> None:
+    """skip_assets leaves the customized file byte-identical, provisions the rest."""
+    catalog = RoleResourceCatalog.load(RESOURCE_ROOT)
+    bundle = ROOT / "resources" / "skills"
+    hermes_root = tmp_path / "hermes"
+    profiles = _make_profile_dirs(hermes_root)
+    resource = catalog.role("theorist")
+    profile_home = profiles["theorist"]
+
+    provision_role_definition(resource, profile_home, bundle)
+    custom_text = "Keep my custom soul exactly as it is.\n"
+    (profile_home / "SOUL.md").write_text(custom_text, encoding="utf-8")
+
+    result = provision_role_definition(
+        resource, profile_home, bundle, skip_assets=("SOUL.md",)
+    )
+
+    assert (profile_home / "SOUL.md").read_text(encoding="utf-8") == custom_text
+    assert result.kept_custom == ("SOUL.md",)
+    assert "SOUL.md" not in result.assets_written
+    # No conflict was raised and the other assets are present and matching.
+    config_on_disk = profile_home / resource.base_configuration.file_name
+    assert config_on_disk.read_text(encoding="utf-8") == (
+        resource.base_configuration.content
+    )
+
+
+def test_skip_assets_without_conflict_still_reports_kept(tmp_path: Path) -> None:
+    """Skipping a present-but-matching file still records it as kept."""
+    catalog = RoleResourceCatalog.load(RESOURCE_ROOT)
+    bundle = ROOT / "resources" / "skills"
+    hermes_root = tmp_path / "hermes"
+    profiles = _make_profile_dirs(hermes_root)
+    resource = catalog.role("theorist")
+    profile_home = profiles["theorist"]
+
+    provision_role_definition(resource, profile_home, bundle)
+
+    result = provision_role_definition(
+        resource, profile_home, bundle, skip_assets=("SOUL.md",)
+    )
+    assert result.kept_custom == ("SOUL.md",)
+
+
+def test_skip_assets_unknown_name_rejected(tmp_path: Path) -> None:
+    """An unknown asset name in skip_assets is a provisioning error."""
+    catalog = RoleResourceCatalog.load(RESOURCE_ROOT)
+    bundle = ROOT / "resources" / "skills"
+    hermes_root = tmp_path / "hermes"
+    profiles = _make_profile_dirs(hermes_root)
+    resource = catalog.role("theorist")
+
+    with pytest.raises(ProvisioningError, match="skip_assets"):
+        provision_role_definition(
+            resource,
+            profiles["theorist"],
+            bundle,
+            skip_assets=("NOT_A_FILE.md",),
+        )

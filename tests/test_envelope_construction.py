@@ -186,12 +186,75 @@ def test_populate_review_fields() -> None:
 
 
 def test_populate_authority_at_creation() -> None:
-    """authority_at_creation is populated with manifest and basis digests."""
+    """authority_at_creation is the creationAuthority enum marker.
+
+    Role outputs are always run-local candidates; publication is what makes
+    a formal generation.  The field is a string enum per
+    common-definitions ``creationAuthority``, not a digest structure.
+    """
     payload = {"title": "Test"}
     doc = populate_harness_fields(payload, _facts(), "method.schema.json")
 
-    assert doc["authority_at_creation"]["source_run_id"] == "run-abc123def456"
-    assert doc["authority_at_creation"]["manifest_sha256"] == "b" * 64
+    assert doc["authority_at_creation"] == "run_local_candidate"
+
+
+def test_harness_owned_timestamps_override_agent_values() -> None:
+    """Harness-owned run-bound fields are overwritten, not preserved.
+
+    An agent-written created_at is not authoritative: the harness stamps the
+    sealed timestamp regardless of what the agent wrote.
+    """
+    payload = {"title": "Test", "created_at": "1999-01-01T00:00:00Z"}
+    doc = populate_harness_fields(
+        payload, _facts(produced_at="2026-06-01T12:00:00Z"), "method.schema.json"
+    )
+    assert doc["created_at"] == "2026-06-01T12:00:00Z"
+
+
+def test_record_id_filled_only_when_missing() -> None:
+    """Agent-authored record identities are preserved (cross-reference
+    integrity); missing ones are filled deterministically."""
+    payload = {"record_id": "rec.agent.authored", "title": "T"}
+    doc = populate_harness_fields(payload, _facts(), "theory-record.schema.json")
+    assert doc["record_id"] == "rec.agent.authored"
+
+    doc2 = populate_harness_fields({"title": "T"}, _facts(), "theory-record.schema.json")
+    assert doc2["record_id"].startswith("theory.record.")
+
+
+def test_record_ids_unique_per_item_index() -> None:
+    """Array items never receive duplicate derived identities."""
+    facts = _facts()
+    doc0 = populate_harness_fields({}, facts, "evidence.schema.json", item_index=0)
+    doc1 = populate_harness_fields({}, facts, "evidence.schema.json", item_index=1)
+    assert doc0["evidence_id"] != doc1["evidence_id"]
+
+
+def test_method_identity_not_populated_when_unbound() -> None:
+    """Catalog modes have no selected method: agent-authored identities stay."""
+    facts = _facts(method_identity={})
+    payload = {"identity": {"stable_id": "mth_new", "version": 1,
+                            "definition_sha256": "d" * 64}}
+    doc = populate_harness_fields(payload, facts, "method.schema.json")
+    assert doc["identity"]["stable_id"] == "mth_new"
+
+
+def test_run_local_candidate_strips_publication_provenance() -> None:
+    """Candidates must not carry formal-generation fields.
+
+    scientific-record.schema.json forbids publication_receipt_id/published_at
+    unless authority_at_creation is formal_generation (allOf if/else rule).
+    Population sets run_local_candidate and strips both fields.
+    """
+    payload = {
+        "title": "T",
+        "published_at": "2026-01-01T00:00:00Z",
+        "publication_receipt_id": "pub.fake",
+    }
+    doc = populate_harness_fields(payload, _facts(), "theory-record.schema.json")
+    assert doc["authority_at_creation"] == "run_local_candidate"
+    assert "published_at" not in doc
+    assert "publication_receipt_id" not in doc
 
 
 # --------------------------------------------------------------------------- #
@@ -337,6 +400,60 @@ def test_prepare_candidate_output_non_object(tmp_path: Path) -> None:
 
     assert len(result.findings) == 1
     assert result.findings[0].code == "json.invalid_input_type"
+
+
+def test_prepare_candidate_output_each_item_array(tmp_path: Path) -> None:
+    """each_item (array) outputs are populated per element with unique ids."""
+    payload = [{"note": "first"}, {"note": "second"}]
+    raw_path = tmp_path / "outputs" / "items.json"
+    raw_path.parent.mkdir(parents=True)
+    raw_path.write_text(json.dumps(payload))
+
+    spec = OutputSpec(
+        contract_output_id="test.items",
+        output_id="test.items.v1",
+        output_kind="record",
+        producer="theorist",
+        stage_id="stage.test",
+        stage_sequence=1,
+        schema_application="each_item",
+        schema_file="evidence.schema.json",
+        relative_path="outputs/items.json",
+        required=True,
+    )
+    result = prepare_candidate_output(raw_path, _facts(), spec)
+
+    assert not result.findings
+    assert isinstance(result.document, list)
+    assert len(result.document) == 2
+    assert result.document[0]["evidence_id"] != result.document[1]["evidence_id"]
+    assert all(len(item["content_sha256"]) == 64 for item in result.document)
+    # Agent-authored content preserved
+    assert result.document[0]["note"] == "first"
+
+
+def test_prepare_candidate_output_each_item_rejects_object(tmp_path: Path) -> None:
+    """An object where the contract requires an array produces a blocking
+    finding (the shape error is reported, not silently coerced)."""
+    raw_path = tmp_path / "outputs" / "items.json"
+    raw_path.parent.mkdir(parents=True)
+    raw_path.write_text(json.dumps({"note": "not an array"}))
+
+    spec = OutputSpec(
+        contract_output_id="test.items",
+        output_id="test.items.v1",
+        output_kind="record",
+        producer="theorist",
+        stage_id="stage.test",
+        stage_sequence=1,
+        schema_application="each_item",
+        schema_file="evidence.schema.json",
+        relative_path="outputs/items.json",
+        required=True,
+    )
+    result = prepare_candidate_output(raw_path, _facts(), spec)
+    assert len(result.findings) == 1
+    assert result.findings[0].code == "output.expected_array"
 
 
 # --------------------------------------------------------------------------- #

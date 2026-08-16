@@ -25,7 +25,7 @@ class FindingClass(StrEnum):
 
 
 # Policy version — incremented when any policy entry changes.
-POLICY_VERSION = "1.5.0"
+POLICY_VERSION = "1.6.0"
 
 
 @dataclass(frozen=True, slots=True)
@@ -285,13 +285,38 @@ def _build_registry() -> dict[str, FindingPolicy]:
 _REGISTRY: dict[str, FindingPolicy] = _build_registry()
 
 
+# Dynamically composed codes that are structurally correctable.
+# jsonschema emits unbounded ``schema.<rule>`` codes (schema.required,
+# schema.minItems, schema.additionalProperties, ...): they are produced by
+# structural contract violations in agent output, never by an integrity
+# breach, so they classify as correctable contract errors.  They still BLOCK
+# publication until corrected; only the recovery routing changes (HV-3's
+# needs_output_correction path instead of integrity_rejected).
+_SCHEMA_CODE_POLICY = FindingPolicy(
+    code="schema.*",
+    finding_class=FindingClass.CORRECTABLE_CONTRACT_ERROR,
+    default_severity=ValidationSeverity.ERROR,
+    blocks_publication=True,
+    correction_class="packaging",
+    rationale="jsonschema structural violations are correctable contract errors.",
+    user_guidance="The output does not satisfy the declared schema; correct the named field.",
+)
+
+
 def get_policy(code: str) -> FindingPolicy:
     """Look up the policy for a finding code.
 
-    Unregistered codes (including dynamic ``schema.*`` and ``json.*`` codes)
-    receive the fail-closed default: ERROR severity, blocks publication.
+    Unregistered codes receive the fail-closed default: ERROR severity,
+    blocks publication.  Two bounded dynamic families are classified before
+    the default: ``schema.*`` (jsonschema structural rules) as correctable
+    contract errors; anything else remains an integrity blocker.
     """
-    return _REGISTRY.get(code, _DEFAULT_POLICY)
+    policy = _REGISTRY.get(code)
+    if policy is not None:
+        return policy
+    if code.startswith("schema."):
+        return _SCHEMA_CODE_POLICY
+    return _DEFAULT_POLICY
 
 
 def registry_version() -> str:

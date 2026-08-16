@@ -50,11 +50,11 @@ def test_content_sha256_is_computed_from_record_content(tmp_output: Path) -> Non
     changed = _fix_self_referential_hashes(record, tmp_output)
 
     assert changed is True
-    # Verify the hash is correct: hash of the record minus content_sha256
+    # Verify the hash is correct: RFC 8785 hash of the record minus content_sha256
+    from method_hub.digests.jcs import canonicalize
+
     snapshot = {k: v for k, v in record.items() if k != "content_sha256"}
-    expected = hashlib.sha256(
-        json.dumps(snapshot, ensure_ascii=False, sort_keys=True).encode("utf-8")
-    ).hexdigest()
+    expected = hashlib.sha256(canonicalize(snapshot)).hexdigest()
     assert record["content_sha256"] == expected
 
 
@@ -106,34 +106,53 @@ def test_handoff_artifact_sha256_still_repaired(tmp_output: Path) -> None:
     assert changed is True
     ha = handoff["handoff_artifact"]
     assert len(ha["sha256"]) == 64
-    # The hash must be computed from the record minus the sha256 field
+    # The hash must be the RFC 8785 hash of the record minus the sha256 field
+    from method_hub.digests.jcs import canonicalize
+
     snapshot = {k: v for k, v in handoff.items()}
     snapshot["handoff_artifact"] = {k: v for k, v in ha.items() if k != "sha256"}
-    expected = hashlib.sha256(
-        json.dumps(snapshot, ensure_ascii=False, sort_keys=True).encode("utf-8")
-    ).hexdigest()
+    expected = hashlib.sha256(canonicalize(snapshot)).hexdigest()
     assert ha["sha256"] == expected
 
 
 def test_definition_sha256_repaired(tmp_output: Path) -> None:
-    """definition_sha256 inside mathematical_definition must be recomputed."""
+    """identity.definition_sha256 follows the method_record.definition digest
+    contract: RFC 8785 over /mathematical_definition/canonical_definition."""
+    from method_hub.digests.jcs import canonicalize
     from method_hub.harness.role_execution import _fix_self_referential_hashes
 
     record = {
-        "mathematical_definition": {
+        "identity": {
+            "stable_id": "mth_test",
+            "version": 1,
             "definition_sha256": "placeholder",
+        },
+        "mathematical_definition": {
+            "canonical_definition": {"target_or_estimand": "x"},
             "components": ["target", "algorithm"],
         },
     }
     changed = _fix_self_referential_hashes(record, tmp_output)
 
     assert changed is True
-    md = record["mathematical_definition"]
-    snapshot = {k: v for k, v in md.items() if k != "definition_sha256"}
     expected = hashlib.sha256(
-        json.dumps(snapshot, ensure_ascii=False, sort_keys=True).encode("utf-8")
+        canonicalize({"target_or_estimand": "x"})
     ).hexdigest()
-    assert md["definition_sha256"] == expected
+    assert record["identity"]["definition_sha256"] == expected
+
+
+def test_definition_sha256_added_when_absent(tmp_output: Path) -> None:
+    """An identity without the digest gets it stamped from the canonical
+    definition (agents cannot compute it: hash paradox)."""
+    from method_hub.harness.role_execution import _fix_self_referential_hashes
+
+    record = {
+        "identity": {"stable_id": "mth_test", "version": 1},
+        "mathematical_definition": {"canonical_definition": {"a": 1}},
+    }
+    changed = _fix_self_referential_hashes(record, tmp_output)
+    assert changed is True
+    assert len(record["identity"]["definition_sha256"]) == 64
 
 
 # ---------------------------------------------------------------------------

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 from dataclasses import replace
 from pathlib import Path
@@ -27,6 +28,7 @@ from ..storage.repository import (
     RepositoryConflictError,
 )
 from ..capabilities.broker import CapabilityBroker
+from .envelope import SealedRunFacts, populate_harness_fields
 from .execution_context import RunExecutionContext
 from .output_adapters import AdaptedOutput, DefaultOutputAdapter
 from .outputs import OutputPlan, OutputSpec, validate_role_outputs
@@ -34,6 +36,8 @@ from .task_briefs import render_task_brief
 
 
 from .execution_observer import RepositoryExecutionObserver as _RepositoryObserver
+
+logger = logging.getLogger(__name__)
 from .execution_records import (
     FrozenInputPath,
     RoleClosureResult,
@@ -56,6 +60,8 @@ def _apply_disclosed_mechanical_repairs(
     stage: ResolvedStage,
     role: str,
     run_id: str = "",
+    run_facts: "SealedRunFacts | None" = None,
+    record_type_by_output: Mapping[str, str] | None = None,
 ) -> dict[str, "OutputTransformationRecord"]:
     """Apply mechanical repairs to agent outputs and record every change.
 
@@ -63,6 +69,12 @@ def _apply_disclosed_mechanical_repairs(
     capturing source digest, result digest, and classified transformation
     entries.  The repaired data is written to disk so that downstream
     validation reads the candidate, not the raw bytes.
+
+    When ``run_facts`` is given, harness-owned envelope fields (HV-4) are
+    populated from sealed run facts BEFORE the repair heuristics run, so the
+    source digest stays the agent's raw bytes and the transformation record
+    captures population as classified entries.  ``record_type_by_output``
+    maps contract output IDs to their publication-binding record types.
     """
     from copy import deepcopy
     from datetime import datetime, timezone
@@ -70,6 +82,16 @@ def _apply_disclosed_mechanical_repairs(
     ts = datetime.now(timezone.utc).isoformat()
     specs = output_plan.for_stage_role(stage.stage_id, role)
     records: dict[str, OutputTransformationRecord] = {}
+
+    if run_facts is not None and not run_facts.produced_at:
+        # One closure timestamp for every populated field: per-spec
+        # timestamps would let a later spec (e.g. p4.protocol) carry a LATER
+        # finalized_at than an earlier one (p4.evidence created_at), which
+        # reads as a false prespecification violation
+        # (p4.protocol_finalized_after_evidence).
+        from dataclasses import replace as _hoist_replace
+
+        run_facts = _hoist_replace(run_facts, produced_at=ts)
 
     for spec in specs:
         path = run_root / spec.relative_path
@@ -87,8 +109,33 @@ def _apply_disclosed_mechanical_repairs(
         source_bytes = text.encode("utf-8")
         source_sha256 = hashlib.sha256(source_bytes).hexdigest()
 
-        # Snapshot before repair for transformation classification.
+        # Snapshot BEFORE population so the transformation record covers
+        # both harness-field population (HV-4) and repair heuristics.
         raw_snapshot = deepcopy(data)
+        populated = False
+
+        # HV-4: populate harness-owned fields from sealed run facts.  The
+        # source digest and raw snapshot remain the agent's raw content.
+        if run_facts is not None:
+            from dataclasses import replace as _replace_facts
+
+            facts = run_facts
+            if record_type_by_output:
+                record_type = record_type_by_output.get(spec.contract_output_id, "")
+                if record_type:
+                    facts = _replace_facts(run_facts, record_type=record_type)
+            if isinstance(data, dict):
+                data = populate_harness_fields(data, facts, spec.schema_file)
+            elif isinstance(data, list):
+                data = [
+                    populate_harness_fields(item, facts, spec.schema_file, item_index=i)
+                    if isinstance(item, dict)
+                    else item
+                    for i, item in enumerate(data)
+                ]
+            # Population returns new objects; any difference must be
+            # persisted even when the repair heuristics below change nothing.
+            populated = data != raw_snapshot
 
         schema_info = _schema_info(spec.schema_file)
         valid_timestamps = schema_info["timestamps"]
@@ -217,7 +264,7 @@ def _apply_disclosed_mechanical_repairs(
         # Build transformation entries by diffing raw vs repaired.
         entries = _classify_transformations(raw_snapshot, data)
 
-        if changed:
+        if changed or populated:
             repaired_text = _json.dumps(data, indent=2, ensure_ascii=False)
             path.write_text(repaired_text)
             result_bytes = repaired_text.encode("utf-8")
@@ -495,13 +542,14 @@ def _is_placeholder_hash(value: str) -> bool:
 
 
 def _compute_content_hash(data: Any, exclude_keys: set[str]) -> str:
-    """Compute SHA-256 of *data* with *exclude_keys* removed at every level.
+    """Compute the digest-contract hash of *data* with *exclude_keys* removed.
 
-    Uses canonical JSON (sorted keys, ensure_ascii=False) so the result is
-    deterministic regardless of key insertion order.
+    Uses RFC 8785 canonicalization (``digests.jcs.canonicalize``) as required
+    by ``digest-contracts.json`` (``construction: rfc8785_sha256``).  Plain
+    ``json.dumps(sort_keys=True)`` is NOT equivalent: it inserts whitespace
+    separators and serializes values differently, so hashes stamped from it
+    never match the registered digest contract.
     """
-    import hashlib
-    import json as _json
 
     def _scrub(obj: Any) -> Any:
         if isinstance(obj, dict):
@@ -514,9 +562,7 @@ def _compute_content_hash(data: Any, exclude_keys: set[str]) -> str:
             return [_scrub(item) for item in obj]
         return obj
 
-    cleaned = _scrub(data)
-    encoded = _json.dumps(cleaned, ensure_ascii=False, sort_keys=True).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
+    return hashlib.sha256(canonicalize(_scrub(data))).hexdigest()
 
 
 def _fix_self_referential_hashes(data: Any, path: Path) -> bool:
@@ -559,29 +605,29 @@ def _fix_self_referential_hashes(data: Any, path: Path) -> bool:
             artifact_snapshot = dict(ha)
             artifact_snapshot.pop("sha256", None)
             snapshot["handoff_artifact"] = artifact_snapshot
-            encoded = _json_dumps_canonical(snapshot)
-            correct = hashlib.sha256(encoded).hexdigest()
+            correct = hashlib.sha256(canonicalize(snapshot)).hexdigest()
             if ha.get("sha256") != correct:
                 ha["sha256"] = correct
                 touched = True
 
-        # 3. definition_sha256 inside mathematical definitions — these are
-        # content hashes of the definition, NOT the file. Recompute from the
-        # definition content if it looks like a placeholder.
+        # 3. identity.definition_sha256 — digest contract
+        # ``method_record.definition``: payload is
+        # ``/mathematical_definition/canonical_definition`` (RFC 8785), and
+        # the digest lives at ``/identity/definition_sha256``.  Agents cannot
+        # compute the digest of content they are writing (hash paradox), so
+        # stamp it whenever the identity object and canonical definition are
+        # both present.
+        identity = obj.get("identity")
         md = obj.get("mathematical_definition")
-        if isinstance(md, dict) and "definition_sha256" in md:
-            correct = _compute_content_hash(md, {"definition_sha256"})
-            if md.get("definition_sha256") != correct:
-                md["definition_sha256"] = correct
-                touched = True
+        if isinstance(identity, dict) and isinstance(md, dict):
+            canonical_definition = md.get("canonical_definition")
+            if canonical_definition is not None:
+                correct = hashlib.sha256(canonicalize(canonical_definition)).hexdigest()
+                if identity.get("definition_sha256") != correct:
+                    identity["definition_sha256"] = correct
+                    touched = True
 
         return touched
-
-    import hashlib
-    import json as _json
-
-    def _json_dumps_canonical(obj: Any) -> bytes:
-        return _json.dumps(obj, ensure_ascii=False, sort_keys=True).encode("utf-8")
 
     if isinstance(data, dict):
         if _fix_record(data):
@@ -1132,6 +1178,52 @@ class RoleLifecycleService:
             choice_values=MappingProxyType(choices),
         )
 
+    def _sealed_run_facts(self, stage: ResolvedStage, role: str) -> SealedRunFacts:
+        """Build the harness-known run facts for envelope population (HV-4).
+
+        Every value is derivable from the frozen plan, manifest, and recipe:
+        no agent-supplied content is consulted.
+        """
+        method_identity: dict[str, Any] = {}
+        for key, value in self.context.plan.choice_values.items():
+            if str(key).endswith(".selected_method") and isinstance(value, Mapping):
+                method_identity = {str(k): v for k, v in value.items()}
+        to_role = ""
+        for later in self.context.plan.stages:
+            if later.sequence > stage.sequence:
+                later_roles = [step.role for step in later.role_steps]
+                if len(later_roles) == 1:
+                    to_role = later_roles[0]
+                break
+        review_basis_generation_id = ""
+        for item in self.context.recipe.document.get("frozen_inputs", ()):
+            if str(item.get("contract_input_id")) == "p5.current_manuscript":
+                review_basis_generation_id = str(item.get("generation_id", ""))
+        return SealedRunFacts(
+            project_id=str(self.context.project_id),
+            run_id=str(self.context.run_id),
+            phase=self.context.plan.identity.phase_id,
+            mode=self.context.plan.mode_id,
+            role=role,
+            method_identity=method_identity,
+            manifest_sha256=str(self.context.manifest_sha256),
+            sequence=stage.sequence,
+            to_role=to_role,
+            review_basis_generation_id=review_basis_generation_id,
+        )
+
+    def _record_type_by_output(self) -> dict[str, str]:
+        """Map contract output IDs to their publication-binding record type."""
+        result: dict[str, str] = {}
+        for binding in self.context.plan.publication_bindings:
+            target = binding.get("target", {})
+            record_type = str(target.get("record_type", "")) if isinstance(target, Mapping) else ""
+            if not record_type:
+                continue
+            for output_id in binding.get("output_ids", ()):
+                result[str(output_id)] = record_type
+        return result
+
     def _validate_and_close(
         self,
         *,
@@ -1155,6 +1247,8 @@ class RoleLifecycleService:
             # rewrites the workspace in place.  Repair and validation failure
             # must never destroy the agent's original bytes: the sealed raw
             # snapshot is always recoverable from the artifact store.
+            # Fail closed when preservation fails: without the raw snapshot
+            # the harness could not prove which bytes the agent wrote.
             raw_seal_sha256 = None
             try:
                 from .output_adapters import preserve_raw_output
@@ -1164,44 +1258,63 @@ class RoleLifecycleService:
                     role=role,
                     artifacts=self.artifacts,
                 )
-            except Exception:
-                raw_seal_sha256 = None
-            # Apply mechanical repairs to a copy of the raw output. The
-            # repair function records source/result digests and classified
-            # transformation entries for each output.
-            repair_records = _apply_disclosed_mechanical_repairs(
-                run_root=self.workspace.for_read(f"runs/{self.context.run_id}"),
-                output_plan=self.context.output_plan,
-                stage=stage,
-                role=role,
-                run_id=str(self.context.run_id),
-            )
-            validation = validate_role_outputs(
-                schema_catalog=self.schemas,
-                run_root=self.workspace.for_read(f"runs/{self.context.run_id}"),
-                output_plan=self.context.output_plan,
-                stage=stage,
-                role=role,
-            )
-            findings = [item.to_dict() for item in validation.findings]
-            if not validation.passed:
-                status = RoleExecutionStatus.FAILED
-                failure_code = "output.structural_validation_failed"
-            sealed_outputs = tuple(
-                self._seal_output(item.spec, item.path, item.sha256)
-                for item in validation.outputs
-            )
-            # Store transformation records on the closure for auditability.
-            transformation_summaries = [
-                record.to_dict() for record in repair_records.values()
-            ]
-            # Adapt validated outputs to capture linked artifacts
-            for item in validation.outputs:
-                self._adapter.adapt(
-                    spec=item.spec,
-                    workspace=invocation.workspace,
-                    validated=item,
+            except Exception as error:
+                logger.exception(
+                    "Raw output preservation failed for run %s role %s",
+                    invocation.run_id,
+                    role,
                 )
+                status = RoleExecutionStatus.FAILED
+                failure_code = "output.raw_preservation_failed"
+                result = RoleExecutionResult(
+                    status=RoleExecutionStatus.FAILED,
+                    external_execution_id=result.external_execution_id,
+                    exit_code=result.exit_code,
+                    summary="Raw output preservation failed; the candidate was not validated.",
+                    diagnostic_text=f"{type(error).__name__}: {error}",
+                )
+            if status is RoleExecutionStatus.SUCCEEDED:
+                # Apply mechanical repairs to a copy of the raw output. The
+                # repair function records source/result digests and classified
+                # transformation entries for each output.  Harness-owned envelope
+                # fields (HV-4) are populated from sealed run facts inside the
+                # same pass, so the source digest remains the agent's raw bytes.
+                repair_records = _apply_disclosed_mechanical_repairs(
+                    run_root=self.workspace.for_read(f"runs/{self.context.run_id}"),
+                    output_plan=self.context.output_plan,
+                    stage=stage,
+                    role=role,
+                    run_id=str(self.context.run_id),
+                    run_facts=self._sealed_run_facts(stage, role),
+                    record_type_by_output=self._record_type_by_output(),
+                )
+                validation = validate_role_outputs(
+                    schema_catalog=self.schemas,
+                    run_root=self.workspace.for_read(f"runs/{self.context.run_id}"),
+                    output_plan=self.context.output_plan,
+                    stage=stage,
+                    role=role,
+                )
+                findings = [item.to_dict() for item in validation.findings]
+                if not validation.passed:
+                    status = RoleExecutionStatus.FAILED
+                    failure_code = "output.structural_validation_failed"
+                sealed_outputs = tuple(
+                    self._seal_output(item.spec, item.path, item.sha256)
+                    for item in validation.outputs
+                )
+                # Store transformation records on the closure for auditability.
+                transformation_summaries = [
+                    record.to_dict() for record in repair_records.values()
+                ]
+            if status is RoleExecutionStatus.SUCCEEDED:
+                # Adapt validated outputs to capture linked artifacts
+                for item in validation.outputs:
+                    self._adapter.adapt(
+                        spec=item.spec,
+                        workspace=invocation.workspace,
+                        validated=item,
+                    )
         elif status is RoleExecutionStatus.FAILED:
             failure_code = "executor.role_failed"
             # Preserve raw output for debugging even on failure
@@ -1215,6 +1328,11 @@ class RoleLifecycleService:
                     artifacts=self.artifacts,
                 )
             except Exception:
+                logger.exception(
+                    "Raw output preservation failed for failed run %s role %s",
+                    invocation.run_id,
+                    role,
+                )
                 raw_seal_sha256 = None
 
         if status is RoleExecutionStatus.CANCELLED:
@@ -1403,9 +1521,21 @@ class RoleLifecycleService:
             raise RoleLifecycleError(
                 f"Closure {closure_id} contains undeclared or duplicate outputs."
             )
-        if status is RoleExecutionStatus.SUCCEEDED and actual_outputs != expected_outputs:
+        # A successful closure must bind every REQUIRED output.  Optional
+        # outputs (for example P5's assembly report and review artifacts) may
+        # legitimately be absent; requiring strict equality would make such
+        # closures impossible to reload during recovery.
+        required_outputs = {
+            contract_output_id
+            for contract_output_id, spec in expected_specs.items()
+            if spec.required
+        }
+        if (
+            status is RoleExecutionStatus.SUCCEEDED
+            and not required_outputs.issubset(actual_outputs)
+        ):
             raise RoleLifecycleError(
-                f"Successful closure {closure_id} does not bind every declared output."
+                f"Successful closure {closure_id} does not bind every required output."
             )
         for output in outputs:
             spec = expected_specs[output.contract_output_id]

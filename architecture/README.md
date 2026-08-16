@@ -66,21 +66,22 @@ Read the files in this order:
 1. [System principles](00-system-principles.md) defines non-negotiable invariants and actor boundaries.
 2. [Research domain model](01-research-domain-model.md) defines the scientific objects and their relations.
 3. [Run harness](02-run-harness.md) defines controlled execution, validation, promotion, concurrency, and recovery.
-4. [Storage and authority](03-storage-and-authority.md) defines immutable generations, append-only authority events, rebuildable current state, logical paths, and phase-specific storage semantics.
-5. [UI contract](04-ui-contract.md) defines how formal records and user commands are projected into the Web interface.
-6. `phases/` defines the scientific and operational contract for Phases 1 through 5.
-7. `contracts/` contains the executable phase registry, deterministic digest registry, and invariant-to-test traceability registry used by adapters and validators.
-8. `schemas/` contains 46 machine-validatable schemas, while `examples/` contains 58 valid examples and 16 focused invalid fixtures.
-9. `scenarios/` defines 12 end-to-end acceptance cases, including failures, method changes, control commands, and [S12 disjoint concurrent publication](scenarios/S12-disjoint-concurrent-publication.md).
-10. [Validation strategy](05-validation-strategy.md) defines how conformance is proved without treating software checks as scientific judgment.
-11. [Implementation roadmap](06-implementation-roadmap.md) gives the required build order and definition of done.
-12. [Contract traceability](07-contract-traceability.md) defines research-workflow rules and their machine-readable links to invariants, tests, scenarios, phase contracts, and milestones.
-13. [Role and context contract](08-role-context-and-communication.md) defines reproducible profiles, prepared contexts, invocation starts and closures, downstream closure gates, immutable submission, capability-broker isolation, handoffs, and reviewer isolation.
-14. [Control commands](09-control-commands.md) defines cancellation, method lifecycle changes, formal-generation withdrawal, remote delegation, and shared command failures.
-15. [Open implementation gaps](10-open-implementation-gaps.md) records unresolved structural integrity requirements that must close before the harness is complete.
-16. [Operational completion plan](plans/completed/operational-completion-plan.md) orders the remaining work from reviewed-basis sealing through supported release.
-17. `tools/` contains the restricted RFC 8785 reference and one-command package conformance validator.
-18. `decisions/` records accepted changes to invariants, schemas, and phase behavior.
+4. [Supervised run walkthrough](02a-supervised-run-walkthrough.md) is the code-anchored companion for the execution lane that actually runs Hermes today: seal → preflight → launch → validation → memory promotion → restart recovery, with the real run-directory layout and module map.
+5. [Storage and authority](03-storage-and-authority.md) defines immutable generations, append-only authority events, rebuildable current state, logical paths, and phase-specific storage semantics.
+6. [UI contract](04-ui-contract.md) defines how formal records and user commands are projected into the Web interface.
+7. `phases/` defines the scientific and operational contract for Phases 1 through 5.
+8. `contracts/` contains the executable phase registry, deterministic digest registry, and invariant-to-test traceability registry used by adapters and validators.
+9. `schemas/` contains 46 machine-validatable schemas, while `examples/` contains 58 valid examples and 16 focused invalid fixtures.
+10. `scenarios/` defines 12 end-to-end acceptance cases, including failures, method changes, control commands, and [S12 disjoint concurrent publication](scenarios/S12-disjoint-concurrent-publication.md).
+11. [Validation strategy](05-validation-strategy.md) defines how conformance is proved without treating software checks as scientific judgment.
+12. [Implementation roadmap](06-implementation-roadmap.md) gives the required build order and definition of done.
+13. [Contract traceability](07-contract-traceability.md) defines research-workflow rules and their machine-readable links to invariants, tests, scenarios, phase contracts, and milestones.
+14. [Role and context contract](08-role-context-and-communication.md) defines reproducible profiles, prepared contexts, invocation starts and closures, downstream closure gates, immutable submission, capability-broker isolation, handoffs, and reviewer isolation.
+15. [Control commands](09-control-commands.md) defines cancellation, method lifecycle changes, formal-generation withdrawal, remote delegation, and shared command failures.
+16. [Open implementation gaps](10-open-implementation-gaps.md) records unresolved structural integrity requirements that must close before the harness is complete.
+17. [Operational completion plan](plans/completed/operational-completion-plan.md) orders the remaining work from reviewed-basis sealing through supported release.
+18. `tools/` contains the restricted RFC 8785 reference and one-command package conformance validator.
+19. `decisions/` records accepted changes to invariants, schemas, and phase behavior.
 
 If prose, an executable contract, and a schema disagree, implementation must stop until the inconsistency is resolved. None is silently treated as more authoritative. Schemas constrain representation, executable contracts drive deterministic behavior, and prose defines scientific meaning.
 

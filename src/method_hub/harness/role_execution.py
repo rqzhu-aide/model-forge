@@ -144,47 +144,15 @@ def _apply_disclosed_mechanical_repairs(
         required_fields = schema_info["required"]
         nested_required = schema_info.get("nested_required", set())
         nested_timestamps = schema_info.get("nested_timestamps", set())
-        if not valid_timestamps and not (no_additional and allowed_props):
-            # No repair applicable — record identity transform.
-            records[spec.contract_output_id] = OutputTransformationRecord(
-                contract_output_id=spec.contract_output_id,
-                source_sha256=source_sha256,
-                result_sha256=source_sha256,
-                entries=(),
-            )
-            continue
+        # When the schema declares no timestamps and no
+        # additionalProperties:false, no per-item repair applies — but ID
+        # sanitization (ISS-7) must still run.  The old early-continue here
+        # skipped it entirely for exactly those schemas, which let
+        # pattern-invalid stableIds survive repair in production.
+        skip_item_repairs = not valid_timestamps and not (no_additional and allowed_props)
 
         def _fix_item(item: dict) -> bool:
             changed = False
-            _ID_KEYS = ("object_id", "issue_id", "issue_version_id",
-                        "statement_id", "affected_statement_id",
-                        "finding_id", "claim_id", "theorem_id",
-                        "definition_id", "assumption_id", "lemma_id",
-                        "corollary_id", "proposition_id")
-            for key in _ID_KEYS:
-                val = item.get(key)
-                if isinstance(val, str) and val != val.lower():
-                    sane = _sanitize_id(val)
-                    if sane != val:
-                        item[key] = sane
-                        changed = True
-            for key, val in list(item.items()):
-                if isinstance(val, list) and (
-                    key.endswith("_ids") or key == "affected_record_ids"
-                ):
-                    new_vals = []
-                    mod = False
-                    for v in val:
-                        if isinstance(v, str) and v != v.lower() and re.search(r"^[a-z]", v) is None or (isinstance(v, str) and re.search(r"[A-Z]", v) and re.search(r"[._-]", v)):
-                            sane = _sanitize_id(v)
-                            if sane != v:
-                                new_vals.append(sane)
-                                mod = True
-                                continue
-                        new_vals.append(v)
-                    if mod:
-                        item[key] = new_vals
-                        changed = True
             for field in valid_timestamps:
                 if field not in item:
                     item[field] = ts
@@ -207,59 +175,34 @@ def _apply_disclosed_mechanical_repairs(
                     changed = True
             return changed
 
-        def _deep_sanitize_ids(obj: Any, parent_key: str | None = None) -> bool:
-            changed = False
-            if isinstance(obj, dict):
-                for key, val in obj.items():
-                    if isinstance(val, str) and (
-                        key.endswith("_id")
-                        or key in ("stable_id", "affected_record_ids")
-                    ):
-                        if val != val.lower() or re.search(r"[^a-z0-9._-]", val):
-                            sane = _sanitize_id(val)
-                            if sane != val:
-                                obj[key] = sane
-                                changed = True
-                    elif isinstance(val, (dict, list)):
-                        if _deep_sanitize_ids(val, parent_key=key):
-                            changed = True
-            elif isinstance(obj, list):
-                is_id_array = parent_key is not None and (
-                    parent_key.endswith("_ids")
-                    or parent_key == "affected_record_ids"
-                )
-                for i, item in enumerate(obj):
-                    if (
-                        is_id_array
-                        and isinstance(item, str)
-                        and item != item.lower()
-                    ):
-                        sane = _sanitize_id(item)
-                        if sane != item:
-                            obj[i] = sane
-                            changed = True
-                    elif isinstance(item, (dict, list)):
-                        if _deep_sanitize_ids(item):
-                            changed = True
-            return changed
-
         changed = False
-        if isinstance(data, dict):
-            changed = _fix_item(data)
-        elif isinstance(data, list):
-            for item in data:
-                if isinstance(item, dict):
-                    if _fix_item(item):
-                        changed = True
-        if _deep_sanitize_ids(data):
+        if not skip_item_repairs:
+            if isinstance(data, dict):
+                changed = _fix_item(data)
+            elif isinstance(data, list):
+                for item in data:
+                    if isinstance(item, dict):
+                        if _fix_item(item):
+                            changed = True
+        # ISS-7: sanitize stableId values at exactly the positions the
+        # schema pattern-checks — for EVERY successfully parsed output
+        # document, even when no other repair applies — then rewrite
+        # same-valued references document-wide so sanitizing a definition
+        # site never leaves dangling cross-references.
+        id_coverage = _stableid_positions(spec.schema_file)
+        id_renames: dict[str, str] = {}
+        if _deep_sanitize_ids(data, id_coverage, renames=id_renames):
             changed = True
-        all_required = required_fields | nested_required
-        if _strip_empty_strings(data, required_fields=all_required):
+        if _rewrite_id_references(data, id_renames):
             changed = True
-        if _add_missing_timestamps(data, nested_timestamps, ts):
-            changed = True
-        if _fix_self_referential_hashes(data, path):
-            changed = True
+        if not skip_item_repairs:
+            all_required = required_fields | nested_required
+            if _strip_empty_strings(data, required_fields=all_required):
+                changed = True
+            if _add_missing_timestamps(data, nested_timestamps, ts):
+                changed = True
+            if _fix_self_referential_hashes(data, path):
+                changed = True
 
         # Build transformation entries by diffing raw vs repaired.
         entries = _classify_transformations(raw_snapshot, data)
@@ -801,6 +744,248 @@ def _sanitize_id(val: str) -> str:
     sane = re.sub(r"^[^a-z]+", "", sane) or "id"
     sane = re.sub(r"\.{2,}", ".", sane)
     return sane
+
+
+# The single stableId pattern, mirroring
+# architecture/schemas/common-definitions.schema.json $defs.stableId.
+_STABLEID_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$")
+
+# ISS-8: identifier keys the removed ``_fix_item`` clause sanitized that NO
+# current schema declares (verified against architecture/schemas/).  Coverage
+# is retained so behaviour does not regress for outputs carrying them; since
+# no schema pattern-checks them they cannot produce schema.pattern findings.
+_LEGACY_UNDECLARED_ID_KEYS = frozenset({
+    "finding_id", "theorem_id", "definition_id",
+    "lemma_id", "corollary_id", "proposition_id",
+})
+
+_STABLEID_POSITIONS_CACHE: dict[str, dict[str, Any]] = {}
+
+
+def _stableid_positions(schema_file: str) -> dict[str, Any]:
+    """Schema-exact stableId coverage: which keys the schema pattern-checks.
+
+    Walks the schema (properties / items / allOf / anyOf / oneOf / $defs,
+    resolving ``#/$defs/...`` and cross-file ``*.schema.json#/$defs/...``
+    references) and collects two name sets:
+
+    * ``scalar_keys`` — property names whose value is a stableId
+      (e.g. ``evidence_id``, ``statement_id``, ``stable_id``);
+    * ``array_keys`` — property names whose array ITEMS are stableIds
+      (e.g. ``evidence_ids``, ``assumptions``).
+
+    On ANY load/parse failure the historical key-name heuristic is returned
+    (``heuristic: True``) so coverage never regresses when a schema is
+    unavailable: scalar = keys ending ``_id`` plus ``stable_id`` /
+    ``affected_record_ids``; array = parents ending ``_ids`` plus
+    ``affected_record_ids``.
+    """
+    cached = _STABLEID_POSITIONS_CACHE.get(schema_file)
+    if cached is not None:
+        return cached
+    try:
+        import json as _json
+
+        from pathlib import Path as _Path
+
+        root = _Path(__file__).resolve().parents[3]
+        schemas_dir = root / "architecture" / "schemas"
+        schema_path = schemas_dir / schema_file
+        if not schema_path.exists():
+            raise FileNotFoundError(schema_file)
+        schema = _json.loads(schema_path.read_text())
+
+        scalar_keys: set[str] = set()
+        array_keys: set[str] = set()
+
+        def _resolve_ref(ref: str, doc: dict[str, Any]):
+            """Return (target_node, target_doc) for a $defs-style ref."""
+            if ref.startswith("#/$defs/"):
+                return doc.get("$defs", {}).get(ref[len("#/$defs/"):]), doc
+            if "#/$defs/" in ref:
+                other_file, _, frag = ref.partition("#/$defs/")
+                if other_file and re.fullmatch(r"[A-Za-z0-9._-]+", other_file):
+                    other_path = schemas_dir / other_file
+                    if other_path.exists():
+                        other_doc = _json.loads(other_path.read_text())
+                        return other_doc.get("$defs", {}).get(frag), other_doc
+            return None, doc
+
+        def _refs_stableid(node: Any, doc: dict[str, Any], visited: frozenset) -> bool:
+            """True when the node reaches $defs/stableId via $ref/combiners."""
+            if not isinstance(node, dict):
+                return False
+            ref = node.get("$ref", "")
+            if isinstance(ref, str) and ref:
+                if ref.endswith("/$defs/stableId"):
+                    return True
+                if ref not in visited:
+                    target, target_doc = _resolve_ref(ref, doc)
+                    if target is not None and _refs_stableid(
+                        target, target_doc, visited | {ref}
+                    ):
+                        return True
+            for combiner in ("allOf", "anyOf", "oneOf"):
+                subs = node.get(combiner)
+                if isinstance(subs, list):
+                    for sub in subs:
+                        if _refs_stableid(sub, doc, visited):
+                            return True
+            return False
+
+        def _walk(node: Any, doc: dict[str, Any], visited_refs: frozenset) -> None:
+            if not isinstance(node, dict):
+                return
+            ref = node.get("$ref", "")
+            if (
+                isinstance(ref, str)
+                and ref
+                and not ref.endswith("/$defs/stableId")
+                and ref not in visited_refs
+            ):
+                target, target_doc = _resolve_ref(ref, doc)
+                if target is not None:
+                    _walk(target, target_doc, visited_refs | {ref})
+            props = node.get("properties")
+            if isinstance(props, dict):
+                for name, pdef in props.items():
+                    if not isinstance(pdef, dict):
+                        continue
+                    if _refs_stableid(pdef, doc, frozenset()):
+                        scalar_keys.add(name)
+                    items = pdef.get("items")
+                    if _refs_stableid(items, doc, frozenset()):
+                        array_keys.add(name)
+                    _walk(pdef, doc, visited_refs)
+            items = node.get("items")
+            if isinstance(items, dict):
+                _walk(items, doc, visited_refs)
+            for combiner in ("allOf", "anyOf", "oneOf"):
+                subs = node.get(combiner)
+                if isinstance(subs, list):
+                    for sub in subs:
+                        _walk(sub, doc, visited_refs)
+            defs = node.get("$defs")
+            if isinstance(defs, dict):
+                for d in defs.values():
+                    _walk(d, doc, visited_refs)
+
+        _walk(schema, schema, frozenset())
+        result = {
+            "scalar_keys": frozenset(scalar_keys),
+            "array_keys": frozenset(array_keys),
+            "heuristic": False,
+        }
+    except Exception:
+        result = {"scalar_keys": frozenset(), "array_keys": frozenset(), "heuristic": True}
+    _STABLEID_POSITIONS_CACHE[schema_file] = result
+    return result
+
+
+def _deep_sanitize_ids(
+    obj: Any,
+    coverage: Mapping[str, Any],
+    parent_key: str | None = None,
+    renames: dict[str, str] | None = None,
+) -> bool:
+    """Sanitize stableId values at schema-covered positions, at any depth.
+
+    A string is sanitized iff it does NOT fullmatch the stableId pattern.
+    Coverage comes from ``_stableid_positions``: scalar keys in
+    ``scalar_keys`` and string items of arrays whose parent key is in
+    ``array_keys`` (or the historical key-name heuristic when the schema is
+    unavailable).  Every old→new rename is recorded in ``renames`` so the
+    caller can rewrite same-valued references document-wide afterwards.
+    """
+    if renames is None:
+        renames = {}
+    scalar_keys = coverage["scalar_keys"]
+    array_keys = coverage["array_keys"]
+    heuristic = coverage.get("heuristic", False)
+    changed = False
+
+    def _sanitized(val: str) -> str | None:
+        if _STABLEID_PATTERN.fullmatch(val):
+            return None
+        new = _sanitize_id(val)
+        if new == val:
+            return None
+        # Deterministic even if two different old ids map to the same new
+        # id: each old value keeps its own rename entry.
+        renames.setdefault(val, new)
+        return renames[val]
+
+    if isinstance(obj, dict):
+        for key, val in obj.items():
+            if isinstance(val, str):
+                if heuristic:
+                    covered = key.endswith("_id") or key in (
+                        "stable_id", "affected_record_ids",
+                    )
+                else:
+                    covered = key in scalar_keys or key in _LEGACY_UNDECLARED_ID_KEYS
+                if covered:
+                    new = _sanitized(val)
+                    if new is not None:
+                        obj[key] = new
+                        changed = True
+            elif isinstance(val, (dict, list)):
+                if _deep_sanitize_ids(val, coverage, parent_key=key, renames=renames):
+                    changed = True
+    elif isinstance(obj, list):
+        if parent_key is None:
+            covered_array = False
+        elif heuristic:
+            covered_array = (
+                parent_key.endswith("_ids") or parent_key == "affected_record_ids"
+            )
+        else:
+            covered_array = parent_key in array_keys
+        for i, item in enumerate(obj):
+            if isinstance(item, str):
+                if covered_array:
+                    new = _sanitized(item)
+                    if new is not None:
+                        obj[i] = new
+                        changed = True
+            elif isinstance(item, (dict, list)):
+                if _deep_sanitize_ids(item, coverage, renames=renames):
+                    changed = True
+    return changed
+
+
+def _rewrite_id_references(obj: Any, renames: Mapping[str, str]) -> bool:
+    """Rewrite every string equal to a renamed id, anywhere in the document.
+
+    Runs AFTER ``_deep_sanitize_ids`` so that same-valued references under
+    keys the schema does not pattern-check (free-text objects, cross
+    references like ``depends_on_statement_ids``) stay consistent with the
+    sanitized definition site instead of dangling.
+    """
+    if not renames:
+        return False
+    changed = False
+    if isinstance(obj, dict):
+        for key, val in obj.items():
+            if isinstance(val, str):
+                new = renames.get(val)
+                if new is not None:
+                    obj[key] = new
+                    changed = True
+            elif isinstance(val, (dict, list)):
+                if _rewrite_id_references(val, renames):
+                    changed = True
+    elif isinstance(obj, list):
+        for i, item in enumerate(obj):
+            if isinstance(item, str):
+                new = renames.get(item)
+                if new is not None:
+                    obj[i] = new
+                    changed = True
+            elif isinstance(item, (dict, list)):
+                if _rewrite_id_references(item, renames):
+                    changed = True
+    return changed
 
 
 # Schema file name → which timestamp fields are declared properties

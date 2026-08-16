@@ -223,3 +223,31 @@ which the harness converts to `executor.role_failed`).
 
 Remaining: ISS-7/ISS-8 (ID sanitization coverage + `_fix_item` cleanup),
 ISS-9 (positive examples for the 5 new phase schemas).
+
+### ISS-9 preparation notes (verified 2026-08-16, before dispatch)
+
+- New examples MUST be registered in `VALID_EXAMPLES`
+  (`architecture/tools/validate_package.py:32`); the registry is compared
+  against the directory glob both ways.
+- Each record example carries `content_sha256` = `canonical_sha256(doc,
+  {"content_sha256"})` (RFC 8785, exclude the field itself); the digest
+  contracts for all 5 record kinds are already registered as exact
+  whole-record constructions (validator lines ~326-345).
+- `audit_identity_references` walks ALL examples: a new example citing the
+  connected set's selected method stable_id+version must carry the exact
+  `definition_sha256`, and any cited record_id+generation_id pair must carry
+  the exact `content_sha256`. Simplest safe path: distinct fictional
+  identities that do not cite the connected set's method.
+- Count prose to bump 58 -> 63: `architecture/examples/README.md` (line 3),
+  `architecture/schemas/README.md` (line 274), `architecture/README.md`
+  (line 75); `plans/completed/operational-completion-plan.md` line 78 is a
+  dated status table - leave it.
+- `task_briefs._load_fixture_example` (fallback path only) embeds
+  `<stem>.example.json` into briefs with `_neutralize_identities` masking
+  all `*_id`/`*_sha256`/timestamp values, so examples are brief-safe by
+  construction. Runtime briefs use schema-derived skeletons instead.
+- No em/en dashes in the new .json files (text check scans .json too).
+- HV-6 acceptance ("every newly allowed structure has a positive example"):
+  the theory-record example should exercise the newly allowed proof-only /
+  definition-focused / impossibility / counterexample structures where the
+  schema permits (see HV-6 plan line ~104).

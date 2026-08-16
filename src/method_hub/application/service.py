@@ -467,25 +467,14 @@ class MethodHubService:
             record = store.find_by_invocation_id(invocation_id)
             if record is None or assembler is None:
                 return
-            from .run_profile_assembler import SealedRun
-
-            sealed = SealedRun(
-                seal_id=record["seal_id"],
-                invocation_id=record["invocation_id"],
-                project_id=record["project_id"],
-                role=record["role"],
-                idempotency_key=record.get("idempotency_key", ""),
-                run_dir=Path(str(record["run_dir"])),
-                manifest_sha256=record.get("manifest_sha256", ""),
-                manifest={},
-                sealed_at=record.get("sealed_at", ""),
-            )
             from .output_validation import validate_run_outputs
 
-            validation_report = validate_run_outputs(assembler, sealed)
+            # String form: digest-verified reconstruction (WP-E1).
+            validation_report = validate_run_outputs(assembler, invocation_id)
             if validation_report.verdict == "pass":
                 from .state_promotion import promote_run_state
 
+                sealed = assembler._reconstruct(record)
                 try:
                     promote_run_state(assembler, sealed)
                 except Exception:

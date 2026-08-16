@@ -10,13 +10,29 @@ Covers:
 from __future__ import annotations
 
 import asyncio
+import json
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from method_hub.api.models import SupervisedRunLogs
+from method_hub.application.run_profile_assembler import (
+    HermesProbe,
+    RunProfileAssembler,
+    SealedRun,
+)
 from method_hub.application.service import MethodHubService
+from method_hub.configuration.resources import RoleResourceCatalog
+from method_hub.domain.runs import isoformat_utc, utc_now
+from method_hub.profiles.project_profiles import MemoryPolicy
+from method_hub.storage.database import Database
+from method_hub.storage.migrations import HUB_MIGRATIONS
+
+ROOT = Path(__file__).resolve().parents[1]
+RESOURCE_ROOT = ROOT / "resources" / "team"
+SKILL_BUNDLE = ROOT / "resources" / "skills"
 
 
 # --------------------------------------------------------------------------- #
@@ -216,3 +232,139 @@ class TestReconcileWatcher:
             None, None, "launch-1", "inv-1", "ext"  # type: ignore[arg-type]
         )
         assert service._reconcile_watchers == before
+
+
+# --------------------------------------------------------------------------- #
+# NA-1: post-exit validation must use the digest-verified reconstruction path #
+# --------------------------------------------------------------------------- #
+
+_GOOD_THEORY = {
+    "basis": {"assumptions": ["a1"]},
+    "representations": {"statements": []},
+    "invocation_id": "inv-001",
+    "run_id": "inv-001",
+    "method_id": "mh-1",
+}
+
+
+def _seal_kwargs(**overrides: Any) -> dict[str, Any]:
+    kwargs: dict[str, Any] = dict(
+        invocation_id="inv-001",
+        idempotency_key="key-001",
+        project_id="proj-001",
+        role="theorist",
+        phase="P3",
+        method_identity={"method_id": "mh-1", "version": "1.0"},
+        user_choices={"mode": "headless", "context_policy": "strict"},
+        selected_context_references=[
+            {"context_id": "ctx-1", "record_id": "rec-1"},
+        ],
+        expected_outputs=[
+            {
+                "output_id": "p3.complete_theory",
+                "kind": "scientific_record",
+                "required": True,
+                "relative_path": "p3/complete_theory.json",
+                "required_fields": ["basis", "representations"],
+                "companions": ["fig1.pdf"],
+            },
+            {
+                "output_id": "p3.notes",
+                "kind": "scientific_record",
+                "required": False,
+                "relative_path": "p3/notes.json",
+            },
+        ],
+        memory_policy=MemoryPolicy.PERSISTENT,
+    )
+    kwargs.update(overrides)
+    return kwargs
+
+
+def _write_valid_outputs(sealed: SealedRun) -> None:
+    outputs = sealed.run_dir / "outputs"
+    (outputs / "p3").mkdir(parents=True, exist_ok=True)
+    (outputs / "p3" / "complete_theory.json").write_text(
+        json.dumps(_GOOD_THEORY), encoding="utf-8"
+    )
+    (outputs / "p3" / "notes.json").write_text(
+        json.dumps({"note": "ok"}), encoding="utf-8"
+    )
+    (outputs / "p3" / "fig1.pdf").write_bytes(b"%PDF-1.4\n% fake figure\n")
+
+
+def _close_launch(
+    assembler: RunProfileAssembler,
+    sealed: SealedRun,
+    status: str = "succeeded",
+    launch_id: str = "launch-001",
+) -> str:
+    now = isoformat_utc(utc_now())
+    assembler.store.create_launch_record(
+        launch_id=launch_id,
+        seal_id=sealed.seal_id,
+        invocation_id=sealed.invocation_id,
+        launched_at=now,
+    )
+    assembler.store.close_launch_record(
+        launch_id,
+        status=status,
+        external_execution_id="ext-001",
+        exit_code=0,
+        closed_at=isoformat_utc(utc_now()),
+    )
+    return launch_id
+
+
+class TestPostExitValidation:
+    @pytest.fixture()
+    def watcher_service(self, tmp_path: Path):
+        database = Database(tmp_path / "hub.sqlite3", migrations=HUB_MIGRATIONS)
+        database.initialize()
+        assembler = RunProfileAssembler(
+            data_root=tmp_path / "data",
+            role_resources=RoleResourceCatalog.load(RESOURCE_ROOT),
+            database=database,
+            bundle_root=SKILL_BUNDLE,
+            hermes_root=tmp_path / "hermes",
+            hermes_binary="stub-hermes",
+            hermes_probe=lambda binary: HermesProbe(binary, "0.0.1"),
+        )
+        service = MethodHubService.__new__(MethodHubService)
+        service._reconcile_watchers = {}
+        service._run_seal_store = assembler.store  # type: ignore[assignment]
+        service._run_assembler = assembler
+        return service, assembler
+
+    def test_reconciled_success_validates_via_verified_manifest(
+        self, watcher_service
+    ):
+        """Sealed run + closed SUCCEEDED launch + valid declared outputs must
+        record a "pass" verdict.  Before NA-1 the watcher validated against
+        an empty hand-built manifest, so every output was "undeclared" and
+        this exact scenario recorded "fail"."""
+        service, assembler = watcher_service
+        sealed = assembler.seal_invocation(**_seal_kwargs())
+        _write_valid_outputs(sealed)
+        launch_id = _close_launch(assembler, sealed)
+
+        service._run_post_exit_validation(sealed.invocation_id)
+
+        stored = assembler.store.get_validation_report(launch_id)
+        assert stored is not None
+        assert stored["verdict"] == "pass"
+
+    def test_missing_manifest_is_logged_and_never_passes(self, watcher_service):
+        """A deleted/corrupt manifest must fail digest-verified reconstruction
+        inside the best-effort handler: no "pass" row is recorded and the
+        watcher does not crash."""
+        service, assembler = watcher_service
+        sealed = assembler.seal_invocation(**_seal_kwargs())
+        _write_valid_outputs(sealed)
+        launch_id = _close_launch(assembler, sealed)
+        (sealed.run_dir / "manifest" / "manifest.json").unlink()
+
+        service._run_post_exit_validation(sealed.invocation_id)  # must not raise
+
+        stored = assembler.store.get_validation_report(launch_id)
+        assert stored is None or stored["verdict"] != "pass"

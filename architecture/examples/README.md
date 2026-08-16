@@ -1,11 +1,18 @@
 # Coherent example record set
 
-This directory contains 58 valid examples. Its central connected record set
+This directory contains 63 valid examples. Its central connected record set
 describes one fictional statistical method and one user-launched Phase 4
 preliminary run. Focused examples cover deterministic digests, method identity,
 role context, cancellation, action descriptions, remote delegation, control
 commands, and one independent two-event replay vector. They test system
 representation and behavior, not the truth of the fictional scientific claim.
+
+Five files - `theory-record.example.json`, `empirical-protocol.example.json`,
+`manuscript-package.example.json`, `review-finding.example.json`, and
+`review-report.example.json` - are standalone record examples for the Phase 3,
+Phase 4, and Phase 5 record schemas. They describe their own fictional method in
+their own identity namespace and are not part of the connected Phase 4
+transaction below.
 
 ## Phase 4 research transaction
 

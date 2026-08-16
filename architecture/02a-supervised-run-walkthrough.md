@@ -138,9 +138,10 @@ orphans a `running` record forever.
     └── memories/          # promotable memory state
 ```
 
-> Older `~/.method-hub/runs/run.p*.*/` directories with `roles/` + `tasks/`
-> subtrees are **formal-lane** layouts from the pre-ADR-012 coordinator -
-> not this lane. Don't use them as a reference.
+> `~/.method-hub/runs/run.<phase>.<mode>.<uuid>/` directories with `roles/`
+> and `tasks/` subtrees are **formal-lane** layouts written by
+> `run_coordinator.py` (see [02b](02b-phase-run-walkthroughs.md)). Don't use
+> them as a reference for this lane.
 
 ## 8. Reading the flow in code
 

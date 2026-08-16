@@ -173,3 +173,21 @@ NA-1 fix (small, includes its regression test) -> K-1 correction command
 path (the largest missing component) -> K-5 controlled re-run (evidence
 that the repair lane now converges real agent output) -> K-2 decision ->
 K-3/K-4/K-6 small alignments -> WP-I.
+
+## Fix log
+
+### 2026-08-16: NA-1 FIXED (commit c243fe5, subagent package, validator-verified)
+
+`_run_post_exit_validation` no longer hand-builds `SealedRun(manifest={})`:
+validation goes through the invocation-id string form and promotion through
+`assembler._reconstruct(record)`, both digest-verified. The existing
+best-effort try/except already wraps the whole body, so a tampered or
+missing manifest is logged and skipped (no watcher crash). Two regression
+tests in `tests/test_supervised_run_logs.py` (`TestPostExitValidation`):
+real declared outputs + closed succeeded launch records a PASS verdict
+(verified to record "fail" on pre-fix code), and a deleted manifest records
+no pass and does not raise. Validator re-ran the acceptance chain
+independently: suite 1073 green (1071 + 2), `validate_package.py` exit 0,
+commit scope exactly the two intended files. NA-2 (cancel-vs-failed
+relabeling across restart) remains open: a correct fix needs persisted
+cancel intent, which is a design decision, not a mechanical repair.

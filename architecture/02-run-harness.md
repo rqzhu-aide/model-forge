@@ -6,6 +6,21 @@ The run harness is the execution and publication boundary of the research system
 
 The harness is not an agent prompt and is not a generic workflow script. It is a state machine with permission boundaries, frozen inputs, validation, optimistic concurrency, atomic publication, and recovery behavior.
 
+> **Two execution lanes (read first).** This document specifies the **formal
+> lane**: the multi-role, multi-stage state machine (`run_coordinator.py`,
+> `POST /projects/{id}/runs`, phases P1-P5, formal generations, publication
+> receipts) whose per-phase behavior is walked in
+> [02b](02b-phase-run-walkthroughs.md). A second, simpler lane exists and is
+> what the Runs page uses for real Hermes execution today: the **supervised
+> lane** (ADR-012 trusted-local execution, `run_profile_assembler` +
+> `run_launcher`, one sealed Hermes process per project-role, output
+> validation, memory promotion), walked in
+> [02a](02a-supervised-run-walkthrough.md). The supervised lane reuses this
+> document's validation philosophy (frozen contract, declared outputs,
+> nothing undeclared) and its phase-specific scientific validators, but does
+> not run this state machine: its runs do not publish formal generations.
+> Neither lane starts runs automatically.
+
 ## 2. Run lifecycle
 
 ### 2.1 Primary states

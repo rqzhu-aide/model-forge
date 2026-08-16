@@ -24,6 +24,15 @@ true. Those judgments remain explicit outputs of the research roles.
 | Research scenario | Does the complete workflow behave correctly for a researcher? | End-to-end acceptance tests |
 | UI projection | Does the interface report canonical state without inventing it? | View-model and browser tests |
 
+Both execution lanes share the validation philosophy. The formal lane runs
+the full layered pipeline above; the supervised lane (ADR-012, see
+[02a](02a-supervised-run-walkthrough.md)) runs structural output validation
+(declared outputs exist, nothing undeclared, schema and required-field
+checks) and reuses the phase-specific scientific validators from
+`harness/scientific_validators.py` when the run's declared outputs bind to a
+phase contract (check 7, `phase_consistency`, in
+`application/output_validation.py`).
+
 ## Normative invariant test catalog
 
 Each test ID names a required implementation test group. The machine-readable

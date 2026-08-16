@@ -340,6 +340,14 @@ requires an exact `run_id`, expected pre-submission lifecycle state, last
 run-journal sequence and root digest, structured reason, requesting identities,
 command digest, and request time.
 
+> **Supervised-lane cancel.** The supervised lane (ADR-012, see
+> [02a](02a-supervised-run-walkthrough.md)) has its own explicit cancel
+> command (`POST /projects/{id}/supervised-runs/{invocation_id}/cancel`).
+> It consults the recorded durable process identity, terminates the process
+> tree with a SIGTERM grace period, and closes the launch record as
+> `cancelled` rather than `failed` when the cancel flag explains the signal
+> death. It follows the same rule as below: no formal state changes.
+
 Legal source states are exactly `created`, `preparing`, `prepared`, and `running`.
 Acceptance atomically changes the run to `cancellation_requested` and closes its
 submission and new-role gates. Active work stops at safe tool and role

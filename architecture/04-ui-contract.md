@@ -6,6 +6,16 @@ The Web UI helps a researcher understand current scientific state, inspect its e
 
 The same command service should support the Web UI and an authorized remote agent. Different clients must not produce different workflow semantics.
 
+> **Lane scope.** Phase pages (P1-P5) drive the formal lane
+> (`POST /projects/{id}/runs`, see [02b](02b-phase-run-walkthroughs.md)).
+> The Runs page additionally exposes the supervised lane
+> (`POST /projects/{id}/supervised-runs/start`, see
+> [02a](02a-supervised-run-walkthrough.md)): start form (role, phase, brief,
+> expected outputs, timeout), run detail with live log tails and outputs
+> listing, cancel. Both lanes' surfaces follow the invariants below: every
+> displayed state and action is a backend projection, and no surface starts
+> a run implicitly.
+
 ## 2. UI invariants
 
 ### UI-001: No inferred authority

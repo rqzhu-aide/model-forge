@@ -6,6 +6,13 @@ Storage must preserve scientific provenance without forcing researchers to navig
 
 Physical storage may use a filesystem, database, or object store. The logical contracts remain the same.
 
+> **Lane scope.** The formal-authority model here (immutable generations,
+> authority events, current index) governs the formal lane; the supervised
+> lane (ADR-012, see [02a](02a-supervised-run-walkthrough.md)) keeps its own
+> durable state (run seals, launch records, validation and promotion records
+> in `hub.sqlite3`, immutable `outputs/` snapshots) and does not write formal
+> generations. The two stores are separate today.
+
 ## 2. Three information layers
 
 Information layers describe format and retrieval depth only.

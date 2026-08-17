@@ -111,7 +111,7 @@ policy entry), `architecture/09-control-commands.md` (catalog row),
   `RunSealStore.mark_launch_cancel_requested(launch_id, at)`;
   `cancel_supervised_run` writes it BEFORE signalling (clear-on-failure
   = delete not possible on immutable-ish record; instead the column is
-  only consulted at close time when the outcome was a signal death —
+  only consulted at close time when the outcome was a signal death ,
   see below); `_watch_reconciled_run` closes as `cancelled` when the
   launch record carries `cancel_requested_at` and reconcile reports the
   process gone; the launcher's in-memory `cancel_requested` path stays
@@ -122,14 +122,14 @@ policy entry), `architecture/09-control-commands.md` (catalog row),
   `run_launcher is None` (executor disabled) with
   TARGET_STATE_MISMATCH 409 + clear message, instead of creating a
   zombie `created` run. DECISION (coder, default per audit option 1):
-  rejection beats a new terminal state because the run never started —
+  rejection beats a new terminal state because the run never started ,
   no scientific record exists to preserve, and a visible refusal at
   command time is exactly the stop-ship posture. Verify no test relies
   on the zombie behavior; update any that do.
 
 ## Deferred (needs Tez, not code)
 
-- **K-2** (two-lane output policy divergence): coder recommendation —
+- **K-2** (two-lane output policy divergence): coder recommendation ,
   DOCUMENT the deliberate difference: the formal lane repairs with
   disclosure because it is the production path; the supervised WP-E1
   lane validates raw bytes because it is the trust-verification lane

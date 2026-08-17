@@ -102,6 +102,48 @@ def _run_repair(tmp_path: Path, schema_file: str, content):
 # _stableid_positions: schema-exact coverage derivation
 # ---------------------------------------------------------------------------
 
+def test_classify_labels_lowercase_id_sanitization_exactly() -> None:
+    """K-6: schema-derived ID sanitization and reference rewrites must be
+    labeled ``id_sanitization`` even when the raw id contains no uppercase
+    (the old key-name + case heuristic recorded them as ``value_rewrite``).
+    """
+    from method_hub.harness.role_execution import (
+        _classify_transformations,
+        _sanitize_id,
+    )
+
+    raw_id = "claim.kernel overhead at large m"  # all-lowercase, invalid
+    sane = _sanitize_id(raw_id)
+    assert sane != raw_id
+    raw = {
+        "statement_id": raw_id,
+        "statement_ids": [raw_id],  # same-valued reference site
+        "note": "unchanged",
+    }
+    repaired = {
+        "statement_id": sane,
+        "statement_ids": [sane],
+        "note": "unchanged",
+    }
+    entries = _classify_transformations(
+        raw, repaired, renames={raw_id: sane}
+    )
+    codes = {entry.code for entry in entries}
+    assert codes == {"id_sanitization"}
+    pointers = {entry.json_pointer for entry in entries}
+    assert pointers == {"/statement_id", "/statement_ids/0"}
+
+
+def test_classify_still_marks_real_value_rewrites() -> None:
+    """K-6: a content change that is NOT an id rename stays value_rewrite."""
+    from method_hub.harness.role_execution import _classify_transformations
+
+    raw = {"summary": "old text", "record_id": "record.ok_1"}
+    repaired = {"summary": "new text", "record_id": "record.ok_1"}
+    entries = _classify_transformations(raw, repaired, renames={})
+    assert [entry.code for entry in entries] == ["value_rewrite"]
+
+
 def test_stableid_positions_match_verified_schema_scan() -> None:
     """Cross-check the walker against the audited stableId positions."""
     from method_hub.harness.role_execution import _stableid_positions

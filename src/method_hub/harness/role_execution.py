@@ -205,7 +205,7 @@ def _apply_disclosed_mechanical_repairs(
                 changed = True
 
         # Build transformation entries by diffing raw vs repaired.
-        entries = _classify_transformations(raw_snapshot, data)
+        entries = _classify_transformations(raw_snapshot, data, renames=id_renames)
 
         if changed or populated:
             repaired_text = _json.dumps(data, indent=2, ensure_ascii=False)
@@ -227,15 +227,24 @@ def _apply_disclosed_mechanical_repairs(
 
 
 def _classify_transformations(
-    raw: Any, repaired: Any, pointer: str = ""
+    raw: Any,
+    repaired: Any,
+    pointer: str = "",
+    *,
+    renames: Mapping[str, str] | None = None,
 ) -> list[TransformationEntry]:
     """Diff the raw snapshot against the repaired data, classifying changes.
 
     Walks both trees in parallel and emits a TransformationEntry for each
     difference found.  The codes identify what kind of mechanical repair
-    occurred at each location.
+    occurred at each location.  *renames* is the exact old→new identifier
+    map produced by ``_deep_sanitize_ids``: any changed string whose raw
+    value is a rename source is an ``id_sanitization`` (definition-site
+    sanitization or same-valued reference rewrite), never a generic
+    ``value_rewrite``.
     """
     entries: list[TransformationEntry] = []
+    id_renames = renames or {}
 
     # Fast path: identical objects mean no changes.
     if raw == repaired:
@@ -315,14 +324,8 @@ def _classify_transformations(
                     _walk(rv, pv, child_ptr)
                 elif (
                     isinstance(rv, str)
-                    and isinstance(pv, str)
-                    and rv != rv.lower()
-                    and (
-                        key.endswith("_id")
-                        or key in ("stable_id",)
-                        or key.endswith("_ids")
-                        or key == "affected_record_ids"
-                    )
+                    and rv in id_renames
+                    and pv == id_renames[rv]
                 ):
                     entries.append(TransformationEntry(
                         code="id_sanitization",
@@ -359,11 +362,24 @@ def _classify_transformations(
                 # Length changes are rare for mechanical repair; skip detail.
         # Scalar mismatch that wasn't caught above (e.g. type changed)
         elif raw_obj != rep_obj:
-            entries.append(TransformationEntry(
-                code="value_rewrite",
-                json_pointer=ptr,
-                detail=f"{raw_obj!r} → {rep_obj!r}",
-            ))
+            if (
+                isinstance(raw_obj, str)
+                and raw_obj in id_renames
+                and rep_obj == id_renames[raw_obj]
+            ):
+                entries.append(TransformationEntry(
+                    code="id_sanitization",
+                    json_pointer=ptr,
+                    detail=(
+                        f"sanitized identifier: {raw_obj} → {rep_obj}"
+                    ),
+                ))
+            else:
+                entries.append(TransformationEntry(
+                    code="value_rewrite",
+                    json_pointer=ptr,
+                    detail=f"{raw_obj!r} → {rep_obj!r}",
+                ))
 
     _walk(raw, repaired, pointer)
     return entries

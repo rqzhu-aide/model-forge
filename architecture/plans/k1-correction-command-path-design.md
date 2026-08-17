@@ -115,9 +115,14 @@ Design:
   unchanged.
 - Any SUCCESSFUL correction action (including revalidate with unchanged
   bytes) writes a NEW closure for the stage/role under the correction
-  identity, carrying the conforming output digests, status succeeded, and
-  the correction_command_id link. The failed closure is never mutated
-  (HV-5.1); history shows both.
+  identity, carrying the conforming output digests and status succeeded.
+  The failed closure is never mutated (HV-5.1); history shows both. The
+  closure DOCUMENT keeps the exact existing schema shape (no new fields);
+  the correction linkage lives in `run_validation_attempts` (the
+  correction_command_id column), the identity derivation (the command id
+  is embedded in the closure identity), and the intent row payload. The
+  closure's `invocation_sha256` carries the sealed correction command's
+  digest, binding the closure to its authorizing command.
 - The correction execution context also sets `submission_from_status =
   "correcting"` so `seal_submission`'s CAS accepts the
   correcting -> submitted edge (submissions.py:70-79).

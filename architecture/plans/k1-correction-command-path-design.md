@@ -89,6 +89,39 @@ time). This keeps the migration additive and the two `initialize() == N`
 test bumps apply (WP-E0..F1c precedent: every new migration breaks exactly
 those two assertions).
 
+### 2a. Correction closure identity (verified constraint, added 2026-08-16)
+
+Role identities are deterministic: `execution_records.role_identity`
+(execution_records.py:94-108) derives (invocation_id, execution_id,
+closure_id) from exactly (run_id, manifest_sha256, stage.sequence,
+stage_id, role), and `_load_closure` looks up closures BY that
+execution_id (role_execution.py:1639-1654). A correction re-invocation
+under the same run would collide with the existing failed closure row -
+and closures are immutable.
+
+Design:
+
+- `RunExecutionContext` gains `identity_suffix: str = ""` (additive,
+  defaulted - the same pattern as the existing `submission_from_status`
+  field, execution_context.py:52-53). `role_identity` appends the suffix
+  to the basis when non-empty, so correction attempt N derives a distinct
+  deterministic identity family: base + `("correction", correction_command_id)`.
+- `RoleLifecycleService.load_existing` becomes family-aware: fetch the base
+  identity's closure; if absent or not succeeded, walk the run's correction
+  commands (newest first, from `run_validation_attempts` joined to the
+  sealed commands whose `role_closure_id` names the base closure), derive
+  each correction execution_id, and return the first succeeded closure.
+  The submission chain loader (submissions.py:150-157) then works
+  unchanged.
+- Any SUCCESSFUL correction action (including revalidate with unchanged
+  bytes) writes a NEW closure for the stage/role under the correction
+  identity, carrying the conforming output digests, status succeeded, and
+  the correction_command_id link. The failed closure is never mutated
+  (HV-5.1); history shows both.
+- The correction execution context also sets `submission_from_status =
+  "correcting"` so `seal_submission`'s CAS accepts the
+  correcting -> submitted edge (submissions.py:70-79).
+
 ### 3. Lane A execution (synchronous, in the service call)
 
 - **Revalidate**: load the sealed candidate bytes for the in-scope outputs

@@ -19,8 +19,19 @@ specification or decision record before code relies on such a change.
   active work packages FP-1 through FP-8. FP-3 is complete; FP-1, FP-4,
   FP-5, and FP-6 are partially complete; FP-2, FP-7, and FP-8 remain open.
   FP-2 remains the publication-integrity gate for further real runs.
+- [Harness Mechanics Audit and Fix Log](harness-mechanics-audit-2026-08-15.md) -
+  delivery-path wiring audit (2026-08-15). CLOSED 2026-08-16: ISS-1 through
+  ISS-9 all landed and verified (fix log in the document).
+- [Harness Audit 2026-08-16](harness-audit-2026-08-16.md) - missing-component
+  and misalignment findings. NA-1 (restart watcher manifest defect) is fixed
+  (`c243fe5`); NA-2 and K-1 through K-7 remain, with a suggested order.
 
 ## Active plans
+
+- [K-1 Correction Command Path Design](k1-correction-command-path-design.md) -
+  design for wiring the HV-5 correction machinery end to end (command
+  acceptance, attempt persistence, the three recovery actions, UI controls).
+  Draft awaiting review; decision points D1-D3 at the bottom.
 
 - [Harness Validation and Output Recovery](harness-validation-and-output-recovery-plan.md)
   separates execution failure from output conformance and adds bounded,

@@ -118,6 +118,9 @@ by at least one scenario in the trusted-local suite (S13-S24).
 | MH-70 | Failed promotion preserves the last known good formal and project-role state byte-identically; current pointers advance only after the complete promotion succeeds. | ADR-012 invariant, run harness, storage and authority | Promotion-failure injection tests; S22 |
 | MH-71 | Logs are streamed under fixed bounds. Output floods and over-long lines cannot block process completion or grow memory without bound. | ADR-012 item 7, run harness | Bounded-log and flood tests; S23 |
 | MH-72 | Session snapshots use a verified procedure: read-only source, SQLite online backup with integrity check, quiescence flag, and fail-fast refusal of a busy source. A live database file is never copied. | ADR-012 item 5, run harness | Session-snapshot and busy-abort tests; S24 |
+| MH-73 | A correction command is accepted only for a run in a correctable terminal state (failed or rejected with correctable findings); all other states refuse with a stable error. | K-1 correction command path design | Correction command foundation and acceptance-gate tests |
+| MH-74 | A correction command may name only outputs the corrected role closure actually declared; any other scope refuses with a stable error. | K-1 correction command path design | Correction command foundation and scope-gate tests |
+| MH-75 | Correction attempts are bounded per run: when the packaging and scientific bounds are spent, further correction commands refuse with a stable error and the run displays as completed with correction still required. | K-1 correction command path design | Correction command foundation and bounds tests |
 
 ## Machine-readable coverage
 

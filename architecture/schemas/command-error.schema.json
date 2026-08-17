@@ -41,7 +41,10 @@
                                                  "TARGET_NOT_FOUND",
                                                  "DEPENDENCY_CLOSURE_INCOMPLETE",
                                                  "NO_STATE_CHANGE",
-                                                 "PUBLICATION_CONFLICT"
+                                                 "PUBLICATION_CONFLICT",
+                                                 "CORRECTION_NOT_APPLICABLE",
+                                                 "CORRECTION_SCOPE_INVALID",
+                                                 "CORRECTION_EXHAUSTED"
                                              ]
                                 },
                        "category":  {
@@ -455,6 +458,84 @@
                                                        },
                                          "rule_id":  {
                                                          "const":  "MH-56"
+                                                     }
+                                     },
+                      "required":  [
+                                       "code",
+                                       "category",
+                                       "http_status",
+                                       "retryable",
+                                       "rule_id"
+                                   ]
+                  },
+                  {
+                      "properties":  {
+                                         "code":  {
+                                                      "const":  "CORRECTION_NOT_APPLICABLE"
+                                                  },
+                                         "category":  {
+                                                          "const":  "transition"
+                                                      },
+                                         "http_status":  {
+                                                             "const":  409
+                                                         },
+                                         "retryable":  {
+                                                           "const":  false
+                                                       },
+                                         "rule_id":  {
+                                                         "const":  "MH-73"
+                                                     }
+                                     },
+                      "required":  [
+                                       "code",
+                                       "category",
+                                       "http_status",
+                                       "retryable",
+                                       "rule_id"
+                                   ]
+                  },
+                  {
+                      "properties":  {
+                                         "code":  {
+                                                      "const":  "CORRECTION_SCOPE_INVALID"
+                                                  },
+                                         "category":  {
+                                                          "const":  "schema"
+                                                      },
+                                         "http_status":  {
+                                                             "const":  400
+                                                         },
+                                         "retryable":  {
+                                                           "const":  true
+                                                       },
+                                         "rule_id":  {
+                                                         "const":  "MH-74"
+                                                     }
+                                     },
+                      "required":  [
+                                       "code",
+                                       "category",
+                                       "http_status",
+                                       "retryable",
+                                       "rule_id"
+                                   ]
+                  },
+                  {
+                      "properties":  {
+                                         "code":  {
+                                                      "const":  "CORRECTION_EXHAUSTED"
+                                                  },
+                                         "category":  {
+                                                          "const":  "transition"
+                                                      },
+                                         "http_status":  {
+                                                             "const":  409
+                                                         },
+                                         "retryable":  {
+                                                           "const":  false
+                                                       },
+                                         "rule_id":  {
+                                                         "const":  "MH-75"
                                                      }
                                      },
                       "required":  [

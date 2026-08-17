@@ -806,6 +806,36 @@ class InstallSkillRequest(StrictModel):
     action_descriptor_id: NonEmptyString
 
 
+class CorrectionRequest(StrictModel):
+    """Researcher command to correct one run's outputs (K-1).
+
+    ``user_instruction`` is accepted only for ``scientific`` corrections;
+    ``transformation_codes`` only for ``normalize`` corrections.
+    """
+
+    correction_type: Literal["revalidate", "normalize", "packaging", "scientific"]
+    permitted_output_scope: list[NonEmptyString] = Field(min_length=1)
+    action_descriptor_id: NonEmptyString
+    user_instruction: str | None = None
+    transformation_codes: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def correction_fields_match_type(self) -> "CorrectionRequest":
+        if self.user_instruction is not None and self.correction_type != "scientific":
+            raise ValueError("user_instruction is accepted only for scientific corrections")
+        if self.transformation_codes and self.correction_type != "normalize":
+            raise ValueError(
+                "transformation_codes are accepted only for normalize corrections"
+            )
+        return self
+
+
+class CorrectionPreviewRequest(StrictModel):
+    """Read-only preview of a normalize correction's transformations (K-1b)."""
+
+    transformation_codes: list[str] = Field(default_factory=list)
+
+
 # --------------------------------------------------------------------------- #
 # Block 2: Role-definition configuration service models
 # --------------------------------------------------------------------------- #

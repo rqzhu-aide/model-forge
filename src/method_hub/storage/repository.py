@@ -843,6 +843,22 @@ class HubRepository:
                 (closure_id,),
             ).fetchone()
 
+    def list_role_closures_for_run(self, run_id: str) -> list[sqlite3.Row]:
+        run_id = _text(run_id, "run_id")
+        with self._database.connect() as connection:
+            return list(
+                connection.execute(
+                    """
+                    SELECT c.* FROM role_execution_closures c
+                    JOIN role_execution_intents i
+                        ON i.execution_id = c.execution_id
+                    WHERE i.run_id = ?
+                    ORDER BY c.closed_at ASC
+                    """,
+                    (run_id,),
+                ).fetchall()
+            )
+
     def get_or_create_execution(
         self,
         execution_id: str,

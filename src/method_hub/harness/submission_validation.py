@@ -46,7 +46,10 @@ def validate_submission(
     """Recheck exact bytes, provenance, schemas, and method identity."""
 
     findings: list[ValidationFinding] = []
-    row = repository.get_submission(run_id)
+    # Correction attempts supersede the base submission (HV-5 revision A1).
+    row = repository.get_latest_submission_attempt(run_id)
+    if row is None:
+        row = repository.get_submission(run_id)
     if row is None:
         return SubmissionValidationResult(
             {},

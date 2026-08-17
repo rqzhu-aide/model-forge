@@ -328,6 +328,9 @@ Every rejected run, cancellation, lifecycle, or withdrawal command returns a `Co
 | `DEPENDENCY_CLOSURE_INCOMPLETE` | `dependency` | 422 | yes | `MH-59` |
 | `NO_STATE_CHANGE` | `transition` | 409 | no | `MH-47` |
 | `PUBLICATION_CONFLICT` | `concurrency` | 409 | yes | `MH-56` |
+| `CORRECTION_NOT_APPLICABLE` | `transition` | 409 | no | `MH-73` |
+| `CORRECTION_SCOPE_INVALID` | `schema` | 400 | yes | `MH-74` |
+| `CORRECTION_EXHAUSTED` | `transition` | 409 | no | `MH-75` |
 
 The `CommandError` schema enforces this mapping. A code cannot be paired with a different category, HTTP status, retryability value, or rule.
 

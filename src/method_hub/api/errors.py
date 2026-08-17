@@ -36,6 +36,9 @@ CommandErrorCode = Literal[
     "SUPERVISED_RUN_INVALID",
     "SUPERVISED_RUN_LOCKED",
     "SUPERVISED_RUN_PREFLIGHT_FAILED",
+    "CORRECTION_NOT_APPLICABLE",
+    "CORRECTION_SCOPE_INVALID",
+    "CORRECTION_EXHAUSTED",
 ]
 ErrorCategory = Literal[
     "authentication",
@@ -78,6 +81,9 @@ ERROR_RULES: dict[CommandErrorCode, ErrorRule] = {
     "SUPERVISED_RUN_INVALID": ErrorRule("schema", 400, True, "MH-60"),
     "SUPERVISED_RUN_LOCKED": ErrorRule("concurrency", 409, False, "MH-61"),
     "SUPERVISED_RUN_PREFLIGHT_FAILED": ErrorRule("dependency", 409, True, "MH-62"),
+    "CORRECTION_NOT_APPLICABLE": ErrorRule("transition", 409, False, "MH-73"),
+    "CORRECTION_SCOPE_INVALID": ErrorRule("schema", 400, True, "MH-74"),
+    "CORRECTION_EXHAUSTED": ErrorRule("transition", 409, False, "MH-75"),
 }
 
 

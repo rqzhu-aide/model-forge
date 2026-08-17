@@ -1350,6 +1350,9 @@ def validate_command_attempt_audit(schemas, registry) -> list[str]:
         "DEPENDENCY_CLOSURE_INCOMPLETE": ("dependency", 422, True, "MH-59"),
         "NO_STATE_CHANGE": ("transition", 409, False, "MH-47"),
         "PUBLICATION_CONFLICT": ("concurrency", 409, True, "MH-56"),
+        "CORRECTION_NOT_APPLICABLE": ("transition", 409, False, "MH-73"),
+        "CORRECTION_SCOPE_INVALID": ("schema", 400, True, "MH-74"),
+        "CORRECTION_EXHAUSTED": ("transition", 409, False, "MH-75"),
     }
     error_validator = Draft202012Validator(
         schemas["command-error.schema.json"],
@@ -2939,7 +2942,7 @@ def validate_traceability_registry(schemas, registry, complete: dict) -> list[st
     ]
     expected_invariants = [f"INV-{number:03d}" for number in range(1, 23)]
     expected_tests = [f"IT-{number:03d}" for number in range(1, 23)]
-    expected_requirements = {f"MH-{number:02d}" for number in range(1, 73)}
+    expected_requirements = {f"MH-{number:02d}" for number in range(1, 76)}
     if principle_ids != expected_invariants:
         errors.append(
             f"principle invariant IDs are {principle_ids}, expected {expected_invariants}"
@@ -2950,7 +2953,7 @@ def validate_traceability_registry(schemas, registry, complete: dict) -> list[st
     if len(requirement_ids) != len(set(requirement_ids)) or set(
         requirement_ids
     ) != expected_requirements:
-        errors.append("narrative requirement IDs must cover MH-01 through MH-72 exactly once")
+        errors.append("narrative requirement IDs must cover MH-01 through MH-75 exactly once")
     if milestone_numbers != list(range(10)):
         errors.append("roadmap milestones must cover M0 through M9 exactly once and in order")
 

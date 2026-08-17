@@ -56,6 +56,8 @@ class RunExecutionContext:
     submission_from_status: str = "running"
     submission_to_status: str = "submitted"
     identity_suffix: str = ""
+    correction_command_id: str = ""
+    correction_type: str = ""
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "run_id", _stable_id(self.run_id, "run_id"))
@@ -79,6 +81,10 @@ class RunExecutionContext:
             raise TypeError("researcher_instruction must be text.")
         if type(self.identity_suffix) is not str:
             raise TypeError("identity_suffix must be text.")
+        if type(self.correction_command_id) is not str:
+            raise TypeError("correction_command_id must be text.")
+        if type(self.correction_type) is not str:
+            raise TypeError("correction_type must be text.")
         if str(self.manifest_sha256) != self.recipe.sha256:
             raise ValueError("manifest_sha256 must equal the prepared recipe digest.")
 

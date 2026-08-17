@@ -18,7 +18,9 @@ a deep copy of the source payload with only the identity/status fields
 overridden (schema shape stays exact); its digest is recomputed.  The
 source (failed) closure is never mutated.
 
-No run-status transitions and no submission work — those land in K-1a5.
+K-1a5 Lane A adds ``seal_correction_submission``: the synchronous
+submission re-entry for a run in CORRECTING, delegating to the
+attempt-aware ``SubmissionAssembler`` correction branch.
 """
 
 from __future__ import annotations
@@ -31,8 +33,10 @@ from pathlib import Path
 from typing import Any
 
 from ..digests.jcs import canonicalize
+from ..domain import StableId
 from ..domain.runs import isoformat_utc, utc_now
 from ..domain.validation import ValidationFinding, ValidationReport, registry_version
+from ..executors import RoleExecutionStatus
 from ..harness.execution_records import (
     closure_artifact_id,
     correction_role_identity,
@@ -40,7 +44,10 @@ from ..harness.execution_records import (
 )
 from ..harness.outputs import build_output_plan, validate_role_outputs
 from ..harness.preparation import PreparedRunRecipe
+from ..harness.stage_execution import HarnessExecutionServices
+from ..harness.submissions import SubmissionAssemblyError
 from ..json_io import loads_json
+from ..orchestration import StageOutcome, StageStatus, SubmissionStatus
 from ..schemas import SchemaCatalog
 from ..specification import SpecificationPackage
 from ..storage.artifacts import ArtifactStore
@@ -312,4 +319,68 @@ def record_revalidation_closure(
     return c_closure_id
 
 
-__all__ = ["record_revalidation_closure", "revalidate_closure_outputs"]
+def seal_correction_submission(
+    *,
+    services: HarnessExecutionServices,
+    correction_command_id: str,
+    correction_type: str,
+) -> str:
+    """Seal the corrected submission for a run in CORRECTING (K-1a5 Lane A).
+
+    Every stage role must already hold a SUCCEEDED closure through the
+    family-aware ``RoleLifecycleService.load_existing`` (base closures plus
+    any correction-family closures); a gap raises ``SubmissionAssemblyError``
+    before a single write happens.  The assembler then re-enters the
+    submission gate: a run with no base submission seals one (FAILED-run
+    re-entry), while a run with a base submission appends a
+    ``run_submission_attempts`` row and CASes correcting -> submitted
+    (REJECTED-run re-entry).
+
+    The caller builds ``services`` with a context whose
+    ``submission_from_status`` is ``"correcting"`` and whose correction
+    fields are set; this function stays harness-pure and synchronous.
+    Returns the sealed submission id.
+    """
+    if services.context.submission_from_status != "correcting":
+        raise ValueError(
+            "seal_correction_submission requires a correcting execution context."
+        )
+    outcomes: list[StageOutcome] = []
+    for stage in services.context.plan.stages:
+        closure_ids: list[StableId] = []
+        for step in stage.role_steps:
+            closure = services.roles.load_existing(stage=stage, role=step.role)
+            if (
+                closure is None
+                or closure.status is not RoleExecutionStatus.SUCCEEDED
+            ):
+                raise SubmissionAssemblyError(
+                    f"Role {step.role!r} in {stage.stage_id!r} lacks a "
+                    "successful closure."
+                )
+            assert closure.closure_id is not None
+            closure_ids.append(StableId(closure.closure_id))
+        outcomes.append(
+            StageOutcome(
+                sequence=stage.sequence,
+                stage_id=StableId(stage.stage_id),
+                status=StageStatus.SUCCEEDED,
+                invocation_closure_ids=tuple(closure_ids),
+                reconciled=True,
+            )
+        )
+    result = services.submissions.submit_or_reconcile(
+        stage_outcomes=tuple(outcomes)
+    )
+    if result.status is not SubmissionStatus.SUBMITTED or result.reference is None:
+        raise SubmissionAssemblyError(
+            f"Correction submission did not seal: {result.status.value}."
+        )
+    return str(result.reference.submission_id)
+
+
+__all__ = [
+    "record_revalidation_closure",
+    "revalidate_closure_outputs",
+    "seal_correction_submission",
+]

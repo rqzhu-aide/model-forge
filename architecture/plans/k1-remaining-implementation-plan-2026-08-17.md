@@ -131,7 +131,6 @@ policy entry), `architecture/09-control-commands.md` (catalog row),
   the command path and stays valid for recovery testing.
 
 ## Deferred (needs Tez, not code)
-
 - **K-2** (two-lane output policy divergence): coder recommendation ,
   DOCUMENT the deliberate difference: the formal lane repairs with
   disclosure because it is the production path; the supervised WP-E1
@@ -150,3 +149,72 @@ policy entry), `architecture/09-control-commands.md` (catalog row),
   rename map from `_deep_sanitize_ids`; schema-derived sanitizations
   and reference rewrites label as `id_sanitization` (no case
   heuristic); regression tests added.
+
+## P3 design pins (added 2026-08-17, verified against code)
+
+Service-side facts (all probed in the tree):
+- `MethodHubService` gains an additive kwarg `run_coordinator` (wired in
+  bootstrap.py:104-117). When None (executor disabled), correction
+  commands refuse with CORRECTION_NOT_APPLICABLE (Lane A needs the
+  coordinator's harness construction; Lane B needs its executor).
+- `RunCoordinator` gains a public method
+  `correction_services(run_id, *, correction_command_id, correction_type)`
+  that reuses `_execution_components` and returns a new
+  `HarnessExecutionServices` built on
+  `dataclasses.replace(context, submission_from_status="correcting",
+  correction_command_id=..., correction_type=...)`.
+- Command family: add `"request_output_correction"` to the CommandFamily
+  Literal (api/ports.py:40).
+- Router: `POST /projects/{project_id}/runs/{run_id}/corrections`,
+  response_model=RunDetail, `_capture_and_parse(..., CorrectionRequest,
+  command_family="request_output_correction", project_id=...)`,
+  openapi_extra `_body_contract(CorrectionRequest)` (cancel_run pattern).
+- run_views: emit a `revalidate_run` ActionDescriptor when
+  (state in failed/rejected AND projection.recovery_summary ==
+  "needs_output_correction") OR state == "correction_authorized";
+  descriptor_id = `_action_id(run_id, "correction:revalidate",
+  str(head_sequence))`; also populate `available_recovery_controls`
+  with ["revalidate"] in that case (currently hardcoded []).
+  normalize/packaging/scientific descriptors land with P4/P5.
+
+`request_output_correction` flow (P3 implements revalidate only;
+other types refuse CORRECTION_NOT_APPLICABLE "not yet available"):
+1. get_run detail; attach raw request; idempotent replay via
+   get_command_by_idempotency (payload run_id mismatch ->
+   IDEMPOTENCY_KEY_REUSED; replay returns the current detail).
+2. Descriptor head check against detail.actions (CONTROL_HEAD_STALE).
+3. State gate: status in failed/rejected/correction_authorized, else
+   CORRECTION_NOT_APPLICABLE. Correctable gate: the run payload's
+   closure_findings must include at least one correctable finding,
+   else CORRECTION_NOT_APPLICABLE.
+4. Failed closure: latest row from `list_role_closures_for_run` whose
+   payload status is "failed"; none -> CORRECTION_NOT_APPLICABLE.
+5. Scope gate: command.permitted_output_scope must be a subset of the
+   closure's declared output ids, else CORRECTION_SCOPE_INVALID.
+6. Build the command document per output-correction-command.schema.json
+   (command_id = correction._derive_command_id(run_id, type,
+   str(head_sequence)); validation_attempt_id = latest attempt id or
+   f"attempt.{run_id}.0"; expected_lifecycle_head = str(head_sequence));
+   validate via specification.schemas.require_valid; seal via
+   repository.seal_command (cancel-run pattern).
+7. If status is failed/rejected: CAS to correction_authorized with a
+   run.correction_authorized event. (Already-authorized runs skip this.)
+8. Lane A (synchronous): `revalidate_closure_outputs(...)`.
+   - PASS: `record_revalidation_closure(..., invocation_sha256=<sealed
+     command digest>)`; CAS correction_authorized -> correcting with a
+     run.correcting event; `seal_correction_submission(services=
+     coordinator.correction_services(...), ...)`; hand off with
+     `asyncio.create_task(self.run_launcher(run_id))` (the coordinator
+     loop picks up submitted -> validating -> promoting -> published).
+   - FAIL: stay in correction_authorized (D1; the state table has no
+     correcting -> authorized edge, so the transition to correcting
+     happens only after a known pass). The recorded attempt row is the
+     failure evidence.
+9. Return the updated RunDetail.
+
+Test pin: a revalidate-PASS fixture is a FAILED run whose sealed output
+bytes actually CONFORM (stale/transient failure); revalidate re-runs
+validation on the sealed bytes ("would this output pass today", D2) and
+passes regardless of the old closure status. See
+tests/test_correction_execution.py:263 for the passing-revalidate
+pattern.

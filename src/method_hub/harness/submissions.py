@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from typing import Any
 
 from ..digests.jcs import canonicalize
@@ -52,7 +53,13 @@ class SubmissionAssembler:
         self, *, stage_outcomes: tuple[StageOutcome, ...]
     ) -> SubmissionOutcome:
         prior = self.repository.get_submission(str(self.context.run_id))
-        if prior is not None:
+        # A base submission normally short-circuits; a correction re-entry
+        # (submission_from_status == "correcting") assembles a corrected
+        # document and seals it as the next submission attempt instead.
+        if (
+            prior is not None
+            and self.context.submission_from_status != "correcting"
+        ):
             return self._prior_outcome(prior)
         if self.repository.cancellation_requested(str(self.context.run_id)):
             return SubmissionOutcome(SubmissionStatus.CANCELLED)
@@ -77,6 +84,8 @@ class SubmissionAssembler:
             raise SubmissionAssemblyError(
                 f"Run status {run['status']!r} cannot enter the submission gate."
             )
+        if prior is not None:
+            return self._seal_correction_attempt(run=run, document=document)
         event_payload = {
             "event_type": "run_submitted",
             "run_id": str(self.context.run_id),
@@ -128,6 +137,78 @@ class SubmissionAssembler:
             return self._prior_outcome(prior)
         raise SubmissionAssemblyError(
             f"Submission gate rejected the run: {result.reason}."
+        )
+
+    def _seal_correction_attempt(
+        self, *, run: Any, document: dict[str, Any]
+    ) -> SubmissionOutcome:
+        """Seal a corrected submission over an existing base row (K-1a5).
+
+        The base ``run_submissions`` row is immutable, so the corrected
+        document is appended to ``run_submission_attempts`` and the run is
+        CASed correcting -> submitted.  The attempt insert and the CAS are
+        two writes; a crash between them leaves an orphaned attempt row,
+        which is harmless: the table is immutable and the retry seals the
+        next ordinal (latest-ordinal wins at read time).
+        """
+        run_id = str(self.context.run_id)
+        attempt_ordinal = self.repository.count_submission_attempts(run_id) + 1
+        attempt_id = f"submission-attempt.{run_id}.{attempt_ordinal}"
+        self.repository.insert_submission_attempt(
+            run_id,
+            attempt_id,
+            str(document["submission_id"]),
+            attempt_ordinal,
+            json.dumps(document, sort_keys=True),
+            str(document["submission_sha256"]),
+            correction_command_id=self.context.correction_command_id or None,
+            correction_type=self.context.correction_type or None,
+        )
+        event_payload = {
+            "event_type": "run_submitted",
+            "run_id": run_id,
+            "submission_id": document["submission_id"],
+            "submission_sha256": document["submission_sha256"],
+            "from_status": self.context.submission_from_status,
+            "to_status": self.context.submission_to_status,
+            "submission_attempt_id": attempt_id,
+        }
+        event_sha256 = document_sha256(event_payload)
+        # The attempt ordinal joins the event id derivation so the correction
+        # event never collides with the base submission's run_submitted event.
+        event_id = deterministic_id(
+            "event",
+            run_id,
+            str(document["submission_id"]),
+            str(document["submission_sha256"]),
+            str(attempt_ordinal),
+        )
+        run_payload = loads_json(run["payload_json"], source=f"run {run_id}")
+        if type(run_payload) is not dict:
+            raise SubmissionAssemblyError("Run payload must remain a JSON object.")
+        run_payload["submission_id"] = document["submission_id"]
+        run_payload["submission_sha256"] = document["submission_sha256"]
+        run_payload["current_stage_label"] = None
+        result = self.repository.compare_and_swap_run(
+            run_id,
+            expected_status=self.context.submission_from_status,
+            expected_sequence=int(run["head_sequence"]),
+            new_status=self.context.submission_to_status,
+            payload=run_payload,
+            event_id=event_id,
+            event_sha256=event_sha256,
+            event_payload=event_payload,
+        )
+        if result.applied:
+            return SubmissionOutcome(
+                SubmissionStatus.SUBMITTED,
+                SubmissionReference(
+                    StableId(str(document["submission_id"])),
+                    Sha256Digest(str(document["submission_sha256"])),
+                ),
+            )
+        raise SubmissionAssemblyError(
+            f"Correction submission gate rejected the run: {result.reason}."
         )
 
     def _require_successful_stage_chain(

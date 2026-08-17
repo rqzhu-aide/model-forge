@@ -836,6 +836,13 @@ class HubRepository:
         assert row is not None
         return int(row["n"])
 
+    def get_role_closure(self, closure_id: str) -> sqlite3.Row | None:
+        with self._database.connect() as connection:
+            return connection.execute(
+                "SELECT * FROM role_execution_closures WHERE closure_id = ?",
+                (closure_id,),
+            ).fetchone()
+
     def get_or_create_execution(
         self,
         execution_id: str,

@@ -91,22 +91,69 @@ def document_sha256(document: Mapping[str, Any]) -> str:
     return hashlib.sha256(canonicalize(dict(document))).hexdigest()
 
 
-def role_identity(
-    context: RunExecutionContext, stage: ResolvedStage, role: str
-) -> tuple[str, str, str]:
+def _identity_basis(
+    run_id: Any,
+    manifest_sha256: Any,
+    stage: ResolvedStage,
+    role: str,
+    identity_suffix: str = "",
+) -> tuple[Any, ...]:
     basis = (
-        str(context.run_id),
-        str(context.manifest_sha256),
+        str(run_id),
+        str(manifest_sha256),
         stage.sequence,
         stage.stage_id,
         role,
     )
-    if context.identity_suffix:
-        basis = (*basis, context.identity_suffix)
+    if identity_suffix:
+        basis = (*basis, identity_suffix)
+    return basis
+
+
+def _identity_ids(basis: tuple[Any, ...]) -> tuple[str, str, str]:
     return (
         deterministic_id("invocation", *basis),
         deterministic_id("execution", *basis),
         deterministic_id("closure", *basis),
+    )
+
+
+def role_identity(
+    context: RunExecutionContext, stage: ResolvedStage, role: str
+) -> tuple[str, str, str]:
+    return _identity_ids(
+        _identity_basis(
+            context.run_id,
+            context.manifest_sha256,
+            stage,
+            role,
+            context.identity_suffix,
+        )
+    )
+
+
+def correction_role_identity(
+    run_id: str,
+    manifest_sha256: str,
+    stage: ResolvedStage,
+    role: str,
+    correction_command_id: str,
+) -> tuple[str, str, str]:
+    """Identity family for a correction re-invocation of one stage role.
+
+    Provably agrees with ``role_identity`` for a context whose
+    ``identity_suffix`` is ``f"correction.{correction_command_id}"``: both
+    funnels share ``_identity_basis``/``_identity_ids`` and the suffix is
+    appended last.
+    """
+    return _identity_ids(
+        _identity_basis(
+            run_id,
+            manifest_sha256,
+            stage,
+            role,
+            f"correction.{correction_command_id}",
+        )
     )
 
 
@@ -174,6 +221,7 @@ __all__ = [
     "RoleLifecycleError",
     "SealedRoleOutput",
     "closure_artifact_id",
+    "correction_role_identity",
     "deterministic_id",
     "document_sha256",
     "immutable_write",

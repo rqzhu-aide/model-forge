@@ -1,4 +1,4 @@
-"""K-1a3: revalidation core for the correction command path.
+"""K-1a3/K-1a4: revalidation core and closure write for the correction path.
 
 The fixture mirrors tests/test_role_closure_integrity.py's ``_Fixture``
 stack (repository / artifact store / recipe / fake executor), but resolves a
@@ -7,21 +7,37 @@ REAL P1 plan through the real ``SpecificationPackage`` so that
 recipe, and revalidates against the REAL schema catalog.  Closures are
 sealed under a permissive catalog so both schema-valid and schema-invalid
 output bytes can be sealed as SUCCEEDED.
+
+K-1a4 tests cover ``record_revalidation_closure``: the correction-family
+intent/ack/closure write after a passed revalidation, its verification
+through ``_load_closure`` (including the intent-row binding), idempotent
+replay, and immutability of the source closure.
 """
 
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import hashlib
 import json
 from pathlib import Path
 
 import pytest
 
-from method_hub.application.correction_execution import revalidate_closure_outputs
+from method_hub.application.correction_execution import (
+    record_revalidation_closure,
+    revalidate_closure_outputs,
+)
 from method_hub.digests.jcs import canonicalize
-from method_hub.executors import DeterministicFakeExecutor
+from method_hub.executors import DeterministicFakeExecutor, RoleExecutionStatus
 from method_hub.harness.execution_context import RunExecutionContext
+from method_hub.harness.execution_records import (
+    closure_artifact_id,
+    correction_role_identity,
+    document_sha256,
+    output_artifact_id,
+    role_identity,
+)
 from method_hub.harness.outputs import build_output_plan
 from method_hub.harness.preparation import PreparedRunRecipe
 from method_hub.harness.stage_execution import HarnessExecutionServices
@@ -49,7 +65,7 @@ def _digest(character: str) -> str:
 
 
 class _Fixture:
-    def __init__(self, tmp_path: Path, executor) -> None:
+    def __init__(self, tmp_path: Path, executor, repository_cls=HubRepository) -> None:
         self.specification = SpecificationPackage.load(ARCHITECTURE)
         self.identity = self.specification.phases.identity("P1")
         self.choice_values = {
@@ -67,7 +83,7 @@ class _Fixture:
         self.output_plan = build_output_plan(self.plan)
         self.workspace = WorkspacePaths(tmp_path / "workspace", create=True)
         self.artifacts = ArtifactStore(self.workspace)
-        self.repository = HubRepository(self.workspace.root / "hub.sqlite3")
+        self.repository = repository_cls(self.workspace.root / "hub.sqlite3")
         self.repository.initialize()
         self.repository.create_project(
             "project.revalidate_test", {"name": "Revalidation test"}
@@ -334,3 +350,294 @@ def test_revalidate_attempts_chain_by_ordinal(tmp_path: Path) -> None:
     latest = fixture.repository.get_latest_validation_attempt("run.revalidate_test")
     assert latest is not None
     assert latest["attempt_id"] == second.attempt.attempt_id
+
+
+# --------------------------------------------------------------------------- #
+# K-1a4: correction-family closure write for passed revalidations
+# --------------------------------------------------------------------------- #
+
+
+def _seal_failed_base_closure(fixture: _Fixture, role: str) -> str:
+    """Hand-write a FAILED base closure that still binds its sealed outputs.
+
+    No executor path produces this shape for P1 (every declared output is
+    required, so a failed validation seals nothing), but a run can fail
+    after its outputs were sealed; the correction path must cope with that
+    history.  Mirrors the writes in ``RoleLifecycleService._validate_and_close``.
+    """
+    stage = fixture.stage
+    spec = fixture.output_plan.for_stage_role(stage.stage_id, role)[0]
+    payload = (GOLDEN / "handoff.example.json").read_bytes()
+    stored = fixture.artifacts.put_bytes(payload)
+    artifact_id = output_artifact_id(fixture.context, spec, str(stored.sha256))
+    fixture.repository.record_artifact(
+        artifact_id,
+        "project.revalidate_test",
+        str(stored.sha256),
+        stored.size,
+        "application/json",
+        f"artifact://sha256/{stored.sha256}",
+        {
+            "kind": "validated_role_output",
+            "run_id": "run.revalidate_test",
+            "contract_output_id": spec.contract_output_id,
+            "output_id": spec.output_id,
+            "storage_relative_path": stored.relative_path,
+        },
+    )
+    invocation_id, execution_id, closure_id = role_identity(
+        fixture.context, stage, role
+    )
+    invocation_sha256 = _digest("f")
+    fixture.repository.get_or_create_execution(
+        execution_id,
+        invocation_id,
+        "run.revalidate_test",
+        invocation_sha256,
+        {"kind": "role_invocation", "role": role},
+    )
+    fixture.repository.acknowledge_execution(
+        execution_id,
+        f"external.base.{role}",
+        {"kind": "role_acknowledgement", "role": role},
+    )
+    document = {
+        "format": "method-hub.role-invocation-closure",
+        "format_version": "1.0.0",
+        "conformance_state": "vertical_slice",
+        "closure_id": closure_id,
+        "execution_id": execution_id,
+        "invocation_id": invocation_id,
+        "invocation_sha256": invocation_sha256,
+        "run_id": "run.revalidate_test",
+        "project_id": "project.revalidate_test",
+        "phase": fixture.plan.identity.phase_id,
+        "mode": fixture.plan.mode_id,
+        "sequence": stage.sequence,
+        "stage_id": stage.stage_id,
+        "role": role,
+        "status": "failed",
+        "external_execution_id": f"external.base.{role}",
+        "exit_code": 1,
+        "summary": "Base invocation failed after sealing its outputs.",
+        "diagnostic_text": None,
+        "failure_code": "output.structural_validation_failed",
+        "outputs": [
+            {
+                "contract_output_id": spec.contract_output_id,
+                "output_id": spec.output_id,
+                "artifact_id": artifact_id,
+                "sha256": str(stored.sha256),
+                "size": stored.size,
+                "media_type": "application/json",
+                "storage_relative_path": stored.relative_path,
+            }
+        ],
+        "findings": [],
+        "output_transformations": [],
+        "raw_output_sha256": None,
+        "closed_at": "2026-08-16T00:00:00Z",
+    }
+    closure_sha256 = document_sha256(document)
+    document["closure_sha256"] = closure_sha256
+    closure_bytes = canonicalize(document)
+    stored_closure = fixture.artifacts.put_bytes(
+        closure_bytes, expected_sha256=hashlib.sha256(closure_bytes).hexdigest()
+    )
+    fixture.repository.record_artifact(
+        closure_artifact_id(closure_id),
+        "project.revalidate_test",
+        str(stored_closure.sha256),
+        stored_closure.size,
+        "application/json",
+        f"artifact://sha256/{stored_closure.sha256}",
+        {
+            "kind": "role_invocation_closure",
+            "run_id": "run.revalidate_test",
+            "closure_id": closure_id,
+            "storage_relative_path": stored_closure.relative_path,
+        },
+    )
+    fixture.repository.close_execution(
+        execution_id, closure_id, closure_sha256, document
+    )
+    return closure_id
+
+
+def _record_passed_attempt(fixture: _Fixture, correction_command_id: str) -> None:
+    fixture.repository.record_validation_attempt(
+        "attempt.1",
+        "run.revalidate_test",
+        1,
+        "policy.v1",
+        '{"passed": true}',
+        _digest("e"),
+        correction_type="revalidate",
+        correction_command_id=correction_command_id,
+    )
+
+
+def _record_closure(fixture: _Fixture, role_closure_id: str, command_id: str) -> str:
+    return record_revalidation_closure(
+        repository=fixture.repository,
+        artifacts=fixture.artifacts,
+        specification=fixture.specification,
+        run_id="run.revalidate_test",
+        role_closure_id=role_closure_id,
+        correction_command_id=command_id,
+        invocation_sha256=_digest("9"),
+    )
+
+
+def test_correction_closure_joins_load_existing(tmp_path: Path) -> None:
+    fixture = _Fixture(tmp_path, DeterministicFakeExecutor(_valid_output))
+    base_closure_id = _seal_failed_base_closure(fixture, "theorist")
+    _record_passed_attempt(fixture, "cmd_1")
+
+    # The helper provably agrees with role_identity under the suffix context.
+    c_inv, c_exec, c_clo = correction_role_identity(
+        "run.revalidate_test",
+        fixture.recipe.sha256,
+        fixture.stage,
+        "theorist",
+        "cmd_1",
+    )
+    corrected = dataclasses.replace(
+        fixture.context, identity_suffix="correction.cmd_1"
+    )
+    assert (c_inv, c_exec, c_clo) == role_identity(corrected, fixture.stage, "theorist")
+
+    written = _record_closure(fixture, base_closure_id, "cmd_1")
+    assert written == c_clo
+
+    loaded = fixture.services.roles.load_existing(
+        stage=fixture.stage, role="theorist"
+    )
+    assert loaded is not None
+    assert loaded.status is RoleExecutionStatus.SUCCEEDED
+    assert loaded.closure_id == c_clo
+    assert loaded.execution_id == c_exec
+    assert loaded.invocation_sha256 == _digest("9")
+
+
+def test_correction_closure_passes_full_load_verification(tmp_path: Path) -> None:
+    fixture = _Fixture(tmp_path, DeterministicFakeExecutor(_valid_output))
+    fixture.execute()
+    source_closure_id = fixture.closure_id_for("theorist")
+    _record_passed_attempt(fixture, "cmd_1")
+
+    c_inv, c_exec, c_clo = correction_role_identity(
+        "run.revalidate_test",
+        fixture.recipe.sha256,
+        fixture.stage,
+        "theorist",
+        "cmd_1",
+    )
+    written = _record_closure(fixture, source_closure_id, "cmd_1")
+    assert written == c_clo
+
+    # Full _load_closure verification: expected fields, digest, output and
+    # closure artifact binding, and the intent-row binding all pass.
+    loaded = fixture.services.roles._load_closure(
+        stage=fixture.stage,
+        role="theorist",
+        invocation_id=c_inv,
+        execution_id=c_exec,
+        closure_id=c_clo,
+    )
+    assert loaded is not None
+    assert loaded.status is RoleExecutionStatus.SUCCEEDED
+    assert loaded.invocation_sha256 == _digest("9")
+
+    intent = fixture.repository.get_execution_for_invocation(c_inv)
+    assert intent is not None
+    assert intent["execution_id"] == c_exec
+    assert intent["invocation_sha256"] == _digest("9")
+    row = fixture.repository.get_role_closure(c_clo)
+    assert row is not None
+    document = loads_json(row["payload_json"], source="correction closure")
+    assert document["invocation_sha256"] == intent["invocation_sha256"]
+    unhashed = dict(document)
+    closure_sha256 = unhashed.pop("closure_sha256")
+    assert document_sha256(unhashed) == closure_sha256 == row["closure_sha256"]
+    assert document["external_execution_id"] == "correction:cmd_1"
+    assert document["failure_code"] is None
+    assert document["exit_code"] == 0
+
+
+class _RecordingRepository(HubRepository):
+    """Spy on execution-intent writes to observe replay RecordResults."""
+
+    def __init__(self, path) -> None:
+        super().__init__(path)
+        self.intent_results = []
+
+    def get_or_create_execution(self, *args, **kwargs):
+        result = super().get_or_create_execution(*args, **kwargs)
+        self.intent_results.append(result)
+        return result
+
+
+def test_correction_closure_write_is_idempotent(tmp_path: Path) -> None:
+    fixture = _Fixture(
+        tmp_path, DeterministicFakeExecutor(_valid_output), _RecordingRepository
+    )
+    fixture.execute()
+    source_closure_id = fixture.closure_id_for("theorist")
+    _record_passed_attempt(fixture, "cmd_1")
+    _, c_exec, _ = correction_role_identity(
+        "run.revalidate_test",
+        fixture.recipe.sha256,
+        fixture.stage,
+        "theorist",
+        "cmd_1",
+    )
+
+    first = _record_closure(fixture, source_closure_id, "cmd_1")
+    row_after_first = fixture.repository.get_role_closure(first)
+    assert row_after_first is not None
+    payload_after_first = row_after_first["payload_json"]
+    second = _record_closure(fixture, source_closure_id, "cmd_1")
+
+    assert second == first
+    # The replay reached the repository and was recognized as an exact replay.
+    repository = fixture.repository
+    assert isinstance(repository, _RecordingRepository)
+    # The last two intent writes are the two record_revalidation_closure calls.
+    assert [result.created for result in repository.intent_results[-2:]] == [
+        True,
+        False,
+    ]
+    # No duplicate rows anywhere in the intent/ack/closure chain.
+    with repository.database.connect() as connection:
+        for table in (
+            "role_execution_intents",
+            "role_execution_acknowledgements",
+            "role_execution_closures",
+        ):
+            count = connection.execute(
+                f"SELECT COUNT(*) FROM {table} WHERE execution_id = ?", (c_exec,)
+            ).fetchone()[0]
+            assert count == 1, table
+    # The sealed closure bytes are untouched by the replay (closed_at stable).
+    row_after_second = repository.get_role_closure(first)
+    assert row_after_second is not None
+    assert row_after_second["payload_json"] == payload_after_first
+
+
+def test_correction_closure_preserves_source_closure(tmp_path: Path) -> None:
+    fixture = _Fixture(tmp_path, DeterministicFakeExecutor(_valid_output))
+    source_closure_id = _seal_failed_base_closure(fixture, "theorist")
+    _record_passed_attempt(fixture, "cmd_1")
+    before = fixture.repository.get_role_closure(source_closure_id)
+    assert before is not None
+    before_payload = before["payload_json"]
+    before_sha256 = before["closure_sha256"]
+
+    written = _record_closure(fixture, source_closure_id, "cmd_1")
+    assert written != source_closure_id
+
+    after = fixture.repository.get_role_closure(source_closure_id)
+    assert after is not None
+    assert after["payload_json"] == before_payload
+    assert after["closure_sha256"] == before_sha256

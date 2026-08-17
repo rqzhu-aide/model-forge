@@ -101,6 +101,8 @@ def role_identity(
         stage.stage_id,
         role,
     )
+    if context.identity_suffix:
+        basis = (*basis, context.identity_suffix)
     return (
         deterministic_id("invocation", *basis),
         deterministic_id("execution", *basis),

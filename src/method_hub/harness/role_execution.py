@@ -1107,13 +1107,41 @@ class RoleLifecycleService:
         invocation_id, execution_id, closure_id = _role_identity(
             self.context, stage, role
         )
-        return self._load_closure(
+        base = self._load_closure(
             stage=stage,
             role=role,
             invocation_id=invocation_id,
             execution_id=execution_id,
             closure_id=closure_id,
         )
+        if base is not None and base.status is RoleExecutionStatus.SUCCEEDED:
+            return base
+        # The base closure is missing or failed: walk the run's correction
+        # attempts newest-first and return the first succeeded closure from a
+        # correction identity family (identity_suffix "correction.<command_id>").
+        attempts = self.repository.list_validation_attempts(str(self.context.run_id))
+        for attempt in reversed(attempts):
+            command_id = attempt["correction_command_id"]
+            if not command_id:
+                continue
+            corrected = replace(
+                self.context, identity_suffix=f"correction.{command_id}"
+            )
+            c_invocation_id, c_execution_id, c_closure_id = _role_identity(
+                corrected, stage, role
+            )
+            closure = self._load_closure(
+                stage=stage,
+                role=role,
+                invocation_id=c_invocation_id,
+                execution_id=c_execution_id,
+                closure_id=c_closure_id,
+            )
+            if closure is not None and closure.status is RoleExecutionStatus.SUCCEEDED:
+                return closure
+        # Nothing succeeded anywhere: preserve the reconciliation behavior for
+        # failed/missing states by returning the base closure as-is.
+        return base
 
     async def settle_cancellation(
         self, *, stage: ResolvedStage, role: str

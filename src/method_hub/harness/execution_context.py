@@ -55,6 +55,7 @@ class RunExecutionContext:
     researcher_method_spec: str = ""
     submission_from_status: str = "running"
     submission_to_status: str = "submitted"
+    identity_suffix: str = ""
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "run_id", _stable_id(self.run_id, "run_id"))
@@ -76,6 +77,8 @@ class RunExecutionContext:
             object.__setattr__(self, "mode_instruction", self.phase_instruction)
         if type(self.researcher_instruction) is not str:
             raise TypeError("researcher_instruction must be text.")
+        if type(self.identity_suffix) is not str:
+            raise TypeError("identity_suffix must be text.")
         if str(self.manifest_sha256) != self.recipe.sha256:
             raise ValueError("manifest_sha256 must equal the prepared recipe digest.")
 

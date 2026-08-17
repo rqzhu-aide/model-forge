@@ -85,8 +85,9 @@ _CANCEL_CONFIRM_INTERVAL = 1.0
 
 #: Compiled regex for redacting common secret patterns from captured output.
 _SECRET_PATTERNS: tuple[re.Pattern[str], ...] = (
-    # API keys: sk-..., Bearer tokens, etc.
-    re.compile(r"(sk-[a-zA-Z0-9]{20,})"),
+    # API keys: sk-... (dashes/underscores allowed, e.g. sk-proj-...),
+    # Bearer tokens, etc.  Character class aligned with local_hermes.py.
+    re.compile(r"(sk-[a-zA-Z0-9_-]{20,})"),
     re.compile(r"(Bearer\s+[a-zA-Z0-9._\-]{20,})"),
     # Generic hex/token assignments in env-like output
     re.compile(r"((?:api[_-]?key|token|secret|password)\s*[=:]\s*['\"]?"

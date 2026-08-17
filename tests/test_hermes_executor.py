@@ -310,9 +310,16 @@ class TestEnvironmentAllowlist:
         assert env["HERMES_HOME"] == str((tmp_path / "custom-hermes").resolve())
 
     def test_secret_redaction_in_output(self) -> None:
-        text = "Config: api_key=sk-abcdefghijklmnopqrstuvwxyz1234567890"
+        text = "Config: api_key=" + "sk-" + "abcdefghijklmnopqrstuvwxyz1234567890"
         redacted = _redact(text)
-        assert "sk-abcdefghij" not in redacted
+        assert "sk-" + "abcdefghij" not in redacted
+        assert "[REDACTED]" in redacted
+
+    def test_secret_redaction_covers_dashed_underscored_keys(self) -> None:
+        """K-3: sk- keys with dashes/underscores (e.g. sk-proj-...) redact."""
+        text = "key is sk-proj-abcDEF_123-xyzQWERTY987 here"
+        redacted = _redact(text)
+        assert "sk-proj" not in redacted
         assert "[REDACTED]" in redacted
 
 

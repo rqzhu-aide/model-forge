@@ -118,14 +118,17 @@ policy entry), `architecture/09-control-commands.md` (catalog row),
   as the same-session fast path. Regression test: cancel event
   persisted, restart simulated (no in-memory event), watcher closes
   `cancelled`, not `failed`.
-- **K-4 (coder-direct, small)**: reject `start_run` when
-  `run_launcher is None` (executor disabled) with
-  TARGET_STATE_MISMATCH 409 + clear message, instead of creating a
-  zombie `created` run. DECISION (coder, default per audit option 1):
-  rejection beats a new terminal state because the run never started ,
-  no scientific record exists to preserve, and a visible refusal at
-  command time is exactly the stop-ship posture. Verify no test relies
-  on the zombie behavior; update any that do.
+- **K-4: CLOSED as already-fixed (live probe 2026-08-17).** With
+  `executor_kind="disabled"`, the phase view emits the
+  `executor.unavailable` eligibility finding, `build_phase_configuration`
+  disables the start_run action (`enabled = not findings`), and the
+  service's `action.enabled` gate rejects the command with a clear
+  researcher message. Verified by live probe: `start_run` raises
+  CommandRejected ("No role executor is configured for this server...")
+  and no run row is created. The audit's zombie-run claim was stale.
+  Note: tests that simulate pre-launch crashes set
+  `service.run_launcher = None` AFTER construction; that hook bypasses
+  the command path and stays valid for recovery testing.
 
 ## Deferred (needs Tez, not code)
 

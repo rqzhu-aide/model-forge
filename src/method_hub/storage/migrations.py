@@ -617,6 +617,34 @@ _SUBMISSION_ATTEMPTS_SCHEMA = (
 ) + _immutable_triggers("run_submission_attempts")
 
 
+#: One validation attempt per row for the formal lane (K-1 correction
+#: command path).  The initial validation has ``correction_type`` NULL;
+#: correction attempts record the policy version, the validation report,
+#: the digest of the validated source, and the links to the prior attempt
+#: and the CorrectionCommand that produced them.  Rows are immutable like
+#: the submission attempt table.
+_VALIDATION_ATTEMPTS_SCHEMA = (
+    """
+    CREATE TABLE run_validation_attempts (
+        attempt_id TEXT PRIMARY KEY,
+        run_id TEXT NOT NULL REFERENCES runs(run_id),
+        attempt_ordinal INTEGER NOT NULL,
+        policy_version TEXT NOT NULL,
+        report_json TEXT NOT NULL,
+        source_sha256 TEXT NOT NULL,
+        correction_type TEXT CHECK (correction_type IN ('revalidate', 'normalize', 'packaging', 'scientific')),
+        prior_attempt_id TEXT,
+        correction_command_id TEXT,
+        attempted_at TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE INDEX run_validation_attempts_run_ordinal
+        ON run_validation_attempts(run_id, attempt_ordinal)
+    """,
+) + _immutable_triggers("run_validation_attempts")
+
+
 HUB_MIGRATIONS = (
     Migration(1, _CONTROL_SCHEMA, name="control and run storage"),
     Migration(2, _EXECUTION_SCHEMA, name="role execution and submission storage"),
@@ -656,6 +684,11 @@ HUB_MIGRATIONS = (
         11,
         _SUBMISSION_ATTEMPTS_SCHEMA,
         name="HV-5 correction submission attempts",
+    ),
+    Migration(
+        12,
+        _VALIDATION_ATTEMPTS_SCHEMA,
+        name="K-1a1 formal-lane validation attempts",
     ),
 )
 

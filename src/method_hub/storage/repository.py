@@ -716,6 +716,126 @@ class HubRepository:
         assert row is not None
         return int(row["n"])
 
+    def record_validation_attempt(
+        self,
+        attempt_id: str,
+        run_id: str,
+        attempt_ordinal: int,
+        policy_version: str,
+        report_json: str,
+        source_sha256: str,
+        correction_type: str | None = None,
+        prior_attempt_id: str | None = None,
+        correction_command_id: str | None = None,
+        attempted_at: str | datetime | None = None,
+    ) -> sqlite3.Row:
+        attempt_id = _text(attempt_id, "attempt_id")
+        run_id = _text(run_id, "run_id")
+        if type(attempt_ordinal) is not int or attempt_ordinal < 1:
+            raise RepositoryValidationError(
+                "repository.invalid_ordinal",
+                "attempt_ordinal must be a positive integer.",
+            )
+        policy_version = _text(policy_version, "policy_version")
+        report_json = _text(report_json, "report_json")
+        source_sha256 = _digest(source_sha256, "source_sha256")
+        if correction_type is not None and correction_type not in (
+            "revalidate",
+            "normalize",
+            "packaging",
+            "scientific",
+        ):
+            raise RepositoryValidationError(
+                "repository.invalid_correction_type",
+                "correction_type must be one of 'revalidate', 'normalize', "
+                "'packaging', or 'scientific'.",
+            )
+        if prior_attempt_id is not None:
+            prior_attempt_id = _text(prior_attempt_id, "prior_attempt_id")
+        if correction_command_id is not None:
+            correction_command_id = _text(
+                correction_command_id, "correction_command_id"
+            )
+        with self._database.immediate_transaction() as connection:
+            connection.execute(
+                """
+                INSERT INTO run_validation_attempts(
+                    attempt_id, run_id, attempt_ordinal, policy_version,
+                    report_json, source_sha256, correction_type,
+                    prior_attempt_id, correction_command_id, attempted_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    attempt_id,
+                    run_id,
+                    attempt_ordinal,
+                    policy_version,
+                    report_json,
+                    source_sha256,
+                    correction_type,
+                    prior_attempt_id,
+                    correction_command_id,
+                    _time(attempted_at),
+                ),
+            )
+            row = connection.execute(
+                "SELECT * FROM run_validation_attempts WHERE attempt_id = ?",
+                (attempt_id,),
+            ).fetchone()
+            assert row is not None
+            return row
+
+    def get_validation_attempt(self, attempt_id: str) -> sqlite3.Row | None:
+        with self._database.connect() as connection:
+            return connection.execute(
+                "SELECT * FROM run_validation_attempts WHERE attempt_id = ?",
+                (attempt_id,),
+            ).fetchone()
+
+    def get_latest_validation_attempt(self, run_id: str) -> sqlite3.Row | None:
+        with self._database.connect() as connection:
+            return connection.execute(
+                """
+                SELECT * FROM run_validation_attempts
+                WHERE run_id = ?
+                ORDER BY attempt_ordinal DESC, attempt_id
+                LIMIT 1
+                """,
+                (run_id,),
+            ).fetchone()
+
+    def list_validation_attempts(self, run_id: str) -> list[sqlite3.Row]:
+        with self._database.connect() as connection:
+            return list(
+                connection.execute(
+                    """
+                    SELECT * FROM run_validation_attempts
+                    WHERE run_id = ?
+                    ORDER BY attempt_ordinal, attempt_id
+                    """,
+                    (run_id,),
+                ).fetchall()
+            )
+
+    def count_validation_attempts(
+        self, run_id: str, correction_type: str | None = None
+    ) -> int:
+        with self._database.connect() as connection:
+            if correction_type is None:
+                row = connection.execute(
+                    "SELECT COUNT(*) AS n FROM run_validation_attempts "
+                    "WHERE run_id = ?",
+                    (run_id,),
+                ).fetchone()
+            else:
+                row = connection.execute(
+                    "SELECT COUNT(*) AS n FROM run_validation_attempts "
+                    "WHERE run_id = ? AND correction_type = ?",
+                    (run_id, correction_type),
+                ).fetchone()
+        assert row is not None
+        return int(row["n"])
+
     def get_or_create_execution(
         self,
         execution_id: str,

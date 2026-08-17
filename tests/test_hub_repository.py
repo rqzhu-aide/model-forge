@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -19,7 +20,7 @@ def _digest(character: str) -> str:
 @pytest.fixture
 def repository(tmp_path: Path) -> HubRepository:
     result = HubRepository(tmp_path / "hub.sqlite3")
-    assert result.initialize() == 11
+    assert result.initialize() == 12
     result.create_project("prj_repo", {"name": "Repository test"})
     return result
 
@@ -386,3 +387,131 @@ def test_cumulative_collection_deduplicates_content_from_later_runs(
     stored = repository.list_collection_items("prj_repo", "collection/items")
     assert len(stored) == 1
     assert stored[0]["source_run_id"] == first_run
+
+
+def test_validation_attempts_round_trip_latest_and_list_ordering(
+    repository: HubRepository,
+) -> None:
+    run_id = _run(repository, "validation_roundtrip")
+    first = repository.record_validation_attempt(
+        "attempt_v1",
+        run_id,
+        1,
+        "1.0.0",
+        '{"verdict": "fail"}',
+        _digest("a"),
+    )
+    assert first["attempted_at"]
+    repository.record_validation_attempt(
+        "attempt_v2",
+        run_id,
+        2,
+        "1.0.0",
+        '{"verdict": "pass"}',
+        _digest("b"),
+        correction_type="revalidate",
+        prior_attempt_id="attempt_v1",
+        correction_command_id="cmd_validate",
+    )
+    repository.record_validation_attempt(
+        "attempt_v3",
+        run_id,
+        3,
+        "2.0.0",
+        '{"verdict": "pass"}',
+        _digest("c"),
+        correction_type="normalize",
+        prior_attempt_id="attempt_v2",
+    )
+
+    fetched = repository.get_validation_attempt("attempt_v2")
+    assert fetched is not None
+    assert fetched["attempt_ordinal"] == 2
+    assert fetched["prior_attempt_id"] == "attempt_v1"
+    assert fetched["correction_command_id"] == "cmd_validate"
+    assert repository.get_validation_attempt("attempt_missing") is None
+
+    latest = repository.get_latest_validation_attempt(run_id)
+    assert latest is not None
+    assert latest["attempt_id"] == "attempt_v3"
+    assert repository.get_latest_validation_attempt("run_missing") is None
+
+    listed = repository.list_validation_attempts(run_id)
+    assert [row["attempt_id"] for row in listed] == [
+        "attempt_v1",
+        "attempt_v2",
+        "attempt_v3",
+    ]
+    assert repository.list_validation_attempts("run_missing") == []
+
+
+def test_count_validation_attempts_with_and_without_correction_type(
+    repository: HubRepository,
+) -> None:
+    run_id = _run(repository, "validation_count")
+    repository.record_validation_attempt(
+        "attempt_c1", run_id, 1, "1.0.0", "{}", _digest("a")
+    )
+    repository.record_validation_attempt(
+        "attempt_c2",
+        run_id,
+        2,
+        "1.0.0",
+        "{}",
+        _digest("b"),
+        correction_type="revalidate",
+    )
+    repository.record_validation_attempt(
+        "attempt_c3",
+        run_id,
+        3,
+        "1.0.0",
+        "{}",
+        _digest("c"),
+        correction_type="revalidate",
+    )
+
+    assert repository.count_validation_attempts(run_id) == 3
+    assert (
+        repository.count_validation_attempts(run_id, correction_type="revalidate")
+        == 2
+    )
+    assert (
+        repository.count_validation_attempts(run_id, correction_type="normalize")
+        == 0
+    )
+    assert repository.count_validation_attempts("run_missing") == 0
+
+
+def test_validation_attempts_are_immutable(repository: HubRepository) -> None:
+    run_id = _run(repository, "validation_immutable")
+    repository.record_validation_attempt(
+        "attempt_i1", run_id, 1, "1.0.0", "{}", _digest("a")
+    )
+
+    with pytest.raises(sqlite3.IntegrityError):
+        with repository.database.transaction() as connection:
+            connection.execute(
+                "UPDATE run_validation_attempts SET policy_version = '9.9.9' "
+                "WHERE attempt_id = 'attempt_i1'"
+            )
+    with pytest.raises(sqlite3.IntegrityError):
+        with repository.database.transaction() as connection:
+            connection.execute(
+                "DELETE FROM run_validation_attempts "
+                "WHERE attempt_id = 'attempt_i1'"
+            )
+
+    unchanged = repository.get_validation_attempt("attempt_i1")
+    assert unchanged is not None
+    assert unchanged["policy_version"] == "1.0.0"
+
+
+def test_validation_attempt_requires_existing_run(
+    repository: HubRepository,
+) -> None:
+    with pytest.raises(sqlite3.IntegrityError):
+        repository.record_validation_attempt(
+            "attempt_fk", "run_nonexistent", 1, "1.0.0", "{}", _digest("a")
+        )
+    assert repository.get_validation_attempt("attempt_fk") is None

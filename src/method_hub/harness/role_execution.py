@@ -1120,21 +1120,15 @@ class RoleLifecycleService:
     def load_existing(
         self, *, stage: ResolvedStage, role: str
     ) -> RoleClosureResult | None:
-        invocation_id, execution_id, closure_id = _role_identity(
-            self.context, stage, role
-        )
-        base = self._load_closure(
-            stage=stage,
-            role=role,
-            invocation_id=invocation_id,
-            execution_id=execution_id,
-            closure_id=closure_id,
-        )
-        if base is not None and base.status is RoleExecutionStatus.SUCCEEDED:
-            return base
-        # The base closure is missing or failed: walk the run's correction
-        # attempts newest-first and return the first succeeded closure from a
-        # correction identity family (identity_suffix "correction.<command_id>").
+        # The correction family takes precedence (D4, 2026-08-17): a
+        # succeeded correction closure is the latest user-authorized output
+        # for this role and supersedes the base closure.  Base-first
+        # loading was designed for the FAILED-run case (base closure
+        # failed); for REJECTED runs every base closure SUCCEEDED, so
+        # base-first would silently reuse the pre-correction outputs and a
+        # Lane B correction would never take effect.  Walk the run's
+        # correction attempts newest-first and return the first succeeded
+        # correction closure; fall back to the base closure otherwise.
         attempts = self.repository.list_validation_attempts(str(self.context.run_id))
         for attempt in reversed(attempts):
             command_id = attempt["correction_command_id"]
@@ -1155,9 +1149,16 @@ class RoleLifecycleService:
             )
             if closure is not None and closure.status is RoleExecutionStatus.SUCCEEDED:
                 return closure
-        # Nothing succeeded anywhere: preserve the reconciliation behavior for
-        # failed/missing states by returning the base closure as-is.
-        return base
+        invocation_id, execution_id, closure_id = _role_identity(
+            self.context, stage, role
+        )
+        return self._load_closure(
+            stage=stage,
+            role=role,
+            invocation_id=invocation_id,
+            execution_id=execution_id,
+            closure_id=closure_id,
+        )
 
     async def settle_cancellation(
         self, *, stage: ResolvedStage, role: str

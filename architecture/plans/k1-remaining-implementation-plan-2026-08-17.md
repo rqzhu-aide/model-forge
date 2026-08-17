@@ -218,3 +218,17 @@ validation on the sealed bytes ("would this output pass today", D2) and
 passes regardless of the old closure status. See
 tests/test_correction_execution.py:263 for the passing-revalidate
 pattern.
+
+## D4 (resolved 2026-08-17, coder): correction family supersedes a SUCCEEDED base closure
+
+Found by the P2 scenario-B test: K-1a2's `load_existing` was base-first
+("walk the correction family only when the base is missing or failed").
+For REJECTED runs every base closure succeeded, so a Lane B correction
+closure would never enter the re-assembled submission; the correction
+would validate the pre-correction bytes and silently do nothing.
+Resolution: `load_existing` now walks the correction family FIRST
+(newest command first; first succeeded correction closure wins) and
+falls back to the base closure. The failed-base case (K-1a2's design
+target) is subsumed. Rationale: a succeeded correction closure is the
+latest user-authorized output for the role; older/base output is
+superseded by definition. All K-1a2/K-1a4 identity tests stay green.

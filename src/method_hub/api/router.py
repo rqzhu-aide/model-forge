@@ -13,6 +13,7 @@ from pydantic import ValidationError
 from .errors import CommandRejected, command_schema_error
 from .models import (
     ConfigurationHealthView,
+    CorrectionRequest,
     CreateProjectRequest,
     InstallSkillRequest,
     MethodRow,
@@ -492,6 +493,35 @@ def create_api_router() -> APIRouter:
             project_id=project_id,
         )
         return await service.cancel_run(
+            project_id, run_id, command, raw_request=raw_request
+        )
+
+    @router.post(
+        "/projects/{project_id}/runs/{run_id}/corrections",
+        response_model=RunDetail,
+        response_model_exclude_none=True,
+        openapi_extra=_body_contract(CorrectionRequest),
+    )
+    async def request_output_correction(
+        project_id: str,
+        run_id: str,
+        request: Request,
+        service: Service,
+    ) -> RunDetail:
+        """Authorize one output correction (K-1a5; revalidate only).
+
+        The sealed outputs of the run's failed role closure are
+        re-checked against the current schema catalog; on a pass the run
+        re-enters submission through the correcting state.
+        """
+        command, raw_request = await _capture_and_parse(
+            request,
+            service,
+            CorrectionRequest,
+            command_family="request_output_correction",
+            project_id=project_id,
+        )
+        return await service.request_output_correction(
             project_id, run_id, command, raw_request=raw_request
         )
 

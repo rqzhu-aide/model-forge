@@ -8,6 +8,7 @@ from typing import Literal, Protocol
 
 from .models import (
     ConfigurationHealthView,
+    CorrectionRequest,
     CreateProjectRequest,
     InstallSkillRequest,
     MethodRow,
@@ -47,6 +48,7 @@ CommandFamily = Literal[
     "install_skill",
     "provision_role",
     "start_supervised_run",
+    "request_output_correction",
 ]
 
 
@@ -203,6 +205,15 @@ class MethodHubApplicationService(Protocol):
         project_id: str,
         run_id: str,
         command: ReasonedActionRequest,
+        *,
+        raw_request: RawRequestReceipt,
+    ) -> RunDetail: ...
+
+    async def request_output_correction(
+        self,
+        project_id: str,
+        run_id: str,
+        command: CorrectionRequest,
         *,
         raw_request: RawRequestReceipt,
     ) -> RunDetail: ...

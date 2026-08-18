@@ -238,7 +238,7 @@ superseded by definition. All K-1a2/K-1a4 identity tests stay green.
 The P3 pins' step 5 targets "the newest FAILED role closure".  On a
 REJECTED run every base closure SUCCEEDED (the rejection happened at
 submission validation, not role validation), so the failed-closure gate
-finds nothing and the service answers CORRECTION_NOT_APPLICABLE —
+finds nothing and the service answers CORRECTION_NOT_APPLICABLE --
 revalidate corrections are only reachable for FAILED runs whose role
 closure failed after sealing outputs.  The Lane A machinery itself
 supports revalidating a SUCCEEDED closure (P2 scenario B does exactly

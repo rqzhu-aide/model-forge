@@ -15,6 +15,7 @@ from method_hub.api import (
 )
 from method_hub.api.models import (
     ActionDescriptor,
+    CorrectionRequest,
     CreateProjectRequest,
     InstallSkillRequest,
     MethodRow,
@@ -433,6 +434,19 @@ class RecordingService:
         self.calls.append(("cancel_run", project_id, run_id, command, raw_request))
         return run_detail("cancellation_requested")
 
+    async def request_output_correction(
+        self,
+        project_id: str,
+        run_id: str,
+        command: CorrectionRequest,
+        *,
+        raw_request: RawRequestReceipt,
+    ) -> RunDetail:
+        self.calls.append(
+            ("request_output_correction", project_id, run_id, command, raw_request)
+        )
+        return run_detail("correcting")
+
     async def get_profiles(self, project_id: str) -> ProfileConfigurationView:
         self.calls.append(("get_profiles", project_id))
         return profile_view()
@@ -671,6 +685,14 @@ def test_control_and_configuration_commands_all_preserve_raw_requests() -> None:
         "/api/v1/projects/project.demo/runs/run.demo/cancel",
         json={"action_descriptor_id": "action.cancel", "reason": "Revise inputs."},
     )
+    correction = client.post(
+        "/api/v1/projects/project.demo/runs/run.demo/corrections",
+        json={
+            "correction_type": "revalidate",
+            "permitted_output_scope": ["output.demo"],
+            "action_descriptor_id": "action.correct",
+        },
+    )
     saved = client.patch(
         "/api/v1/projects/project.demo/configuration/profiles/theorist",
         json={
@@ -686,11 +708,14 @@ def test_control_and_configuration_commands_all_preserve_raw_requests() -> None:
     assert lifecycle.status_code == 204
     assert cancellation.status_code == 200
     assert cancellation.json()["state"] == "cancellation_requested"
+    assert correction.status_code == 200
+    assert correction.json()["state"] == "correcting"
     assert saved.status_code == 200
     assert installed.status_code == 200
     assert [item.command_family for item in service.raw_requests] == [
         "method_lifecycle",
         "cancel_run",
+        "request_output_correction",
         "save_profile",
         "install_skill",
     ]
@@ -714,6 +739,7 @@ def test_openapi_lists_the_complete_frontend_route_surface() -> None:
         "/api/v1/projects/{project_id}/runs/{run_id}/events",
         "/api/v1/projects/{project_id}/runs/{run_id}/events/stream",
         "/api/v1/projects/{project_id}/runs/{run_id}/cancel",
+        "/api/v1/projects/{project_id}/runs/{run_id}/corrections",
         "/api/v1/projects/{project_id}/artifacts/{artifact_id}",
         "/api/v1/projects/{project_id}/publications/{receipt_id}",
         "/api/v1/projects/{project_id}/configuration/profiles",

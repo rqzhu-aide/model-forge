@@ -114,6 +114,7 @@ def build_service(settings: ApplicationSettings) -> MethodHubService:
         recovery_launcher=(
             coordinator.resume_incomplete if coordinator is not None else None
         ),
+        run_coordinator=coordinator,
     )
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import hashlib
 import json
 import logging
@@ -583,6 +584,35 @@ class RunCoordinator:
             workspace=self.workspace,
         )
         return recipe, plan, context, services
+
+    def correction_services(
+        self,
+        run_id: str,
+        *,
+        correction_command_id: str,
+        correction_type: str,
+    ) -> HarnessExecutionServices:
+        """Build harness services for one authorized output correction.
+
+        Reuses the frozen execution components; only the submission
+        provenance and correction identity change (K-1a5 Lane A).
+        """
+
+        _, _, context, _ = self._execution_components(run_id)
+        correction_context = dataclasses.replace(
+            context,
+            submission_from_status="correcting",
+            correction_command_id=correction_command_id,
+            correction_type=correction_type,
+        )
+        return HarnessExecutionServices(
+            context=correction_context,
+            repository=self.repository,
+            executor=self.executor,
+            schemas=self.specification.schemas,
+            artifacts=self.artifacts,
+            workspace=self.workspace,
+        )
 
     def _load_recipe(self, run_id: str) -> PreparedRunRecipe:
         row = self.repository.get_manifest(run_id)

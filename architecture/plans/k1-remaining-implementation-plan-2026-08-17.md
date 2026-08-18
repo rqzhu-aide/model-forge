@@ -232,3 +232,19 @@ falls back to the base closure. The failed-base case (K-1a2's design
 target) is subsumed. Rationale: a succeeded correction closure is the
 latest user-authorized output for the role; older/base output is
 superseded by definition. All K-1a2/K-1a4 identity tests stay green.
+
+## D5 (open, coder feedback 2026-08-17): revalidate is unreachable for REJECTED runs
+
+The P3 pins' step 5 targets "the newest FAILED role closure".  On a
+REJECTED run every base closure SUCCEEDED (the rejection happened at
+submission validation, not role validation), so the failed-closure gate
+finds nothing and the service answers CORRECTION_NOT_APPLICABLE —
+revalidate corrections are only reachable for FAILED runs whose role
+closure failed after sealing outputs.  The Lane A machinery itself
+supports revalidating a SUCCEEDED closure (P2 scenario B does exactly
+that, targeting a succeeded base closure).  If corrections for rejected
+runs are intended, the target-closure rule needs a rejected-run branch:
+e.g. revalidate every succeeded closure in scope and target the first
+whose outputs no longer conform, or take the target closure id
+explicitly in the command.  P3a implements the pins as written; flagged
+for the method owner to decide.

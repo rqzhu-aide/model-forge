@@ -18,6 +18,7 @@ from .. import __version__
 from ..api.errors import CommandRejected, new_command_error
 from ..api.models import (
     CreateProjectRequest,
+    CorrectionRequest,
     InstallSkillRequest,
     MethodRow,
     PhaseId,
@@ -96,6 +97,12 @@ from ..storage.repository import (
     RepositoryNotFoundError,
 )
 from .method_lifecycle import MethodLifecycleCommandService
+from .correction import _derive_command_id
+from .correction_execution import (
+    record_revalidation_closure,
+    revalidate_closure_outputs,
+    seal_correction_submission,
+)
 from .profile_views import build_profile_configuration_view
 from .project_commands import ProjectCommandService
 from .repository_views import RepositoryQueries, row_json
@@ -202,6 +209,7 @@ class MethodHubService:
         run_launcher: RunLauncher | None = None,
         cancellation_notifier: CancellationNotifier | None = None,
         recovery_launcher: RecoveryLauncher | None = None,
+        run_coordinator: Any | None = None,
         supervised_executor_settings: LocalHermesExecutorSettings | None = None,
         supervised_min_free_bytes: int = DEFAULT_MIN_FREE_BYTES,
     ) -> None:
@@ -221,6 +229,7 @@ class MethodHubService:
         self.run_launcher = run_launcher
         self.cancellation_notifier = cancellation_notifier
         self.recovery_launcher = recovery_launcher
+        self.run_coordinator = run_coordinator
         self.projections = ResearchProjectionService(
             repository,
             specification.phases,
@@ -1901,6 +1910,329 @@ class MethodHubService:
             )
         if self.cancellation_notifier is not None:
             await self.cancellation_notifier(run_id)
+        return await self.get_run(project_id, run_id)
+
+    async def request_output_correction(
+        self,
+        project_id: str,
+        run_id: str,
+        command: CorrectionRequest,
+        *,
+        raw_request: RawRequestReceipt,
+    ) -> RunDetail:
+        """Authorize one output correction and run Lane A synchronously.
+
+        P3 implements the ``revalidate`` correction only: the sealed output
+        bytes are re-checked against the current schema catalog; on a pass
+        the run re-enters submission through the correcting state (K-1a5).
+        """
+
+        # 1. Detail, raw request, idempotent replay (cancel_run pattern).
+        detail = await self.get_run(project_id, run_id)
+        request_id = self._attach_raw_request(project_id, raw_request)
+        existing_command = self.repository.get_command_by_idempotency(
+            project_id, request_id
+        )
+        if existing_command is not None:
+            existing_payload = row_json(existing_command)
+            if existing_payload.get("run_id") != run_id:
+                raise _idempotency_key_reused(project_id, request_id)
+            return detail
+
+        # 2. Only revalidate is implemented in this build.
+        if command.correction_type != "revalidate":
+            raise CommandRejected(
+                new_command_error(
+                    "CORRECTION_NOT_APPLICABLE",
+                    object_refs=[run_id],
+                    researcher_message=(
+                        f"The {command.correction_type!r} correction type is "
+                        "not yet available in this build."
+                    ),
+                    smallest_correction=(
+                        "Authorize a revalidate correction, or wait for a "
+                        "build that implements this correction type."
+                    ),
+                )
+            )
+
+        # 3. State gate + correctable-finding gate + executor gate.
+        # DEVIATION from the pin numbering (descriptor check listed first):
+        # unlike cancel_run, whose descriptor is emitted for every run
+        # state, the revalidate_run descriptor is emitted only for
+        # applicable states — a descriptor-first check would shadow
+        # CORRECTION_NOT_APPLICABLE with CONTROL_HEAD_STALE for
+        # wrong-state or integrity-blocked runs.  The applicability gates
+        # therefore run before the descriptor head check.
+        row = self.repository.get_run(run_id)
+        payload = row_json(row)
+        status = str(row["status"])
+        closure_findings = payload.get("closure_findings")
+        correctable = type(closure_findings) is list and any(
+            type(item) is dict
+            and item.get("finding_class") == "correctable_contract_error"
+            for item in closure_findings
+        )
+        if status not in ("failed", "rejected", "correction_authorized"):
+            raise CommandRejected(
+                new_command_error(
+                    "CORRECTION_NOT_APPLICABLE",
+                    object_refs=[run_id],
+                    researcher_message=(
+                        f"A run in the {status!r} state cannot accept an "
+                        "output correction."
+                    ),
+                    smallest_correction=(
+                        "Corrections apply to failed, rejected, or already "
+                        "correction-authorized runs."
+                    ),
+                )
+            )
+        if not correctable:
+            raise CommandRejected(
+                new_command_error(
+                    "CORRECTION_NOT_APPLICABLE",
+                    object_refs=[run_id],
+                    researcher_message=(
+                        "This run has no correctable contract error to "
+                        "correct; its findings are integrity blockers."
+                    ),
+                    smallest_correction=(
+                        "Inspect the findings; integrity blockers require a "
+                        "new run, not a correction."
+                    ),
+                )
+            )
+        if self.run_coordinator is None:
+            raise CommandRejected(
+                new_command_error(
+                    "CORRECTION_NOT_APPLICABLE",
+                    object_refs=[run_id],
+                    researcher_message=(
+                        "Output correction is unavailable because no run "
+                        "executor is configured."
+                    ),
+                    smallest_correction=(
+                        "Configure an executor before authorizing corrections."
+                    ),
+                )
+            )
+
+        # 4. Descriptor head check (cancel_run pattern).
+        action = next(
+            (
+                item
+                for item in detail.actions
+                if item.action_type == "revalidate_run"
+            ),
+            None,
+        )
+        if action is None or action.descriptor_id != command.action_descriptor_id:
+            raise CommandRejected(
+                new_command_error(
+                    "CONTROL_HEAD_STALE",
+                    object_refs=[run_id],
+                    researcher_message=(
+                        "The displayed correction action is no longer current."
+                    ),
+                    smallest_correction=(
+                        "Refresh the run before authorizing a correction."
+                    ),
+                )
+            )
+
+        # 5. Newest FAILED role closure for this run.
+        closure_row = None
+        closure_payload: dict[str, Any] = {}
+        for candidate in self.repository.list_role_closures_for_run(run_id):
+            candidate_payload = json.loads(candidate["payload_json"])
+            if (
+                type(candidate_payload) is dict
+                and candidate_payload.get("status") == "failed"
+            ):
+                closure_row = candidate
+                closure_payload = candidate_payload
+        if closure_row is None:
+            raise CommandRejected(
+                new_command_error(
+                    "CORRECTION_NOT_APPLICABLE",
+                    object_refs=[run_id],
+                    researcher_message=(
+                        "This run has no failed role closure to correct."
+                    ),
+                    smallest_correction=(
+                        "Corrections target the outputs of a failed role "
+                        "closure."
+                    ),
+                )
+            )
+        role_closure_id = str(closure_row["closure_id"])
+
+        # 6. Scope gate: the requested scope must stay inside the closure's
+        #    declared outputs.
+        closure_output_ids = {
+            str(entry["contract_output_id"])
+            for entry in closure_payload.get("outputs", ())
+            if type(entry) is dict and "contract_output_id" in entry
+        }
+        if not set(command.permitted_output_scope).issubset(closure_output_ids):
+            raise CommandRejected(
+                new_command_error(
+                    "CORRECTION_SCOPE_INVALID",
+                    object_refs=[run_id, role_closure_id],
+                    researcher_message=(
+                        "The permitted output scope names outputs the failed "
+                        "closure did not declare."
+                    ),
+                    smallest_correction=(
+                        "Restrict the scope to the closure's declared "
+                        "contract output ids."
+                    ),
+                )
+            )
+
+        # 7. Build, validate, and seal the correction command document.
+        head = str(row["head_sequence"])
+        latest_attempt = self.repository.get_latest_validation_attempt(run_id)
+        attempt_id = (
+            str(latest_attempt["attempt_id"])
+            if latest_attempt is not None
+            else f"attempt.{run_id}.0"
+        )
+        document = {
+            "schema_version": "1.0.0",
+            "command_id": _derive_command_id(run_id, "revalidate", head),
+            "run_id": run_id,
+            "role_closure_id": role_closure_id,
+            "validation_attempt_id": attempt_id,
+            "expected_lifecycle_head": head,
+            "correction_type": "revalidate",
+            "permitted_output_scope": list(command.permitted_output_scope),
+            "user_instruction": None,
+            "transformation_codes": [],
+            "issued_at": isoformat_utc(utc_now()),
+            "issued_by": self.settings.user_id,
+        }
+        self.specification.schemas.require_valid(
+            "output-correction-command.schema.json", document
+        )
+        digest = _content_digest(document)
+        sealed = self.repository.seal_command(
+            document["command_id"],
+            project_id,
+            request_id,
+            request_id,
+            digest,
+            document,
+        )
+        command_id = str(sealed.row["command_id"])
+
+        # 8. failed/rejected -> correction_authorized (already-authorized
+        #    runs skip this transition).
+        if status != "correction_authorized":
+            event = {
+                "event_type": "run.correction_authorized",
+                "message": (
+                    "Output correction authorized. The sealed outputs are "
+                    "being re-checked against the current schemas."
+                ),
+                "occurred_at": isoformat_utc(utc_now()),
+            }
+            result = self.repository.compare_and_swap_run(
+                run_id,
+                status,
+                int(row["head_sequence"]),
+                "correction_authorized",
+                payload,
+                _event_id(run_id, int(row["head_sequence"]) + 1),
+                _content_digest(event),
+                event,
+            )
+            if not result.applied:
+                raise CommandRejected(
+                    new_command_error(
+                        "CONTROL_HEAD_STALE",
+                        object_refs=[run_id],
+                        researcher_message=(
+                            "The run changed while the correction was being "
+                            "authorized."
+                        ),
+                        smallest_correction=(
+                            "Refresh the run and authorize the correction "
+                            "again."
+                        ),
+                    )
+                )
+            row = result.run
+
+        # 9. Lane A (synchronous): revalidate the sealed closure outputs.
+        correction = revalidate_closure_outputs(
+            repository=self.repository,
+            specification=self.specification,
+            artifacts=self.artifacts,
+            schemas=self.specification.schemas,
+            run_id=run_id,
+            role_closure_id=role_closure_id,
+            correction_command_id=command_id,
+        )
+        if correction.attempt.passed:
+            record_revalidation_closure(
+                repository=self.repository,
+                artifacts=self.artifacts,
+                specification=self.specification,
+                run_id=run_id,
+                role_closure_id=role_closure_id,
+                correction_command_id=command_id,
+                invocation_sha256=str(sealed.row["command_sha256"]),
+            )
+            event = {
+                "event_type": "run.correcting",
+                "message": (
+                    "Revalidation passed. The run re-enters submission with "
+                    "the corrected closure chain."
+                ),
+                "occurred_at": isoformat_utc(utc_now()),
+            }
+            result = self.repository.compare_and_swap_run(
+                run_id,
+                "correction_authorized",
+                int(row["head_sequence"]),
+                "correcting",
+                row_json(row),
+                _event_id(run_id, int(row["head_sequence"]) + 1),
+                _content_digest(event),
+                event,
+            )
+            if not result.applied:
+                raise CommandRejected(
+                    new_command_error(
+                        "CONTROL_HEAD_STALE",
+                        object_refs=[run_id],
+                        researcher_message=(
+                            "The run changed after revalidation passed."
+                        ),
+                        smallest_correction=(
+                            "Refresh the run; the recorded validation attempt "
+                            "is the evidence of the pass."
+                        ),
+                    )
+                )
+            services = self.run_coordinator.correction_services(
+                run_id,
+                correction_command_id=command_id,
+                correction_type="revalidate",
+            )
+            seal_correction_submission(
+                services=services,
+                correction_command_id=command_id,
+                correction_type="revalidate",
+            )
+            if self.run_launcher is not None:
+                task = asyncio.create_task(self.run_launcher(run_id))
+                self._background.add(task)
+                task.add_done_callback(self._background.discard)
+        # D1: a failed revalidation stays in correction_authorized; the
+        # recorded attempt row is the failure evidence.
         return await self.get_run(project_id, run_id)
 
     async def get_profiles(self, project_id: str) -> ProfileConfigurationView:

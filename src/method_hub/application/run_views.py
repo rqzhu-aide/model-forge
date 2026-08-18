@@ -67,6 +67,31 @@ def run_summary_view(
     )
     method = payload.get("method_identity")
     projection = _compute_projection(state, payload, has_publication=has_publication)
+    actions = [action]
+    if (
+        state in ("failed", "rejected")
+        and projection.recovery_summary == "needs_output_correction"
+    ) or state == "correction_authorized":
+        projection = projection.model_copy(
+            update={"available_recovery_controls": ["revalidate"]}
+        )
+        actions.append(
+            ActionDescriptor(
+                descriptor_id=_action_id(
+                    str(row["run_id"]),
+                    "correction:revalidate",
+                    str(row["head_sequence"]),
+                ),
+                action_type="revalidate_run",
+                execution_kind="control_transaction",
+                enabled=True,
+                consequence_summary=(
+                    "Re-check the sealed outputs against the current schemas; "
+                    "on success the run re-enters submission."
+                ),
+                run_id=str(row["run_id"]),
+            )
+        )
     return RunSummary(
         run_id=str(row["run_id"]),
         phase=str(payload["phase"]),
@@ -78,7 +103,7 @@ def run_summary_view(
         requested_at=str(payload["requested_at"]),
         updated_at=str(row["updated_at"]),
         current_stage_label=_optional(payload.get("current_stage_label")),
-        actions=[action],
+        actions=actions,
         lifecycle_projection=projection,
     )
 

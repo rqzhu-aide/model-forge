@@ -321,7 +321,9 @@ class MethodHubService:
         check whether the Hermes process is still alive via
         :meth:`LocalHermesExecutor.reconcile`.  If the process is gone,
         close the record as ``failed`` (the run cannot be resumed from
-        its in-memory state).  Records without an external id (process
+        its in-memory state) — or as ``cancelled`` when a persisted
+        cancel intent (NA-2, ``cancel_requested_at``) shows the death was
+        an explicit signal.  Records without an external id (process
         was created but identity not yet recorded) are also closed as
         ``failed`` — the process cannot be found or controlled.
         """
@@ -367,21 +369,36 @@ class MethodHubService:
             # application event loop.)
             result = await executor.reconcile(str(external_id))
             if result is not None:
-                # Process is gone (exited naturally or PID reused).
+                # Process is gone (exited naturally or PID reused).  A
+                # persisted cancel intent (NA-2) means the death was an
+                # explicit signal — close as ``cancelled``, not
+                # ``failed``.  The in-memory cancel event is long gone
+                # after a restart; the column is the durable record.
+                cancel_requested = bool(record.get("cancel_requested_at"))
+                terminal = "cancelled" if cancel_requested else "failed"
                 store.close_launch_record(
                     launch_id,
-                    status="failed",
+                    status=terminal,
                     external_execution_id=str(external_id),
                     exit_code=result.exit_code,
                     closed_at=isoformat_utc(utc_now()),
                 )
-                logger.info(
-                    "Reconciliation: closed launch %s (invocation %s) as "
-                    "failed — %s",
-                    launch_id,
-                    invocation_id,
-                    result.summary,
-                )
+                if terminal == "cancelled":
+                    logger.info(
+                        "Reconciliation: closed launch %s (invocation %s) "
+                        "as cancelled — persisted cancel intent found; %s",
+                        launch_id,
+                        invocation_id,
+                        result.summary,
+                    )
+                else:
+                    logger.info(
+                        "Reconciliation: closed launch %s (invocation %s) as "
+                        "failed — %s",
+                        launch_id,
+                        invocation_id,
+                        result.summary,
+                    )
             # If result is None, the executor could not parse the identity
             # or the process is still running — leave the record running.
             if result is None and external_id is not None:
@@ -443,11 +460,25 @@ class MethodHubService:
                     continue
                 if result is None:
                     continue  # still running
-                status_value = (
-                    "succeeded"
-                    if result.status.value == "succeeded"
-                    else "failed"
-                )
+                # Reconcile never reports an exit code post-restart, so a
+                # gone process reads as ``failed`` — UNLESS an explicit
+                # cancel intent was persisted on the launch record (NA-2)
+                # before the restart, in which case the signal death
+                # classifies as ``cancelled``.  Re-read the record: this
+                # watcher may outlive the cancel command that wrote it.
+                if result.status.value == "succeeded":
+                    status_value = "succeeded"
+                else:
+                    record = store.find_launch_record_by_invocation(
+                        invocation_id
+                    )
+                    cancel_requested = bool(
+                        record is not None
+                        and record.get("cancel_requested_at")
+                    )
+                    status_value = (
+                        "cancelled" if cancel_requested else "failed"
+                    )
                 store.close_launch_record(
                     launch_id,
                     status=status_value,
@@ -455,12 +486,20 @@ class MethodHubService:
                     exit_code=result.exit_code,
                     closed_at=isoformat_utc(utc_now()),
                 )
-                logger.info(
-                    "Reconcile watcher closed launch %s as %s (exit %s).",
-                    launch_id,
-                    status_value,
-                    result.exit_code,
-                )
+                if status_value == "cancelled":
+                    logger.info(
+                        "Reconcile watcher closed launch %s as cancelled "
+                        "(persisted cancel intent; exit %s).",
+                        launch_id,
+                        result.exit_code,
+                    )
+                else:
+                    logger.info(
+                        "Reconcile watcher closed launch %s as %s (exit %s).",
+                        launch_id,
+                        status_value,
+                        result.exit_code,
+                    )
                 if status_value == "succeeded":
                     self._run_post_exit_validation(invocation_id)
                 return
@@ -1665,7 +1704,16 @@ class MethodHubService:
 
         # Record the EXPLICIT cancel request before signalling, so the
         # launcher (which owns record closure) classifies the signal
-        # death as ``cancelled``.  Cleared if the signal path fails.
+        # death as ``cancelled``.  The intent is persisted on the launch
+        # record FIRST (NA-2) so the restart reconcile close paths still
+        # classify correctly — the in-memory event dies with the server
+        # process, the column does not.  The event is cleared if the
+        # signal path fails; the persisted timestamp is NOT: it is only
+        # consulted at close time, and a failed signal leaves the
+        # process running, so no close follows from it.
+        store.mark_launch_cancel_requested(
+            str(launch["launch_id"]), isoformat_utc(utc_now())
+        )
         cancel_event = self._cancel_requests.setdefault(
             invocation_id, threading.Event()
         )

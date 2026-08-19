@@ -690,6 +690,11 @@ HUB_MIGRATIONS = (
         _VALIDATION_ATTEMPTS_SCHEMA,
         name="K-1a1 formal-lane validation attempts",
     ),
+    Migration(
+        13,
+        ("ALTER TABLE run_launch_records ADD COLUMN cancel_requested_at TEXT",),
+        name="NA-2 persisted cancel intent on supervised launch records",
+    ),
 )
 
 

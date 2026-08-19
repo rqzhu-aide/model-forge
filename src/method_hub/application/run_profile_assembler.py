@@ -526,6 +526,24 @@ class RunSealStore:
                 (status, external_execution_id, exit_code, closed_at, launch_id),
             )
 
+    def mark_launch_cancel_requested(self, launch_id: str, at: str) -> None:
+        """Persist the explicit-cancel intent on a RUNNING launch record.
+
+        Written by the cancel command immediately BEFORE the process is
+        signalled (NA-2), so a signal death still classifies as
+        ``cancelled`` when the close happens after a server restart —
+        the in-memory cancel event dies with the process, this column
+        does not.  The column is only consulted at close time; it is
+        never cleared (a failed signal leaves the process running, so
+        no close follows from it).
+        """
+        with self._db.transaction() as conn:
+            conn.execute(
+                "UPDATE run_launch_records SET cancel_requested_at = ? "
+                "WHERE launch_id = ?",
+                (at, launch_id),
+            )
+
     def get_launch_record(self, launch_id: str) -> dict[str, Any] | None:
         with self._db.connect() as conn:
             row = conn.execute(

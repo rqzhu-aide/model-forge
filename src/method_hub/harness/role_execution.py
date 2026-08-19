@@ -406,6 +406,7 @@ def apply_normalize_transformations(
     codes: frozenset[str] | set[str],
     ts: str,
     path: Path,
+    renames: dict[str, str] | None = None,
 ) -> bool:
     """Apply a selected subset of the role lane's mechanical repairs in place.
 
@@ -420,6 +421,10 @@ def apply_normalize_transformations(
     *data* is the already-parsed JSON document (dict or list); it is mutated
     in place.  *ts* is the caller-supplied injection timestamp; *path* is the
     output file path (used only by ``_fix_self_referential_hashes``).
+    *renames* is an optional caller-supplied out-param: when provided, it is
+    passed to ``_deep_sanitize_ids`` so the caller receives the exact
+    old→new identifier map (for ``_classify_transformations``); the default
+    ``None`` keeps the previous behaviour of a fresh internal dict.
 
     The caller MUST pre-validate *codes* against
     ``application.correction.ALLOWED_NORMALIZE_CODES``; this function does not
@@ -482,7 +487,7 @@ def apply_normalize_transformations(
     # ID sanitization runs even when skip_item_repairs (same as the monolith).
     if "id_sanitization" in codes:
         id_coverage = _stableid_positions(spec.schema_file)
-        renames: dict[str, str] = {}
+        renames = {} if renames is None else renames
         if _deep_sanitize_ids(data, id_coverage, renames=renames):
             changed = True
         if _rewrite_id_references(data, renames):

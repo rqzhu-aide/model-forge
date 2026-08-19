@@ -21,6 +21,17 @@ source (failed) closure is never mutated.
 K-1a5 Lane A adds ``seal_correction_submission``: the synchronous
 submission re-entry for a run in CORRECTING, delegating to the
 attempt-aware ``SubmissionAssembler`` correction branch.
+
+K-1b adds the normalize execution core: ``normalize_closure_outputs``
+applies the allowlisted mechanical transformations
+(``ALLOWED_NORMALIZE_CODES``) to a copy of the sealed output bytes,
+persists transformed bytes as new artifacts, and records the attempt
+with an embedded per-output transformation record;
+``record_normalize_closure`` writes the correction-family closure for a
+PASSED normalization, overriding the output digests to the transformed
+bytes; ``preview_normalize`` is the read-only dry run (zero writes of
+any kind) that reports which current findings the transformations would
+fix and which would remain.
 """
 
 from __future__ import annotations
@@ -29,21 +40,34 @@ import copy
 import hashlib
 import json
 import tempfile
+from collections.abc import Iterable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from ..digests.jcs import canonicalize
 from ..domain import StableId
 from ..domain.runs import isoformat_utc, utc_now
-from ..domain.validation import ValidationFinding, ValidationReport, registry_version
+from ..domain.validation import (
+    OutputTransformationRecord,
+    ValidationFinding,
+    ValidationReport,
+    registry_version,
+)
 from ..executors import RoleExecutionStatus
 from ..harness.execution_records import (
     closure_artifact_id,
     correction_role_identity,
+    deterministic_id,
     document_sha256,
 )
 from ..harness.outputs import build_output_plan, validate_role_outputs
 from ..harness.preparation import PreparedRunRecipe
+from ..harness.role_execution import (
+    _classify_transformations,
+    _primary_artifact_unchanged,
+    apply_normalize_transformations,
+)
 from ..harness.stage_execution import HarnessExecutionServices
 from ..harness.submissions import SubmissionAssemblyError
 from ..json_io import loads_json
@@ -52,7 +76,12 @@ from ..schemas import SchemaCatalog
 from ..specification import SpecificationPackage
 from ..storage.artifacts import ArtifactStore
 from ..storage.repository import HubRepository
-from .correction import CorrectionResult, ValidationAttempt, _derive_attempt_id
+from .correction import (
+    ALLOWED_NORMALIZE_CODES,
+    CorrectionResult,
+    ValidationAttempt,
+    _derive_attempt_id,
+)
 
 
 def _recipe_for_run(repository: HubRepository, run_id: str) -> PreparedRunRecipe:
@@ -318,6 +347,482 @@ def record_revalidation_closure(
     )
     return c_closure_id
 
+@dataclass(frozen=True, slots=True)
+class NormalizeExecution:
+    """Outcome of one normalize execution (K-1b)."""
+
+    attempt: ValidationAttempt
+    findings: tuple[ValidationFinding, ...]
+    transformation_records: dict[str, OutputTransformationRecord]
+    # contract_output_id -> result sha256, for CHANGED outputs only.
+    result_digests: dict[str, str]
+
+def _check_normalize_allowlist(transformation_codes: Iterable[str]) -> set[str]:
+    codes = set(transformation_codes)
+    disallowed = codes - ALLOWED_NORMALIZE_CODES
+    if disallowed:
+        raise ValueError(
+            "Transformation codes outside the normalize allowlist: "
+            f"{sorted(disallowed)}."
+        )
+    return codes
+
+def normalize_closure_outputs(
+    *,
+    repository: HubRepository,
+    specification: SpecificationPackage,
+    artifacts: ArtifactStore,
+    schemas: SchemaCatalog,
+    run_id: str,
+    role_closure_id: str,
+    correction_command_id: str,
+    transformation_codes: Iterable[str],
+) -> NormalizeExecution:
+    """Apply allowlisted transformations to sealed outputs and re-validate.
+
+    Mirrors ``revalidate_closure_outputs``: the sealed bytes are
+    materialized digest-verified into a temporary run root, the
+    transformations mutate parsed copies in place, transformed bytes are
+    persisted as new artifacts (the sealed source bytes are never
+    mutated), and the transformed tree is validated against the current
+    schema catalog.  Exactly one ``run_validation_attempts`` row is
+    recorded per call, with the per-output transformation records embedded
+    in the report.  Disallowed transformation codes raise ``ValueError``
+    before any write.
+    """
+    codes = _check_normalize_allowlist(transformation_codes)
+    recipe = _recipe_for_run(repository, run_id)
+    plan = _plan_from_recipe(specification, recipe)
+    output_plan = build_output_plan(plan)
+
+    payload = _closure_payload(repository, role_closure_id)
+    project_id = str(payload.get("project_id", ""))
+    stage_id = str(payload.get("stage_id", ""))
+    role = str(payload.get("role", ""))
+    stage = next((item for item in plan.stages if item.stage_id == stage_id), None)
+    if stage is None:
+        raise ValueError(
+            f"Closure stage {stage_id!r} is not part of the frozen phase plan."
+        )
+    specs = {
+        spec.contract_output_id: spec
+        for spec in output_plan.for_stage_role(stage.stage_id, role)
+    }
+
+    transformation_records: dict[str, OutputTransformationRecord] = {}
+    result_digests: dict[str, str] = {}
+    sealed_results: list[str] = []
+    with tempfile.TemporaryDirectory() as temporary:
+        run_root = Path(temporary)
+        for entry in payload.get("outputs", ()):
+            contract_output_id = str(entry["contract_output_id"])
+            sha256 = str(entry["sha256"])
+            spec = specs.get(contract_output_id)
+            if spec is None:
+                raise ValueError(
+                    f"Closure output {contract_output_id!r} is not declared for "
+                    f"stage {stage_id!r} role {role!r}."
+                )
+            sealed_bytes = artifacts.read_bytes(sha256)
+            if hashlib.sha256(sealed_bytes).hexdigest() != sha256:
+                raise ValueError(
+                    f"Sealed output {contract_output_id!r} does not match its "
+                    "recorded SHA-256 digest."
+                )
+            target = run_root.joinpath(*spec.relative_path.split("/"))
+            target.parent.mkdir(parents=True, exist_ok=True)
+            document = json.loads(sealed_bytes.decode("utf-8"))
+            snapshot = copy.deepcopy(document)
+            renames: dict[str, str] = {}
+            changed = apply_normalize_transformations(
+                document,
+                spec=spec,
+                codes=codes,
+                ts=isoformat_utc(utc_now()),
+                path=target,
+                renames=renames,
+            )
+            if changed:
+                result_bytes = json.dumps(
+                    document, indent=2, ensure_ascii=False
+                ).encode("utf-8")
+                result_sha256 = hashlib.sha256(result_bytes).hexdigest()
+                target.write_bytes(result_bytes)
+                stored_output = artifacts.put_bytes(
+                    result_bytes, expected_sha256=result_sha256
+                )
+                repository.record_artifact(
+                    deterministic_id(
+                        "artifact",
+                        project_id,
+                        run_id,
+                        spec.contract_output_id,
+                        result_sha256,
+                    ),
+                    project_id,
+                    str(stored_output.sha256),
+                    stored_output.size,
+                    "application/json",
+                    f"artifact://sha256/{stored_output.sha256}",
+                    {
+                        "kind": "normalized_role_output",
+                        "run_id": run_id,
+                        "contract_output_id": spec.contract_output_id,
+                        "output_id": spec.output_id,
+                        "storage_relative_path": stored_output.relative_path,
+                    },
+                )
+                result_digests[contract_output_id] = result_sha256
+            else:
+                result_sha256 = sha256
+                target.write_bytes(sealed_bytes)
+            entries = _classify_transformations(snapshot, document, renames=renames)
+            transformation_records[contract_output_id] = OutputTransformationRecord(
+                contract_output_id=contract_output_id,
+                source_sha256=sha256,
+                result_sha256=result_sha256,
+                entries=tuple(entries),
+                primary_artifact_unchanged=_primary_artifact_unchanged(entries),
+            )
+            sealed_results.append(result_sha256)
+        result = validate_role_outputs(
+            schema_catalog=schemas,
+            run_root=run_root,
+            output_plan=output_plan,
+            stage=stage,
+            role=role,
+        )
+
+    ordinal = repository.count_validation_attempts(run_id) + 1
+    attempt_id = _derive_attempt_id(run_id, ordinal)
+    policy_version = registry_version()
+    report = ValidationReport.from_findings(
+        f"report.{attempt_id}", run_id, "normalize", result.findings
+    )
+    report_dict = report.to_dict()
+    report_dict["output_transformations"] = [
+        record.to_dict() for record in transformation_records.values()
+    ]
+    digest_input = "normalize:" + "".join(sorted(sealed_results))
+    source_sha256 = hashlib.sha256(digest_input.encode("utf-8")).hexdigest()
+    prior = repository.get_latest_validation_attempt(run_id)
+    prior_attempt_id = str(prior["attempt_id"]) if prior is not None else None
+    stored = repository.record_validation_attempt(
+        attempt_id,
+        run_id,
+        ordinal,
+        policy_version,
+        json.dumps(report_dict, sort_keys=True),
+        source_sha256,
+        correction_type="normalize",
+        prior_attempt_id=prior_attempt_id,
+        correction_command_id=correction_command_id,
+    )
+    attempt = ValidationAttempt(
+        attempt_id=attempt_id,
+        run_id=run_id,
+        policy_version=policy_version,
+        report=report,
+        source_sha256=source_sha256,
+        correction_type="normalize",
+        prior_attempt_id=prior_attempt_id,
+        correction_command_id=correction_command_id,
+        attempted_at=str(stored["attempted_at"]),
+    )
+    return NormalizeExecution(
+        attempt=attempt,
+        findings=tuple(result.findings),
+        transformation_records=transformation_records,
+        result_digests=result_digests,
+    )
+
+def record_normalize_closure(
+    *,
+    repository: HubRepository,
+    artifacts: ArtifactStore,
+    specification: SpecificationPackage,
+    run_id: str,
+    role_closure_id: str,
+    correction_command_id: str,
+    invocation_sha256: str,
+    result_digests: dict[str, str],
+    transformation_records: dict[str, OutputTransformationRecord],
+    findings: tuple[ValidationFinding, ...] = (),
+) -> str:
+    """Write the correction-family closure for a PASSED normalization.
+
+    Mirrors ``record_revalidation_closure``, except the closure document's
+    output entries are rebound to the transformed bytes: every occurrence
+    of the original digest string (the ``sha256`` field and any
+    digest-carrying storage path or URI field) is replaced by the
+    override from ``result_digests``, and the entry's ``size`` and
+    ``artifact_id`` are updated to the persisted normalized artifact so
+    the correction closure passes the full ``_load_closure``
+    verification.  The transformation records are embedded as
+    ``output_transformations``.
+
+    Idempotent: an exact replay short-circuits on the already-sealed
+    closure and returns the same closure id; a DIFFERENT second write for
+    the same correction identity surfaces ``RepositoryConflictError`` from
+    the repository (never caught here).  The source closure is immutable
+    and never mutated.  Returns the correction closure id.
+    """
+    recipe = _recipe_for_run(repository, run_id)
+    plan = _plan_from_recipe(specification, recipe)
+    payload = _closure_payload(repository, role_closure_id)
+    stage_id = str(payload.get("stage_id", ""))
+    role = str(payload.get("role", ""))
+    stage = next((item for item in plan.stages if item.stage_id == stage_id), None)
+    if stage is None:
+        raise ValueError(
+            f"Closure stage {stage_id!r} is not part of the frozen phase plan."
+        )
+
+    c_invocation_id, c_execution_id, c_closure_id = correction_role_identity(
+        run_id, recipe.sha256, stage, role, correction_command_id
+    )
+    external_execution_id = f"correction:{correction_command_id}"
+    linkage = {
+        "kind": "correction_normalize",
+        "correction_command_id": correction_command_id,
+        "source_closure_id": role_closure_id,
+    }
+    repository.get_or_create_execution(
+        c_execution_id,
+        c_invocation_id,
+        run_id,
+        invocation_sha256,
+        dict(linkage),
+    )
+    repository.acknowledge_execution(
+        c_execution_id,
+        external_execution_id,
+        dict(linkage),
+    )
+
+    def _document(closed_at: str) -> dict[str, Any]:
+        document = copy.deepcopy(payload)
+        document.pop("closure_sha256", None)
+        document["closure_id"] = c_closure_id
+        document["execution_id"] = c_execution_id
+        document["invocation_id"] = c_invocation_id
+        document["invocation_sha256"] = invocation_sha256
+        document["status"] = "succeeded"
+        document["failure_code"] = None
+        document["exit_code"] = 0
+        document["external_execution_id"] = external_execution_id
+        for output_entry in document.get("outputs", ()):
+            if type(output_entry) is not dict:
+                continue
+            contract_output_id = str(output_entry.get("contract_output_id", ""))
+            override = result_digests.get(contract_output_id)
+            if override is None:
+                continue
+            original = str(output_entry.get("sha256", ""))
+            for key, value in output_entry.items():
+                if isinstance(value, str) and original and original in value:
+                    output_entry[key] = value.replace(original, override)
+            stored_output = artifacts.verify(override)
+            # The artifact store shards the digest in its relative path
+            # (``.../sha256/<2>/<rest>``), so the contiguous-digest
+            # replacement above cannot reach it; rebind it explicitly with
+            # the size and artifact id of the normalized artifact.
+            output_entry["storage_relative_path"] = stored_output.relative_path
+            output_entry["size"] = stored_output.size
+            output_entry["artifact_id"] = deterministic_id(
+                "artifact",
+                str(document["project_id"]),
+                run_id,
+                contract_output_id,
+                override,
+            )
+        document["output_transformations"] = [
+            record.to_dict() for record in transformation_records.values()
+        ]
+        document["summary"] = (
+            "Normalization converged: the transformed outputs conform to the "
+            f"current schema catalog under correction {correction_command_id}."
+        )
+        document["findings"] = [finding.to_dict() for finding in findings]
+        document["closed_at"] = closed_at
+        return document
+
+    existing = repository.get_role_closure(c_closure_id)
+    if existing is not None:
+        existing_document = loads_json(
+            existing["payload_json"], source=f"role closure {c_closure_id}"
+        )
+        closed_at = (
+            str(existing_document.get("closed_at", ""))
+            if type(existing_document) is dict
+            else ""
+        )
+        probe = _document(closed_at)
+        probe_sha256 = document_sha256(probe)
+        probe["closure_sha256"] = probe_sha256
+        if (
+            type(existing_document) is dict
+            and str(existing["closure_sha256"]) == probe_sha256
+            and existing_document == probe
+        ):
+            return c_closure_id
+        # A different write for the same correction identity: fall through
+        # to the write path so the repository surfaces the conflict.
+
+    document = _document(isoformat_utc(utc_now()))
+    closure_sha256 = document_sha256(document)
+    document["closure_sha256"] = closure_sha256
+    closure_bytes = canonicalize(document)
+    stored = artifacts.put_bytes(
+        closure_bytes, expected_sha256=hashlib.sha256(closure_bytes).hexdigest()
+    )
+    repository.record_artifact(
+        closure_artifact_id(c_closure_id),
+        str(payload["project_id"]),
+        str(stored.sha256),
+        stored.size,
+        "application/json",
+        f"artifact://sha256/{stored.sha256}",
+        {
+            "kind": "role_invocation_closure",
+            "run_id": run_id,
+            "closure_id": c_closure_id,
+            "storage_relative_path": stored.relative_path,
+        },
+    )
+    repository.close_execution(
+        c_execution_id, c_closure_id, closure_sha256, document
+    )
+    return c_closure_id
+
+def preview_normalize(
+    *,
+    repository: HubRepository,
+    specification: SpecificationPackage,
+    artifacts: ArtifactStore,
+    schemas: SchemaCatalog,
+    run_id: str,
+    role_closure_id: str,
+    transformation_codes: Iterable[str],
+) -> dict[str, Any]:
+    """Dry-run normalization against one sealed role closure (read-only).
+
+    Materializes the sealed bytes digest-verified into a temporary root,
+    validates the ORIGINAL bytes (the current failing findings), applies
+    the allowlisted transformations to parsed copies in a second
+    temporary root, and validates the transformed tree.  Writes nothing:
+    no artifacts, no attempt rows, no state transitions.  Returns a plain
+    dict with the current findings, the remaining findings, the
+    per-output transformation records, the findings the transformations
+    would fix (matched on ``(code, json_pointer)``), and whether the
+    transformed tree would pass.
+    """
+    codes = _check_normalize_allowlist(transformation_codes)
+    recipe = _recipe_for_run(repository, run_id)
+    plan = _plan_from_recipe(specification, recipe)
+    output_plan = build_output_plan(plan)
+
+    payload = _closure_payload(repository, role_closure_id)
+    stage_id = str(payload.get("stage_id", ""))
+    role = str(payload.get("role", ""))
+    stage = next((item for item in plan.stages if item.stage_id == stage_id), None)
+    if stage is None:
+        raise ValueError(
+            f"Closure stage {stage_id!r} is not part of the frozen phase plan."
+        )
+    specs = {
+        spec.contract_output_id: spec
+        for spec in output_plan.for_stage_role(stage.stage_id, role)
+    }
+
+    transformations: list[dict[str, Any]] = []
+    with tempfile.TemporaryDirectory() as temporary:
+        current_root = Path(temporary) / "current"
+        candidate_root = Path(temporary) / "candidate"
+        for entry in payload.get("outputs", ()):
+            contract_output_id = str(entry["contract_output_id"])
+            sha256 = str(entry["sha256"])
+            spec = specs.get(contract_output_id)
+            if spec is None:
+                raise ValueError(
+                    f"Closure output {contract_output_id!r} is not declared for "
+                    f"stage {stage_id!r} role {role!r}."
+                )
+            sealed_bytes = artifacts.read_bytes(sha256)
+            if hashlib.sha256(sealed_bytes).hexdigest() != sha256:
+                raise ValueError(
+                    f"Sealed output {contract_output_id!r} does not match its "
+                    "recorded SHA-256 digest."
+                )
+            current_target = current_root.joinpath(*spec.relative_path.split("/"))
+            current_target.parent.mkdir(parents=True, exist_ok=True)
+            current_target.write_bytes(sealed_bytes)
+            candidate_target = candidate_root.joinpath(
+                *spec.relative_path.split("/")
+            )
+            candidate_target.parent.mkdir(parents=True, exist_ok=True)
+            document = json.loads(sealed_bytes.decode("utf-8"))
+            snapshot = copy.deepcopy(document)
+            renames: dict[str, str] = {}
+            changed = apply_normalize_transformations(
+                document,
+                spec=spec,
+                codes=codes,
+                ts=isoformat_utc(utc_now()),
+                path=candidate_target,
+                renames=renames,
+            )
+            if changed:
+                result_bytes = json.dumps(
+                    document, indent=2, ensure_ascii=False
+                ).encode("utf-8")
+                candidate_target.write_bytes(result_bytes)
+                result_sha256 = hashlib.sha256(result_bytes).hexdigest()
+            else:
+                candidate_target.write_bytes(sealed_bytes)
+                result_sha256 = sha256
+            entries = _classify_transformations(snapshot, document, renames=renames)
+            transformations.append(
+                OutputTransformationRecord(
+                    contract_output_id=contract_output_id,
+                    source_sha256=sha256,
+                    result_sha256=result_sha256,
+                    entries=tuple(entries),
+                    primary_artifact_unchanged=_primary_artifact_unchanged(entries),
+                ).to_dict()
+            )
+        current = validate_role_outputs(
+            schema_catalog=schemas,
+            run_root=current_root,
+            output_plan=output_plan,
+            stage=stage,
+            role=role,
+        )
+        remaining = validate_role_outputs(
+            schema_catalog=schemas,
+            run_root=candidate_root,
+            output_plan=output_plan,
+            stage=stage,
+            role=role,
+        )
+
+    remaining_keys = {
+        (finding.code, finding.json_pointer) for finding in remaining.findings
+    }
+    fixed = [
+        finding
+        for finding in current.findings
+        if (finding.code, finding.json_pointer) not in remaining_keys
+    ]
+    return {
+        "current_findings": [finding.to_dict() for finding in current.findings],
+        "remaining_findings": [finding.to_dict() for finding in remaining.findings],
+        "transformations": transformations,
+        "fixed_findings": [finding.to_dict() for finding in fixed],
+        "passing": not any(
+            finding.blocks_publication for finding in remaining.findings
+        ),
+    }
 
 def seal_correction_submission(
     *,
@@ -380,6 +885,10 @@ def seal_correction_submission(
 
 
 __all__ = [
+    "NormalizeExecution",
+    "normalize_closure_outputs",
+    "preview_normalize",
+    "record_normalize_closure",
     "record_revalidation_closure",
     "revalidate_closure_outputs",
     "seal_correction_submission",

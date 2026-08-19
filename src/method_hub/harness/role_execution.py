@@ -399,6 +399,107 @@ def _primary_artifact_unchanged(
     return all(entry.code == "hash_recomputation" for entry in entries)
 
 
+def apply_normalize_transformations(
+    data: Any,
+    *,
+    spec: OutputSpec,
+    codes: frozenset[str] | set[str],
+    ts: str,
+    path: Path,
+) -> bool:
+    """Apply a selected subset of the role lane's mechanical repairs in place.
+
+    This is the K-1b *normalize* correction-lane primitive: it reuses the
+    exact role-lane repair helpers (``_deep_sanitize_ids``,
+    ``_rewrite_id_references``, ``_strip_empty_strings``,
+    ``_add_missing_timestamps``, ``_fix_self_referential_hashes``) and mirrors
+    the structure of ``_apply_disclosed_mechanical_repairs``, but gates every
+    repair block on membership in *codes*.  The role lane's monolith is
+    untouched and remains byte-identical in behaviour.
+
+    *data* is the already-parsed JSON document (dict or list); it is mutated
+    in place.  *ts* is the caller-supplied injection timestamp; *path* is the
+    output file path (used only by ``_fix_self_referential_hashes``).
+
+    The caller MUST pre-validate *codes* against
+    ``application.correction.ALLOWED_NORMALIZE_CODES``; this function does not
+    validate them itself (importing the application layer here would risk an
+    import cycle).  The monolith's ``identity.version`` bump is NEVER applied:
+    ``identity_version_bump`` is not an allowlisted normalize code, so that
+    block is omitted entirely.
+
+    Returns True iff any transformation changed *data*.
+    """
+    schema_info = _schema_info(spec.schema_file)
+    valid_timestamps = schema_info["timestamps"]
+    allowed_props = schema_info["properties"]
+    no_additional = schema_info["no_additional"]
+    required_fields = schema_info["required"]
+    nested_required = schema_info.get("nested_required", set())
+    nested_timestamps = schema_info.get("nested_timestamps", set())
+    # Same rule as the role lane: when the schema declares no timestamps and
+    # no additionalProperties:false, no per-item repair applies — but ID
+    # sanitization must still run.
+    skip_item_repairs = not valid_timestamps and not (no_additional and allowed_props)
+
+    def _fix_item(item: dict) -> bool:
+        changed = False
+        if "timestamp_injection" in codes:
+            for field in valid_timestamps:
+                if field not in item:
+                    item[field] = ts
+                    changed = True
+        if (
+            "schema_version_injection" in codes
+            and "schema_version" in allowed_props
+            and "schema_version" not in item
+        ):
+            item["schema_version"] = "1.0.0"
+            changed = True
+        # identity.version bump deliberately omitted: identity_version_bump
+        # is not an allowlisted normalize code.
+        if "additional_properties_strip" in codes and no_additional and allowed_props:
+            for key in list(item.keys()):
+                if key not in allowed_props:
+                    del item[key]
+                    changed = True
+        if "null_strip" in codes:
+            for key in list(item.keys()):
+                if item[key] is None and key not in required_fields:
+                    del item[key]
+                    changed = True
+        return changed
+
+    changed = False
+    if not skip_item_repairs:
+        if isinstance(data, dict):
+            changed = _fix_item(data)
+        elif isinstance(data, list):
+            for item in data:
+                if isinstance(item, dict):
+                    if _fix_item(item):
+                        changed = True
+    # ID sanitization runs even when skip_item_repairs (same as the monolith).
+    if "id_sanitization" in codes:
+        id_coverage = _stableid_positions(spec.schema_file)
+        renames: dict[str, str] = {}
+        if _deep_sanitize_ids(data, id_coverage, renames=renames):
+            changed = True
+        if _rewrite_id_references(data, renames):
+            changed = True
+    if not skip_item_repairs:
+        if "empty_string_strip" in codes:
+            if _strip_empty_strings(data, required_fields=required_fields | nested_required):
+                changed = True
+        if "timestamp_injection" in codes:
+            if _add_missing_timestamps(data, nested_timestamps, ts):
+                changed = True
+        if "hash_recomputation" in codes:
+            if _fix_self_referential_hashes(data, path):
+                changed = True
+    return changed
+
+
 def _add_missing_timestamps(
     data: Any, timestamp_map: dict[str, set[str]], ts: str
 ) -> bool:

@@ -176,6 +176,31 @@ K-3/K-4/K-6 small alignments -> WP-I.
 
 ## Fix log
 
+### 2026-08-18 audit status update (coder; no code changes)
+
+Verified against the tree at `74b243f` (suite 1122 green, vitest 120/120,
+validator exit 0):
+
+- **K-1: IN PROGRESS, P1-P3b landed.** The correction lane is no longer
+  display-only: error codes (`ad3e2a6`), attempt-aware submission read and
+  Lane A re-entry with the D4 family-first fix (`c1cf087`),
+  `request_output_correction` service + `revalidate_run` descriptor
+  (`b91fe9e`), and the `POST /projects/{id}/runs/{run_id}/corrections`
+  endpoint (`74b243f`). Remaining K-1 work (normalize/preview, Lane B, UI)
+  is sequenced as P4-P6 in
+  [k1-remaining-implementation-plan-2026-08-17.md](k1-remaining-implementation-plan-2026-08-17.md).
+- **K-3: FIXED** (`c79b02d`): kanban executor `sk-` redaction regex aligned
+  with local_hermes; regression test added.
+- **K-4: CLOSED as already-fixed** (`e4a98d9`, live probe 2026-08-17): the
+  `executor.unavailable` gate rejects `start_run` when no executor is
+  configured; no zombie run is created. The zombie-run claim above was
+  stale.
+- **K-6: FIXED** (`57529d4`): transformation classification uses the exact
+  rename map; schema-derived sanitizations label as `id_sanitization`.
+- **Still open**: NA-2 (tracked as P7 in the K-1 plan), K-2 (needs Tez
+  decision), K-5 (production re-exercise after P1-P6 land), K-7 (open by
+  design).
+
 ### 2026-08-16: NA-1 FIXED (commit c243fe5, subagent package, validator-verified)
 
 `_run_post_exit_validation` no longer hand-builds `SealedRun(manifest={})`:

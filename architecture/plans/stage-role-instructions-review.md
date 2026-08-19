@@ -2,7 +2,7 @@
 
 Status: Review findings, uncommitted changeset under review
 Reviewer: coder profile, at Tez's request
-Subject: [Stage+Role Instruction Templates for P1, P3, P4, P5](stage-role-instructions-all-phases.md)
+Subject: [Stage+Role Instruction Templates for P1, P3, P4, P5](completed/stage-role-instructions-all-phases.md)
 plus the uncommitted working tree that implements it (contracts, harness,
 instruction templates, Web UI).
 

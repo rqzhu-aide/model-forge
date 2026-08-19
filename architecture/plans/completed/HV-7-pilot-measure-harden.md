@@ -18,7 +18,7 @@ program end-to-end.
 
 ### HV-7.1: Build the calibration corpus
 
-**Target:** `architecture/plans/evidence/hv7-calibration-corpus/`
+**Target:** `architecture/plans/completed/evidence/hv7-calibration-corpus/`
 
 A corpus of test cases covering:
 
@@ -106,7 +106,7 @@ Review disagreements by phase and validator code. Track:
 
 ### HV-7.3: Track operational metrics
 
-**Target:** `architecture/plans/evidence/hv7-metrics.json`
+**Target:** `architecture/plans/completed/evidence/hv7-metrics.json`
 
 | Metric | Definition |
 | --- | --- |

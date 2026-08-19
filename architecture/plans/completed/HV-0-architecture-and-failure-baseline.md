@@ -123,7 +123,7 @@ Record baseline counts:
 | By validator code | Frequency, outcome (published/rejected/failed) |
 | By finding class (provisional) | How many would be correctable vs. blocking |
 
-Store as `architecture/plans/evidence/hv0-failure-baseline.json`.
+Store as `architecture/plans/completed/evidence/hv0-failure-baseline.json`.
 
 ### HV-0.3: ADR for independent lifecycle axes
 
@@ -274,8 +274,8 @@ gate passes; no runtime code in HV-0 depends on them.
 
 | File | Change |
 | --- | --- |
-| `architecture/plans/evidence/hv0-failure-baseline.json` | New: baseline metrics |
-| `architecture/plans/evidence/hv0-finding-code-inventory.yaml` | New: code registry |
+| `architecture/plans/completed/evidence/hv0-failure-baseline.json` | New: baseline metrics |
+| `architecture/plans/completed/evidence/hv0-finding-code-inventory.yaml` | New: code registry |
 | `architecture/decisions/ADR-014-*.md` | New: lifecycle axes + correction authority |
 | `architecture/decisions/README.md` | Index entry for the new ADR (link format is machine-checked, `validate_package.py:3141-3146`) |
 | `architecture/scenarios/S05-*.md` | Revised: distinguish failure modes |

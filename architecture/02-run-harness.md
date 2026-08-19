@@ -61,7 +61,31 @@ validating or promoting -> failed after unrecoverable operational failure
 
 An interrupted `validating` or `promoting` run is not immediately terminal. Recovery examines durable checkpoints and either resumes idempotently or resolves the run to `failed`, `rejected`, `conflicted`, or `published` without changing scientific content.
 
-### 2.3 State meanings
+### 2.3 Correction lane
+
+A `failed` or `rejected` run whose findings include at least one correctable
+contract error may accept an authenticated OutputCorrectionCommand (ADR-014;
+see [09](09-control-commands.md)):
+
+```text
+failed or rejected
+  -> correction_authorized
+  -> correcting
+  -> submitted                      (re-enters the normal pipeline)
+correction_authorized or correcting
+  -> correction_exhausted           (bounded attempts spent; terminal)
+```
+
+`correction_authorized` records the sealed user authorization; nothing is
+rewritten. `correcting` is the bounded re-entry lane: each attempt appends a
+new validation-attempt record, correction closure, or submission attempt;
+sealed outputs and closures are never edited in place. `correction_exhausted`
+is terminal: the correction bounds are spent and the run remains on record as
+requiring correction. A correction never creates a formal generation,
+authority event, or current-index change by itself; only the re-entered
+`submitted -> validating -> promoting` path can publish.
+
+### 2.4 State meanings
 
 | State | Meaning | Formal records changed? |
 |---|---|---|
@@ -78,6 +102,9 @@ An interrupted `validating` or `promoting` run is not immediately terminal. Reco
 | `failed` | An unrecoverable execution, validation, or promotion error ended the operation without a formal commit | No |
 | `rejected` | Submission did not satisfy publication requirements | No |
 | `conflicted` | Submission is valid but its publication assumptions no longer match current state | No |
+| `correction_authorized` | An authenticated correction command is sealed; no correction execution has begun | No |
+| `correcting` | A bounded correction attempt is executing (revalidation of sealed bytes or scoped role re-invocation) | No |
+| `correction_exhausted` | Correction bounds are spent; terminal, with the correction requirement preserved on record | No |
 
 Scientific outcomes such as contradicted or inconclusive are not run failures.
 
@@ -95,6 +122,10 @@ Scientific outcomes such as contradicted or inconclusive are not run failures.
 | `promoting` -> `published` | Harness | Atomic commit succeeds | New generations, authority events, derived projections, current index, and publication receipt |
 | Eligible pre-submission state -> `cancellation_requested` | User or delegated operator | Authenticated command, active delegation when remote, idempotency, exact run-head compare-and-swap | Durable cancellation fence and request event |
 | `cancellation_requested` -> `cancelled` | Harness | No role step or tool process remains active; no immutable submission exists | Terminal cancellation event; diagnostics preserved |
+| `failed` or `rejected` -> `correction_authorized` | User or delegated operator (OutputCorrectionCommand) | Authenticated command, idempotency, exact run-head compare-and-swap, at least one correctable finding, scope within the target closure's declared outputs, correction bounds remaining | Sealed correction command and authorization event |
+| `correction_authorized` -> `correcting` | Harness | Revalidation of the sealed bytes passed, or a bounded correction launch was authorized | Validation-attempt record and correction-start event |
+| `correcting` -> `submitted` | Harness | Corrected outputs conform; the correction closure is sealed in the closure family | Submission-attempt record; the base submission is never rewritten |
+| `correction_authorized` or `correcting` -> `correction_exhausted` | Harness | Correction bounds spent (MH-75) | Terminal event; findings and attempts preserved |
 | Phase-defined failure, rejection, or conflict source -> corresponding terminal state | Executor, validator, or concurrency check | Legal source state, reason code, and evidence | Terminal event; current records unchanged |
 
 Only the harness changes run state. Actors request transitions by emitting commands or submissions.

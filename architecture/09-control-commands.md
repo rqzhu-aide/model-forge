@@ -25,6 +25,11 @@ run's execution state before immutable submission and never enters the formal
 authority journal. It has its own schema, idempotency record, and run-journal
 compare-and-swap basis. See Section 7.
 
+`OutputCorrectionCommand` is likewise an execution-lane command: it authorizes
+bounded correction of a failed or rejected run and appends operational
+records, but it never enters the formal authority journal by itself. See
+Section 8.
+
 ## 2. Shared command requirements
 
 Both commands contain:
@@ -375,7 +380,40 @@ operator and delegation. The accepted pre-commit audit event independently binds
 that RunState event by its exact ID and event digest. This one-way link avoids a
 digest cycle and does not place cancellation in the scientific authority journal.
 
-## 8. Delegated authorization
+## 8. OutputCorrectionCommand
+
+`OutputCorrectionCommand` is an authenticated, idempotent control command that
+authorizes bounded correction of a run whose outputs failed validation with at
+least one correctable contract error (ADR-014). Its schema is
+[output-correction-command.schema.json](schemas/output-correction-command.schema.json).
+The command binds the exact run, the target role closure, the validation
+attempt being answered, the expected lifecycle head, the correction type
+(`revalidate`, `normalize`, `packaging`, or `scientific`), and the permitted
+output scope. It carries no authority to edit sealed records.
+
+Legal source states are exactly `failed`, `rejected`, and
+`correction_authorized`. Acceptance seals the command and moves the run to
+`correction_authorized`. Every other state, a run without a correctable
+finding, or a correction type the build does not offer is rejected with
+`CORRECTION_NOT_APPLICABLE` (`MH-73`). A permitted scope naming outputs the
+target closure did not declare is rejected with `CORRECTION_SCOPE_INVALID`
+(`MH-74`). Correction attempts are bounded per run; when the bounds are spent
+the command is rejected with `CORRECTION_EXHAUSTED` (`MH-75`) and the run
+resolves to `correction_exhausted`.
+
+A `revalidate` correction re-checks the already sealed output bytes against
+the current schemas and records a new validation attempt; on pass the run
+re-enters the normal `submitted -> validating -> promoting` pipeline through a
+submission-attempt record that never rewrites the base submission. A
+`normalize` correction applies only disclosed deterministic transformations
+that were previewed to the researcher before authorization. `packaging` and
+`scientific` corrections re-invoke the owning role under a correction identity
+with a pinned basis and a derived pointer list; changed outputs seal as a new
+correction closure in the closure family, never as an edit to the original
+closure. Every correction appends new records: validation attempts, correction
+closures, submission attempts, and transformation records.
+
+## 9. Delegated authorization
 
 A `DelegationGrant` is immutable user-issued authority for one operator. It binds
 an exact project, a list of action-specific target scopes, issue and expiry times,
@@ -431,7 +469,7 @@ fails with `DELEGATION_NOT_ACTIVE` if the second check fails. Remote cancellatio
 retirement, reactivation, and withdrawal descriptors are disabled until a
 covering active grant is resolved.
 
-## 9. UI and remote-operation behavior
+## 10. UI and remote-operation behavior
 
 For formal control commands, the backend exposes typed action descriptors for:
 
@@ -464,7 +502,7 @@ method lifecycle fields, and withdrawal generation-state fields are disjoint.
 The descriptor communicates eligibility and command construction; it is never
 itself authorization.
 
-## 10. Failure behavior
+## 11. Failure behavior
 
 Authentication, authorization, schema, transition, digest, dependency-closure,
 or concurrency failure occurs before commit and changes no formal state.
@@ -484,7 +522,7 @@ registered content digests, and binary root chain before accepting another
 command. A gap or mismatch fails closed and does not alter the last valid
 scientific authority state.
 
-## 11. Acceptance criteria
+## 12. Acceptance criteria
 
 Implementation must prove:
 
@@ -526,3 +564,12 @@ Implementation must prove:
 19. Every rejected command produces a schema-valid stable error and operational audit entry, with identical results through Web and remote clients.
 20. Schema-invalid and unauthenticated requests remain traceable to their exact raw bytes without a fabricated command, target, or user identity.
 21. Replaying accepted and rejected audit events reproduces the same chain root, and every accepted pre-commit event resolves to its exact durable effect.
+22. A correction command is accepted only from `failed`, `rejected`, or
+    `correction_authorized` with at least one correctable finding, and its
+    permitted scope never exceeds the target closure's declared outputs.
+23. A correction appends new validation-attempt, correction-closure, and
+    submission-attempt records; no sealed output, closure, or base submission
+    is rewritten.
+24. When the correction bounds are spent, further correction commands are
+    rejected and the run resolves to `correction_exhausted` with the findings
+    preserved.

@@ -78,9 +78,9 @@ Read the files in this order:
 13. [Implementation roadmap](06-implementation-roadmap.md) gives the required build order and definition of done.
 14. [Contract traceability](07-contract-traceability.md) defines research-workflow rules and their machine-readable links to invariants, tests, scenarios, phase contracts, and milestones.
 15. [Role and context contract](08-role-context-and-communication.md) defines reproducible profiles, prepared contexts, invocation starts and closures, downstream closure gates, immutable submission, capability-broker isolation, handoffs, and reviewer isolation.
-16. [Control commands](09-control-commands.md) defines cancellation, method lifecycle changes, formal-generation withdrawal, remote delegation, and shared command failures.
+16. [Control commands](09-control-commands.md) defines cancellation, output correction, method lifecycle changes, formal-generation withdrawal, remote delegation, and shared command failures.
 17. [Open implementation gaps](10-open-implementation-gaps.md) records unresolved structural integrity requirements that must close before the harness is complete.
-18. [Operational completion plan](plans/completed/operational-completion-plan.md) orders the remaining work from reviewed-basis sealing through supported release.
+18. [Trusted Local Execution Program](plans/trusted-local-execution-program.md) is the program-level plan for Version 1 execution work; the [plans index](plans/README.md) tracks the current bounded sequence.
 19. `tools/` contains the restricted RFC 8785 reference and one-command package conformance validator.
 20. `decisions/` records accepted changes to invariants, schemas, and phase behavior.
 
@@ -96,7 +96,8 @@ sequential harness, all five schema-example phase paths, API, and Web interface.
 2. Start every behavior change from its invariant, executable phase contract,
    schema, and scenario. Do not infer authority or phase behavior from UI code.
 3. Follow the
-   [Operational Completion Plan](plans/completed/operational-completion-plan.md) for the
+   [Trusted Local Execution Program](plans/trusted-local-execution-program.md) and the
+   [plans index](plans/README.md) for the
    remaining production sequence. The reviewed-basis seal precedes real Hermes
    execution, and real execution precedes remote operation.
 4. Keep production role execution disabled until the plan's isolation,

@@ -225,6 +225,69 @@ passes regardless of the old closure status. See
 tests/test_correction_execution.py:263 for the passing-revalidate
 pattern.
 
+## P5 design pins (added 2026-08-19, verified against code)
+
+Package split: P5a = Lane B execution core; P5b = service command path
+(bounds, packaging/scientific branches, exhaustion, descriptors).
+
+Verified constraints that shape the pins:
+- State table (domain/runs.py:84-96): CORRECTION_AUTHORIZED ->
+  {CORRECTING, CORRECTION_EXHAUSTED}; CORRECTING -> {SUBMITTED,
+  CORRECTION_EXHAUSTED}. There is NO correcting -> correction_authorized
+  edge, so a failed Lane B attempt with bounds remaining CANNOT return
+  to authorized. D6 (coder interpretation, flag for Tez): the run STAYS
+  in correcting; the retry path is a new correction command ACCEPTED
+  from the correcting state (all four types), whose pass CASes
+  correcting -> submitted (legal) and whose fail needs no transition.
+  This also covers the HV-5.8 restart case (a run left in correcting by
+  a crash mid-correction gets a retry action, never an auto-relaunch;
+  run_coordinator.py:142-143 already never auto-advances correction
+  states).
+- Lane B runs SYNCHRONOUSLY in the service call, deviating from the
+  design doc's "background, mirrors launch": Lane A set the synchronous
+  precedent (P3 pins), the DeterministicFakeExecutor keeps tests
+  deterministic, and the async handoff after submission already goes
+  through run_launcher. A production model call blocks the HTTP request
+  for its duration; accepted for Version 1, flagged here.
+- Workspace collision: a correction re-invocation through the base
+  execution path would _immutable_write over the base run's task.md /
+  role dirs. execute_correction therefore uses correction-suffixed
+  workspace dirs: roles/{seq}-{role}.correction.{command_id}/ and
+  tasks/{seq}-{role}.correction.{command_id}/task.md. Base workspace is
+  never touched.
+- Identity: replace(context, identity_suffix=f"correction.{command_id}")
+  at derivation time (load_existing pattern, role_execution.py:1243).
+- Brief: render_task_brief with researcher_instruction REPLACED by the
+  correction instruction (phase/mode/stage-role layers unchanged).
+- Previous outputs: the source closure's sealed candidate bytes are
+  materialized digest-verified INTO the correction run root's output
+  paths before invocation, so the agent edits in place.
+- Blast-radius verification runs BETWEEN output validation and closure
+  sealing (NOT after): a violation seals the correction closure as
+  FAILED with the violation finding (the attempt is spent), so a
+  violated correction NEVER enters the family-aware load_existing walk
+  (which only returns SUCCEEDED correction closures). Verification
+  rules (design 4a): PACKAGING - recursive JSON diff of source vs new
+  candidate per in-scope output; any changed path not at or under a
+  permitted pointer is a violation; permitted pointers = the finding
+  json_pointers from the failed validation attempt's report.
+  SCIENTIFIC - any change to an OUT-OF-SCOPE output is a violation;
+  in-scope outputs may change freely. The verification report rides on
+  the validation attempt row.
+- Instruction: build_correction_instruction gains an optional
+  permitted_pointers parameter; for packaging the instruction appends
+  "change ONLY these locations; every other byte of the document must
+  remain identical" with the derived pointer list. Scientific keeps
+  output-level scope.
+- Bounds (P5b): prior packaging/scientific attempts counted from
+  run_validation_attempts.correction_type; over bound ->
+  CORRECTION_EXHAUSTED before sealing the command. On a FAILED Lane B
+  attempt: if is_correction_exhausted (both spent) CAS correcting ->
+  correction_exhausted with an event; else stay correcting (D6).
+- Acceptance flow: failed/rejected -> correction_authorized (as today)
+  -> correcting BEFORE the invocation; already-correcting retries skip
+  both CASes.
+
 ## D4 (resolved 2026-08-17, coder): correction family supersedes a SUCCEEDED base closure
 
 Found by the P2 scenario-B test: K-1a2's `load_existing` was base-first

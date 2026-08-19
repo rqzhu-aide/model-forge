@@ -244,14 +244,27 @@ superseded by definition. All K-1a2/K-1a4 identity tests stay green.
 > Decision (Tez sign-off 2026-08-19): add the rejected-run branch. A
 > REJECTED run's sealed outputs are intact - the failure was at submission
 > validation - so recovery is cheap and faithful, and a rerun would
-> discard valid role work for no accuracy gain. Implementation: extend the
-> target-closure rule so that, when no failed closure exists (the
-> REJECTED case), the service revalidates each succeeded closure in the
-> permitted scope and targets the first whose outputs no longer conform
-> under the current schema catalog and policy version. If every in-scope
-> closure still conforms, refuse CORRECTION_NOT_APPLICABLE (the stale
-> findings no longer reproduce; the user reruns validation through the
-> normal lane). Lands together with P4. Original analysis kept below.
+> discard valid role work for no accuracy gain. Lands together with P4.
+> Original analysis kept below.
+>
+> IMPLEMENTED 2026-08-19 (mechanism amended from the first sketch): the
+> service now targets the newest SUCCEEDED closure when no failed closure
+> exists, preferring one whose declared outputs cover the requested scope;
+> the normal Lane A flow then revalidates that closure (expected pass for
+> a stale-schema rejection), writes the correction-family closure, and
+> re-enters submission, where the attempt-aware `validate_submission`
+> re-checks the assembled document against the CURRENT catalog. The first
+> sketch ("probe every succeeded closure, target the first nonconforming,
+> refuse when all conform") was dropped for two reasons: probing via
+> `revalidate_closure_outputs` records one attempt row PER PROBE before
+> the command is even sealed (side-effectful search), and the
+> refuse-when-all-conform branch is exactly the common REJECTED case -
+> it would have made revalidate useless precisely where recovery is
+> cheapest. If the submission still violates the current schema it is
+> rejected again with the attempt row as evidence, and normalize (P4) or
+> Lane B (P5) is the next recovery step. Tests:
+> `test_rejected_run_revalidate_recovers_to_submission`,
+> `test_rejected_run_without_closures_is_not_applicable`.
 
 The P3 pins' step 5 targets "the newest FAILED role closure".  On a
 REJECTED run every base closure SUCCEEDED (the rejection happened at

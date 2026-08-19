@@ -70,7 +70,8 @@ from test_correction_execution import (
     _record_passed_attempt,
     _seal_failed_base_closure,
 )
-from test_correction_submission import _golden_output
+from test_correction_submission import _golden_output, _stage_outcomes
+from method_hub.orchestration import SubmissionStatus
 
 ROOT = Path(__file__).resolve().parents[1]
 RUN = "run.revalidate_test"
@@ -638,6 +639,112 @@ def test_correction_rejects_unimplemented_type(tmp_path: Path) -> None:
             transformation_codes=["schema.legacy_id"],
         )
         receipt = await _preserve(stack.service, command, "corr-type")
+        with pytest.raises(CommandRejected) as caught:
+            await stack.service.request_output_correction(
+                PROJECT, RUN, command, raw_request=receipt
+            )
+        assert caught.value.error.code == "CORRECTION_NOT_APPLICABLE"
+
+    asyncio.run(scenario())
+
+
+# --------------------------------------------------------------------------- #
+# D5: a REJECTED run (no failed closure) recovers through revalidation
+# --------------------------------------------------------------------------- #
+
+
+def test_rejected_run_revalidate_recovers_to_submission(tmp_path: Path) -> None:
+    asyncio.run(_rejected_recovery(tmp_path))
+
+
+async def _rejected_recovery(tmp_path: Path) -> None:
+    fixture = _Fixture(tmp_path, DeterministicFakeExecutor(_golden_output))
+    stack = _ServiceStack(fixture)
+
+    # Every role succeeds and the base submission seals through the normal
+    # running -> submitted gate; submission validation then rejects the run
+    # (a stale-schema rejection: the current catalog accepts the same
+    # bytes).  No FAILED closure exists anywhere in this run.
+    for stage in fixture.plan.stages:
+        await _execute_stage(fixture, stage)
+    base_outcome = fixture.services.submissions.submit_or_reconcile(
+        stage_outcomes=_stage_outcomes(fixture.services)
+    )
+    assert base_outcome.status is SubmissionStatus.SUBMITTED
+    assert fixture.repository.get_submission(RUN) is not None
+    _set_run(fixture, "rejected", _run_payload(fixture, CORRECTABLE))
+
+    # The rejected detail advertises the correction control.
+    detail = await stack.service.get_run(PROJECT, RUN)
+    action = _correction_action(detail)
+    assert action.enabled is True
+
+    command = CorrectionRequest(
+        correction_type="revalidate",
+        permitted_output_scope=[_scope(fixture)],
+        action_descriptor_id=action.descriptor_id,
+    )
+    receipt = await _preserve(stack.service, command, "corr-rejected")
+    result = await stack.service.request_output_correction(
+        PROJECT, RUN, command, raw_request=receipt
+    )
+    await asyncio.sleep(0)  # let the scheduled handoff launcher run
+
+    # D5: with no failed closure, the newest succeeded closure whose
+    # declared outputs cover the scope is the target, and the run
+    # re-enters submission through the correction lane.
+    assert result.state == "submitted"
+    assert stack.launched == [RUN]
+
+    command_row = fixture.repository.get_command_by_idempotency(
+        PROJECT, receipt.request_artifact_id
+    )
+    assert command_row is not None
+    command_payload = loads_json(command_row["payload_json"], source="command")
+    assert command_payload["role_closure_id"] == fixture.closure_id_for("theorist")
+    sealed_command_id = str(command_payload["command_id"])
+
+    # The correction re-entry appends ONE submission attempt (the base row
+    # stays untouched) whose theorist entry references the correction
+    # closure written by the passed revalidation.
+    assert fixture.repository.count_submission_attempts(RUN) == 1
+    attempt = fixture.repository.get_latest_submission_attempt(RUN)
+    assert attempt is not None
+    assert str(attempt["correction_command_id"]) == sealed_command_id
+    expected_closure_id = correction_role_identity(
+        RUN, fixture.recipe.sha256, fixture.stage, "theorist", sealed_command_id
+    )[2]
+    attempt_document = loads_json(attempt["payload_json"], source="attempt")
+    theorist = [
+        item
+        for item in attempt_document["closure_chain"]
+        if item["role"] == "theorist"
+    ]
+    assert theorist[0]["invocation_closure_id"] == expected_closure_id
+
+    events = fixture.repository.list_run_events(RUN)
+    event_types = {
+        loads_json(item["payload_json"], source="event").get("event_type")
+        for item in events
+    }
+    assert {"run.correction_authorized", "run.correcting", "run_submitted"} <= event_types
+
+
+def test_rejected_run_without_closures_is_not_applicable(tmp_path: Path) -> None:
+    async def scenario() -> None:
+        fixture = _Fixture(tmp_path, DeterministicFakeExecutor(_golden_output))
+        stack = _ServiceStack(fixture)
+        # Rejected with a correctable finding but no role closures at all:
+        # there is nothing whose outputs a correction could target.
+        _set_run(fixture, "rejected", _run_payload(fixture, CORRECTABLE))
+        detail = await stack.service.get_run(PROJECT, RUN)
+        action = _correction_action(detail)
+        command = CorrectionRequest(
+            correction_type="revalidate",
+            permitted_output_scope=[_scope(fixture)],
+            action_descriptor_id=action.descriptor_id,
+        )
+        receipt = await _preserve(stack.service, command, "corr-no-closure")
         with pytest.raises(CommandRejected) as caught:
             await stack.service.request_output_correction(
                 PROJECT, RUN, command, raw_request=receipt

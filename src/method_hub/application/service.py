@@ -2041,28 +2041,52 @@ class MethodHubService:
                 )
             )
 
-        # 5. Newest FAILED role closure for this run.
+        # 5. Target closure: the newest FAILED role closure.  When no
+        #    failed closure exists (the REJECTED case: every base closure
+        #    succeeded and the rejection happened at submission
+        #    validation), target the newest SUCCEEDED closure, preferring
+        #    one whose declared outputs cover the requested scope (D5,
+        #    recover-not-rerun): revalidating it re-enters the submission
+        #    pipeline against the current catalog without rerunning any
+        #    role.
         closure_row = None
         closure_payload: dict[str, Any] = {}
+        succeeded: list[tuple[Any, dict[str, Any]]] = []
         for candidate in self.repository.list_role_closures_for_run(run_id):
             candidate_payload = json.loads(candidate["payload_json"])
-            if (
-                type(candidate_payload) is dict
-                and candidate_payload.get("status") == "failed"
-            ):
+            if type(candidate_payload) is not dict:
+                continue
+            candidate_status = candidate_payload.get("status")
+            if candidate_status == "failed":
                 closure_row = candidate
                 closure_payload = candidate_payload
+            elif candidate_status == "succeeded":
+                succeeded.append((candidate, candidate_payload))
+        if closure_row is None and succeeded:
+            requested = set(command.permitted_output_scope)
+
+            def _declared(entry: tuple[Any, dict[str, Any]]) -> set[str]:
+                return {
+                    str(item["contract_output_id"])
+                    for item in entry[1].get("outputs", ())
+                    if type(item) is dict and "contract_output_id" in item
+                }
+
+            covering = [
+                entry for entry in succeeded if requested <= _declared(entry)
+            ]
+            closure_row, closure_payload = (covering or succeeded)[-1]
         if closure_row is None:
             raise CommandRejected(
                 new_command_error(
                     "CORRECTION_NOT_APPLICABLE",
                     object_refs=[run_id],
                     researcher_message=(
-                        "This run has no failed role closure to correct."
+                        "This run has no role closure whose outputs a "
+                        "correction could target."
                     ),
                     smallest_correction=(
-                        "Corrections target the outputs of a failed role "
-                        "closure."
+                        "Corrections target the outputs of a role closure."
                     ),
                 )
             )

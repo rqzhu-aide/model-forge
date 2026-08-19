@@ -18,6 +18,8 @@ from .. import __version__
 from ..api.errors import CommandRejected, new_command_error
 from ..api.models import (
     CreateProjectRequest,
+    CorrectionPreviewRequest,
+    CorrectionPreviewView,
     CorrectionRequest,
     InstallSkillRequest,
     MethodRow,
@@ -97,8 +99,11 @@ from ..storage.repository import (
     RepositoryNotFoundError,
 )
 from .method_lifecycle import MethodLifecycleCommandService
-from .correction import _derive_command_id
+from .correction import ALLOWED_NORMALIZE_CODES, _derive_command_id
 from .correction_execution import (
+    normalize_closure_outputs,
+    preview_normalize,
+    record_normalize_closure,
     record_revalidation_closure,
     revalidate_closure_outputs,
     seal_correction_submission,
@@ -1922,9 +1927,13 @@ class MethodHubService:
     ) -> RunDetail:
         """Authorize one output correction and run Lane A synchronously.
 
-        P3 implements the ``revalidate`` correction only: the sealed output
-        bytes are re-checked against the current schema catalog; on a pass
-        the run re-enters submission through the correcting state (K-1a5).
+        Implements the ``revalidate`` correction (the sealed output bytes
+        are re-checked against the current schema catalog) and the
+        ``normalize`` correction (allowlisted mechanical transformations
+        are applied to a copy of the sealed bytes before validation; the
+        D3 preview gate refuses non-coverable requests before any command
+        is sealed).  On a pass the run re-enters submission through the
+        correcting state (K-1a5/K-1b).
         """
 
         # 1. Detail, raw request, idempotent replay (cancel_run pattern).
@@ -1939,8 +1948,8 @@ class MethodHubService:
                 raise _idempotency_key_reused(project_id, request_id)
             return detail
 
-        # 2. Only revalidate is implemented in this build.
-        if command.correction_type != "revalidate":
+        # 2. Only revalidate and normalize are implemented in this build.
+        if command.correction_type not in ("revalidate", "normalize"):
             raise CommandRejected(
                 new_command_error(
                     "CORRECTION_NOT_APPLICABLE",
@@ -2041,55 +2050,12 @@ class MethodHubService:
                 )
             )
 
-        # 5. Target closure: the newest FAILED role closure.  When no
-        #    failed closure exists (the REJECTED case: every base closure
-        #    succeeded and the rejection happened at submission
-        #    validation), target the newest SUCCEEDED closure, preferring
-        #    one whose declared outputs cover the requested scope (D5,
-        #    recover-not-rerun): revalidating it re-enters the submission
-        #    pipeline against the current catalog without rerunning any
-        #    role.
-        closure_row = None
-        closure_payload: dict[str, Any] = {}
-        succeeded: list[tuple[Any, dict[str, Any]]] = []
-        for candidate in self.repository.list_role_closures_for_run(run_id):
-            candidate_payload = json.loads(candidate["payload_json"])
-            if type(candidate_payload) is not dict:
-                continue
-            candidate_status = candidate_payload.get("status")
-            if candidate_status == "failed":
-                closure_row = candidate
-                closure_payload = candidate_payload
-            elif candidate_status == "succeeded":
-                succeeded.append((candidate, candidate_payload))
-        if closure_row is None and succeeded:
-            requested = set(command.permitted_output_scope)
-
-            def _declared(entry: tuple[Any, dict[str, Any]]) -> set[str]:
-                return {
-                    str(item["contract_output_id"])
-                    for item in entry[1].get("outputs", ())
-                    if type(item) is dict and "contract_output_id" in item
-                }
-
-            covering = [
-                entry for entry in succeeded if requested <= _declared(entry)
-            ]
-            closure_row, closure_payload = (covering or succeeded)[-1]
-        if closure_row is None:
-            raise CommandRejected(
-                new_command_error(
-                    "CORRECTION_NOT_APPLICABLE",
-                    object_refs=[run_id],
-                    researcher_message=(
-                        "This run has no role closure whose outputs a "
-                        "correction could target."
-                    ),
-                    smallest_correction=(
-                        "Corrections target the outputs of a role closure."
-                    ),
-                )
-            )
+        # 5. Target closure: the newest FAILED role closure, or — when no
+        #    failed closure exists (D5, the REJECTED case) — the newest
+        #    SUCCEEDED closure covering the requested scope.
+        closure_row, closure_payload = self._correction_target_closure(
+            run_id, set(command.permitted_output_scope)
+        )
         role_closure_id = str(closure_row["closure_id"])
 
         # 6. Scope gate: the requested scope must stay inside the closure's
@@ -2115,6 +2081,70 @@ class MethodHubService:
                 )
             )
 
+        # 6b. Normalize gates (K-1b): at least one allowlisted
+        #     transformation code, and the D3 coverability gate — a
+        #     read-only preview must show the requested codes fixing every
+        #     current finding BEFORE the command is sealed.
+        if command.correction_type == "normalize":
+            if not command.transformation_codes:
+                raise CommandRejected(
+                    new_command_error(
+                        "CORRECTION_SCOPE_INVALID",
+                        object_refs=[run_id, role_closure_id],
+                        researcher_message=(
+                            "A normalize correction requires at least one "
+                            "transformation code."
+                        ),
+                        smallest_correction=(
+                            "Name one or more allowlisted transformation "
+                            "codes; the preview endpoint shows what the full "
+                            "allowlist can fix."
+                        ),
+                    )
+                )
+            try:
+                preview = preview_normalize(
+                    repository=self.repository,
+                    specification=self.specification,
+                    artifacts=self.artifacts,
+                    schemas=self.specification.schemas,
+                    run_id=run_id,
+                    role_closure_id=role_closure_id,
+                    transformation_codes=command.transformation_codes,
+                )
+            except ValueError as error:
+                raise CommandRejected(
+                    new_command_error(
+                        "CORRECTION_SCOPE_INVALID",
+                        object_refs=[run_id, role_closure_id],
+                        researcher_message=str(error),
+                        smallest_correction=(
+                            "Restrict the transformation codes to the "
+                            "normalize allowlist."
+                        ),
+                    )
+                ) from error
+            if not preview["passing"]:
+                remaining_count = len(preview["remaining_findings"])
+                raise CommandRejected(
+                    new_command_error(
+                        "CORRECTION_NOT_APPLICABLE",
+                        object_refs=[run_id, role_closure_id],
+                        researcher_message=(
+                            "The normalize preview shows the requested "
+                            "transformations cannot cover all current "
+                            f"findings: {remaining_count} finding(s) would "
+                            "remain."
+                        ),
+                        smallest_correction=(
+                            "Inspect the preview endpoint "
+                            "(POST .../corrections/preview) for per-finding "
+                            "fixability before authorizing a normalize "
+                            "correction."
+                        ),
+                    )
+                )
+
         # 7. Build, validate, and seal the correction command document.
         head = str(row["head_sequence"])
         latest_attempt = self.repository.get_latest_validation_attempt(run_id)
@@ -2125,15 +2155,19 @@ class MethodHubService:
         )
         document = {
             "schema_version": "1.0.0",
-            "command_id": _derive_command_id(run_id, "revalidate", head),
+            "command_id": _derive_command_id(run_id, command.correction_type, head),
             "run_id": run_id,
             "role_closure_id": role_closure_id,
             "validation_attempt_id": attempt_id,
             "expected_lifecycle_head": head,
-            "correction_type": "revalidate",
+            "correction_type": command.correction_type,
             "permitted_output_scope": list(command.permitted_output_scope),
             "user_instruction": None,
-            "transformation_codes": [],
+            "transformation_codes": (
+                list(command.transformation_codes)
+                if command.correction_type == "normalize"
+                else []
+            ),
             "issued_at": isoformat_utc(utc_now()),
             "issued_by": self.settings.user_id,
         }
@@ -2159,6 +2193,11 @@ class MethodHubService:
                 "message": (
                     "Output correction authorized. The sealed outputs are "
                     "being re-checked against the current schemas."
+                    if command.correction_type == "revalidate"
+                    else
+                    "Output correction authorized. The allowlisted "
+                    "normalization transformations are being applied to the "
+                    "sealed outputs."
                 ),
                 "occurred_at": isoformat_utc(utc_now()),
             }
@@ -2189,30 +2228,75 @@ class MethodHubService:
                 )
             row = result.run
 
-        # 9. Lane A (synchronous): revalidate the sealed closure outputs.
-        correction = revalidate_closure_outputs(
-            repository=self.repository,
-            specification=self.specification,
-            artifacts=self.artifacts,
-            schemas=self.specification.schemas,
-            run_id=run_id,
-            role_closure_id=role_closure_id,
-            correction_command_id=command_id,
-        )
-        if correction.attempt.passed:
-            record_revalidation_closure(
+        # 9. Lane A (synchronous): revalidate the sealed closure outputs,
+        #    or normalize them with the allowlisted transformations (K-1b).
+        if command.correction_type == "normalize":
+            try:
+                normalized = normalize_closure_outputs(
+                    repository=self.repository,
+                    specification=self.specification,
+                    artifacts=self.artifacts,
+                    schemas=self.specification.schemas,
+                    run_id=run_id,
+                    role_closure_id=role_closure_id,
+                    correction_command_id=command_id,
+                    transformation_codes=command.transformation_codes,
+                )
+            except ValueError as error:
+                raise CommandRejected(
+                    new_command_error(
+                        "CORRECTION_SCOPE_INVALID",
+                        object_refs=[run_id, role_closure_id],
+                        researcher_message=str(error),
+                        smallest_correction=(
+                            "Restrict the transformation codes to the "
+                            "normalize allowlist."
+                        ),
+                    )
+                ) from error
+            passed = normalized.attempt.passed
+            if passed:
+                record_normalize_closure(
+                    repository=self.repository,
+                    artifacts=self.artifacts,
+                    specification=self.specification,
+                    run_id=run_id,
+                    role_closure_id=role_closure_id,
+                    correction_command_id=command_id,
+                    invocation_sha256=str(sealed.row["command_sha256"]),
+                    result_digests=normalized.result_digests,
+                    transformation_records=normalized.transformation_records,
+                )
+        else:
+            correction = revalidate_closure_outputs(
                 repository=self.repository,
-                artifacts=self.artifacts,
                 specification=self.specification,
+                artifacts=self.artifacts,
+                schemas=self.specification.schemas,
                 run_id=run_id,
                 role_closure_id=role_closure_id,
                 correction_command_id=command_id,
-                invocation_sha256=str(sealed.row["command_sha256"]),
             )
+            passed = correction.attempt.passed
+            if passed:
+                record_revalidation_closure(
+                    repository=self.repository,
+                    artifacts=self.artifacts,
+                    specification=self.specification,
+                    run_id=run_id,
+                    role_closure_id=role_closure_id,
+                    correction_command_id=command_id,
+                    invocation_sha256=str(sealed.row["command_sha256"]),
+                )
+        if passed:
             event = {
                 "event_type": "run.correcting",
                 "message": (
                     "Revalidation passed. The run re-enters submission with "
+                    "the corrected closure chain."
+                    if command.correction_type == "revalidate"
+                    else
+                    "Normalization passed. The run re-enters submission with "
                     "the corrected closure chain."
                 ),
                 "occurred_at": isoformat_utc(utc_now()),
@@ -2233,7 +2317,7 @@ class MethodHubService:
                         "CONTROL_HEAD_STALE",
                         object_refs=[run_id],
                         researcher_message=(
-                            "The run changed after revalidation passed."
+                            "The run changed after the correction passed."
                         ),
                         smallest_correction=(
                             "Refresh the run; the recorded validation attempt "
@@ -2244,20 +2328,176 @@ class MethodHubService:
             services = self.run_coordinator.correction_services(
                 run_id,
                 correction_command_id=command_id,
-                correction_type="revalidate",
+                correction_type=command.correction_type,
             )
             seal_correction_submission(
                 services=services,
                 correction_command_id=command_id,
-                correction_type="revalidate",
+                correction_type=command.correction_type,
             )
             if self.run_launcher is not None:
                 task = asyncio.create_task(self.run_launcher(run_id))
                 self._background.add(task)
                 task.add_done_callback(self._background.discard)
-        # D1: a failed revalidation stays in correction_authorized; the
-        # recorded attempt row is the failure evidence.
+        # D1: a failed revalidation/normalization stays in
+        # correction_authorized; the recorded attempt row is the failure
+        # evidence.
         return await self.get_run(project_id, run_id)
+
+    def _correction_target_closure(
+        self, run_id: str, requested_scope: set[str]
+    ) -> tuple[Any, dict[str, Any]]:
+        """Resolve the role closure a correction targets.
+
+        The newest FAILED role closure is the target.  When no failed
+        closure exists (the REJECTED case: every base closure succeeded
+        and the rejection happened at submission validation), target the
+        newest SUCCEEDED closure, preferring one whose declared outputs
+        cover the requested scope (D5, recover-not-rerun): revalidating
+        or normalizing it re-enters the submission pipeline against the
+        current catalog without rerunning any role.  Raises
+        CORRECTION_NOT_APPLICABLE when the run has no targetable closure.
+        """
+
+        closure_row = None
+        closure_payload: dict[str, Any] = {}
+        succeeded: list[tuple[Any, dict[str, Any]]] = []
+        for candidate in self.repository.list_role_closures_for_run(run_id):
+            candidate_payload = json.loads(candidate["payload_json"])
+            if type(candidate_payload) is not dict:
+                continue
+            candidate_status = candidate_payload.get("status")
+            if candidate_status == "failed":
+                closure_row = candidate
+                closure_payload = candidate_payload
+            elif candidate_status == "succeeded":
+                succeeded.append((candidate, candidate_payload))
+        if closure_row is None and succeeded:
+
+            def _declared(entry: tuple[Any, dict[str, Any]]) -> set[str]:
+                return {
+                    str(item["contract_output_id"])
+                    for item in entry[1].get("outputs", ())
+                    if type(item) is dict and "contract_output_id" in item
+                }
+
+            covering = [
+                entry for entry in succeeded if requested_scope <= _declared(entry)
+            ]
+            closure_row, closure_payload = (covering or succeeded)[-1]
+        if closure_row is None:
+            raise CommandRejected(
+                new_command_error(
+                    "CORRECTION_NOT_APPLICABLE",
+                    object_refs=[run_id],
+                    researcher_message=(
+                        "This run has no role closure whose outputs a "
+                        "correction could target."
+                    ),
+                    smallest_correction=(
+                        "Corrections target the outputs of a role closure."
+                    ),
+                )
+            )
+        return closure_row, closure_payload
+
+    async def preview_output_correction(
+        self,
+        project_id: str,
+        run_id: str,
+        command: CorrectionPreviewRequest,
+        *,
+        raw_request: RawRequestReceipt,
+    ) -> CorrectionPreviewView:
+        """Dry-run the full normalize allowlist (or the named codes).
+
+        Read-only (K-1b): no command is sealed, no idempotency row is
+        written, no events or validation attempts are recorded — the
+        response reports, per finding, whether the allowlisted
+        transformations would mechanically fix it.  The applicability
+        gates mirror the correction command (state + correctable finding)
+        but there is no descriptor head check: previews are always safe.
+        """
+
+        await self.get_run(project_id, run_id)  # project/run binding check
+        row = self.repository.get_run(run_id)
+        payload = row_json(row)
+        status = str(row["status"])
+        closure_findings = payload.get("closure_findings")
+        correctable = type(closure_findings) is list and any(
+            type(item) is dict
+            and item.get("finding_class") == "correctable_contract_error"
+            for item in closure_findings
+        )
+        if status not in ("failed", "rejected", "correction_authorized"):
+            raise CommandRejected(
+                new_command_error(
+                    "CORRECTION_NOT_APPLICABLE",
+                    object_refs=[run_id],
+                    researcher_message=(
+                        f"A run in the {status!r} state cannot accept an "
+                        "output correction."
+                    ),
+                    smallest_correction=(
+                        "Corrections apply to failed, rejected, or already "
+                        "correction-authorized runs."
+                    ),
+                )
+            )
+        if not correctable:
+            raise CommandRejected(
+                new_command_error(
+                    "CORRECTION_NOT_APPLICABLE",
+                    object_refs=[run_id],
+                    researcher_message=(
+                        "This run has no correctable contract error to "
+                        "correct; its findings are integrity blockers."
+                    ),
+                    smallest_correction=(
+                        "Inspect the findings; integrity blockers require a "
+                        "new run, not a correction."
+                    ),
+                )
+            )
+        # With an empty requested scope the D5 fallback targets the newest
+        # succeeded closure when no failed closure exists.
+        closure_row, _closure_payload = self._correction_target_closure(
+            run_id, set()
+        )
+        codes = (
+            sorted(ALLOWED_NORMALIZE_CODES)
+            if not command.transformation_codes
+            else list(command.transformation_codes)
+        )
+        try:
+            preview = preview_normalize(
+                repository=self.repository,
+                specification=self.specification,
+                artifacts=self.artifacts,
+                schemas=self.specification.schemas,
+                run_id=run_id,
+                role_closure_id=str(closure_row["closure_id"]),
+                transformation_codes=codes,
+            )
+        except ValueError as error:
+            raise CommandRejected(
+                new_command_error(
+                    "CORRECTION_SCOPE_INVALID",
+                    object_refs=[run_id, str(closure_row["closure_id"])],
+                    researcher_message=str(error),
+                    smallest_correction=(
+                        "Restrict the transformation codes to the "
+                        "normalize allowlist."
+                    ),
+                )
+            ) from error
+        return CorrectionPreviewView(
+            current_findings=preview["current_findings"],
+            remaining_findings=preview["remaining_findings"],
+            fixed_findings=preview["fixed_findings"],
+            transformations=preview["transformations"],
+            passing=bool(preview["passing"]),
+        )
 
     async def get_profiles(self, project_id: str) -> ProfileConfigurationView:
         self.repository.get_project(project_id)

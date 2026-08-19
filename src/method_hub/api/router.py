@@ -13,6 +13,8 @@ from pydantic import ValidationError
 from .errors import CommandRejected, command_schema_error
 from .models import (
     ConfigurationHealthView,
+    CorrectionPreviewRequest,
+    CorrectionPreviewView,
     CorrectionRequest,
     CreateProjectRequest,
     InstallSkillRequest,
@@ -508,11 +510,13 @@ def create_api_router() -> APIRouter:
         request: Request,
         service: Service,
     ) -> RunDetail:
-        """Authorize one output correction (K-1a5; revalidate only).
+        """Authorize one output correction (K-1a5/K-1b).
 
-        The sealed outputs of the run's failed role closure are
-        re-checked against the current schema catalog; on a pass the run
-        re-enters submission through the correcting state.
+        ``revalidate`` re-checks the sealed outputs of the run's failed
+        role closure against the current schema catalog; ``normalize``
+        first applies the allowlisted mechanical transformations to a
+        copy of the sealed bytes.  On a pass the run re-enters submission
+        through the correcting state.
         """
         command, raw_request = await _capture_and_parse(
             request,
@@ -522,6 +526,39 @@ def create_api_router() -> APIRouter:
             project_id=project_id,
         )
         return await service.request_output_correction(
+            project_id, run_id, command, raw_request=raw_request
+        )
+
+    @router.post(
+        "/projects/{project_id}/runs/{run_id}/corrections/preview",
+        response_model=CorrectionPreviewView,
+        response_model_exclude_none=True,
+        openapi_extra=_body_contract(CorrectionPreviewRequest),
+    )
+    async def preview_output_correction(
+        project_id: str,
+        run_id: str,
+        request: Request,
+        service: Service,
+    ) -> CorrectionPreviewView:
+        """Read-only dry run of a normalize correction (K-1b).
+
+        Applies the allowlisted transformations (the full allowlist when
+        the request names no codes) to a TEMP COPY of the sealed outputs
+        and re-validates, WITHOUT writing anything: no sealed command, no
+        idempotency row, no validation attempt, no events, no state
+        transitions.  The response lists current findings, the findings
+        the transformations would fix, the remaining findings, and the
+        transformation diff summaries.
+        """
+        command, raw_request = await _capture_and_parse(
+            request,
+            service,
+            CorrectionPreviewRequest,
+            command_family="request_output_correction",
+            project_id=project_id,
+        )
+        return await service.preview_output_correction(
             project_id, run_id, command, raw_request=raw_request
         )
 

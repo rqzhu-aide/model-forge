@@ -836,6 +836,16 @@ class CorrectionPreviewRequest(StrictModel):
     transformation_codes: list[str] = Field(default_factory=list)
 
 
+class CorrectionPreviewView(StrictModel):
+    """Dry-run outcome of a normalize correction (K-1b; zero state writes)."""
+
+    current_findings: list[dict[str, Any]]
+    remaining_findings: list[dict[str, Any]]
+    fixed_findings: list[dict[str, Any]]
+    transformations: list[dict[str, Any]]
+    passing: bool
+
+
 # --------------------------------------------------------------------------- #
 # Block 2: Role-definition configuration service models
 # --------------------------------------------------------------------------- #

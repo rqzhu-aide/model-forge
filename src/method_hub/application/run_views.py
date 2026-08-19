@@ -73,7 +73,7 @@ def run_summary_view(
         and projection.recovery_summary == "needs_output_correction"
     ) or state == "correction_authorized":
         projection = projection.model_copy(
-            update={"available_recovery_controls": ["revalidate"]}
+            update={"available_recovery_controls": ["revalidate", "normalize"]}
         )
         actions.append(
             ActionDescriptor(
@@ -88,6 +88,23 @@ def run_summary_view(
                 consequence_summary=(
                     "Re-check the sealed outputs against the current schemas; "
                     "on success the run re-enters submission."
+                ),
+                run_id=str(row["run_id"]),
+            )
+        )
+        actions.append(
+            ActionDescriptor(
+                descriptor_id=_action_id(
+                    str(row["run_id"]),
+                    "correction:normalize",
+                    str(row["head_sequence"]),
+                ),
+                action_type="normalize_run_outputs",
+                execution_kind="control_transaction",
+                enabled=True,
+                consequence_summary=(
+                    "Apply allowlisted mechanical transformations to the "
+                    "sealed outputs; on success the run re-enters submission."
                 ),
                 run_id=str(row["run_id"]),
             )

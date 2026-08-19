@@ -42,7 +42,7 @@ from pathlib import Path
 import pytest
 
 from method_hub.api.errors import CommandRejected
-from method_hub.api.models import CorrectionRequest
+from method_hub.api.models import CorrectionPreviewRequest, CorrectionRequest
 from method_hub.api.ports import RawRequestBody
 from method_hub.application.correction_execution import record_revalidation_closure
 from method_hub.application.run_coordinator import RunCoordinator
@@ -334,7 +334,7 @@ def _correction_action(detail):
 
 
 async def _preserve(
-    service: MethodHubService, command: CorrectionRequest, key: str
+    service: MethodHubService, command: CorrectionRequest | CorrectionPreviewRequest, key: str
 ):
     body = json.dumps(command.model_dump()).encode("utf-8")
     return await service.preserve_raw_request(
@@ -422,7 +422,10 @@ async def _acceptance(tmp_path: Path) -> None:
     detail = await stack.service.get_run(PROJECT, RUN)
     action = _correction_action(detail)
     assert action.enabled is True
-    assert detail.lifecycle_projection.available_recovery_controls == ["revalidate"]
+    assert detail.lifecycle_projection.available_recovery_controls == [
+        "revalidate",
+        "normalize",
+    ]
 
     command = CorrectionRequest(
         correction_type="revalidate",
@@ -529,7 +532,10 @@ async def _revalidate_fail(tmp_path: Path) -> None:
     assert report["findings"]
     # The authorized detail still offers the retry control.
     assert _correction_action(result).enabled is True
-    assert result.lifecycle_projection.available_recovery_controls == ["revalidate"]
+    assert result.lifecycle_projection.available_recovery_controls == [
+        "revalidate",
+        "normalize",
+    ]
 
 
 # --------------------------------------------------------------------------- #
@@ -633,10 +639,9 @@ def test_correction_rejects_unimplemented_type(tmp_path: Path) -> None:
         stack = _ServiceStack(fixture)
         _set_run(fixture, "failed", _run_payload(fixture, CORRECTABLE))
         command = CorrectionRequest(
-            correction_type="normalize",
+            correction_type="packaging",
             permitted_output_scope=[_scope(fixture)],
             action_descriptor_id="action.any",
-            transformation_codes=["schema.legacy_id"],
         )
         receipt = await _preserve(stack.service, command, "corr-type")
         with pytest.raises(CommandRejected) as caught:

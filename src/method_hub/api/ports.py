@@ -8,6 +8,8 @@ from typing import Literal, Protocol
 
 from .models import (
     ConfigurationHealthView,
+    CorrectionPreviewRequest,
+    CorrectionPreviewView,
     CorrectionRequest,
     CreateProjectRequest,
     InstallSkillRequest,
@@ -217,6 +219,15 @@ class MethodHubApplicationService(Protocol):
         *,
         raw_request: RawRequestReceipt,
     ) -> RunDetail: ...
+
+    async def preview_output_correction(
+        self,
+        project_id: str,
+        run_id: str,
+        command: CorrectionPreviewRequest,
+        *,
+        raw_request: RawRequestReceipt,
+    ) -> CorrectionPreviewView: ...
 
     async def get_profiles(self, project_id: str) -> ProfileConfigurationView: ...
 

@@ -5,7 +5,8 @@ landed and verified: `ad3e2a6` (P1 foundation), `c1cf087` (P2 Lane A
 re-entry + D4 fix), `b91fe9e` (P3a command path), `74b243f` (P3b router
 endpoint). Suite 1122 green, vitest 120/120, validator exit 0 at `74b243f`.
 Remaining: P4 (normalize + preview), P5 (Lane B), P6 (UI), P7 (NA-2), and
-the deferred K-2 / K-5 items below.
+the deferred K-5 item below. K-2 and D5 were decided 2026-08-19 (Tez):
+K-2 doc-only, D5 recover-not-rerun.
 Author: coder profile
 Basis: K-1 design (k1-correction-command-path-design.md), harness audit
 2026-08-16, full re-audit of the current tree at `57529d4`.
@@ -135,13 +136,13 @@ policy entry), `architecture/09-control-commands.md` (catalog row),
   `service.run_launcher = None` AFTER construction; that hook bypasses
   the command path and stays valid for recovery testing.
 
-## Deferred (needs Tez, not code)
-- **K-2** (two-lane output policy divergence): coder recommendation ,
-  DOCUMENT the deliberate difference: the formal lane repairs with
-  disclosure because it is the production path; the supervised WP-E1
-  lane validates raw bytes because it is the trust-verification lane
-  (repairing there would hide agent non-conformance from the verdict).
-  Awaiting Tez sign-off; then a one-paragraph doc addition closes it.
+## Deferred
+- **K-2: CLOSED 2026-08-19 (Tez sign-off, doc-only).** The two-lane output
+  policy divergence is deliberate and now documented in
+  `architecture/05-validation-strategy.md`: the formal lane repairs with
+  disclosure (production path); the supervised WP-E1 lane validates raw
+  bytes (trust-verification lane - repairing there would hide agent
+  non-conformance from the verdict). No code change, no rerun.
 - **K-5** (production re-exercise): run a controlled P2 full-catalog
   run after P1-P6 land, exercising the correction lane end to end.
 - **K-7**: open by design (reviewer-memory boundary).
@@ -238,7 +239,19 @@ target) is subsumed. Rationale: a succeeded correction closure is the
 latest user-authorized output for the role; older/base output is
 superseded by definition. All K-1a2/K-1a4 identity tests stay green.
 
-## D5 (open, coder feedback 2026-08-17): revalidate is unreachable for REJECTED runs
+## D5 (RESOLVED 2026-08-19, Tez: recover, not rerun): revalidate for REJECTED runs
+
+> Decision (Tez sign-off 2026-08-19): add the rejected-run branch. A
+> REJECTED run's sealed outputs are intact - the failure was at submission
+> validation - so recovery is cheap and faithful, and a rerun would
+> discard valid role work for no accuracy gain. Implementation: extend the
+> target-closure rule so that, when no failed closure exists (the
+> REJECTED case), the service revalidates each succeeded closure in the
+> permitted scope and targets the first whose outputs no longer conform
+> under the current schema catalog and policy version. If every in-scope
+> closure still conforms, refuse CORRECTION_NOT_APPLICABLE (the stale
+> findings no longer reproduce; the user reruns validation through the
+> normal lane). Lands together with P4. Original analysis kept below.
 
 The P3 pins' step 5 targets "the newest FAILED role closure".  On a
 REJECTED run every base closure SUCCEEDED (the rejection happened at

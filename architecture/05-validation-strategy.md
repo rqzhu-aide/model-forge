@@ -33,6 +33,19 @@ checks) and reuses the phase-specific scientific validators from
 phase contract (check 7, `phase_consistency`, in
 `application/output_validation.py`).
 
+The lanes deliberately differ on output repair policy (decision K-2,
+2026-08-19, approved by the project owner). The formal lane applies
+disclosed mechanical repairs before validation
+(`_apply_disclosed_mechanical_repairs`, `harness/role_execution.py`), with
+every applied repair recorded as a transformation record in the validation
+report, because it is the production path: a published basis should not
+fail on mechanically fixable contract drift, and disclosure keeps each
+repair visible. The supervised lane validates raw bytes with no repair
+calls because it is the trust-verification lane: repairing there would
+hide agent non-conformance from the verdict the lane exists to produce.
+This divergence is intentional; do not converge the lanes without
+revisiting this decision.
+
 ## Normative invariant test catalog
 
 Each test ID names a required implementation test group. The machine-readable

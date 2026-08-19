@@ -67,10 +67,12 @@ remains open.
    silently.
 4. Rename the function to describe what it does (for example
    `_apply_disclosed_mechanical_repairs`).
-5. Converge the two execution lanes (finding P2-10): the formal harness
-   lane and the trusted-local WP-E1 lane must apply the same declared
-   output policy. Preferred: both validate raw bytes; repairs are either
-   disclosed in both or allowed in neither.
+5. SUPERSEDED by K-2 (2026-08-19, Tez sign-off): the two lanes' divergence
+   on output repair is deliberate and documented in
+   `architecture/05-validation-strategy.md`. The formal lane keeps
+   disclosed mechanical repairs (production path); the supervised WP-E1
+   lane keeps raw-byte validation (trust-verification lane). No
+   convergence work.
 6. Add tests: an output missing `authors` fails validation with a precise
    error (not a fabricated author); a repair, when applied, appears in the
    validation report; the P2 lineage case fails loudly instead of being

@@ -89,7 +89,16 @@ output-correction command, service entrypoints calling
 `correction.revalidate`/`normalize`/`build_correction_instruction`,
 correction-bounded re-execution, and the UI actions to drive them).
 
-### K-2 (P1, decision needed): two-lane output policy divergence persists
+### K-2 (P1, RESOLVED 2026-08-19): two-lane output policy divergence is deliberate
+
+> Resolution (Tez sign-off 2026-08-19): document, do not converge. The
+> formal lane repairs with disclosure because it is the production path;
+> the supervised WP-E1 lane validates raw bytes because it is the
+> trust-verification lane (repairing there would hide agent
+> non-conformance from the verdict). Normative text added to
+> `architecture/05-validation-strategy.md`; FP-2 item 5 in the
+> instruction-output-integrity fix plan superseded. No code change, no
+> rerun. Original analysis kept below.
 
 The formal lane repairs before validation
 (`role_execution.py:1467` calls `_apply_disclosed_mechanical_repairs`,

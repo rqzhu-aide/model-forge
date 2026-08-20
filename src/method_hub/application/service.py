@@ -2698,7 +2698,7 @@ class MethodHubService:
             )
         # With an empty requested scope the D5 fallback targets the newest
         # succeeded closure when no failed closure exists.
-        closure_row, _closure_payload = self._correction_target_closure(
+        closure_row, closure_payload = self._correction_target_closure(
             run_id, set()
         )
         codes = (
@@ -2734,6 +2734,11 @@ class MethodHubService:
             fixed_findings=preview["fixed_findings"],
             transformations=preview["transformations"],
             passing=bool(preview["passing"]),
+            output_scope=[
+                str(entry["contract_output_id"])
+                for entry in closure_payload.get("outputs", ())
+                if type(entry) is dict and "contract_output_id" in entry
+            ],
         )
 
     async def get_profiles(self, project_id: str) -> ProfileConfigurationView:

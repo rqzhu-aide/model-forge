@@ -846,6 +846,7 @@ class CorrectionPreviewView(StrictModel):
     fixed_findings: list[dict[str, Any]]
     transformations: list[dict[str, Any]]
     passing: bool
+    output_scope: list[str] = Field(default_factory=list)
 
 
 # --------------------------------------------------------------------------- #

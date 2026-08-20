@@ -1,12 +1,18 @@
 # K-1 Remaining Implementation Plan + NA-2 (2026-08-17)
 
-Status: In progress (updated 2026-08-18 audit). P1, P2, P3a, and P3b are
-landed and verified: `ad3e2a6` (P1 foundation), `c1cf087` (P2 Lane A
-re-entry + D4 fix), `b91fe9e` (P3a command path), `74b243f` (P3b router
-endpoint). Suite 1122 green, vitest 120/120, validator exit 0 at `74b243f`.
-Remaining: P4 (normalize + preview), P5 (Lane B), P6 (UI), P7 (NA-2), and
-the deferred K-5 item below. K-2 and D5 were decided 2026-08-19 (Tez):
-K-2 doc-only, D5 recover-not-rerun.
+Status: COMPLETE (updated 2026-08-20). All packages landed and verified:
+`ad3e2a6` (P1 foundation), `c1cf087` (P2 Lane A re-entry + D4 fix),
+`b91fe9e` (P3a command path), `74b243f` (P3b router endpoint),
+`a5a666d`/`a7532d0`/`e9f4c7e` (P4a/b/c normalize + preview),
+`894203a` (P7 NA-2 persisted cancel intent),
+`d1f3777`/`7a99f1e`/`8447cb6` (P5a/P5b Lane B), `d0b2ca2` (D5
+recover-not-rerun), `bbd4274` (P6 prep: preview output_scope),
+`18c5e8e` (P6 design pins), `b8abe8b` (P6 K-1d correction controls UI,
+coder-built per Tez directive). Suite 1248 green, vitest 130/130,
+validator exit 0 at `b8abe8b`. Remaining: the deferred K-5 production
+re-exercise below (now unblocked: P1-P6 have all landed). K-7 stays
+open by design. K-2 and D5 were decided 2026-08-19 (Tez): K-2
+doc-only, D5 recover-not-rerun.
 Author: coder profile
 Basis: K-1 design (k1-correction-command-path-design.md), harness audit
 2026-08-16, full re-audit of the current tree at `57529d4`.

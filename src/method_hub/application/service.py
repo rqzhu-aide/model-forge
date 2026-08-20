@@ -99,8 +99,14 @@ from ..storage.repository import (
     RepositoryNotFoundError,
 )
 from .method_lifecycle import MethodLifecycleCommandService
-from .correction import ALLOWED_NORMALIZE_CODES, _derive_command_id
+from .correction import (
+    ALLOWED_NORMALIZE_CODES,
+    _derive_command_id,
+    check_correction_bounds,
+    is_correction_exhausted,
+)
 from .correction_execution import (
+    execute_targeted_correction,
     normalize_closure_outputs,
     preview_normalize,
     record_normalize_closure,
@@ -127,7 +133,13 @@ from .run_profile_assembler import (
     SealedRun,
     StateLockHeld,
 )
-from .run_views import CANCELLABLE, run_detail_view, run_event_view, run_summary_view
+from .run_views import (
+    CANCELLABLE,
+    CORRECTION_ACTION_TYPES,
+    run_detail_view,
+    run_event_view,
+    run_summary_view,
+)
 from .settings import ApplicationSettings
 from .supervised_run_views import supervised_run_detail, supervised_run_summary
 from .view_models import ACTIVE_RUN_STATES, ResearchProjectionService, project_summary
@@ -167,6 +179,27 @@ def _provider_secret_env() -> dict[str, str]:
 #: worker owns record closure; this is only how long the cancel path
 #: waits for the terminal record before answering.
 _CANCEL_SETTLE_TIMEOUT_SECONDS = 20.0
+
+# run.correction_authorized event messages per correction type (K-1).
+_CORRECTION_AUTHORIZED_MESSAGES = {
+    "revalidate": (
+        "Output correction authorized. The sealed outputs are "
+        "being re-checked against the current schemas."
+    ),
+    "normalize": (
+        "Output correction authorized. The allowlisted "
+        "normalization transformations are being applied to the "
+        "sealed outputs."
+    ),
+    "packaging": (
+        "Output correction authorized. The role is being re-invoked "
+        "to fix envelope/format issues only."
+    ),
+    "scientific": (
+        "Output correction authorized. The role is being re-invoked "
+        "to revise the scientific content within the frozen scope."
+    ),
+}
 
 
 class ExternalIdRecordingObserver:
@@ -1973,15 +2006,22 @@ class MethodHubService:
         *,
         raw_request: RawRequestReceipt,
     ) -> RunDetail:
-        """Authorize one output correction and run Lane A synchronously.
+        """Authorize one output correction and run it synchronously.
 
-        Implements the ``revalidate`` correction (the sealed output bytes
-        are re-checked against the current schema catalog) and the
-        ``normalize`` correction (allowlisted mechanical transformations
-        are applied to a copy of the sealed bytes before validation; the
-        D3 preview gate refuses non-coverable requests before any command
-        is sealed).  On a pass the run re-enters submission through the
-        correcting state (K-1a5/K-1b).
+        Lane A (K-1a5/K-1b): the ``revalidate`` correction (the sealed
+        output bytes are re-checked against the current schema catalog)
+        and the ``normalize`` correction (allowlisted mechanical
+        transformations are applied to a copy of the sealed bytes before
+        validation; the D3 preview gate refuses non-coverable requests
+        before any command is sealed).  Lane B (K-1c): the ``packaging``
+        and ``scientific`` corrections re-invoke the target role with a
+        correction instruction under blast-radius verification; each is
+        one bounded attempt (HV-5.6).  On a pass the run re-enters
+        submission through the correcting state; a failed Lane B attempt
+        with bounds remaining STAYS in correcting (D6: no
+        correcting -> authorized edge; the retry is a new command
+        accepted from correcting), and a run whose bounded attempts are
+        both spent transits to correction_exhausted.
         """
 
         # 1. Detail, raw request, idempotent replay (cancel_run pattern).
@@ -1996,22 +2036,10 @@ class MethodHubService:
                 raise _idempotency_key_reused(project_id, request_id)
             return detail
 
-        # 2. Only revalidate and normalize are implemented in this build.
-        if command.correction_type not in ("revalidate", "normalize"):
-            raise CommandRejected(
-                new_command_error(
-                    "CORRECTION_NOT_APPLICABLE",
-                    object_refs=[run_id],
-                    researcher_message=(
-                        f"The {command.correction_type!r} correction type is "
-                        "not yet available in this build."
-                    ),
-                    smallest_correction=(
-                        "Authorize a revalidate correction, or wait for a "
-                        "build that implements this correction type."
-                    ),
-                )
-            )
+        # 2. All four correction types are implemented (Lane A: revalidate,
+        #    normalize; Lane B: packaging, scientific).  The
+        #    CorrectionRequest model already constrains user_instruction to
+        #    scientific and transformation_codes to normalize.
 
         # 3. State gate + correctable-finding gate + executor gate.
         # DEVIATION from the pin numbering (descriptor check listed first):
@@ -2030,7 +2058,15 @@ class MethodHubService:
             and item.get("finding_class") == "correctable_contract_error"
             for item in closure_findings
         )
-        if status not in ("failed", "rejected", "correction_authorized"):
+        # D6: correcting is eligible for all four types — a failed Lane B
+        # attempt leaves the run in correcting and the retry is a new
+        # command from there.
+        if status not in (
+            "failed",
+            "rejected",
+            "correction_authorized",
+            "correcting",
+        ):
             raise CommandRejected(
                 new_command_error(
                     "CORRECTION_NOT_APPLICABLE",
@@ -2040,8 +2076,8 @@ class MethodHubService:
                         "output correction."
                     ),
                     smallest_correction=(
-                        "Corrections apply to failed, rejected, or already "
-                        "correction-authorized runs."
+                        "Corrections apply to failed, rejected, "
+                        "correction-authorized, or correcting runs."
                     ),
                 )
             )
@@ -2075,12 +2111,14 @@ class MethodHubService:
                 )
             )
 
-        # 4. Descriptor head check (cancel_run pattern).
+        # 4. Descriptor head check (cancel_run pattern): the displayed
+        #    action for the requested correction type must be current.
         action = next(
             (
                 item
                 for item in detail.actions
-                if item.action_type == "revalidate_run"
+                if item.action_type
+                == CORRECTION_ACTION_TYPES[command.correction_type]
             ),
             None,
         )
@@ -2193,6 +2231,31 @@ class MethodHubService:
                     )
                 )
 
+        # 6c. Bounds gate (Lane B, HV-5.6): packaging and scientific each
+        #     allow ONE bounded attempt, counted from the recorded
+        #     validation attempts' correction_type column.  Runs BEFORE any
+        #     command is sealed.
+        if command.correction_type in ("packaging", "scientific"):
+            prior_packaging, prior_scientific = self._correction_attempt_counts(
+                run_id
+            )
+            if not check_correction_bounds(
+                correction_type=command.correction_type,
+                prior_packaging_attempts=prior_packaging,
+                prior_scientific_attempts=prior_scientific,
+            ):
+                raise CommandRejected(
+                    new_command_error(
+                        "CORRECTION_EXHAUSTED",
+                        object_refs=[run_id],
+                        researcher_message=(
+                            f"The bounded {command.correction_type} correction "
+                            "attempt for this run was already spent."
+                        ),
+                        smallest_correction="Start a full phase rerun.",
+                    )
+                )
+
         # 7. Build, validate, and seal the correction command document.
         head = str(row["head_sequence"])
         latest_attempt = self.repository.get_latest_validation_attempt(run_id)
@@ -2210,7 +2273,9 @@ class MethodHubService:
             "expected_lifecycle_head": head,
             "correction_type": command.correction_type,
             "permitted_output_scope": list(command.permitted_output_scope),
-            "user_instruction": None,
+            # user_instruction is only ever set for scientific corrections —
+            # the CorrectionRequest model enforces it.
+            "user_instruction": command.user_instruction,
             "transformation_codes": (
                 list(command.transformation_codes)
                 if command.correction_type == "normalize"
@@ -2234,19 +2299,11 @@ class MethodHubService:
         command_id = str(sealed.row["command_id"])
 
         # 8. failed/rejected -> correction_authorized (already-authorized
-        #    runs skip this transition).
-        if status != "correction_authorized":
+        #    and already-correcting runs skip this transition).
+        if status not in ("correction_authorized", "correcting"):
             event = {
                 "event_type": "run.correction_authorized",
-                "message": (
-                    "Output correction authorized. The sealed outputs are "
-                    "being re-checked against the current schemas."
-                    if command.correction_type == "revalidate"
-                    else
-                    "Output correction authorized. The allowlisted "
-                    "normalization transformations are being applied to the "
-                    "sealed outputs."
-                ),
+                "message": _CORRECTION_AUTHORIZED_MESSAGES[command.correction_type],
                 "occurred_at": isoformat_utc(utc_now()),
             }
             result = self.repository.compare_and_swap_run(
@@ -2275,6 +2332,110 @@ class MethodHubService:
                     )
                 )
             row = result.run
+
+        # 9. Lane B (K-1c, synchronous): re-invoke the target role with a
+        #    correction instruction under blast-radius verification.  The
+        #    correcting transition happens BEFORE the invocation
+        #    (already-correcting D6 retries skip it).
+        if command.correction_type in ("packaging", "scientific"):
+            if status != "correcting":
+                event = {
+                    "event_type": "run.correcting",
+                    "message": (
+                        "The authorized correction re-invocation is running "
+                        "against the pinned basis."
+                    ),
+                    "occurred_at": isoformat_utc(utc_now()),
+                }
+                result = self.repository.compare_and_swap_run(
+                    run_id,
+                    "correction_authorized",
+                    int(row["head_sequence"]),
+                    "correcting",
+                    row_json(row),
+                    _event_id(run_id, int(row["head_sequence"]) + 1),
+                    _content_digest(event),
+                    event,
+                )
+                if not result.applied:
+                    raise CommandRejected(
+                        new_command_error(
+                            "CONTROL_HEAD_STALE",
+                            object_refs=[run_id],
+                            researcher_message=(
+                                "The run changed while the correction was "
+                                "being started."
+                            ),
+                            smallest_correction=(
+                                "Refresh the run and authorize the "
+                                "correction again."
+                            ),
+                        )
+                    )
+                row = result.run
+            services = self.run_coordinator.correction_services(
+                run_id,
+                correction_command_id=command_id,
+                correction_type=command.correction_type,
+            )
+            outcome = await execute_targeted_correction(
+                services=services,
+                repository=self.repository,
+                specification=self.specification,
+                artifacts=self.artifacts,
+                run_id=run_id,
+                role_closure_id=role_closure_id,
+                correction_command_id=command_id,
+                correction_type=command.correction_type,
+                permitted_output_scope=tuple(command.permitted_output_scope),
+                user_instruction=command.user_instruction,
+            )
+            if outcome.passed:
+                seal_correction_submission(
+                    services=services,
+                    correction_command_id=command_id,
+                    correction_type=command.correction_type,
+                )
+                if self.run_launcher is not None:
+                    task = asyncio.create_task(self.run_launcher(run_id))
+                    self._background.add(task)
+                    task.add_done_callback(self._background.discard)
+            else:
+                # Recount attempts INCLUDING this failed one (HV-5.6): when
+                # both bounded attempts are spent the correction lane is
+                # exhausted.
+                prior_packaging, prior_scientific = (
+                    self._correction_attempt_counts(run_id)
+                )
+                if is_correction_exhausted(
+                    prior_packaging_attempts=prior_packaging,
+                    prior_scientific_attempts=prior_scientific,
+                ):
+                    fresh = self.repository.get_run(run_id)
+                    event = {
+                        "event_type": "run.correction_exhausted",
+                        "message": (
+                            "Both bounded correction attempts (packaging and "
+                            "scientific) were spent without a pass; the "
+                            "correction lane is exhausted."
+                        ),
+                        "occurred_at": isoformat_utc(utc_now()),
+                    }
+                    self.repository.compare_and_swap_run(
+                        run_id,
+                        "correcting",
+                        int(fresh["head_sequence"]),
+                        "correction_exhausted",
+                        row_json(fresh),
+                        _event_id(run_id, int(fresh["head_sequence"]) + 1),
+                        _content_digest(event),
+                        event,
+                    )
+                # D6: with bounds remaining the run STAYS in correcting —
+                # there is no correcting -> correction_authorized edge, the
+                # failed attempt row is the evidence, and the retry is a
+                # new correction command accepted from correcting.
+            return await self.get_run(project_id, run_id)
 
         # 9. Lane A (synchronous): revalidate the sealed closure outputs,
         #    or normalize them with the allowlisted transformations (K-1b).
@@ -2397,18 +2558,22 @@ class MethodHubService:
     ) -> tuple[Any, dict[str, Any]]:
         """Resolve the role closure a correction targets.
 
-        The newest FAILED role closure is the target.  When no failed
-        closure exists (the REJECTED case: every base closure succeeded
-        and the rejection happened at submission validation), target the
-        newest SUCCEEDED closure, preferring one whose declared outputs
-        cover the requested scope (D5, recover-not-rerun): revalidating
-        or normalizing it re-enters the submission pipeline against the
+        The newest FAILED role closure is the target, preferring one
+        whose declared outputs cover the requested scope: a failed Lane B
+        correction closure seals with NO declared outputs (validation
+        failed before output sealing), so without the preference it
+        would shadow the failed base closure and no retry command could
+        ever pass the scope gate (D6).  When no failed closure exists
+        (the REJECTED case: every base closure succeeded and the
+        rejection happened at submission validation), target the newest
+        SUCCEEDED closure, preferring one whose declared outputs cover
+        the requested scope (D5, recover-not-rerun): revalidating or
+        normalizing it re-enters the submission pipeline against the
         current catalog without rerunning any role.  Raises
         CORRECTION_NOT_APPLICABLE when the run has no targetable closure.
         """
 
-        closure_row = None
-        closure_payload: dict[str, Any] = {}
+        failed: list[tuple[Any, dict[str, Any]]] = []
         succeeded: list[tuple[Any, dict[str, Any]]] = []
         for candidate in self.repository.list_role_closures_for_run(run_id):
             candidate_payload = json.loads(candidate["payload_json"])
@@ -2416,19 +2581,25 @@ class MethodHubService:
                 continue
             candidate_status = candidate_payload.get("status")
             if candidate_status == "failed":
-                closure_row = candidate
-                closure_payload = candidate_payload
+                failed.append((candidate, candidate_payload))
             elif candidate_status == "succeeded":
                 succeeded.append((candidate, candidate_payload))
-        if closure_row is None and succeeded:
 
-            def _declared(entry: tuple[Any, dict[str, Any]]) -> set[str]:
-                return {
-                    str(item["contract_output_id"])
-                    for item in entry[1].get("outputs", ())
-                    if type(item) is dict and "contract_output_id" in item
-                }
+        def _declared(entry: tuple[Any, dict[str, Any]]) -> set[str]:
+            return {
+                str(item["contract_output_id"])
+                for item in entry[1].get("outputs", ())
+                if type(item) is dict and "contract_output_id" in item
+            }
 
+        closure_row = None
+        closure_payload: dict[str, Any] = {}
+        if failed:
+            covering = [
+                entry for entry in failed if requested_scope <= _declared(entry)
+            ]
+            closure_row, closure_payload = (covering or failed)[-1]
+        elif succeeded:
             covering = [
                 entry for entry in succeeded if requested_scope <= _declared(entry)
             ]
@@ -2448,6 +2619,24 @@ class MethodHubService:
                 )
             )
         return closure_row, closure_payload
+
+    def _correction_attempt_counts(self, run_id: str) -> tuple[int, int]:
+        """Count recorded packaging/scientific attempts (HV-5.6 bounds).
+
+        Every Lane B invocation records one validation attempt row whose
+        correction_type column names the lane, pass or fail; the row is
+        the attempt-spent evidence.
+        """
+
+        packaging = 0
+        scientific = 0
+        for attempt in self.repository.list_validation_attempts(run_id):
+            correction_type = attempt["correction_type"]
+            if correction_type == "packaging":
+                packaging += 1
+            elif correction_type == "scientific":
+                scientific += 1
+        return packaging, scientific
 
     async def preview_output_correction(
         self,

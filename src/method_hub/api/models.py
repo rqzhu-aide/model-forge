@@ -48,6 +48,8 @@ ActionType = Literal[
     "install_skill",
     "revalidate_run",
     "normalize_run_outputs",
+    "package_run_outputs",
+    "revise_scientific_content",
     "request_output_correction",
 ]
 

@@ -25,6 +25,22 @@ from ..api.models import (
 
 CANCELLABLE = {"created", "preparing", "prepared", "running"}
 
+# Correction type -> advertised action type (K-1).  Lane A (revalidate,
+# normalize) needs no model call; Lane B (packaging, scientific) re-invokes
+# the role with a correction instruction.
+CORRECTION_ACTION_TYPES = {
+    "revalidate": "revalidate_run",
+    "normalize": "normalize_run_outputs",
+    "packaging": "package_run_outputs",
+    "scientific": "revise_scientific_content",
+}
+
+# States whose detail/summary advertises the correction descriptors: the
+# correctable failed/rejected surface, the authorized retry surface, and
+# the correcting D6 retry surface (a failed Lane B attempt leaves the run
+# in correcting; the retry is a new command from there).
+_CORRECTION_SURFACE_STATES = ("correction_authorized", "correcting")
+
 
 def run_event_view(row: sqlite3.Row) -> RunEvent:
     payload = _payload(row)
@@ -71,9 +87,16 @@ def run_summary_view(
     if (
         state in ("failed", "rejected")
         and projection.recovery_summary == "needs_output_correction"
-    ) or state == "correction_authorized":
+    ) or state in _CORRECTION_SURFACE_STATES:
         projection = projection.model_copy(
-            update={"available_recovery_controls": ["revalidate", "normalize"]}
+            update={
+                "available_recovery_controls": [
+                    "revalidate",
+                    "normalize",
+                    "packaging",
+                    "scientific",
+                ]
+            }
         )
         actions.append(
             ActionDescriptor(
@@ -105,6 +128,40 @@ def run_summary_view(
                 consequence_summary=(
                     "Apply allowlisted mechanical transformations to the "
                     "sealed outputs; on success the run re-enters submission."
+                ),
+                run_id=str(row["run_id"]),
+            )
+        )
+        actions.append(
+            ActionDescriptor(
+                descriptor_id=_action_id(
+                    str(row["run_id"]),
+                    "correction:packaging",
+                    str(row["head_sequence"]),
+                ),
+                action_type="package_run_outputs",
+                execution_kind="control_transaction",
+                enabled=True,
+                consequence_summary=(
+                    "Re-invoke the role to fix envelope/format issues only; "
+                    "one bounded attempt."
+                ),
+                run_id=str(row["run_id"]),
+            )
+        )
+        actions.append(
+            ActionDescriptor(
+                descriptor_id=_action_id(
+                    str(row["run_id"]),
+                    "correction:scientific",
+                    str(row["head_sequence"]),
+                ),
+                action_type="revise_scientific_content",
+                execution_kind="control_transaction",
+                enabled=True,
+                consequence_summary=(
+                    "Re-invoke the role to revise the scientific content "
+                    "within the frozen scope; one bounded attempt."
                 ),
                 run_id=str(row["run_id"]),
             )

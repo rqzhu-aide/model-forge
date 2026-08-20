@@ -9,10 +9,10 @@ Service-level coverage of the revalidate correction command flow:
   base submission, and schedules the handoff launcher.
 - Revalidate-fail (D1): the run stays correction_authorized, the failed
   attempt row is the evidence, and no submission is sealed.
-- Gates: stale descriptor (CONTROL_HEAD_STALE), wrong state and
-  integrity-blocked findings (CORRECTION_NOT_APPLICABLE), out-of-scope
-  outputs (CORRECTION_SCOPE_INVALID), unimplemented correction type
-  (CORRECTION_NOT_APPLICABLE), idempotent replay.
+- Gates: stale descriptor (CONTROL_HEAD_STALE, including a forged Lane B
+  descriptor), wrong state and integrity-blocked findings
+  (CORRECTION_NOT_APPLICABLE), out-of-scope outputs
+  (CORRECTION_SCOPE_INVALID), idempotent replay.
 
 Fixture strategy: the K-1a3 ``_Fixture`` stack (real P1 plan resolved
 through the real ``SpecificationPackage``) is wrapped in a REAL
@@ -324,12 +324,12 @@ def _scope(fixture: _Fixture, role: str = "theorist") -> str:
     return str(spec.contract_output_id)
 
 
-def _correction_action(detail):
+def _correction_action(detail, action_type: str = "revalidate_run"):
     action = next(
-        (item for item in detail.actions if item.action_type == "revalidate_run"),
+        (item for item in detail.actions if item.action_type == action_type),
         None,
     )
-    assert action is not None, "run detail must expose a revalidate_run action"
+    assert action is not None, f"run detail must expose a {action_type} action"
     return action
 
 
@@ -425,6 +425,8 @@ async def _acceptance(tmp_path: Path) -> None:
     assert detail.lifecycle_projection.available_recovery_controls == [
         "revalidate",
         "normalize",
+        "packaging",
+        "scientific",
     ]
 
     command = CorrectionRequest(
@@ -535,6 +537,8 @@ async def _revalidate_fail(tmp_path: Path) -> None:
     assert result.lifecycle_projection.available_recovery_controls == [
         "revalidate",
         "normalize",
+        "packaging",
+        "scientific",
     ]
 
 
@@ -633,11 +637,13 @@ def test_correction_rejects_out_of_scope_output(tmp_path: Path) -> None:
     asyncio.run(scenario())
 
 
-def test_correction_rejects_unimplemented_type(tmp_path: Path) -> None:
+def test_correction_lane_b_rejects_stale_descriptor(tmp_path: Path) -> None:
     async def scenario() -> None:
         fixture = _Fixture(tmp_path, DeterministicFakeExecutor(_golden_output))
         stack = _ServiceStack(fixture)
         _set_run(fixture, "failed", _run_payload(fixture, CORRECTABLE))
+        # Lane B types are implemented (K-1c): a forged descriptor id now
+        # fails the descriptor head check, not an availability gate.
         command = CorrectionRequest(
             correction_type="packaging",
             permitted_output_scope=[_scope(fixture)],
@@ -648,7 +654,7 @@ def test_correction_rejects_unimplemented_type(tmp_path: Path) -> None:
             await stack.service.request_output_correction(
                 PROJECT, RUN, command, raw_request=receipt
             )
-        assert caught.value.error.code == "CORRECTION_NOT_APPLICABLE"
+        assert caught.value.error.code == "CONTROL_HEAD_STALE"
 
     asyncio.run(scenario())
 

@@ -200,8 +200,10 @@ async def _normalize_acceptance(tmp_path: Path) -> None:
     assert detail.lifecycle_projection.available_recovery_controls == [
         "revalidate",
         "normalize",
+        "packaging",
+        "scientific",
     ]
-    action = _correction_action(detail)
+    action = _correction_action(detail, "normalize_run_outputs")
 
     command = CorrectionRequest(
         correction_type="normalize",
@@ -275,7 +277,7 @@ def test_normalize_d3_gate_refuses_non_coverable(tmp_path: Path) -> None:
     async def scenario() -> None:
         fixture, stack = _failed_fixable_stack(tmp_path)
         detail = await stack.service.get_run(PROJECT, RUN)
-        action = _correction_action(detail)
+        action = _correction_action(detail, "normalize_run_outputs")
         command = CorrectionRequest(
             correction_type="normalize",
             permitted_output_scope=[_scope(fixture)],
@@ -305,7 +307,7 @@ def test_normalize_empty_codes_is_scope_invalid(tmp_path: Path) -> None:
     async def scenario() -> None:
         fixture, stack = _failed_fixable_stack(tmp_path)
         detail = await stack.service.get_run(PROJECT, RUN)
-        action = _correction_action(detail)
+        action = _correction_action(detail, "normalize_run_outputs")
         command = CorrectionRequest(
             correction_type="normalize",
             permitted_output_scope=[_scope(fixture)],
@@ -326,7 +328,7 @@ def test_normalize_disallowed_code_is_scope_invalid(tmp_path: Path) -> None:
     async def scenario() -> None:
         fixture, stack = _failed_fixable_stack(tmp_path)
         detail = await stack.service.get_run(PROJECT, RUN)
-        action = _correction_action(detail)
+        action = _correction_action(detail, "normalize_run_outputs")
         command = CorrectionRequest(
             correction_type="normalize",
             permitted_output_scope=[_scope(fixture)],
@@ -376,7 +378,7 @@ async def _rejected_normalize(tmp_path: Path) -> None:
     _set_run(fixture, "rejected", _run_payload(fixture, CORRECTABLE))
 
     detail = await stack.service.get_run(PROJECT, RUN)
-    action = _correction_action(detail)
+    action = _correction_action(detail, "normalize_run_outputs")
     command = CorrectionRequest(
         correction_type="normalize",
         permitted_output_scope=[_scope(fixture)],

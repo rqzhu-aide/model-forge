@@ -52,6 +52,7 @@ from ..domain.validation import (
     OutputTransformationRecord,
     ValidationFinding,
     ValidationReport,
+    make_finding,
     registry_version,
 )
 from ..executors import RoleExecutionStatus
@@ -61,6 +62,7 @@ from ..harness.execution_records import (
     deterministic_id,
     document_sha256,
 )
+from ..harness.envelope import harness_owned_fields
 from ..harness.outputs import build_output_plan, validate_role_outputs
 from ..harness.preparation import PreparedRunRecipe
 from ..harness.role_execution import (
@@ -81,6 +83,7 @@ from .correction import (
     CorrectionResult,
     ValidationAttempt,
     _derive_attempt_id,
+    build_correction_instruction,
 )
 
 
@@ -824,6 +827,84 @@ def preview_normalize(
         ),
     }
 
+def _changed_paths(old: Any, new: Any, ptr: str = "") -> set[str]:
+    """Return the JSON-pointer paths whose values differ between two trees."""
+    if old == new:
+        return set()
+    if type(old) is dict and type(new) is dict:
+        paths: set[str] = set()
+        for key in sorted(set(old) | set(new)):
+            child = f"{ptr}/{key}"
+            if key not in old or key not in new:
+                paths.add(child)
+            else:
+                paths |= _changed_paths(old[key], new[key], child)
+        return paths
+    if type(old) is list and type(new) is list:
+        paths = set()
+        for index in range(max(len(old), len(new))):
+            child = f"{ptr}/{index}"
+            if index >= len(old) or index >= len(new):
+                paths.add(child)
+            else:
+                paths |= _changed_paths(old[index], new[index], child)
+        return paths
+    return {ptr}
+
+
+def verify_correction_blast_radius(
+    *,
+    source_outputs: dict[str, Any],
+    corrected_outputs: dict[str, Any],
+    correction_type: str,
+    permitted_pointers: frozenset[str],
+    output_scope: frozenset[str],
+) -> tuple[ValidationFinding, ...]:
+    """Verify a Lane B correction stayed inside its authorized blast radius.
+
+    Design 4a.  ``source_outputs`` and ``corrected_outputs`` map contract
+    output ids to the PARSED source and corrected candidate documents.
+    Out-of-scope outputs must be identical under both correction types.
+    PACKAGING in-scope outputs may change only at or below the permitted
+    JSON pointers; SCIENTIFIC in-scope outputs may change freely.
+    Returns the violation findings (empty tuple = clean).
+    """
+    violations: list[ValidationFinding] = []
+    for output_id in sorted(set(source_outputs) | set(corrected_outputs)):
+        source = source_outputs.get(output_id)
+        corrected = corrected_outputs.get(output_id)
+        if source == corrected:
+            continue
+        if output_id not in output_scope:
+            violations.append(
+                make_finding(
+                    "correction.blast_radius_violated",
+                    f"The {correction_type} correction changed out-of-scope "
+                    f"output {output_id!r}.",
+                    object_id=output_id,
+                )
+            )
+            continue
+        if correction_type != "packaging":
+            continue
+        for path in sorted(_changed_paths(source, corrected)):
+            if any(
+                path == pointer or path.startswith(pointer + "/")
+                for pointer in permitted_pointers
+            ):
+                continue
+            violations.append(
+                make_finding(
+                    "correction.blast_radius_violated",
+                    f"The packaging correction changed {output_id!r} at "
+                    f"{path or '/'} outside the permitted change locations.",
+                    object_id=output_id,
+                    pointer=path,
+                )
+            )
+    return tuple(violations)
+
+
 def seal_correction_submission(
     *,
     services: HarnessExecutionServices,
@@ -892,4 +973,5 @@ __all__ = [
     "record_revalidation_closure",
     "revalidate_closure_outputs",
     "seal_correction_submission",
+    "verify_correction_blast_radius",
 ]

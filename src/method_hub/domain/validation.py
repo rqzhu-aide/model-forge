@@ -25,7 +25,7 @@ class FindingClass(StrEnum):
 
 
 # Policy version — incremented when any policy entry changes.
-POLICY_VERSION = "1.6.0"
+POLICY_VERSION = "1.7.0"
 
 
 @dataclass(frozen=True, slots=True)
@@ -160,6 +160,22 @@ def _build_registry() -> dict[str, FindingPolicy]:
         "output.unsafe_path",
     ):
         _register(code, FindingClass.INTEGRITY_BLOCKER)
+
+    # A Lane B correction that changed bytes outside its permitted blast
+    # radius (design 4a): the attempt is void and can never become a
+    # SUCCEEDED correction closure.
+    _register(
+        "correction.blast_radius_violated",
+        FindingClass.INTEGRITY_BLOCKER,
+        rationale=(
+            "A correction touched outputs or document locations it was not "
+            "authorized to change; the attempt is spent."
+        ),
+        guidance=(
+            "Re-issue the correction limited to the permitted change "
+            "locations (packaging) or the permitted output scope (scientific)."
+        ),
+    )
 
     # --- Correctable contract errors (shape/schema/reference violations) --- #
 

@@ -285,14 +285,19 @@ def build_correction_instruction(
     findings: tuple[ValidationFinding, ...],
     output_scope: tuple[str, ...],
     user_instruction: str | None = None,
+    permitted_pointers: tuple[str, ...] = (),
 ) -> str:
     """Build the instruction for a targeted correction role invocation.
 
     The instruction distinguishes:
     - Packaging correction: fix envelope structure, missing fields, format
-      issues. No intended scientific change.
+      issues. No intended scientific change.  When ``permitted_pointers``
+      is nonempty the instruction names the exact JSON-pointer locations
+      the correction may touch (design 4a: the correction is a patch with
+      a verified blast radius).
     - Scientific correction: fix a scientific claim, add missing evidence,
-      downgrade an unsupported claim. Within frozen scope.
+      downgrade an unsupported claim. Within frozen scope.  Scientific
+      corrections keep output-level scope and ignore ``permitted_pointers``.
     """
     finding_lines = "\n".join(
         f"  - [{f.code}] {f.message}" for f in findings[:10]
@@ -308,6 +313,15 @@ def build_correction_instruction(
             "Findings to address:\n"
             f"{finding_lines}"
         )
+        if permitted_pointers:
+            pointer_lines = "\n".join(
+                f"  - {pointer}" for pointer in sorted(permitted_pointers)
+            )
+            header += (
+                "\n\nPermitted change locations (change ONLY these; every "
+                "other byte of the document must remain identical):\n"
+                f"{pointer_lines}"
+            )
     else:
         header = (
             "You are correcting a scientific issue in your previous output.\n"

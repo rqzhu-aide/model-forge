@@ -144,3 +144,25 @@ output fails validation, closure failed, nothing sealed.
   (findings propagation + message) -> fix K5-3 (empty-outputs scope
   semantics + Lane B skip-if-missing) -> re-run this exercise. The same
   controlled input remains valid for the re-run.
+
+
+## Addendum 2026-08-20 (fix round): K5-1/K5-2/K5-3 landed; K5-4 exposed
+
+Commits `b334f86` (ADR-015: to_role optional + harness-owned-field routing,
+policy 1.8.0, scenario S30), `87427ec` (K5-2 findings propagation, honest
+gate messages, descriptor/gate consistency, scientific_claim_blocker counted
+correctable per HV-7 intent), `e3470ae` (K5-3 plan-declared scope for
+unsealed failures, Lane B skip-missing, blast-radius source-absent skip).
+Suite 1199 green, vitest 130/130, validator exit 0.
+
+**K5-4 (NEW, design decision needed):** re-entry after a passed correction
+attempt assumes a COMPLETE stage chain: `seal_correction_submission`
+requires every stage role to hold a succeeded closure. A mid-pipeline
+failure (the K-5 shape: stage 1 of 3 fails, later stages never ran) can be
+corrected but not re-entered; the seal raises SubmissionAssemblyError AFTER
+the bounded attempt was spent. Options: (a) correcting -> resume-execution
+edge, continuing the pipeline through the existing restart-reconciliation
+machinery (the D4 family-aware closure read already supersedes the failed
+base closure), recommended; (b) refuse mid-pipeline corrections up front
+(contradicts the lane's purpose for the dominant failure class). The K-5
+re-run waits on this decision.

@@ -37,6 +37,8 @@ export type ActionType =
   | "update_project_brief"
   | "revalidate_run"
   | "normalize_run_outputs"
+  | "package_run_outputs"
+  | "revise_scientific_content"
   | "request_output_correction";
 
 export interface MethodIdentity {
@@ -71,6 +73,53 @@ export interface ActionDescriptor {
   run_id?: string;
   target_id?: string;
   requires_reason?: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Output correction (K-1)
+// ---------------------------------------------------------------------------
+
+export type CorrectionType = "revalidate" | "normalize" | "packaging" | "scientific";
+
+export interface CorrectionFinding {
+  code: string;
+  message: string;
+  severity: string;
+  object_id?: string | null;
+  json_pointer: string;
+  finding_class: string;
+  blocks_publication: boolean;
+  correction_class: string;
+}
+
+export interface CorrectionTransformationEntry {
+  code: string;
+  json_pointer: string;
+  detail: string;
+}
+
+export interface OutputTransformationRecordView {
+  contract_output_id: string;
+  source_sha256: string;
+  result_sha256: string;
+  entries: CorrectionTransformationEntry[];
+  primary_artifact_unchanged: boolean;
+}
+
+export interface CorrectionPreview {
+  current_findings: CorrectionFinding[];
+  remaining_findings: CorrectionFinding[];
+  fixed_findings: CorrectionFinding[];
+  transformations: OutputTransformationRecordView[];
+  passing: boolean;
+  output_scope: string[];
+}
+
+export interface CorrectionCommandInput {
+  correction_type: CorrectionType;
+  permitted_output_scope: string[];
+  user_instruction?: string;
+  transformation_codes?: string[];
 }
 
 export interface ProjectSummary {
@@ -398,6 +447,7 @@ export interface RunLifecycleProjection {
   recovery_summary:
     | "ok"
     | "needs_output_correction"
+    | "correction_exhausted"
     | "failed"
     | "rejected"
     | "conflicted"

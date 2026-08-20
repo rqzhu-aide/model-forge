@@ -1,6 +1,8 @@
 import type {
   ActionDescriptor,
   ConfigurationHealthView,
+  CorrectionCommandInput,
+  CorrectionPreview,
   CreateProjectRequest,
   MethodRow,
   PhaseId,
@@ -193,6 +195,27 @@ export const api = {
       `/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/cancel`,
       "POST",
       { action_descriptor_id: action.descriptor_id, reason },
+    ),
+
+  // Read-only dry run of the normalize transformation lane (K-1b). Plain POST:
+  // the preview writes no state and requires no idempotency key. Its
+  // output_scope is also the scope source for every correction command.
+  previewRunCorrection: (projectId: string, runId: string, transformationCodes: string[] = []) =>
+    request<CorrectionPreview>(
+      `/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/corrections/preview`,
+      { method: "POST", body: JSON.stringify({ transformation_codes: transformationCodes }) },
+    ),
+
+  requestRunCorrection: (
+    projectId: string,
+    runId: string,
+    action: ActionDescriptor,
+    input: CorrectionCommandInput,
+  ) =>
+    commandRequest<RunDetail>(
+      `/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/corrections`,
+      "POST",
+      { action_descriptor_id: action.descriptor_id, ...input },
     ),
 
   getProfiles: (projectId: string) =>

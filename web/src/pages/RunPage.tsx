@@ -5,6 +5,7 @@ import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import type { FindingGroup, RunDetail, RunLifecycleProjection, RunLifecycleState } from "../api/types";
 import { ConfirmActionDialog } from "../components/ConfirmActionDialog";
+import { CorrectionControls, correctionStateNotice } from "../components/CorrectionControls";
 import { EmptyState, ErrorState, LoadingState } from "../components/Feedback";
 import { Panel } from "../components/Panel";
 import { FrozenBasis, RunEventList, RunTimeline, runIsStale } from "../components/RunTimeline";
@@ -39,7 +40,10 @@ function findingClassTone(
 function recoveryGuidance(run: RunDetail): string | undefined {
   const recovery = recoverySummaryOf(run);
   if (recovery === "needs_output_correction") {
-    return "The recorded output checks must be corrected before this work can become formal project state. Your current project record was not changed. Return to the phase to configure a corrected rerun.";
+    return "The recorded output checks must be corrected before this work can become formal project state. Your current project record was not changed. Use the correction controls on this page to re-check or repair the sealed outputs; a full rerun remains available from the phase page.";
+  }
+  if (recovery === "correction_exhausted") {
+    return "The bounded correction attempts did not produce passing outputs. Return to the phase to configure a full rerun; every correction attempt remains recorded on this run.";
   }
   if (recovery === "failed") {
     return "Inspect the terminal reason and progress events, then return to the phase to configure a corrected rerun. The failed attempt did not replace formal project state.";
@@ -86,7 +90,7 @@ export function terminalReasonPresentation(
   return { className: "message message--neutral", role: "status" };
 }
 
-export async function invalidateCancellationRequestDependents(
+export async function invalidateRunCommandDependents(
   queryClient: QueryClient,
   projectId: string,
   phase: RunDetail["phase"],
@@ -97,6 +101,14 @@ export async function invalidateCancellationRequestDependents(
     queryClient.invalidateQueries({ queryKey: ["overview", projectId] }),
     queryClient.invalidateQueries({ queryKey: ["profiles"] }),
   ]);
+}
+
+export async function invalidateCancellationRequestDependents(
+  queryClient: QueryClient,
+  projectId: string,
+  phase: RunDetail["phase"],
+): Promise<void> {
+  return invalidateRunCommandDependents(queryClient, projectId, phase);
 }
 
 export function RunPage() {
@@ -145,6 +157,13 @@ export function RunPage() {
   const stale = runIsStale(run);
   const cancelReasonId = `cancel-run-disabled-${run.run_id}`;
   const terminalPresentation = terminalReasonPresentation(run.state, recovery);
+  const correctionNotice = correctionStateNotice(run);
+
+  const handleCorrectionSettled = async (updated: RunDetail) => {
+    queryClient.setQueryData(["run", projectId, runId], updated);
+    if (!projectId) return;
+    await invalidateRunCommandDependents(queryClient, projectId, updated.phase);
+  };
 
   return (
     <div className="page-stack">
@@ -188,6 +207,15 @@ export function RunPage() {
             The run has exceeded its recorded activity interval. Review the progress events below. If cancellation is available,
             you may request it; the system does not assume that silence means the scientific work failed.
           </p>
+        </div>
+      ) : null}
+
+      {correctionNotice ? (
+        <div className={correctionNotice.className} role={correctionNotice.role}>
+          <div>
+            <strong>{correctionNotice.title}</strong>
+            <p>{correctionNotice.body}</p>
+          </div>
         </div>
       ) : null}
 
@@ -235,14 +263,10 @@ export function RunPage() {
               </li>
             ))}
           </ul>
-          {recovery === "needs_output_correction" ? (
-            <p className="run-monitor-note">
-              These checks are correctable, but in-place correction controls are not yet available
-              in this release. Return to the phase to configure a corrected rerun.
-            </p>
-          ) : null}
         </Panel>
       ) : null}
+
+      <CorrectionControls projectId={projectId} run={run} onCorrectionSettled={handleCorrectionSettled} />
 
       <div className="run-detail-grid">
         <Panel title="User direction fixed at launch" eyebrow="Research instructions">

@@ -763,3 +763,163 @@ def test_rejected_run_without_closures_is_not_applicable(tmp_path: Path) -> None
         assert caught.value.error.code == "CORRECTION_NOT_APPLICABLE"
 
     asyncio.run(scenario())
+
+
+OPERATIONAL = [
+    {
+        "finding_class": "operational_failure",
+        "blocks_publication": True,
+        "code": "schema.required",
+        "message": "The harness could not satisfy its own field 'to_role'.",
+    }
+]
+
+
+def test_correction_controls_hidden_when_no_correctable_findings(
+    tmp_path: Path,
+) -> None:
+    """K5-2: a failed run whose findings are all harness faults advertises
+    no correction controls (the commands would refuse anyway)."""
+
+    async def scenario() -> None:
+        fixture = _Fixture(tmp_path, DeterministicFakeExecutor(_golden_output))
+        stack = _ServiceStack(fixture)
+        _set_run(fixture, "failed", _run_payload(fixture, OPERATIONAL))
+        detail = await stack.service.get_run(PROJECT, RUN)
+        assert not any(
+            item.action_type
+            in {
+                "revalidate_run",
+                "normalize_run_outputs",
+                "package_run_outputs",
+                "revise_scientific_content",
+            }
+            for item in detail.actions
+        )
+
+    asyncio.run(scenario())
+
+
+def test_correction_refusal_message_when_no_findings_recorded(
+    tmp_path: Path,
+) -> None:
+    """K5-2: legacy rows without closure_findings get the honest 'no
+    recorded findings' refusal, not 'integrity blockers'."""
+
+    async def scenario() -> None:
+        fixture = _Fixture(tmp_path, DeterministicFakeExecutor(_golden_output))
+        stack = _ServiceStack(fixture)
+        payload = _run_payload(fixture, CORRECTABLE)
+        del payload["closure_findings"]
+        _set_run(fixture, "failed", payload)
+        command = CorrectionRequest(
+            correction_type="revalidate",
+            permitted_output_scope=[_scope(fixture)],
+            action_descriptor_id="action.forged",
+        )
+        receipt = await _preserve(stack.service, command, "corr-nofindings")
+        with pytest.raises(CommandRejected) as caught:
+            await stack.service.request_output_correction(
+                PROJECT, RUN, command, raw_request=receipt
+            )
+        assert caught.value.error.code == "CORRECTION_NOT_APPLICABLE"
+        assert "no recorded output findings" in (
+            caught.value.error.researcher_message
+        )
+
+    asyncio.run(scenario())
+
+
+def test_correction_refusal_message_when_findings_not_correctable(
+    tmp_path: Path,
+) -> None:
+    """K5-2: recorded-but-non-correctable findings get the 'not
+    agent-correctable' refusal wording."""
+
+    async def scenario() -> None:
+        fixture = _Fixture(tmp_path, DeterministicFakeExecutor(_golden_output))
+        stack = _ServiceStack(fixture)
+        _set_run(fixture, "failed", _run_payload(fixture, BLOCKER))
+        command = CorrectionRequest(
+            correction_type="revalidate",
+            permitted_output_scope=[_scope(fixture)],
+            action_descriptor_id="action.forged",
+        )
+        receipt = await _preserve(stack.service, command, "corr-notcorrectable")
+        with pytest.raises(CommandRejected) as caught:
+            await stack.service.request_output_correction(
+                PROJECT, RUN, command, raw_request=receipt
+            )
+        assert caught.value.error.code == "CORRECTION_NOT_APPLICABLE"
+        assert "not agent-correctable" in (
+            caught.value.error.researcher_message
+        )
+
+    asyncio.run(scenario())
+
+
+def test_failed_closure_findings_collected_for_run_payload(
+    tmp_path: Path,
+) -> None:
+    """K5-2: the coordinator propagates findings sealed on FAILED closures
+    into the run payload so gates and projections can see them."""
+    fixture = _Fixture(tmp_path, DeterministicFakeExecutor(_golden_output))
+    stack = _ServiceStack(fixture)
+    # Seal a failed closure carrying a classified finding (the production
+    # shape from the K-5 exercise: validation failed before output sealing,
+    # so the closure has findings and no outputs).
+    stage = fixture.stage
+    invocation_id, execution_id, closure_id = role_identity(
+        fixture.context, stage, "theorist"
+    )
+    fixture.repository.get_or_create_execution(
+        execution_id,
+        invocation_id,
+        RUN,
+        _digest("f"),
+        {"kind": "role_invocation", "role": "theorist"},
+    )
+    fixture.repository.acknowledge_execution(
+        execution_id,
+        "external.base.theorist",
+        {"kind": "role_acknowledgement", "role": "theorist"},
+    )
+    document = {
+        "format": "method-hub.role-invocation-closure",
+        "format_version": "1.0.0",
+        "closure_id": closure_id,
+        "execution_id": execution_id,
+        "invocation_id": invocation_id,
+        "run_id": RUN,
+        "project_id": PROJECT,
+        "phase": fixture.plan.identity.phase_id,
+        "mode": fixture.plan.mode_id,
+        "sequence": stage.sequence,
+        "stage_id": stage.stage_id,
+        "role": "theorist",
+        "status": "failed",
+        "failure_code": "output.structural_validation_failed",
+        "outputs": [],
+        "findings": [
+            {
+                "code": "schema.required",
+                "message": "'summary_text' is a required property",
+                "severity": "error",
+                "object_id": "p1.handoff",
+                "json_pointer": "",
+                "finding_class": "correctable_contract_error",
+                "blocks_publication": True,
+                "correction_class": "packaging",
+            }
+        ],
+        "closed_at": "2026-08-20T00:00:00Z",
+    }
+    closure_sha = document_sha256(document)
+    document["closure_sha256"] = closure_sha
+    fixture.repository.close_execution(execution_id, closure_id, closure_sha, document)
+
+    collected = stack.coordinator._failed_closure_findings(RUN)
+    assert collected is not None
+    assert [f.code for f in collected] == ["schema.required"]
+    assert collected[0].finding_class.value == "correctable_contract_error"
+    assert collected[0].json_pointer == ""

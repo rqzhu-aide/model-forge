@@ -377,6 +377,25 @@ class ValidationFinding:
         }
 
 
+def finding_from_dict(item: Any) -> ValidationFinding | None:
+    """Rehydrate a serialized finding dict; None for non-dict input."""
+    if type(item) is not dict:
+        return None
+    object_id = item.get("object_id")
+    return ValidationFinding(
+        code=str(item.get("code", "")),
+        message=str(item.get("message", "")),
+        severity=ValidationSeverity(str(item.get("severity", "error"))),
+        object_id=None if object_id is None else str(object_id),
+        json_pointer=str(item.get("json_pointer", "")),
+        finding_class=FindingClass(
+            str(item.get("finding_class", "integrity_blocker"))
+        ),
+        blocks_publication=bool(item.get("blocks_publication", True)),
+        correction_class=str(item.get("correction_class", "none")),
+    )
+
+
 def make_finding(
     code: str,
     message: str,
@@ -490,6 +509,7 @@ __all__ = [
     "ValidationReport",
     "ValidationSeverity",
     "all_registered_codes",
+    "finding_from_dict",
     "get_policy",
     "make_finding",
     "registry_version",

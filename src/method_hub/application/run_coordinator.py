@@ -15,7 +15,7 @@ from ..configuration.resources import RoleResourceCatalog
 from ..contracts.runtime import RuntimePhaseContract, resolve_runtime_contract
 from ..domain.identities import MethodIdentity
 from ..domain.runs import RunStatus, isoformat_utc, utc_now
-from ..domain.validation import ValidationFinding
+from ..domain.validation import ValidationFinding, finding_from_dict
 from ..executors import RoleExecutor
 from ..harness.execution_context import RunExecutionContext
 from ..harness.index_reducers import prepare_index_transforms
@@ -306,6 +306,7 @@ class RunCoordinator:
             run_id,
             failure_code or "orchestration.failed",
             "A declared role group failed. No scientific role was retried.",
+            findings=self._failed_closure_findings(run_id),
         )
         return False
 
@@ -912,6 +913,28 @@ class RunCoordinator:
             "Submission validation failed. Formal project records were unchanged.",
             payload_updates=payload,
         )
+
+    def _failed_closure_findings(
+        self, run_id: str
+    ) -> list[ValidationFinding] | None:
+        """Collect the findings sealed on this run's FAILED role closures.
+
+        K5-2: a role-group failure must carry the classified closure
+        findings into the run payload; without them the lifecycle
+        projection shows zero findings and every correction command is
+        refused as 'integrity blockers' even when the failure is a
+        correctable contract error (K-5 production evidence).
+        """
+        collected: list[ValidationFinding] = []
+        for row in self.repository.list_role_closures_for_run(run_id):
+            document = json.loads(str(row["payload_json"]))
+            if type(document) is not dict or document.get("status") != "failed":
+                continue
+            for item in document.get("findings") or ():
+                finding = finding_from_dict(item)
+                if finding is not None:
+                    collected.append(finding)
+        return collected or None
 
     def _fail(
         self,

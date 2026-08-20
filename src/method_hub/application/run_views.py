@@ -87,6 +87,7 @@ def run_summary_view(
     if (
         state in ("failed", "rejected")
         and projection.recovery_summary == "needs_output_correction"
+        and projection.correctable_finding_count > 0
     ) or state in _CORRECTION_SURFACE_STATES:
         projection = projection.model_copy(
             update={
@@ -349,7 +350,9 @@ def _classify_findings(
         code = f.get("code", "unknown")
         if blocks:
             blocking += 1
-            if fc in ("correctable_contract_error",):
+            # Both classes are correctable: contract errors via Lane A/B,
+            # scientific claim blockers via the scientific lane (HV-7).
+            if fc in ("correctable_contract_error", "scientific_claim_blocker"):
                 correctable += 1
         if fc not in by_class:
             by_class[fc] = {"count": 0, "codes": []}
@@ -422,7 +425,16 @@ def _compute_projection(
     elif status in ("rejected", "failed"):
         if correctable_count > 0 and not _has_integrity_blocker(finding_groups):
             conformance_state = "correction_required"
-        elif _is_output_validation_failure(failure_code) and not _has_integrity_blocker(finding_groups):
+        elif (
+            _is_output_validation_failure(failure_code)
+            and not finding_groups
+            and not _has_integrity_blocker(finding_groups)
+        ):
+            # Legacy rows only: an output-validation failure with NO recorded
+            # findings (pre-K5-2 propagation).  When findings exist but none
+            # are correctable (for example ADR-015 harness faults), the run
+            # routes to the plain failed/rejected path instead of promising
+            # a correction the gates would refuse.
             conformance_state = "correction_required"
         else:
             conformance_state = "integrity_rejected"

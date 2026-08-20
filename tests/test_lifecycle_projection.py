@@ -348,3 +348,37 @@ def test_scientific_outcome_passthrough() -> None:
 def test_scientific_outcome_none_by_default() -> None:
     proj = _compute_projection("published", _payload())
     assert proj.scientific_outcome is None
+
+
+def test_failed_harness_fault_findings_route_to_plain_failed() -> None:
+    """K5-2/ADR-015: findings recorded but none correctable (harness faults)
+    -> plain failed recovery, not a correction promise."""
+    proj = _compute_projection(
+        "failed",
+        _payload(
+            code="output.structural_validation_failed",
+            closure_findings=[
+                {
+                    "code": "schema.required",
+                    "finding_class": "operational_failure",
+                    "blocks_publication": True,
+                    "message": "The harness could not satisfy its own field 'to_role'.",
+                },
+            ],
+        ),
+    )
+    assert proj.recovery_summary == "failed"
+    assert proj.conformance_state == "integrity_rejected"
+    assert proj.correctable_finding_count == 0
+
+
+def test_failed_output_failure_without_findings_keeps_legacy_routing() -> None:
+    """Pre-K5-2 rows carry no closure_findings; the fallback branch still
+    marks them correction_required (display heuristic only)."""
+    proj = _compute_projection(
+        "failed",
+        _payload(code="output.structural_validation_failed"),
+    )
+    assert proj.recovery_summary == "needs_output_correction"
+    assert proj.conformance_state == "correction_required"
+    assert proj.correctable_finding_count == 0

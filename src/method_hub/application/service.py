@@ -2055,7 +2055,8 @@ class MethodHubService:
         closure_findings = payload.get("closure_findings")
         correctable = type(closure_findings) is list and any(
             type(item) is dict
-            and item.get("finding_class") == "correctable_contract_error"
+            and item.get("finding_class")
+            in ("correctable_contract_error", "scientific_claim_blocker")
             for item in closure_findings
         )
         # D6: correcting is eligible for all four types — a failed Lane B
@@ -2082,20 +2083,7 @@ class MethodHubService:
                 )
             )
         if not correctable:
-            raise CommandRejected(
-                new_command_error(
-                    "CORRECTION_NOT_APPLICABLE",
-                    object_refs=[run_id],
-                    researcher_message=(
-                        "This run has no correctable contract error to "
-                        "correct; its findings are integrity blockers."
-                    ),
-                    smallest_correction=(
-                        "Inspect the findings; integrity blockers require a "
-                        "new run, not a correction."
-                    ),
-                )
-            )
+            raise _no_correctable_findings_error(run_id, closure_findings)
         if self.run_coordinator is None:
             raise CommandRejected(
                 new_command_error(
@@ -2663,7 +2651,8 @@ class MethodHubService:
         closure_findings = payload.get("closure_findings")
         correctable = type(closure_findings) is list and any(
             type(item) is dict
-            and item.get("finding_class") == "correctable_contract_error"
+            and item.get("finding_class")
+            in ("correctable_contract_error", "scientific_claim_blocker")
             for item in closure_findings
         )
         if status not in ("failed", "rejected", "correction_authorized"):
@@ -2682,20 +2671,7 @@ class MethodHubService:
                 )
             )
         if not correctable:
-            raise CommandRejected(
-                new_command_error(
-                    "CORRECTION_NOT_APPLICABLE",
-                    object_refs=[run_id],
-                    researcher_message=(
-                        "This run has no correctable contract error to "
-                        "correct; its findings are integrity blockers."
-                    ),
-                    smallest_correction=(
-                        "Inspect the findings; integrity blockers require a "
-                        "new run, not a correction."
-                    ),
-                )
-            )
+            raise _no_correctable_findings_error(run_id, closure_findings)
         # With an empty requested scope the D5 fallback targets the newest
         # succeeded closure when no failed closure exists.
         closure_row, closure_payload = self._correction_target_closure(
@@ -3459,6 +3435,41 @@ def _verify_publication_receipt(
     digest = str(unsigned.pop("content_sha256"))
     if _content_digest(unsigned) != digest:
         raise ValueError("Publication receipt content does not match its SHA-256 digest.")
+
+
+def _no_correctable_findings_error(
+    run_id: str, closure_findings: Any
+) -> CommandRejected:
+    """Honest refusal for the correctable-finding gate (K5-2).
+
+    Distinguishes 'findings were recorded but none are correctable' from
+    'no findings were recorded at all' instead of always claiming
+    integrity blockers.
+    """
+    if type(closure_findings) is list and closure_findings:
+        message = (
+            "This run has no correctable contract error to correct; its "
+            "recorded findings are not agent-correctable (integrity "
+            "blockers or harness faults)."
+        )
+        correction = (
+            "Inspect the findings; non-correctable findings require a new "
+            "run, not a correction."
+        )
+    else:
+        message = "This run has no recorded output findings to correct."
+        correction = (
+            "Runs that failed before findings were recorded cannot be "
+            "corrected; launch a new run."
+        )
+    return CommandRejected(
+        new_command_error(
+            "CORRECTION_NOT_APPLICABLE",
+            object_refs=[run_id],
+            researcher_message=message,
+            smallest_correction=correction,
+        )
+    )
 
 
 def _not_found(error: RepositoryNotFoundError) -> CommandRejected:

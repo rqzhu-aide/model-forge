@@ -12,7 +12,6 @@
                      "phase",
                      "sequence",
                      "from_role",
-                     "to_role",
                      "producer_profile_input_id",
                      "basis_generation_ids",
                      "completed_work",

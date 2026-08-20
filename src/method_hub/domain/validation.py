@@ -25,7 +25,10 @@ class FindingClass(StrEnum):
 
 
 # Policy version — incremented when any policy entry changes.
-POLICY_VERSION = "1.7.0"
+# 1.8.0 (ADR-015): schema.* findings whose failing property is harness-owned
+# for the output's schema route to operational_failure (harness fault), not
+# correctable_contract_error.
+POLICY_VERSION = "1.8.0"
 
 
 @dataclass(frozen=True, slots=True)

@@ -18,6 +18,7 @@ from pathlib import Path
 
 import pytest
 
+from method_hub.domain.validation import FindingClass, make_finding
 from method_hub.harness.envelope import (
     CandidateOutput,
     SealedRunFacts,
@@ -25,6 +26,7 @@ from method_hub.harness.envelope import (
     harness_owned_fields,
     populate_harness_fields,
     prepare_candidate_output,
+    reclassify_harness_owned_finding,
 )
 from method_hub.harness.outputs import OutputSpec
 
@@ -485,3 +487,74 @@ def test_record_id_deterministic() -> None:
     )
     # Record ID should contain the run ID fragment
     assert "runabc123def" in doc["record_id"]
+
+
+# --------------------------------------------------------------------------- #
+# ADR-015: to_role broadcast + harness-owned finding reclassification (K5-1)  #
+# --------------------------------------------------------------------------- #
+
+
+def test_to_role_written_when_next_stage_has_one_role() -> None:
+    result = populate_harness_fields(
+        {}, _facts(to_role="theorist"), "handoff.schema.json"
+    )
+    assert result["to_role"] == "theorist"
+
+
+def test_to_role_omitted_when_unresolvable_broadcast() -> None:
+    result = populate_harness_fields({}, _facts(), "handoff.schema.json")
+    assert "to_role" not in result
+
+
+def test_reclassify_routes_harness_owned_field_to_operational_failure() -> None:
+    finding = make_finding(
+        code="schema.enum",
+        message="'bogus' is not one of [...]",
+        object_id="p2.handoff",
+        pointer="/from_role",
+    )
+    assert finding.finding_class is FindingClass.CORRECTABLE_CONTRACT_ERROR
+    rerouted = reclassify_harness_owned_finding(
+        finding, schema_file="handoff.schema.json", failing_property="from_role"
+    )
+    assert rerouted.finding_class is FindingClass.OPERATIONAL_FAILURE
+    assert rerouted.correction_class == "none"
+    assert rerouted.blocks_publication is True
+    assert "harness" in rerouted.message.lower()
+    assert "from_role" in rerouted.message
+
+
+def test_reclassify_leaves_agent_owned_fields_correctable() -> None:
+    finding = make_finding(
+        code="schema.type",
+        message="123 is not of type 'string'",
+        object_id="p2.handoff",
+        pointer="/completed_work",
+    )
+    unchanged = reclassify_harness_owned_finding(
+        finding, schema_file="handoff.schema.json", failing_property="completed_work"
+    )
+    assert unchanged is finding
+
+
+def test_reclassify_ignores_non_correctable_and_unknown_property() -> None:
+    blocking = make_finding(
+        code="artifact.digest_mismatch",
+        message="digest mismatch",
+        object_id="p2.handoff",
+    )
+    assert (
+        reclassify_harness_owned_finding(
+            blocking, schema_file="handoff.schema.json", failing_property="run_id"
+        )
+        is blocking
+    )
+    correctable = make_finding(
+        code="schema.required", message="'x' is required", object_id="p2.handoff"
+    )
+    assert (
+        reclassify_harness_owned_finding(
+            correctable, schema_file="handoff.schema.json", failing_property=None
+        )
+        is correctable
+    )

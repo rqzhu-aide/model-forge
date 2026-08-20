@@ -11,6 +11,7 @@ from method_hub.contracts import (
     ResolvedStage,
 )
 from method_hub.domain import PhaseContractIdentity
+from method_hub.domain.validation import FindingClass
 from method_hub.harness.outputs import (
     OutputPlan,
     build_output_plan,
@@ -351,3 +352,110 @@ def test_new_scientific_schemas_yield_neutral_structural_guidance(
 
     assert expected_keys <= document.keys()
     assert _has_placeholder(document)
+
+
+# ---------------------------------------------------------------------------
+# ADR-015: harness-owned-field findings route to operational failure (K5-1b)
+# ---------------------------------------------------------------------------
+
+
+def _write_output(tmp_path: Path, spec, document: dict) -> None:
+    path = tmp_path.joinpath(*spec.relative_path.split("/"))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+
+def test_harness_owned_field_failure_is_operational_not_correctable(
+    tmp_path: Path,
+) -> None:
+    package, plan = p4_plan()
+    output_plan = build_output_plan(plan)
+    stage = next(s for s in plan.stages if s.stage_id == "p4.analyst")
+    spec = next(
+        s
+        for s in output_plan.for_stage_role("p4.analyst", "data_analyst")
+        if s.schema_file == "handoff.schema.json"
+    )
+    document = json.loads(
+        (ARCHITECTURE / "examples" / "handoff.example.json").read_text()
+    )
+    # from_role is harness-owned; the enum violation cannot be agent-fixed
+    # because the harness re-populates the field at every close (ADR-015).
+    document["from_role"] = "bogus_role"
+    _write_output(tmp_path, spec, document)
+    result = validate_role_outputs(
+        schema_catalog=package.schemas,
+        run_root=tmp_path,
+        output_plan=output_plan,
+        stage=stage,
+        role="data_analyst",
+    )
+    finding = next(
+        f
+        for f in result.findings
+        if f.object_id == spec.contract_output_id and f.code == "schema.enum"
+    )
+    assert finding.finding_class == FindingClass.OPERATIONAL_FAILURE
+    assert finding.correction_class == "none"
+    assert finding.blocks_publication is True
+    assert "harness" in finding.message.lower()
+    assert "from_role" in finding.message
+
+
+def test_agent_owned_field_failure_stays_correctable(tmp_path: Path) -> None:
+    package, plan = p4_plan()
+    output_plan = build_output_plan(plan)
+    stage = next(s for s in plan.stages if s.stage_id == "p4.analyst")
+    spec = next(
+        s
+        for s in output_plan.for_stage_role("p4.analyst", "data_analyst")
+        if s.schema_file == "handoff.schema.json"
+    )
+    document = json.loads(
+        (ARCHITECTURE / "examples" / "handoff.example.json").read_text()
+    )
+    document["completed_work"] = 123  # agent-owned content field
+    _write_output(tmp_path, spec, document)
+    result = validate_role_outputs(
+        schema_catalog=package.schemas,
+        run_root=tmp_path,
+        output_plan=output_plan,
+        stage=stage,
+        role="data_analyst",
+    )
+    finding = next(
+        f
+        for f in result.findings
+        if f.object_id == spec.contract_output_id and f.code.startswith("schema.")
+    )
+    assert finding.finding_class == FindingClass.CORRECTABLE_CONTRACT_ERROR
+
+
+def test_broadcast_handoff_output_validates_in_role_validation(
+    tmp_path: Path,
+) -> None:
+    package, plan = p4_plan()
+    output_plan = build_output_plan(plan)
+    stage = next(s for s in plan.stages if s.stage_id == "p4.analyst")
+    spec = next(
+        s
+        for s in output_plan.for_stage_role("p4.analyst", "data_analyst")
+        if s.schema_file == "handoff.schema.json"
+    )
+    document = json.loads(
+        (ARCHITECTURE / "examples" / "handoff.example.json").read_text()
+    )
+    document.pop("to_role", None)  # broadcast form (ADR-015)
+    _write_output(tmp_path, spec, document)
+    result = validate_role_outputs(
+        schema_catalog=package.schemas,
+        run_root=tmp_path,
+        output_plan=output_plan,
+        stage=stage,
+        role="data_analyst",
+    )
+    assert not [
+        f
+        for f in result.findings
+        if f.object_id == spec.contract_output_id
+    ]

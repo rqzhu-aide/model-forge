@@ -170,3 +170,49 @@ def test_reference_like_values_in_annotations_are_not_resolved(
         json.dumps(schema), encoding="utf-8"
     )
     assert len(SchemaCatalog.load(tmp_path)) == 1
+
+
+# ---------------------------------------------------------------------------
+# ADR-015: broadcast handoff addressing + failing-property naming (K5-1)
+# ---------------------------------------------------------------------------
+
+
+def test_broadcast_handoff_without_to_role_validates(
+    catalog: SchemaCatalog,
+) -> None:
+    handoff = load_json(EXAMPLES / "handoff.example.json")
+    handoff.pop("to_role", None)
+    assert catalog.validate("handoff.schema.json", handoff) == ()
+
+
+def test_invalid_to_role_still_rejected(catalog: SchemaCatalog) -> None:
+    handoff = load_json(EXAMPLES / "handoff.example.json")
+    handoff["to_role"] = "nobody"
+    issues = catalog.validate("handoff.schema.json", handoff)
+    assert any(
+        issue.code == "schema.enum" and issue.failing_property == "to_role"
+        for issue in issues
+    )
+
+
+def test_failing_property_names_root_required_field(
+    catalog: SchemaCatalog,
+) -> None:
+    handoff = load_json(EXAMPLES / "handoff.example.json")
+    handoff.pop("phase")
+    issues = catalog.validate("handoff.schema.json", handoff)
+    assert any(
+        issue.code == "schema.required" and issue.failing_property == "phase"
+        for issue in issues
+    )
+
+
+def test_failing_property_is_none_for_nested_errors(
+    catalog: SchemaCatalog,
+) -> None:
+    handoff = load_json(EXAMPLES / "handoff.example.json")
+    handoff["handoff_artifact"].pop("sha256")
+    issues = catalog.validate("handoff.schema.json", handoff)
+    required = [issue for issue in issues if issue.code == "schema.required"]
+    assert required
+    assert all(issue.failing_property is None for issue in required)

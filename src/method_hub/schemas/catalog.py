@@ -30,6 +30,30 @@ def _pointer(parts: Iterable[Any]) -> str:
     return "" if not tokens else "/" + "/".join(tokens)
 
 
+def _failing_property(error: Any, document: Any) -> str | None:
+    """Name the top-level property a jsonschema error blames, if nameable.
+
+    Only root-level properties are reported: harness-owned envelope fields
+    are all top-level, so deeper matches cannot route findings (ADR-015).
+    A root ``required`` error names the one missing property (jsonschema
+    emits one such error per missing property); a depth-1 value error names
+    its lone path segment.  A nested ``required`` error blames no top-level
+    property and returns ``None``.
+    """
+    path = tuple(error.absolute_path)
+    if error.validator == "required":
+        if path:
+            return None
+        if type(document) is dict and type(error.validator_value) is list:
+            missing = [str(k) for k in error.validator_value if k not in document]
+            if len(missing) == 1:
+                return missing[0]
+        return None
+    if len(path) == 1 and type(path[0]) is str:
+        return path[0]
+    return None
+
+
 def _walk_resource_refs(
     resource: Resource,
     base_uri: str = "",
@@ -62,6 +86,12 @@ class ValidationIssue:
     json_pointer: str
     schema_pointer: str
     message: str
+    #: The top-level document property the error blames, when one can be
+    #: named: the missing property for a root-level ``required`` error, or
+    #: the lone path segment for a depth-1 value error.  ``None`` for
+    #: nested or ambiguous errors.  Used to route findings on
+    #: harness-owned fields (ADR-015).
+    failing_property: str | None = None
 
     @property
     def instance_pointer(self) -> str:
@@ -232,6 +262,7 @@ class SchemaCatalog:
                 json_pointer=_pointer(error.absolute_path),
                 schema_pointer=_pointer(error.absolute_schema_path),
                 message=error.message,
+                failing_property=_failing_property(error, document),
             )
             for error in raw_errors
         ]

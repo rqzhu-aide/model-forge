@@ -11,12 +11,11 @@ from typing import Any, Mapping
 from ..contracts import ResolvedPhasePlan, ResolvedStage
 from ..domain.validation import (
     ValidationFinding,
-    ValidationSeverity,
     make_finding,
 )
 from ..json_io import JsonLoadError, loads_json
 from ..schemas import SchemaCatalog
-
+from .envelope import reclassify_harness_owned_finding
 
 _SAFE_FILENAME = re.compile(r"[^a-z0-9]+")
 
@@ -127,12 +126,18 @@ def _finding(
     message: str,
     spec: OutputSpec,
     pointer: str = "",
+    failing_property: str | None = None,
 ) -> ValidationFinding:
-    return make_finding(
+    finding = make_finding(
         code=code,
         message=message,
         object_id=spec.contract_output_id,
         pointer=pointer,
+    )
+    return reclassify_harness_owned_finding(
+        finding,
+        schema_file=spec.schema_file,
+        failing_property=failing_property,
     )
 
 
@@ -262,6 +267,7 @@ def validate_role_outputs(
                         issue.message,
                         spec,
                         prefix + issue.json_pointer,
+                        failing_property=issue.failing_property,
                     )
                 )
         if item_findings:

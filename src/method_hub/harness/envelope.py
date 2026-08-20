@@ -13,9 +13,9 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping
 
 from ..domain.identities import MethodIdentity
 from ..domain.validation import (
@@ -24,7 +24,9 @@ from ..domain.validation import (
     ValidationSeverity,
     make_finding,
 )
-from .outputs import OutputSpec
+
+if TYPE_CHECKING:
+    from .outputs import OutputSpec
 
 
 # --------------------------------------------------------------------------- #
@@ -217,6 +219,38 @@ def harness_owned_fields(schema_file: str) -> frozenset[str]:
     """
     return _HARNESS_OWNED_BY_SCHEMA.get(
         schema_file, _COMMON_HARNESS_FIELDS
+    )
+
+
+def reclassify_harness_owned_finding(
+    finding: ValidationFinding,
+    *,
+    schema_file: str,
+    failing_property: str | None,
+) -> ValidationFinding:
+    """Route a finding on a harness-owned field to operational failure.
+
+    ADR-015: when a ``schema.*`` finding blames a top-level property the
+    harness owns for this schema, no correction lane can repair it (the
+    harness re-populates or omits those fields at every close), so the
+    finding is an operational harness fault, not an agent-correctable
+    contract error.  The message names the fault explicitly.
+    """
+    if (
+        failing_property is None
+        or finding.finding_class is not FindingClass.CORRECTABLE_CONTRACT_ERROR
+        or failing_property not in harness_owned_fields(schema_file)
+    ):
+        return finding
+    return replace(
+        finding,
+        message=(
+            f"The harness could not satisfy its own field "
+            f"{failing_property!r}: {finding.message}"
+        ),
+        finding_class=FindingClass.OPERATIONAL_FAILURE,
+        blocks_publication=True,
+        correction_class="none",
     )
 
 

@@ -15,6 +15,7 @@ from ..storage import ArtifactStore
 from ..storage.repository import HubRepository
 from .execution_records import document_sha256
 from .outputs import OutputPlan, OutputSpec
+from .envelope import reclassify_harness_owned_finding
 from .publication import RegisteredArtifactMetadata, RegisteredValidatedOutput
 from .scientific_validators import validate_phase_scientific
 
@@ -302,6 +303,8 @@ def _verify_output(
                     issue.message,
                     spec.contract_output_id,
                     prefix + issue.json_pointer,
+                    schema_file=spec.schema_file,
+                    failing_property=issue.failing_property,
                 )
             )
     if findings:
@@ -409,13 +412,22 @@ def _finding(
     message: str,
     object_id: str,
     pointer: str = "",
+    schema_file: str | None = None,
+    failing_property: str | None = None,
 ) -> ValidationFinding:
-    return make_finding(
+    finding = make_finding(
         code=code,
         message=message,
         object_id=object_id,
         pointer=pointer,
     )
+    if schema_file is not None:
+        return reclassify_harness_owned_finding(
+            finding,
+            schema_file=schema_file,
+            failing_property=failing_property,
+        )
+    return finding
 
 
 __all__ = ["SubmissionValidationResult", "validate_submission"]

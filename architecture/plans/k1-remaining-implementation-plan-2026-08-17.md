@@ -8,8 +8,10 @@ Status: COMPLETE (updated 2026-08-20). All packages landed and verified:
 `d1f3777`/`7a99f1e`/`8447cb6` (P5a/P5b Lane B), `d0b2ca2` (D5
 recover-not-rerun), `bbd4274` (P6 prep: preview output_scope),
 `18c5e8e` (P6 design pins), `b8abe8b` (P6 K-1d correction controls UI,
-coder-built per Tez directive). Suite 1248 green, vitest 130/130,
-validator exit 0 at `b8abe8b`. Remaining: the deferred K-5 production
+coder-built per Tez directive). Suite 1176 green, vitest 130/130,
+validator exit 0 at `b8abe8b` (count corrected 2026-08-20: the earlier
+"1248" claim is not reproducible; both `8447cb6` and `aac1254` collect
+1176 tests, all passing). Remaining: the deferred K-5 production
 re-exercise below (now unblocked: P1-P6 have all landed). K-7 stays
 open by design. K-2 and D5 were decided 2026-08-19 (Tez): K-2
 doc-only, D5 recover-not-rerun.

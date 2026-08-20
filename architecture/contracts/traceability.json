@@ -117,7 +117,8 @@
             ],
             "scenario_ids":  [
                 "s03.phase4_before_phase3",
-                "s08.phase5_workflow"
+                "s08.phase5_workflow",
+                "s30.broadcast_handoff_multi_role"
             ]
         },
         {
@@ -1316,6 +1317,26 @@
                 "IT-013",
                 "IT-014",
                 "IT-015"
+            ]
+        },
+        {
+            "scenario_id":  "s30.broadcast_handoff_multi_role",
+            "scenario_code":  "S30",
+            "document":  "architecture/scenarios/S30-broadcast-handoff-multi-role.md",
+            "phase_contracts":  [],
+            "milestones":  [
+                "M3"
+            ],
+            "invariant_ids":  [
+                "INV-005"
+            ],
+            "requirement_ids":  [
+                "MH-18",
+                "MH-36",
+                "MH-46"
+            ],
+            "test_ids":  [
+                "IT-005"
             ]
         }
     ]

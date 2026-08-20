@@ -342,3 +342,89 @@ e.g. revalidate every succeeded closure in scope and target the first
 whose outputs no longer conform, or take the target closure id
 explicitly in the command.  P3a implements the pins as written; flagged
 for the method owner to decide.
+
+
+## P6 design pins (added 2026-08-20, coder; Tez directed coder-built, no subagent)
+
+Backend facts probed in the tree at bbd4274:
+
+- The descriptor block (run_views.py run_summary_view) emits ALL FOUR
+  correction descriptors together (revalidate_run, normalize_run_outputs,
+  package_run_outputs, revise_scientific_content) whenever the surface
+  condition holds: (failed/rejected AND recovery_summary ==
+  needs_output_correction) OR state in (correction_authorized,
+  correcting). All four are enabled=True; applicability is enforced at
+  command time (bounds, D3 coverability, scope).
+- CorrectionRequest requires permitted_output_scope min 1;
+  user_instruction is scientific-only; transformation_codes
+  normalize-only (model_validator). The normalize command rejects EMPTY
+  codes with CORRECTION_SCOPE_INVALID; the PREVIEW accepts empty codes
+  (= full ALLOWED_NORMALIZE_CODES).
+- ALLOWED_NORMALIZE_CODES = timestamp_injection, id_sanitization,
+  hash_recomputation, additional_properties_strip,
+  schema_version_injection, null_strip, empty_string_strip.
+- Preview response (bbd4274): current_findings / remaining_findings /
+  fixed_findings (ValidationFinding dicts: code, message, severity,
+  object_id, json_pointer, finding_class, blocks_publication,
+  correction_class), transformations (OutputTransformationRecord dicts:
+  contract_output_id, source_sha256, result_sha256, entries[]
+  {code, json_pointer, detail}, primary_artifact_unchanged), passing,
+  output_scope (the target closure's declared contract_output_ids).
+  response_model_exclude_none=True, so object_id may be absent.
+- Preview transport: _capture_and_parse tolerates a missing
+  Idempotency-Key (request.headers.get). Preview is read-only; the
+  client uses a plain POST, not commandRequest.
+- The normalize APPLY codes are derived from the preview itself: the
+  distinct entry codes across preview.transformations[].entries. This
+  is exactly the set that acted in the dry run, it is non-empty
+  whenever passing (passing requires the blocking findings fixed, which
+  requires transformations), and it is allowlist-safe by construction.
+- Status.tsx already labels/tones correction_authorized, correcting,
+  correction_exhausted; isRunActive polls through
+  correction_authorized/correcting.
+
+Web implementation pins:
+
+- types.ts: ActionType gains "package_run_outputs" and
+  "revise_scientific_content" (backend P5b added them; the web literal
+  is behind). New exports: CorrectionType, CorrectionFinding,
+  CorrectionTransformationEntry, OutputTransformationRecordView,
+  CorrectionPreview.
+- client.ts: previewRunCorrection(projectId, runId, codes) as a plain
+  POST (read-only, no Idempotency-Key); requestRunCorrection(projectId,
+  runId, action, input) via commandRequest<RunDetail> mirroring
+  cancelRun.
+- RunPage: a "Correct outputs" Panel renders when ANY correction
+  descriptor is present (same surface condition as the backend). One
+  preview query (plain useQuery, key ["correction-preview", projectId,
+  runId]) fetches previewRunCorrection with EMPTY codes on panel mount;
+  its output_scope scopes ALL four command buttons. Command buttons
+  stay disabled until the preview resolves (scope source) and show the
+  preview error on failure.
+- Each correction command reuses ConfirmActionDialog (descriptors do
+  not set requires_reason, so no reason field). Scientific adds a
+  required instruction textarea inside the dialog (user_instruction).
+  Mutation onSuccess mirrors cancel: setQueryData(["run", ...]) +
+  invalidateCancellationRequestDependents (rename-neutral alias kept
+  for the existing test).
+- Normalize apply is enabled IFF preview.passing (D3 coverability is
+  also the server gate; CORRECTION_NOT_APPLICABLE otherwise).
+- Guidance text update: recoveryGuidance for needs_output_correction
+  now points at the on-page correction controls instead of "return to
+  the phase". The stale placeholder at RunPage "in-place correction
+  controls are not yet available" is removed.
+- Correction-state messages: correction_authorized -> neutral status
+  message naming the authorized correction; correcting -> neutral
+  status (an attempt is in flight or a bounded attempt failed; the
+  descriptors remain for retry per D6); correction_exhausted ->
+  warning message: both bounded attempts spent, start a full phase
+  rerun (links to the phase configure anchor like the existing
+  guidance panel).
+- Tests: new RunPage.correction.test.tsx (jsdom + RTL, the
+  provision-test pattern: vi.mock the api seam, QueryClient retry
+  false, MemoryRouter). Cases: panel renders from descriptors; revalidate
+  posts the exact payload; scientific requires the instruction;
+  normalize apply disabled until passing preview and sends the derived
+  codes; correction_exhausted message renders; preview error disables
+  the commands. Pure helpers (codes derivation, state presentation)
+  extend RunPage.test.ts.

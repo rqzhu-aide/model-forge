@@ -51,6 +51,7 @@ from method_hub.application.settings import ApplicationSettings
 from method_hub.configuration.resources import RoleResourceCatalog
 from method_hub.digests.jcs import canonicalize
 from method_hub.executors import DeterministicFakeExecutor
+from method_hub.harness.submissions import SubmissionAssemblyError
 from method_hub.harness.execution_records import (
     closure_artifact_id,
     correction_role_identity,
@@ -775,6 +776,67 @@ OPERATIONAL = [
 ]
 
 
+def _seal_empty_outputs_failed_closure(fixture: _Fixture, role: str) -> str:
+    """Seal a FAILED closure with findings and NO declared outputs.
+
+    The dominant production shape (K-5 evidence): the role's output failed
+    validation before sealing, so the closure records the findings but no
+    output entries.
+    """
+    stage = fixture.stage
+    invocation_id, execution_id, closure_id = role_identity(
+        fixture.context, stage, role
+    )
+    fixture.repository.get_or_create_execution(
+        execution_id,
+        invocation_id,
+        RUN,
+        _digest("f"),
+        {"kind": "role_invocation", "role": role},
+    )
+    fixture.repository.acknowledge_execution(
+        execution_id,
+        f"external.base.{role}",
+        {"kind": "role_acknowledgement", "role": role},
+    )
+    document = {
+        "format": "method-hub.role-invocation-closure",
+        "format_version": "1.0.0",
+        "closure_id": closure_id,
+        "execution_id": execution_id,
+        "invocation_id": invocation_id,
+        "run_id": RUN,
+        "project_id": PROJECT,
+        "phase": fixture.plan.identity.phase_id,
+        "mode": fixture.plan.mode_id,
+        "sequence": stage.sequence,
+        "stage_id": stage.stage_id,
+        "role": role,
+        "status": "failed",
+        "failure_code": "output.structural_validation_failed",
+        "outputs": [],
+        "findings": [
+            {
+                "code": "schema.required",
+                "message": "'summary_text' is a required property",
+                "severity": "error",
+                "object_id": _scope(fixture, role),
+                "json_pointer": "",
+                "finding_class": "correctable_contract_error",
+                "blocks_publication": True,
+                "correction_class": "packaging",
+            }
+        ],
+        "closed_at": "2026-08-20T00:00:00Z",
+    }
+    closure_sha = document_sha256(document)
+    document["closure_sha256"] = closure_sha
+    fixture.repository.close_execution(
+        execution_id, closure_id, closure_sha, document
+    )
+    return closure_id
+
+
 def test_correction_controls_hidden_when_no_correctable_findings(
     tmp_path: Path,
 ) -> None:
@@ -865,61 +927,81 @@ def test_failed_closure_findings_collected_for_run_payload(
     into the run payload so gates and projections can see them."""
     fixture = _Fixture(tmp_path, DeterministicFakeExecutor(_golden_output))
     stack = _ServiceStack(fixture)
-    # Seal a failed closure carrying a classified finding (the production
-    # shape from the K-5 exercise: validation failed before output sealing,
-    # so the closure has findings and no outputs).
-    stage = fixture.stage
-    invocation_id, execution_id, closure_id = role_identity(
-        fixture.context, stage, "theorist"
-    )
-    fixture.repository.get_or_create_execution(
-        execution_id,
-        invocation_id,
-        RUN,
-        _digest("f"),
-        {"kind": "role_invocation", "role": "theorist"},
-    )
-    fixture.repository.acknowledge_execution(
-        execution_id,
-        "external.base.theorist",
-        {"kind": "role_acknowledgement", "role": "theorist"},
-    )
-    document = {
-        "format": "method-hub.role-invocation-closure",
-        "format_version": "1.0.0",
-        "closure_id": closure_id,
-        "execution_id": execution_id,
-        "invocation_id": invocation_id,
-        "run_id": RUN,
-        "project_id": PROJECT,
-        "phase": fixture.plan.identity.phase_id,
-        "mode": fixture.plan.mode_id,
-        "sequence": stage.sequence,
-        "stage_id": stage.stage_id,
-        "role": "theorist",
-        "status": "failed",
-        "failure_code": "output.structural_validation_failed",
-        "outputs": [],
-        "findings": [
-            {
-                "code": "schema.required",
-                "message": "'summary_text' is a required property",
-                "severity": "error",
-                "object_id": "p1.handoff",
-                "json_pointer": "",
-                "finding_class": "correctable_contract_error",
-                "blocks_publication": True,
-                "correction_class": "packaging",
-            }
-        ],
-        "closed_at": "2026-08-20T00:00:00Z",
-    }
-    closure_sha = document_sha256(document)
-    document["closure_sha256"] = closure_sha
-    fixture.repository.close_execution(execution_id, closure_id, closure_sha, document)
-
+    closure_id = _seal_empty_outputs_failed_closure(fixture, "theorist")
+    assert closure_id
     collected = stack.coordinator._failed_closure_findings(RUN)
     assert collected is not None
     assert [f.code for f in collected] == ["schema.required"]
     assert collected[0].finding_class.value == "correctable_contract_error"
     assert collected[0].json_pointer == ""
+
+
+def test_correction_scope_uses_plan_declared_outputs_when_nothing_sealed(
+    tmp_path: Path,
+) -> None:
+    """K5-3: a closure that failed before output sealing declares nothing;
+    the scope gate accepts the plan-declared outputs, the packaging lane
+    materializes no source bytes (skip-missing), the blast-radius check
+    skips source-absent outputs, and the attempt PASSES.
+
+    K5-4 boundary (open design item): re-entry then raises
+    SubmissionAssemblyError because this run's stage chain is incomplete —
+    mid-pipeline failures have no resume path yet.
+    """
+
+    async def scenario() -> None:
+        fixture = _Fixture(tmp_path, DeterministicFakeExecutor(_golden_output))
+        stack = _ServiceStack(fixture)
+        closure_id = _seal_empty_outputs_failed_closure(fixture, "theorist")
+        _set_run(fixture, "failed", _run_payload(fixture, CORRECTABLE))
+
+        detail = await stack.service.get_run(PROJECT, RUN)
+        action = _correction_action(detail, "package_run_outputs")
+        command = CorrectionRequest(
+            correction_type="packaging",
+            permitted_output_scope=[_scope(fixture)],
+            action_descriptor_id=action.descriptor_id,
+        )
+        receipt = await _preserve(stack.service, command, "corr-empty-scope")
+        with pytest.raises(SubmissionAssemblyError, match="successful closure"):
+            await stack.service.request_output_correction(
+                PROJECT, RUN, command, raw_request=receipt
+            )
+        # The attempt itself passed and the correction closure sealed
+        # SUCCEEDED: the gates, materialization, and blast radius all worked
+        # on the empty-outputs shape.
+        attempts = fixture.repository.list_validation_attempts(RUN)
+        assert attempts
+        latest = json.loads(attempts[-1]["report_json"])
+        assert latest["passed"] is True
+        closures = fixture.repository.list_role_closures_for_run(RUN)
+        correction = [
+            json.loads(row["payload_json"])
+            for row in closures
+            if json.loads(row["payload_json"]).get("closure_id") != closure_id
+        ]
+        assert correction
+        assert correction[-1]["status"] == "succeeded"
+
+    asyncio.run(scenario())
+
+
+def test_preview_output_scope_falls_back_to_plan_declared(
+    tmp_path: Path,
+) -> None:
+    """K5-3: the preview reports the plan-declared scope when the target
+    closure sealed no outputs, so the UI can still scope all commands."""
+
+    async def scenario() -> None:
+        fixture = _Fixture(tmp_path, DeterministicFakeExecutor(_golden_output))
+        stack = _ServiceStack(fixture)
+        _seal_empty_outputs_failed_closure(fixture, "theorist")
+        _set_run(fixture, "failed", _run_payload(fixture, CORRECTABLE))
+        command = CorrectionPreviewRequest(transformation_codes=[])
+        receipt = await _preserve(stack.service, command, "corr-preview-empty")
+        view = await stack.service.preview_output_correction(
+            PROJECT, RUN, command, raw_request=receipt
+        )
+        assert view.output_scope == [_scope(fixture)]
+
+    asyncio.run(scenario())

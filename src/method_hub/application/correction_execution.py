@@ -54,6 +54,7 @@ from ..domain.validation import (
     ValidationFinding,
     ValidationReport,
     ValidationSeverity,
+    finding_from_dict,
     make_finding,
     registry_version,
 )
@@ -130,26 +131,11 @@ def _closure_payload(repository: HubRepository, closure_id: str) -> dict[str, An
 
 def _parse_findings(items: Any) -> tuple[ValidationFinding, ...]:
     """Rehydrate serialized finding dicts into ValidationFinding records."""
-    findings: list[ValidationFinding] = []
-    for item in items or ():
-        if type(item) is not dict:
-            continue
-        object_id = item.get("object_id")
-        findings.append(
-            ValidationFinding(
-                code=str(item.get("code", "")),
-                message=str(item.get("message", "")),
-                severity=ValidationSeverity(str(item.get("severity", "error"))),
-                object_id=None if object_id is None else str(object_id),
-                json_pointer=str(item.get("json_pointer", "")),
-                finding_class=FindingClass(
-                    str(item.get("finding_class", "integrity_blocker"))
-                ),
-                blocks_publication=bool(item.get("blocks_publication", True)),
-                correction_class=str(item.get("correction_class", "none")),
-            )
-        )
-    return tuple(findings)
+    return tuple(
+        finding
+        for item in items or ()
+        if (finding := finding_from_dict(item)) is not None
+    )
 
 
 def revalidate_closure_outputs(
@@ -911,6 +897,14 @@ def verify_correction_blast_radius(
             )
             continue
         if correction_type != "packaging":
+            continue
+        if source is None:
+            # K5-3: the source closure sealed no bytes for this output
+            # (validation failed before sealing), so there is nothing to
+            # edit in place — creating it wholesale IS the correction.
+            # The output is scope-gated above and the corrected document is
+            # fully validated afterwards; pointer-level blast control is
+            # vacuous against an absent source.
             continue
         for path in sorted(_changed_paths(source, corrected)):
             if any(

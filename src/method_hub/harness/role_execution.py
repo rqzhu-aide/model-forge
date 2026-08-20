@@ -1500,8 +1500,14 @@ class RoleLifecycleService:
         # correction output paths so the agent edits them in place.  Plain
         # writes (NOT _immutable_write): these are working copies, and the
         # bytes were digest-verified by the caller before this point.
+        # K5-3: a closure that failed before output sealing has no bytes for
+        # some (or all) plan-declared outputs; those are skipped here and
+        # the re-invoked role rewrites them from scratch.
         for spec, output_path in zip(specs, output_paths):
-            output_path.write_bytes(source_output_bytes[spec.contract_output_id])
+            source = source_output_bytes.get(spec.contract_output_id)
+            if source is None:
+                continue
+            output_path.write_bytes(source)
 
         input_bindings = [
             {

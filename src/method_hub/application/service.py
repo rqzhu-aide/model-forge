@@ -87,6 +87,7 @@ from ..executors.local_hermes import (
 )
 from ..executors.protocol import ExecutionObserver, RoleInvocation
 from ..harness.commands import build_run_command, require_complete_sealed_basis
+from ..harness.outputs import build_output_plan
 from ..harness.role_resource_snapshot import compute_role_resources, load_skill_manifest
 from ..specification import SpecificationPackage
 from ..storage.artifacts import ArtifactStore
@@ -106,6 +107,8 @@ from .correction import (
     is_correction_exhausted,
 )
 from .correction_execution import (
+    _plan_from_recipe,
+    _recipe_for_run,
     execute_targeted_correction,
     normalize_closure_outputs,
     preview_normalize,
@@ -2133,12 +2136,9 @@ class MethodHubService:
         role_closure_id = str(closure_row["closure_id"])
 
         # 6. Scope gate: the requested scope must stay inside the closure's
-        #    declared outputs.
-        closure_output_ids = {
-            str(entry["contract_output_id"])
-            for entry in closure_payload.get("outputs", ())
-            if type(entry) is dict and "contract_output_id" in entry
-        }
+        #    declared outputs — or, for a closure that failed before output
+        #    sealing (K5-3), its plan-declared contract outputs.
+        closure_output_ids = self._correction_scope_outputs(run_id, closure_payload)
         if not set(command.permitted_output_scope).issubset(closure_output_ids):
             raise CommandRejected(
                 new_command_error(
@@ -2608,6 +2608,35 @@ class MethodHubService:
             )
         return closure_row, closure_payload
 
+    def _correction_scope_outputs(
+        self, run_id: str, closure_payload: dict[str, Any]
+    ) -> set[str]:
+        """The output ids a correction on this closure may touch.
+
+        K5-3: a closure that failed BEFORE output sealing declares no
+        outputs; its correctable scope is the failed stage/role's
+        plan-declared contract outputs from the frozen recipe.  Closures
+        that sealed outputs keep their exact declared set.
+        """
+        declared = {
+            str(entry["contract_output_id"])
+            for entry in closure_payload.get("outputs", ())
+            if type(entry) is dict and "contract_output_id" in entry
+        }
+        if declared:
+            return declared
+        stage_id = closure_payload.get("stage_id")
+        role = closure_payload.get("role")
+        if not stage_id or not role:
+            return declared
+        recipe = _recipe_for_run(self.repository, run_id)
+        plan = _plan_from_recipe(self.specification, recipe)
+        output_plan = build_output_plan(plan)
+        return {
+            spec.contract_output_id
+            for spec in output_plan.for_stage_role(str(stage_id), str(role))
+        }
+
     def _correction_attempt_counts(self, run_id: str) -> tuple[int, int]:
         """Count recorded packaging/scientific attempts (HV-5.6 bounds).
 
@@ -2710,11 +2739,9 @@ class MethodHubService:
             fixed_findings=preview["fixed_findings"],
             transformations=preview["transformations"],
             passing=bool(preview["passing"]),
-            output_scope=[
-                str(entry["contract_output_id"])
-                for entry in closure_payload.get("outputs", ())
-                if type(entry) is dict and "contract_output_id" in entry
-            ],
+            output_scope=sorted(
+                self._correction_scope_outputs(run_id, closure_payload)
+            ),
         )
 
     async def get_profiles(self, project_id: str) -> ProfileConfigurationView:

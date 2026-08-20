@@ -360,3 +360,27 @@ def test_correction_replay_is_idempotent(tmp_path: Path) -> None:
     assert second.passed is True
     assert len(executor.invocations) == invocations_after_first
     assert fixture.repository.count_validation_attempts(RUN) == 1
+
+
+def test_packaging_wholesale_creation_of_source_absent_output_is_clean() -> None:
+    # K5-3: the source closure sealed no bytes for the output (validation
+    # failed before sealing); wholesale creation in scope is the
+    # correction's purpose, not a blast-radius violation.
+    corrected = {"out": {"created_at": "2026-08-20", "title": "fresh"}}
+    assert _verify({}, corrected, "packaging", set(), {"out"}) == ()
+
+
+def test_packaging_source_absent_out_of_scope_output_still_violates() -> None:
+    # The scope gate still bounds which outputs may appear at all.
+    corrected = {"other": {"title": "surprise"}}
+    violations = _verify({}, corrected, "packaging", set(), {"out"})
+    assert [v.code for v in violations] == ["correction.blast_radius_violated"]
+
+
+def test_packaging_root_change_with_present_source_still_violates() -> None:
+    # A present source replaced wholesale (root change) remains a violation:
+    # the K5-3 skip applies only when the source is genuinely absent.
+    source = {"out": {"title": "old"}}
+    corrected = {"out": "not-even-an-object"}
+    violations = _verify(source, corrected, "packaging", set(), {"out"})
+    assert [v.code for v in violations] == ["correction.blast_radius_violated"]

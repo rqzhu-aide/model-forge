@@ -149,8 +149,13 @@ policy entry), `architecture/09-control-commands.md` (catalog row),
   disclosure (production path); the supervised WP-E1 lane validates raw
   bytes (trust-verification lane - repairing there would hide agent
   non-conformance from the verdict). No code change, no rerun.
-- **K-5** (production re-exercise): run a controlled P2 full-catalog
-  run after P1-P6 land, exercising the correction lane end to end.
+- **K-5** (production re-exercise): EXERCISED 2026-08-20, OPEN pending
+  fixes. The controlled P2 full-catalog run exposed K5-1 (deterministic
+  to_role harness gap on multi-role next stages; contract decision
+  needed), K5-2 (correction lane unreachable for role-group failures:
+  closure_findings never propagated by _fail), K5-3 (empty-outputs scope
+  wall + Lane B source-bytes KeyError). Evidence: architecture/evidence/
+  k5-production-re-exercise-2026-08-20.md. Re-run after the fix list.
 - **K-7**: open by design (reviewer-memory boundary).
 
 ## Already fixed this round (coder-direct, 2026-08-17)
@@ -434,3 +439,56 @@ Web implementation pins:
   codes; correction_exhausted message renders; preview error disables
   the commands. Pure helpers (codes derivation, state presentation)
   extend RunPage.test.ts.
+
+
+## K-5 execution plan (2026-08-20, coder; Tez directive "plan and complete")
+
+Intent (audit, K-5): a controlled re-run of the known-failing P2
+full-catalog mode through the repaired formal lane, as evidence that
+ISS-1..7 and the K-1 correction lane moved the real failure rate, and
+(if the run fails correctably) an end-to-end production exercise of the
+correction lane.
+
+Probed production facts:
+
+- Target project: project.entangled_langevin_particle_acceleration
+  (.b2d9f388...) - all 27 full-catalog runs (22 failed, 5 published)
+  and the newest formal state live here. Entry condition (formal P1
+  basis) is satisfied.
+- Historical signature: 22/22 failures are
+  output.structural_validation_failed at the lead_reconciliation
+  research_lead closure, with UNCLASSIFIED schema.* findings
+  (pre-HV-5 rows: minItems assumptions, required lineage fields,
+  const change_source/kind). Under the repaired lane these classify
+  as correctable_contract_error and enter the correction lane.
+- Run shape: 3 stages (independent_proposals, cross_review,
+  lead_reconciliation), roles research_lead + theorist + data_analyst,
+  15-22 min wall time each (deepseek-v4-flash profiles).
+- Executor: METHOD_HUB_EXECUTOR_KIND=local_hermes. The
+  data_analyst ROLE must map to the data_scientist PROFILE via
+  METHOD_HUB_DATA_ANALYST_PROFILE=data_scientist (no data_analyst
+  profile directory exists; bootstrap._verify_hermes_profiles fails
+  fast otherwise). All four role profiles carry deepseek credentials.
+
+Procedure:
+
+1. Timestamped backup of ~/.method-hub (database, artifacts, runs).
+2. Serve: METHOD_HUB_EXECUTOR_KIND=local_hermes
+   METHOD_HUB_DATA_ANALYST_PROFILE=data_scientist method-hub serve
+   (port 8765, loopback). Health check before any command.
+3. Launch the controlled run via the API exactly as the UI would:
+   phase view -> start_run descriptor -> POST start with the SAME
+   instruction text as the last published full-catalog run
+   (run.p2.p2-full-catalog...9789b57d) for comparability.
+4. Monitor to a terminal state via the run detail/events endpoints.
+5. Outcome branches:
+   a. published: the ISS fixes moved the failure rate; document.
+   b. failed/rejected WITH correctable findings: exercise the lane in
+      escalation order - preview, revalidate, normalize (preview-gated),
+      packaging, scientific - until published or exhausted; record
+      every command and response.
+   c. failed with integrity blockers only: document as negative
+      evidence; no correction is applicable by design.
+6. Evidence write-up under architecture/evidence/, audit fix-log
+   entry, plan status update. Server stopped afterwards (the default
+   posture stays executor=disabled).

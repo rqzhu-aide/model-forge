@@ -225,3 +225,15 @@ independently: suite 1073 green (1071 + 2), `validate_package.py` exit 0,
 commit scope exactly the two intended files. NA-2 (cancel-vs-failed
 relabeling across restart) remains open: a correct fix needs persisted
 cancel intent, which is a design decision, not a mechanical repair.
+
+
+### 2026-08-20 K-5 production re-exercise (coder; evidence doc:
+### architecture/evidence/k5-production-re-exercise-2026-08-20.md)
+
+Controlled P2 full-catalog run (`...6c5396b4`) through the repaired lane:
+FAILED at stage 1 on a deterministic HARNESS gap (K5-1: `to_role`
+unresolvable for multi-role next stages while handoff.schema.json requires
+it) and the correction lane was UNREACHABLE for the failure class (K5-2:
+`_fail` never receives the closure findings; K5-3: empty-outputs scope
+wall). K-5 stays OPEN pending the fix list in the evidence doc; the
+controlled input remains valid for the re-run.

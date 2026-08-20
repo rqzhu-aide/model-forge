@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import re
 from dataclasses import replace
@@ -13,7 +14,12 @@ from typing import Any, Iterable, Mapping
 from ..contracts import ResolvedPhasePlan, ResolvedStage
 from ..digests.jcs import canonicalize
 from ..domain.runs import isoformat_utc, thaw_json, utc_now
-from ..domain.validation import OutputTransformationRecord, TransformationEntry
+from ..domain.validation import (
+    OutputTransformationRecord,
+    TransformationEntry,
+    ValidationReport,
+    registry_version,
+)
 from ..executors import (
     RoleExecutionResult,
     RoleExecutionStatus,
@@ -1114,6 +1120,46 @@ def _rewrite_id_references(obj: Any, renames: Mapping[str, str]) -> bool:
 _TIMESTAMP_FIELDS = ("created_at", "updated_at")
 
 
+class _CorrectionObserver(_RepositoryObserver):
+    """Repository observer whose execution linkage carries Lane B provenance.
+
+    The acknowledgement payload records the correction kind, the authorizing
+    command, the correction type, and the source closure so the correction
+    re-invocation is auditable end to end (K-1c).
+    """
+
+    def __init__(
+        self,
+        *,
+        correction_command_id: str,
+        correction_type: str,
+        source_closure_id: str,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self._correction_command_id = correction_command_id
+        self._correction_type = correction_type
+        self._source_closure_id = source_closure_id
+
+    async def launch_acknowledged(
+        self, invocation: RoleInvocation, external_execution_id: str
+    ) -> None:
+        self.external_execution_id = external_execution_id
+        self.repository.acknowledge_execution(
+            invocation.execution_id,
+            external_execution_id,
+            {
+                "kind": "role_invocation_correction",
+                "execution_id": invocation.execution_id,
+                "invocation_id": invocation.invocation_id,
+                "external_execution_id": external_execution_id,
+                "correction_command_id": self._correction_command_id,
+                "correction_type": self._correction_type,
+                "source_closure_id": self._source_closure_id,
+            },
+        )
+
+
 class RoleLifecycleService:
     """Execute exactly one role invocation or recover its immutable closure."""
 
@@ -1221,6 +1267,499 @@ class RoleLifecycleService:
             invocation_sha256=invocation_sha256,
             closure_id=closure_id,
             result=result,
+        )
+
+    async def execute_correction(
+        self,
+        *,
+        stage: ResolvedStage,
+        role: str,
+        inputs: Mapping[str, FrozenInputPath],
+        correction_instruction: str,
+        source_output_bytes: Mapping[str, bytes],
+        permitted_pointers: frozenset[str],
+        output_scope: frozenset[str],
+        source_closure_id: str,
+    ) -> RoleClosureResult:
+        """Re-invoke one stage role under the correction identity (K-1c Lane B).
+
+        Mirrors ``execute_or_reconcile`` with the approved Lane B deviations:
+        the invocation/execution/closure identity derives from a context whose
+        ``identity_suffix`` is ``f\"correction.{command_id}\"``; the roles/ and
+        tasks/ workspace dirs carry the same suffix so base workspace files
+        are never touched; the source closure's sealed output bytes are
+        materialized (plain write) into the correction output paths so the
+        agent edits them in place; and the close path validates the
+        correction run root, records exactly one validation attempt row, and
+        verifies the blast radius before sealing.
+        """
+        command_id = self.context.correction_command_id
+        if not command_id:
+            raise RoleLifecycleError(
+                "execute_correction requires correction_command_id on the context."
+            )
+        corrected = replace(
+            self.context, identity_suffix=f"correction.{command_id}"
+        )
+        invocation_id, execution_id, closure_id = _role_identity(
+            corrected, stage, role
+        )
+        recovered = self._load_closure(
+            stage=stage,
+            role=role,
+            invocation_id=invocation_id,
+            execution_id=execution_id,
+            closure_id=closure_id,
+        )
+        if recovered is not None:
+            return recovered
+        if self.repository.cancellation_requested(str(self.context.run_id)):
+            return RoleClosureResult(
+                role=role,
+                status=RoleExecutionStatus.CANCELLED,
+                execution_id=execution_id,
+                invocation_id=invocation_id,
+                invocation_sha256="0" * 64,
+                closure_id=None,
+                closure_sha256=None,
+                closure_artifact_id=None,
+                outputs=(),
+                closed_at=None,
+            )
+
+        output_plan = self._correction_output_plan(stage, role, command_id)
+        (
+            invocation,
+            invocation_document,
+            invocation_sha256,
+        ) = self._prepare_correction_invocation(
+            stage=stage,
+            role=role,
+            inputs=inputs,
+            correction_instruction=correction_instruction,
+            source_output_bytes=source_output_bytes,
+            output_plan=output_plan,
+            command_id=command_id,
+            invocation_id=invocation_id,
+            execution_id=execution_id,
+            source_closure_id=source_closure_id,
+        )
+        observer = _CorrectionObserver(
+            repository=self.repository,
+            executor=self.executor,
+            invocation_document=invocation_document,
+            invocation_sha256=invocation_sha256,
+            correction_command_id=command_id,
+            correction_type=self.context.correction_type,
+            source_closure_id=source_closure_id,
+        )
+        await observer.launch_intent(invocation)
+        acknowledgement = self._acknowledgement(execution_id)
+        try:
+            if acknowledgement is None:
+                result = await self.executor.execute(invocation, observer)
+            else:
+                external_id = str(acknowledgement["external_execution_id"])
+                observer.external_execution_id = external_id
+                result = await self.executor.reconcile(external_id)
+                if result is None:
+                    raise RoleExecutionPending(
+                        f"Execution {execution_id} is acknowledged but not terminal."
+                    )
+        except RoleExecutionPending:
+            raise
+        except Exception as error:
+            result = RoleExecutionResult(
+                status=RoleExecutionStatus.FAILED,
+                external_execution_id=observer.external_execution_id,
+                exit_code=None,
+                summary="The role executor raised an exception.",
+                diagnostic_text=f"{type(error).__name__}: {error}",
+            )
+        if type(result) is not RoleExecutionResult:
+            result = RoleExecutionResult(
+                status=RoleExecutionStatus.FAILED,
+                external_execution_id=observer.external_execution_id,
+                exit_code=None,
+                summary="The role executor returned an invalid result.",
+                diagnostic_text=type(result).__name__,
+            )
+
+        return self._validate_and_close_correction(
+            stage=stage,
+            role=role,
+            invocation=invocation,
+            invocation_sha256=invocation_sha256,
+            closure_id=closure_id,
+            result=result,
+            output_plan=output_plan,
+            source_output_bytes=source_output_bytes,
+            permitted_pointers=permitted_pointers,
+            output_scope=output_scope,
+        )
+
+    def _correction_output_plan(
+        self, stage: ResolvedStage, role: str, command_id: str
+    ) -> OutputPlan:
+        """Rewire the target role's output paths into its correction dir.
+
+        Only the corrected stage-role's specs move; every other spec keeps
+        its frozen path so ``for_stage_role`` lookups stay exact.
+        """
+        prefix = f"roles/{stage.sequence:02d}-{role}/"
+        replacement = f"roles/{stage.sequence:02d}-{role}.correction.{command_id}/"
+        specs = tuple(
+            replace(
+                spec,
+                relative_path=replacement + spec.relative_path[len(prefix):],
+            )
+            if spec.relative_path.startswith(prefix)
+            else spec
+            for spec in self.context.output_plan.specs
+        )
+        return OutputPlan(specs)
+
+    def _prepare_correction_invocation(
+        self,
+        *,
+        stage: ResolvedStage,
+        role: str,
+        inputs: Mapping[str, FrozenInputPath],
+        correction_instruction: str,
+        source_output_bytes: Mapping[str, bytes],
+        output_plan: OutputPlan,
+        command_id: str,
+        invocation_id: str,
+        execution_id: str,
+        source_closure_id: str,
+    ) -> tuple[RoleInvocation, dict[str, Any], str]:
+        """Mirror ``_prepare_invocation`` under the correction workspace."""
+        role_step = stage.step_for(role)
+        missing = sorted(set(role_step.input_ids) - set(inputs))
+        if missing:
+            raise RoleLifecycleError(
+                f"Role {role!r} is missing frozen inputs {missing}."
+            )
+        run_relative = f"runs/{self.context.run_id}"
+        role_relative = (
+            f"{run_relative}/roles/{stage.sequence:02d}-{role}"
+            f".correction.{command_id}"
+        )
+        task_relative = (
+            f"{run_relative}/tasks/{stage.sequence:02d}-{role}"
+            f".correction.{command_id}"
+        )
+        role_root = self.workspace.ensure_directory(role_relative)
+        self.workspace.ensure_directory(task_relative)
+        task_path = self.workspace.for_write(f"{task_relative}/task.md")
+
+        stage_role_instruction = ""
+        if self.context.role_instructions:
+            stage_role_key = f"{stage.stage_id}.{role}"
+            stage_role_instruction = self.context.role_instructions.get(
+                stage_role_key, ""
+            )
+
+        brief_plan = self._brief_plan(stage, role)
+        task_text = render_task_brief(
+            run_id=str(self.context.run_id),
+            project_id=str(self.context.project_id),
+            plan=brief_plan,
+            stage=stage,
+            role=role,
+            input_paths={key: str(item.path) for key, item in inputs.items()},
+            output_plan=self.context.output_plan,
+            phase_instruction=self.context.phase_instruction,
+            mode_instruction=self.context.mode_instruction,
+            stage_role_instruction=stage_role_instruction,
+            researcher_instruction=correction_instruction,
+            scientific_stance=self.context.role_souls[role],
+            same_group_roles=stage.roles,
+            schema_catalog=self.schemas,
+            researcher_method_spec=self.context.researcher_method_spec,
+        )
+        task_payload = task_text.encode("utf-8")
+        _immutable_write(task_path, task_payload)
+
+        access_log_path = role_root / "access.jsonl"
+        self._broker.materialize_context(
+            workspace=role_root,
+            frozen_inputs={
+                input_id: inputs[input_id] for input_id in role_step.input_ids
+            },
+            access_log_path=access_log_path,
+        )
+
+        specs = output_plan.for_stage_role(stage.stage_id, role)
+        run_root = self.workspace.ensure_directory(run_relative)
+        output_paths = tuple(
+            self.workspace.for_write(f"{run_relative}/{spec.relative_path}")
+            for spec in specs
+        )
+        # Materialize the source closure's sealed candidate bytes into the
+        # correction output paths so the agent edits them in place.  Plain
+        # writes (NOT _immutable_write): these are working copies, and the
+        # bytes were digest-verified by the caller before this point.
+        for spec, output_path in zip(specs, output_paths):
+            output_path.write_bytes(source_output_bytes[spec.contract_output_id])
+
+        input_bindings = [
+            {
+                "input_id": input_id,
+                "artifact_id": inputs[input_id].artifact_id,
+                "sha256": inputs[input_id].sha256,
+            }
+            for input_id in role_step.input_ids
+        ]
+        invocation_document: dict[str, Any] = {
+            "format": "method-hub.role-invocation-start",
+            "format_version": "1.0.0",
+            "conformance_state": "vertical_slice",
+            "kind": "role_invocation_correction",
+            "correction_command_id": command_id,
+            "correction_type": self.context.correction_type,
+            "source_closure_id": source_closure_id,
+            "invocation_id": invocation_id,
+            "execution_id": execution_id,
+            "run_id": str(self.context.run_id),
+            "project_id": str(self.context.project_id),
+            "manifest_sha256": str(self.context.manifest_sha256),
+            "phase": self.context.plan.identity.phase_id,
+            "mode": self.context.plan.mode_id,
+            "sequence": stage.sequence,
+            "stage_id": stage.stage_id,
+            "execution": stage.execution,
+            "role": role,
+            "profile": self.context.profile_for(role),
+            "input_bindings": input_bindings,
+            "output_ids": [spec.contract_output_id for spec in specs],
+            "task_brief_sha256": hashlib.sha256(task_payload).hexdigest(),
+            "role_soul_sha256": hashlib.sha256(
+                self.context.role_souls[role].encode("utf-8")
+            ).hexdigest(),
+            "preloaded_skills": list(self.context.preloaded_skills.get(role, ())),
+            "timeout_seconds": self.context.timeout_seconds,
+        }
+        invocation_sha256 = document_sha256(invocation_document)
+        invocation = RoleInvocation(
+            execution_id=execution_id,
+            invocation_id=invocation_id,
+            run_id=str(self.context.run_id),
+            project_id=str(self.context.project_id),
+            phase=self.context.plan.identity.phase_id,
+            mode=self.context.plan.mode_id,
+            stage_id=stage.stage_id,
+            role=role,
+            profile=self.context.profile_for(role),
+            workspace=role_root,
+            task_brief=task_path,
+            expected_output_paths=output_paths,
+            preloaded_skills=self.context.preloaded_skills.get(role, ()),
+            timeout_seconds=self.context.timeout_seconds,
+            metadata=MappingProxyType(
+                {
+                    "manifest_sha256": str(self.context.manifest_sha256),
+                    "invocation_sha256": invocation_sha256,
+                    "run_root": str(run_root),
+                    "expected_outputs": [
+                        {
+                            "contract_output_id": spec.contract_output_id,
+                            "schema_file": spec.schema_file,
+                            "schema_application": spec.schema_application,
+                            "relative_path": spec.relative_path,
+                        }
+                        for spec in specs
+                    ],
+                }
+            ),
+        )
+        return invocation, invocation_document, invocation_sha256
+
+    def _validate_and_close_correction(
+        self,
+        *,
+        stage: ResolvedStage,
+        role: str,
+        invocation: RoleInvocation,
+        invocation_sha256: str,
+        closure_id: str,
+        result: RoleExecutionResult,
+        output_plan: OutputPlan,
+        source_output_bytes: Mapping[str, bytes],
+        permitted_pointers: frozenset[str],
+        output_scope: frozenset[str],
+    ) -> RoleClosureResult:
+        """Validate, verify the blast radius, and seal a correction closure.
+
+        Exactly one ``run_validation_attempts`` row is recorded per
+        correction re-invocation (DEVIATION B), chained to the prior attempt
+        and bound to the authorizing correction command.  A validation
+        failure or a blast-radius violation seals a FAILED closure (the
+        attempt is spent) so it never enters the family-aware
+        ``load_existing`` walk.
+        """
+        run_id = str(self.context.run_id)
+        status = RoleExecutionStatus(result.status)
+        failure_code: str | None = None
+        sealed_outputs: tuple[SealedRoleOutput, ...] = ()
+        findings: list[dict[str, Any]] = []
+        if self.repository.cancellation_requested(run_id):
+            status = RoleExecutionStatus.CANCELLED
+        elif status is RoleExecutionStatus.SUCCEEDED:
+            validation = validate_role_outputs(
+                schema_catalog=self.schemas,
+                run_root=self.workspace.for_read(f"runs/{run_id}"),
+                output_plan=output_plan,
+                stage=stage,
+                role=role,
+            )
+            findings = [item.to_dict() for item in validation.findings]
+            sealed_outputs = tuple(
+                self._seal_output(item.spec, item.path, item.sha256)
+                for item in validation.outputs
+            )
+            ordinal = self.repository.count_validation_attempts(run_id) + 1
+            attempt_id = f"attempt.{run_id}.{ordinal}"
+            report = ValidationReport.from_findings(
+                f"report.{attempt_id}",
+                run_id,
+                self.context.correction_type,
+                validation.findings,
+            )
+            digest_input = (
+                f"{self.context.correction_type}:"
+                + "".join(sorted(item.sha256 for item in validation.outputs))
+            )
+            source_sha256 = hashlib.sha256(digest_input.encode("utf-8")).hexdigest()
+            prior = self.repository.get_latest_validation_attempt(run_id)
+            prior_attempt_id = (
+                str(prior["attempt_id"]) if prior is not None else None
+            )
+            self.repository.record_validation_attempt(
+                attempt_id,
+                run_id,
+                ordinal,
+                registry_version(),
+                json.dumps(report.to_dict(), sort_keys=True),
+                source_sha256,
+                correction_type=self.context.correction_type,
+                prior_attempt_id=prior_attempt_id,
+                correction_command_id=self.context.correction_command_id,
+            )
+            if not validation.passed:
+                status = RoleExecutionStatus.FAILED
+                failure_code = "output.structural_validation_failed"
+            else:
+                # Lazy import: application.correction_execution already
+                # imports harness.stage_execution, so a top-level import here
+                # would be circular (DEVIATION B).
+                from ..application.correction_execution import (
+                    verify_correction_blast_radius,
+                )
+
+                source_documents = {
+                    contract_output_id: json.loads(data)
+                    for contract_output_id, data in source_output_bytes.items()
+                }
+                corrected_documents = {
+                    item.spec.contract_output_id: json.loads(item.path.read_bytes())
+                    for item in validation.outputs
+                }
+                violations = verify_correction_blast_radius(
+                    source_outputs=source_documents,
+                    corrected_outputs=corrected_documents,
+                    correction_type=self.context.correction_type,
+                    permitted_pointers=permitted_pointers,
+                    output_scope=output_scope,
+                )
+                if violations:
+                    status = RoleExecutionStatus.FAILED
+                    failure_code = "correction.blast_radius_violated"
+                    findings = [item.to_dict() for item in violations]
+        elif status is RoleExecutionStatus.FAILED:
+            failure_code = "executor.role_failed"
+
+        if status is RoleExecutionStatus.CANCELLED:
+            failure_code = None
+        closed_at = isoformat_utc(utc_now())
+        closure_document: dict[str, Any] = {
+            "format": "method-hub.role-invocation-closure",
+            "format_version": "1.0.0",
+            "conformance_state": "vertical_slice",
+            "closure_id": closure_id,
+            "execution_id": invocation.execution_id,
+            "invocation_id": invocation.invocation_id,
+            "invocation_sha256": invocation_sha256,
+            "run_id": invocation.run_id,
+            "project_id": invocation.project_id,
+            "phase": invocation.phase,
+            "mode": invocation.mode,
+            "sequence": stage.sequence,
+            "stage_id": stage.stage_id,
+            "role": role,
+            "status": status.value,
+            "external_execution_id": result.external_execution_id,
+            "exit_code": result.exit_code,
+            "summary": result.summary,
+            "diagnostic_text": result.diagnostic_text,
+            "failure_code": failure_code,
+            "outputs": [self._output_document(item) for item in sealed_outputs],
+            "findings": findings,
+            "output_transformations": [],
+            "raw_output_sha256": None,
+            "closed_at": closed_at,
+        }
+        closure_sha256 = document_sha256(closure_document)
+        closure_document["closure_sha256"] = closure_sha256
+        closure_bytes = canonicalize(closure_document)
+        stored = self.artifacts.put_bytes(
+            closure_bytes, expected_sha256=hashlib.sha256(closure_bytes).hexdigest()
+        )
+        closure_artifact_id = _closure_artifact_id(closure_id)
+        self.repository.record_artifact(
+            closure_artifact_id,
+            str(self.context.project_id),
+            str(stored.sha256),
+            stored.size,
+            "application/json",
+            f"artifact://sha256/{stored.sha256}",
+            {
+                "kind": "role_invocation_closure",
+                "run_id": run_id,
+                "closure_id": closure_id,
+                "storage_relative_path": stored.relative_path,
+            },
+        )
+        try:
+            self.repository.close_execution(
+                invocation.execution_id,
+                closure_id,
+                closure_sha256,
+                closure_document,
+            )
+        except RepositoryConflictError:
+            recovered = self._load_closure(
+                stage=stage,
+                role=role,
+                invocation_id=invocation.invocation_id,
+                execution_id=invocation.execution_id,
+                closure_id=closure_id,
+            )
+            if recovered is not None:
+                return recovered
+            raise
+        return RoleClosureResult(
+            role=role,
+            status=status,
+            execution_id=invocation.execution_id,
+            invocation_id=invocation.invocation_id,
+            invocation_sha256=invocation_sha256,
+            closure_id=closure_id,
+            closure_sha256=closure_sha256,
+            closure_artifact_id=closure_artifact_id,
+            outputs=sealed_outputs,
+            closed_at=closed_at,
+            failure_code=failure_code,
         )
 
     def load_existing(

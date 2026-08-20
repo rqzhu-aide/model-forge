@@ -49,9 +49,11 @@ from ..digests.jcs import canonicalize
 from ..domain import StableId
 from ..domain.runs import isoformat_utc, utc_now
 from ..domain.validation import (
+    FindingClass,
     OutputTransformationRecord,
     ValidationFinding,
     ValidationReport,
+    ValidationSeverity,
     make_finding,
     registry_version,
 )
@@ -125,6 +127,29 @@ def _closure_payload(repository: HubRepository, closure_id: str) -> dict[str, An
     if type(document) is not dict:
         raise ValueError("Role closure payload must be an object.")
     return document
+
+def _parse_findings(items: Any) -> tuple[ValidationFinding, ...]:
+    """Rehydrate serialized finding dicts into ValidationFinding records."""
+    findings: list[ValidationFinding] = []
+    for item in items or ():
+        if type(item) is not dict:
+            continue
+        object_id = item.get("object_id")
+        findings.append(
+            ValidationFinding(
+                code=str(item.get("code", "")),
+                message=str(item.get("message", "")),
+                severity=ValidationSeverity(str(item.get("severity", "error"))),
+                object_id=None if object_id is None else str(object_id),
+                json_pointer=str(item.get("json_pointer", "")),
+                finding_class=FindingClass(
+                    str(item.get("finding_class", "integrity_blocker"))
+                ),
+                blocks_publication=bool(item.get("blocks_publication", True)),
+                correction_class=str(item.get("correction_class", "none")),
+            )
+        )
+    return tuple(findings)
 
 
 def revalidate_closure_outputs(
@@ -965,8 +990,125 @@ def seal_correction_submission(
     return str(result.reference.submission_id)
 
 
+@dataclass(frozen=True, slots=True)
+class TargetedCorrectionOutcome:
+    """Result of one Lane B targeted correction re-invocation (K-1c)."""
+
+    closure_id: str
+    passed: bool
+    findings: tuple[ValidationFinding, ...]
+
+
+async def execute_targeted_correction(
+    *,
+    services: HarnessExecutionServices,
+    repository: HubRepository,
+    specification: SpecificationPackage,
+    artifacts: ArtifactStore,
+    run_id: str,
+    role_closure_id: str,
+    correction_command_id: str,
+    correction_type: str,
+    permitted_output_scope: tuple[str, ...],
+    user_instruction: str | None,
+) -> TargetedCorrectionOutcome:
+    """Drive one Lane B correction re-invocation of a failed role closure.
+
+    Loads the source closure, re-derives the frozen stage from the run's
+    recipe, builds the correction instruction (with the derived permitted
+    JSON pointers for packaging corrections), materializes the source
+    closure's sealed output bytes digest-verified, and hands off to
+    ``RoleLifecycleService.execute_correction`` under the correction
+    identity.  The correction runs synchronously (Lane A precedent); the
+    returned outcome reports the sealed correction closure's status and
+    findings.
+    """
+    recipe = _recipe_for_run(repository, run_id)
+    plan = _plan_from_recipe(specification, recipe)
+    payload = _closure_payload(repository, role_closure_id)
+    stage_id = str(payload.get("stage_id", ""))
+    role = str(payload.get("role", ""))
+    stage = next((item for item in plan.stages if item.stage_id == stage_id), None)
+    if stage is None:
+        raise ValueError(
+            f"Closure stage {stage_id!r} is not part of the frozen phase plan."
+        )
+    specs = build_output_plan(plan).for_stage_role(stage.stage_id, role)
+
+    findings = _parse_findings(payload.get("findings", ()))
+    if not findings:
+        latest = repository.get_latest_validation_attempt(run_id)
+        if latest is not None:
+            report = loads_json(
+                latest["report_json"],
+                source=f"validation attempt {latest['attempt_id']}",
+            )
+            if type(report) is dict:
+                findings = _parse_findings(report.get("findings", ()))
+
+    # DEVIATION A: packaging corrections may touch the non-empty finding
+    # json_pointers plus every harness-owned field of each corrected output
+    # spec; the root pointer "" itself is never permitted.
+    permitted_pointers: set[str] = set()
+    if correction_type == "packaging":
+        permitted_pointers.update(
+            item.json_pointer for item in findings if item.json_pointer
+        )
+        for spec in specs:
+            permitted_pointers.update(
+                f"/{field}" for field in harness_owned_fields(spec.schema_file)
+            )
+        permitted_pointers.discard("")
+
+    instruction = build_correction_instruction(
+        correction_type=correction_type,  # type: ignore[arg-type]
+        findings=findings,
+        output_scope=permitted_output_scope,
+        user_instruction=user_instruction,
+        permitted_pointers=tuple(sorted(permitted_pointers)),
+    )
+
+    source_output_bytes: dict[str, bytes] = {}
+    for entry in payload.get("outputs", ()):
+        contract_output_id = str(entry["contract_output_id"])
+        sha256 = str(entry["sha256"])
+        data = artifacts.read_bytes(sha256)
+        if hashlib.sha256(data).hexdigest() != sha256:
+            raise ValueError(
+                f"Sealed output {contract_output_id!r} does not match its "
+                "recorded SHA-256 digest."
+            )
+        source_output_bytes[contract_output_id] = data
+
+    # DEVIATION C: the role step's frozen inputs come from the stage basis.
+    basis = services._basis_before(stage)
+    step = stage.step_for(role)
+    inputs = {input_id: basis[input_id] for input_id in step.input_ids}
+
+    outcome = await services.roles.execute_correction(
+        stage=stage,
+        role=role,
+        inputs=inputs,
+        correction_instruction=instruction,
+        source_output_bytes=source_output_bytes,
+        permitted_pointers=frozenset(permitted_pointers),
+        output_scope=frozenset(permitted_output_scope),
+        source_closure_id=role_closure_id,
+    )
+    if outcome.closure_id is None:
+        raise ValueError("The correction re-invocation did not seal a closure.")
+    closure_payload = _closure_payload(repository, outcome.closure_id)
+    return TargetedCorrectionOutcome(
+        closure_id=str(outcome.closure_id),
+        passed=outcome.status.value == "succeeded",
+        findings=_parse_findings(closure_payload.get("findings", ())),
+    )
+
+
 __all__ = [
     "NormalizeExecution",
+    "TargetedCorrectionOutcome",
+    "execute_targeted_correction",
     "normalize_closure_outputs",
     "preview_normalize",
     "record_normalize_closure",

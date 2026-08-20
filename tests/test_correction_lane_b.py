@@ -120,3 +120,243 @@ def test_scientific_instruction_ignores_pointers() -> None:
     )
     assert "change ONLY these" not in text
     assert "Downgrade the claim." in text
+
+
+# --------------------------------------------------------------------------- #
+# P5a-ii: Lane B correction role re-invocation (execute_targeted_correction)
+# --------------------------------------------------------------------------- #
+
+import asyncio
+import dataclasses
+import json
+from pathlib import Path
+
+from method_hub.application.correction_execution import execute_targeted_correction
+from method_hub.executors import DeterministicFakeExecutor
+from method_hub.harness.execution_records import correction_role_identity
+from method_hub.harness.stage_execution import HarnessExecutionServices
+from method_hub.json_io import loads_json
+
+from test_correction_command_path import (
+    PROJECT,
+    RUN,
+    _scope,
+    _seal_failed_closure_bytes,
+)
+from test_correction_execution import _Fixture, _PermissiveSchemas
+from test_correction_normalize import _fixable_defect_bytes
+from test_correction_submission import _golden_output
+
+
+def _lane_b_services(
+    fixture: _Fixture, command_id: str, correction_type: str
+) -> HarnessExecutionServices:
+    """_correction_services pattern with a Lane B correction type."""
+    context = dataclasses.replace(
+        fixture.context,
+        submission_from_status="correcting",
+        correction_command_id=command_id,
+        correction_type=correction_type,
+    )
+    return HarnessExecutionServices(
+        context=context,
+        repository=fixture.repository,
+        executor=fixture.executor,
+        schemas=_PermissiveSchemas(),
+        artifacts=fixture.artifacts,
+        workspace=fixture.workspace,
+    )
+
+
+def _drive(
+    fixture: _Fixture,
+    services: HarnessExecutionServices,
+    base_closure_id: str,
+    command_id: str,
+    correction_type: str,
+    scope: tuple[str, ...],
+    user_instruction: str | None = None,
+):
+    return asyncio.run(
+        execute_targeted_correction(
+            services=services,
+            repository=fixture.repository,
+            specification=fixture.specification,
+            artifacts=fixture.artifacts,
+            run_id=RUN,
+            role_closure_id=base_closure_id,
+            correction_command_id=command_id,
+            correction_type=correction_type,
+            permitted_output_scope=scope,
+            user_instruction=user_instruction,
+        )
+    )
+
+
+def _golden_with_unrelated_change(invocation, offset: int):
+    """Conforming golden bytes plus one agent-authored field rewritten."""
+    document = _golden_output(invocation, offset)
+    if isinstance(document, dict) and "completed_work" in document:
+        document = dict(document)
+        document["completed_work"] = "REWITTEN BY AN OVERREACHING CORRECTION"
+    return document
+
+
+def test_packaging_correction_passes(tmp_path: Path) -> None:
+    fixture = _Fixture(tmp_path, DeterministicFakeExecutor(_golden_output))
+    base_closure_id = _seal_failed_closure_bytes(
+        fixture, "theorist", _fixable_defect_bytes()
+    )
+    base_payload_before = fixture.repository.get_role_closure(base_closure_id)[
+        "payload_json"
+    ]
+    # A base-run task brief exists and must survive the correction untouched.
+    base_task = (
+        fixture.workspace.root / "runs" / RUN / "tasks" / "01-theorist" / "task.md"
+    )
+    base_task.parent.mkdir(parents=True, exist_ok=True)
+    base_task.write_bytes(b"BASE TASK BRIEF - DO NOT OVERWRITE")
+
+    services = _lane_b_services(fixture, "cmd_b1", "packaging")
+    outcome = _drive(
+        fixture,
+        services,
+        base_closure_id,
+        "cmd_b1",
+        "packaging",
+        (_scope(fixture),),
+    )
+
+    assert outcome.passed is True
+    assert outcome.findings == ()
+    expected_id = correction_role_identity(
+        RUN, fixture.recipe.sha256, fixture.stage, "theorist", "cmd_b1"
+    )[2]
+    assert outcome.closure_id == expected_id
+
+    # The family-aware load_existing returns the SUCCEEDED correction closure.
+    closure = services.roles.load_existing(stage=fixture.stage, role="theorist")
+    assert closure is not None
+    assert closure.closure_id == outcome.closure_id
+    assert closure.status.value == "succeeded"
+
+    # Exactly one validation attempt row, bound to the packaging command.
+    attempts = fixture.repository.list_validation_attempts(RUN)
+    assert len(attempts) == 1
+    assert attempts[0]["correction_type"] == "packaging"
+    assert attempts[0]["correction_command_id"] == "cmd_b1"
+    report = json.loads(attempts[0]["report_json"])
+    assert report["passed"] is True
+
+    # The source closure payload is unchanged; the base task brief survives.
+    assert (
+        fixture.repository.get_role_closure(base_closure_id)["payload_json"]
+        == base_payload_before
+    )
+    assert base_task.read_bytes() == b"BASE TASK BRIEF - DO NOT OVERWRITE"
+
+    # The correction ran in correction-suffixed workspace dirs.
+    run_dir = fixture.workspace.root / "runs" / RUN
+    assert (run_dir / "roles" / "01-theorist.correction.cmd_b1").is_dir()
+    assert (
+        run_dir / "tasks" / "01-theorist.correction.cmd_b1" / "task.md"
+    ).is_file()
+
+
+def test_packaging_correction_blast_violation_fails(tmp_path: Path) -> None:
+    fixture = _Fixture(
+        tmp_path, DeterministicFakeExecutor(_golden_with_unrelated_change)
+    )
+    base_closure_id = _seal_failed_closure_bytes(
+        fixture, "theorist", _fixable_defect_bytes()
+    )
+    services = _lane_b_services(fixture, "cmd_b1", "packaging")
+    outcome = _drive(
+        fixture,
+        services,
+        base_closure_id,
+        "cmd_b1",
+        "packaging",
+        (_scope(fixture),),
+    )
+
+    assert outcome.passed is False
+    assert any(
+        item.code == "correction.blast_radius_violated"
+        for item in outcome.findings
+    )
+    row = fixture.repository.get_role_closure(outcome.closure_id)
+    assert row is not None
+    document = loads_json(row["payload_json"], source="correction closure")
+    assert document["status"] == "failed"
+    assert any(
+        item["code"] == "correction.blast_radius_violated"
+        for item in document["findings"]
+    )
+
+    # A FAILED correction closure never enters the family-aware walk: the
+    # base closure is the fallback.
+    closure = services.roles.load_existing(stage=fixture.stage, role="theorist")
+    assert closure is not None
+    assert closure.closure_id == base_closure_id
+
+
+def test_scientific_correction_out_of_scope_fails(tmp_path: Path) -> None:
+    # DEVIATION D: the theorist has exactly one output, so an empty scope
+    # makes any change a blast-radius violation.
+    fixture = _Fixture(tmp_path, DeterministicFakeExecutor(_golden_output))
+    base_closure_id = _seal_failed_closure_bytes(
+        fixture, "theorist", _fixable_defect_bytes()
+    )
+    services = _lane_b_services(fixture, "cmd_b1", "scientific")
+    outcome = _drive(
+        fixture,
+        services,
+        base_closure_id,
+        "cmd_b1",
+        "scientific",
+        (),
+    )
+
+    assert outcome.passed is False
+    assert any(
+        item.code == "correction.blast_radius_violated"
+        for item in outcome.findings
+    )
+    row = fixture.repository.get_role_closure(outcome.closure_id)
+    assert row is not None
+    document = loads_json(row["payload_json"], source="correction closure")
+    assert document["status"] == "failed"
+
+
+def test_correction_replay_is_idempotent(tmp_path: Path) -> None:
+    executor = DeterministicFakeExecutor(_golden_output)
+    fixture = _Fixture(tmp_path, executor)
+    base_closure_id = _seal_failed_closure_bytes(
+        fixture, "theorist", _fixable_defect_bytes()
+    )
+    services = _lane_b_services(fixture, "cmd_b1", "packaging")
+    first = _drive(
+        fixture,
+        services,
+        base_closure_id,
+        "cmd_b1",
+        "packaging",
+        (_scope(fixture),),
+    )
+    assert first.passed is True
+    invocations_after_first = len(executor.invocations)
+
+    second = _drive(
+        fixture,
+        services,
+        base_closure_id,
+        "cmd_b1",
+        "packaging",
+        (_scope(fixture),),
+    )
+
+    assert second.closure_id == first.closure_id
+    assert second.passed is True
+    assert len(executor.invocations) == invocations_after_first
+    assert fixture.repository.count_validation_attempts(RUN) == 1

@@ -220,12 +220,25 @@ export function compactScientificStatusSummary(
   };
 }
 
+/**
+ * Outcome-text dedupe (phase-tab redesign, 2026-08-21): the outcome words
+ * only render when they add information beyond the status pills. "Not yet
+ * assessed" / "Outcome not recorded" repeat what the pill already says (or
+ * the absence of an outcome), so they never render as text; an informative
+ * outcome like "Supported under stated assumptions" stays visible.
+ */
+function outcomeTextIsInformative(status: ScientificStatus | undefined): boolean {
+  const outcome = status?.scientific_outcome;
+  return outcome !== undefined && outcome !== "not_assessed" && outcome !== "not_applicable";
+}
+
 export function CompactPhaseStatus({ status }: { status: ScientificStatus | undefined }) {
   const summary = compactScientificStatusSummary(status);
+  const showOutcome = outcomeTextIsInformative(status);
   const accessibleParts = [
     summary.stateLabel,
     summary.attentionLabel,
-    `Scientific outcome: ${summary.outcomeLabel}`,
+    showOutcome ? `Scientific outcome: ${summary.outcomeLabel}` : undefined,
   ].filter(Boolean);
   return (
     <span
@@ -238,9 +251,11 @@ export function CompactPhaseStatus({ status }: { status: ScientificStatus | unde
           <StatusPill tone={summary.attentionTone ?? "neutral"}>{summary.attentionLabel}</StatusPill>
         </span>
       ) : null}
-      <span className="compact-phase-status__outcome" data-tone={summary.outcomeTone}>
-        {summary.outcomeLabel}
-      </span>
+      {showOutcome ? (
+        <span className="compact-phase-status__outcome" data-tone={summary.outcomeTone}>
+          {summary.outcomeLabel}
+        </span>
+      ) : null}
     </span>
   );
 }

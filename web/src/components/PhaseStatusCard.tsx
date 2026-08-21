@@ -1,10 +1,15 @@
 /**
- * Tier 1 — Compact phase status summary.
+ * Tier 1 — Compact phase status summary ("verdict strip" layout, 2026-08-21).
  *
  * Answers: "Where does this phase stand?" in at most ~5 elements.
- * Shows: status pill, scientific outcome, decision-brief headline, key dates.
- * Deliberately does NOT show: hashes, digests, role resources, 5-dimension grid.
+ * Layout (approved redesign): the status chips form ONE horizontal strip
+ * across the top of the card — never a vertical side column — and the
+ * assessment paragraph spans the full card width below them, clamped to
+ * 3 lines with a More/Less expander. Key dates/runs stay a compact footer
+ * line. Deliberately does NOT show: hashes, digests, role resources,
+ * 5-dimension grid.
  */
+import { useLayoutEffect, useRef, useState } from "react";
 import type { PhaseView } from "../api/types";
 import { formatDate } from "../utils/format";
 import {
@@ -12,9 +17,59 @@ import {
   compactScientificStatusSummary,
 } from "./Status";
 
+function ClampedDecisionText({ text }: { text: string }) {
+  const paragraphRef = useRef<HTMLParagraphElement>(null);
+  const [overflows, setOverflows] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  useLayoutEffect(() => {
+    const el = paragraphRef.current;
+    // Measure with the clamp forced on, independent of the current expanded
+    // state, so a text change is always re-measured from the clamped layout.
+    // jsdom has no layout (both heights are 0), so no expander renders there.
+    if (!el) return;
+    el.setAttribute("data-clamped", "");
+    setOverflows(el.scrollHeight > el.clientHeight + 1);
+    setExpanded(false);
+  }, [text]);
+
+  return (
+    <>
+      <p
+        ref={paragraphRef}
+        className="phase-status-card__decision-text"
+        data-clamped={expanded ? undefined : ""}
+      >
+        {text}
+      </p>
+      {overflows ? (
+        <button
+          type="button"
+          className="phase-status-card__expander"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((value) => !value)}
+        >
+          {expanded ? "Less" : "More"}
+        </button>
+      ) : null}
+    </>
+  );
+}
+
 export function PhaseStatusCard({ phase }: { phase: PhaseView }) {
   const record = phase.current_record;
   const summary = compactScientificStatusSummary(phase.assessment);
+
+  const decisionText = phase.decision_brief
+    ? phase.decision_brief.current_decision
+    : record
+      ? record.summary
+      : undefined;
+  const decisionLabel = phase.decision_brief
+    ? "Latest assessment"
+    : record
+      ? "Current result"
+      : undefined;
 
   return (
     <section className="phase-status-card" aria-label="Current phase status">
@@ -22,17 +77,10 @@ export function PhaseStatusCard({ phase }: { phase: PhaseView }) {
         <CompactPhaseStatus status={phase.assessment} />
       </div>
 
-      {phase.decision_brief ? (
+      {decisionText !== undefined ? (
         <div className="phase-status-card__decision">
-          <p className="phase-status-card__decision-label">Latest assessment</p>
-          <p className="phase-status-card__decision-text">
-            {phase.decision_brief.current_decision}
-          </p>
-        </div>
-      ) : record ? (
-        <div className="phase-status-card__decision">
-          <p className="phase-status-card__decision-label">Current result</p>
-          <p className="phase-status-card__decision-text">{record.summary}</p>
+          <p className="phase-status-card__decision-label">{decisionLabel}</p>
+          <ClampedDecisionText text={decisionText} />
         </div>
       ) : (
         <div className="phase-status-card__decision">

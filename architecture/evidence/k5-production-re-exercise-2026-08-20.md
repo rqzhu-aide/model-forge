@@ -166,3 +166,35 @@ machinery (the D4 family-aware closure read already supersedes the failed
 base closure), recommended; (b) refuse mid-pipeline corrections up front
 (contradicts the lane's purpose for the dominant failure class). The K-5
 re-run waits on this decision.
+
+## Addendum 2026-08-20 (K5-4): RESOLVED, option (a) landed
+
+Tez decided option (a) (resume-execution edge). Contract record ADR-016;
+docs and pins at `c6183ea`; implementation at `4a592bd` (suite 1204 green,
+validator exit 0). Landed shape:
+
+- `domain/runs.py`: CORRECTING gains a RUNNING edge.
+- `execute_or_reconcile` reconciles through the family-aware
+  `load_existing` (D4); a probe finding during pinning showed it
+  previously read the base closure only, which would have re-failed the
+  corrected role on any resume. Correction-free runs are unchanged (base
+  fallback). `settle_cancellation` deliberately keeps the base read.
+- New harness-pure probe `incomplete_correction_chain` (correction_execution.py)
+  lists stage roles lacking a succeeded closure.
+- Service pass tail (`_complete_correction_pass`, shared by Lane A and
+  Lane B): complete chain -> `seal_correction_submission` as before;
+  incomplete chain -> CAS correcting -> running with a
+  `run.execution_resumed` event, clearing stale `terminal_reason` /
+  `closure_findings` from the run payload, then the launcher handoff.
+- Tests: transition edge, family-aware reconciliation (no re-invocation),
+  probe gap/complete cases, and a mid-pipeline E2E (P1 two-stage fixture;
+  correction -> running -> coordinator drive reconciles stage 1 with zero
+  re-invocations, executes the remaining stage, seals the submission whose
+  theorist entry cites the correction closure). The K5-3 boundary test
+  that pinned the pre-K5-4 SubmissionAssemblyError was migrated to the
+  ADR-016 behavior (its docstring flagged it as the open design item);
+  the direct seal_correction_submission gap-raise unit test is unchanged
+  (the function still fail-closes on gaps).
+
+The K-5 controlled re-run is now unblocked; the same controlled input
+remains valid.

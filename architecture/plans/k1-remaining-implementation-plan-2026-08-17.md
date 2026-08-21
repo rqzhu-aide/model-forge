@@ -151,16 +151,16 @@ policy entry), `architecture/09-control-commands.md` (catalog row),
   disclosure (production path); the supervised WP-E1 lane validates raw
   bytes (trust-verification lane - repairing there would hide agent
   non-conformance from the verdict). No code change, no rerun.
-- **K-5** (production re-exercise): EXERCISED 2026-08-20, fixes LANDED.
-  The controlled P2 full-catalog run exposed K5-1 (deterministic
-  to_role harness gap on multi-role next stages), K5-2 (correction lane
-  unreachable for role-group failures), K5-3 (empty-outputs scope wall +
-  Lane B source-bytes KeyError), and K5-4 (mid-pipeline re-entry assumed
-  a complete stage chain). K5-1..3 landed 2026-08-20 (b334f86, 87427ec,
-  e3470ae); K5-4 landed 2026-08-20 (ADR-016, c6183ea docs, 4a592bd
-  implementation; suite 1204 green, validator 0). Evidence:
-  architecture/evidence/k5-production-re-exercise-2026-08-20.md.
-  Remaining: the controlled re-run (same input stays valid).
+- **K-5** (production re-exercise): CLOSED 2026-08-21. The controlled
+  P2 full-catalog run exposed K5-1..K5-4 (see
+  architecture/evidence/k5-production-re-exercise-2026-08-20.md); all
+  four fixes landed 2026-08-20 (b334f86, 87427ec, e3470ae; ADR-016
+  c6183ea + 4a592bd). The controlled re-run (same input) PUBLISHED in
+  ~34 minutes with zero findings on every closure and no correction
+  attempt needed; evidence:
+  architecture/evidence/k5-production-re-run-2026-08-21.md. The K5-4
+  resume edge carries test-suite evidence only (no production failure
+  occurred to correct) - the desired outcome.
 - **K-7**: open by design (reviewer-memory boundary).
 
 ## Already fixed this round (coder-direct, 2026-08-17)

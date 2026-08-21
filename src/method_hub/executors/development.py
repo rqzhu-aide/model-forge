@@ -27,6 +27,29 @@ _EXAMPLES = {
     "statement.schema.json": "statement.example.json",
 }
 
+# ADR-017 (P2 contract 2.1.0): every change-set method record carries the
+# lead's three-axis evaluation. The development executor emits a clearly
+# labeled conformance placeholder, not a research assessment.
+_DEVELOPMENT_METHOD_EVALUATION: dict[str, Any] = {
+    "theoretical_validity": {
+        "score": 5,
+        "justification": "Development conformance placeholder; not a research assessment.",
+        "issue_refs": [],
+    },
+    "literature_positioning": {
+        "score": 5,
+        "justification": "Development conformance placeholder; not a research assessment.",
+        "issue_refs": [],
+    },
+    "empirical_feasibility": {
+        "score": 5,
+        "justification": "Development conformance placeholder; not a research assessment.",
+        "issue_refs": [],
+    },
+    "adjudicated_at": "2026-01-01T00:00:00+00:00",
+    "review_basis_ids": ["report.development.example"],
+}
+
 
 class SchemaExampleFakeExecutor(DeterministicFakeExecutor):
     """Produce bundled conformance examples without claiming scientific work."""
@@ -56,6 +79,8 @@ class SchemaExampleFakeExecutor(DeterministicFakeExecutor):
             raise ValueError(
                 f"No development example is registered for {schema_file!r}."
             ) from error
+        if schema_file == "method.schema.json" and "evaluation" not in document:
+            document["evaluation"] = copy.deepcopy(_DEVELOPMENT_METHOD_EVALUATION)
         if schema_file in self._dedicated_schema_files:
             document = adapt_dedicated_example(
                 schema_file=schema_file,

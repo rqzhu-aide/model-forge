@@ -147,6 +147,38 @@ def _validate_p2(
         if not isinstance(method, Mapping):
             continue
         _validate_method_definition(method, offset=offset, findings=findings)
+        _validate_method_evaluation(method, offset=offset, findings=findings)
+
+    for output_id, allowed_axis, message in (
+        (
+            "p2.theory_review",
+            "theoretical_validity",
+            "The theorist evaluates only the theoretical validity axis (ADR-017).",
+        ),
+        (
+            "p2.empirical_review",
+            "empirical_feasibility",
+            "The data analyst evaluates only the empirical feasibility axis (ADR-017).",
+        ),
+    ):
+        review = _mapping_document(outputs, output_id)
+        if review is None:
+            continue
+        evaluations = review.get("method_evaluations", [])
+        if not isinstance(evaluations, list):
+            continue
+        for index, entry in enumerate(evaluations):
+            if not isinstance(entry, Mapping):
+                continue
+            if entry.get("axis") not in (None, allowed_axis):
+                findings.append(
+                    _finding(
+                        "p2.review_axis_violation",
+                        message,
+                        output_id,
+                        f"/method_evaluations/{index}/axis",
+                    )
+                )
 
     if plan.mode_id != "p2.focused_method":
         return
@@ -297,6 +329,54 @@ def _validate_method_definition(
                     f"The method record must state its {label}; use an explicit not-applicable entry when justified.",
                     "p2.method_changes",
                     f"/{offset}/{field}",
+                )
+            )
+
+
+_EVALUATION_AXES = (
+    "theoretical_validity",
+    "literature_positioning",
+    "empirical_feasibility",
+)
+
+
+def _validate_method_evaluation(
+    method: Mapping[str, Any],
+    *,
+    offset: int,
+    findings: list[ValidationFinding],
+) -> None:
+    evaluation = method.get("evaluation")
+    if not isinstance(evaluation, Mapping):
+        findings.append(
+            _finding(
+                "p2.method_evaluation_missing",
+                "Every method in the change set must carry the lead's three-axis evaluation (ADR-017).",
+                "p2.method_changes",
+                f"/{offset}/evaluation",
+            )
+        )
+        return
+    for axis in _EVALUATION_AXES:
+        entry = evaluation.get(axis)
+        score = entry.get("score") if isinstance(entry, Mapping) else None
+        justification = (
+            entry.get("justification") if isinstance(entry, Mapping) else None
+        )
+        valid = (
+            isinstance(entry, Mapping)
+            and type(score) is int
+            and 1 <= score <= 10
+            and isinstance(justification, str)
+            and bool(justification.strip())
+        )
+        if not valid:
+            findings.append(
+                _finding(
+                    "p2.method_evaluation_invalid",
+                    "Each evaluation axis needs an integer score 1-10 and a non-empty justification.",
+                    "p2.method_changes",
+                    f"/{offset}/evaluation/{axis}",
                 )
             )
 

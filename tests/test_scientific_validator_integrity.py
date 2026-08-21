@@ -97,6 +97,25 @@ def _method_record(
             "predecessor": deepcopy(predecessor or METHOD.to_dict()),
             "predecessor_generation_id": "generation.method.001",
         },
+        "evaluation": {
+            "theoretical_validity": {
+                "score": 8,
+                "justification": "Definition and identification argument are complete.",
+                "issue_refs": [],
+            },
+            "literature_positioning": {
+                "score": 7,
+                "justification": "Clearly distinct from the nearest published baselines.",
+                "issue_refs": [],
+            },
+            "empirical_feasibility": {
+                "score": 6,
+                "justification": "Standard compute; the protocol is directly executable.",
+                "issue_refs": [],
+            },
+            "adjudicated_at": "2026-08-21T00:00:00+00:00",
+            "review_basis_ids": ["report.p2.theory_review.example"],
+        },
     }
 
 

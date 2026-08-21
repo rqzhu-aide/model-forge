@@ -28,7 +28,9 @@ class FindingClass(StrEnum):
 # 1.8.0 (ADR-015): schema.* findings whose failing property is harness-owned
 # for the output's schema route to operational_failure (harness fault), not
 # correctable_contract_error.
-POLICY_VERSION = "1.8.0"
+# 1.9.0 (ADR-017): P2 structured evaluation findings (three-axis lead scores,
+# reviewer axis ownership).
+POLICY_VERSION = "1.9.0"
 
 
 @dataclass(frozen=True, slots=True)
@@ -250,6 +252,56 @@ def _build_registry() -> dict[str, FindingPolicy]:
             correction_class="packaging",
             deterministic_repair=True,
         )
+
+    # ADR-017: P2 structured lead evaluation. The lead seals a three-axis
+    # evaluation into every method record in the change set, and reviewers
+    # file structured assessments only on the axis their role owns.
+    _register(
+        "p2.method_evaluation_missing",
+        FindingClass.CORRECTABLE_CONTRACT_ERROR,
+        phases=("P2",),
+        correction_class="packaging",
+        deterministic_repair=True,
+        rationale=(
+            "The method record must carry the lead's adjudicated three-axis "
+            "evaluation so the catalog row is decision-relevant (ADR-017)."
+        ),
+        guidance=(
+            "Refresh the method record with the lead's completed three-axis "
+            "evaluation through the output-correction lane for the P2 run."
+        ),
+    )
+    _register(
+        "p2.method_evaluation_invalid",
+        FindingClass.CORRECTABLE_CONTRACT_ERROR,
+        phases=("P2",),
+        correction_class="packaging",
+        deterministic_repair=True,
+        rationale=(
+            "Each evaluation axis must carry an integer score from 1 to 10 "
+            "with a non-empty justification (ADR-017)."
+        ),
+        guidance=(
+            "Correct the named axis in the output-correction lane: set an "
+            "integer score between 1 and 10 and a non-empty justification."
+        ),
+    )
+    _register(
+        "p2.review_axis_violation",
+        FindingClass.CORRECTABLE_CONTRACT_ERROR,
+        phases=("P2",),
+        correction_class="packaging",
+        deterministic_repair=True,
+        rationale=(
+            "Reviewers evaluate inside their competency axes: the theorist "
+            "owns theoretical validity and the data analyst owns empirical "
+            "feasibility (ADR-017)."
+        ),
+        guidance=(
+            "Move the structured assessment to the owning role's report "
+            "through the output-correction lane, or restate it as an issue."
+        ),
+    )
 
     # --- Scientific claim blockers --- #
 

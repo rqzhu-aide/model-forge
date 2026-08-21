@@ -157,6 +157,20 @@ class ScientificStatus(StrictModel):
     last_published_at: NonEmptyString | None = None
 
 
+class MethodAxisScore(StrictModel):
+    score: int
+    justification: str
+    issue_refs: list[str]
+
+
+class MethodEvaluation(StrictModel):
+    theoretical_validity: MethodAxisScore
+    literature_positioning: MethodAxisScore
+    empirical_feasibility: MethodAxisScore
+    adjudicated_at: str
+    review_basis_ids: list[str]
+
+
 class MethodRow(StrictModel):
     identity: MethodIdentity
     display_name: NonEmptyString
@@ -168,6 +182,7 @@ class MethodRow(StrictModel):
     assumptions: list[str] | None = None
     provenance_summary: str | None = None
     novelty_summary: str | None = None
+    evaluation: MethodEvaluation | None = None
     feasibility_summary: str | None = None
     principal_risks: list[str] | None = None
     phase_statuses: dict[PhaseId, ScientificStatus]

@@ -1,6 +1,7 @@
 # E-1: P2 Structured Lead Evaluation - Implementation Program
 
-Status: ACTIVE (2026-08-21). Contract authority: ADR-017 (Accepted).
+Status: E-1a LANDED 2026-08-21 (cd82437; validator 0, suite 1197 green).
+E-1b/E-1c/E-1d pending. Contract authority: ADR-017 (Accepted).
 
 Tez directive (2026-08-21): restructure P2 evaluation - stage 1 proposes
 without the lead; stage 2 reviewers file structured per-method

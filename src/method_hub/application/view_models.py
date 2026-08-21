@@ -8,6 +8,8 @@ import sqlite3
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from pydantic import ValidationError
+
 from ..api.models import (
     ActionDescriptor,
     ArtifactLink,
@@ -20,6 +22,7 @@ from ..api.models import (
     EvidenceSummary,
     LiteratureGapSummary,
     MethodIdentity as ApiMethodIdentity,
+    MethodEvaluation,
     MethodRow,
     PhaseNavigationSummary,
     PhaseView,
@@ -1310,6 +1313,43 @@ def _provenance_summary(payload: dict[str, Any]) -> str | None:
     if type(value) is list and value:
         return f"Linked to {len(value)} literature provenance record(s)."
     return None
+
+
+def _method_evaluation(payload: Mapping[str, Any]) -> MethodEvaluation | None:
+    """Assemble the sealed three-axis evaluation; never fabricate scores.
+
+    Returns None unless the record carries a well-formed evaluation block;
+    absent or malformed blocks surface as "not yet evaluated".
+    """
+    evaluation = payload.get("evaluation")
+    if not isinstance(evaluation, Mapping):
+        return None
+    for axis in (
+        "theoretical_validity",
+        "literature_positioning",
+        "empirical_feasibility",
+    ):
+        entry = evaluation.get(axis)
+        if not isinstance(entry, Mapping):
+            return None
+        score = entry.get("score")
+        justification = entry.get("justification")
+        if type(score) is not int or not 1 <= score <= 10:
+            return None
+        if not isinstance(justification, str) or not justification.strip():
+            return None
+        refs = entry.get("issue_refs")
+        if not isinstance(refs, list) or any(not isinstance(r, str) for r in refs):
+            return None
+    if not isinstance(evaluation.get("adjudicated_at"), str):
+        return None
+    basis = evaluation.get("review_basis_ids")
+    if not isinstance(basis, list) or not basis:
+        return None
+    try:
+        return MethodEvaluation.model_validate(evaluation)
+    except ValidationError:
+        return None
 
 
 def _action_id(*parts: str) -> str:

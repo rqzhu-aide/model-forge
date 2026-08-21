@@ -1,4 +1,5 @@
-import type { MethodRow } from "../api/types";
+import type { MethodEvaluation, MethodRow } from "../api/types";
+import { formatDate } from "../utils/format";
 
 function ListSection({ title, values }: { title: string; values: string[] | undefined }) {
   if (!values?.length) return null;
@@ -8,6 +9,29 @@ function ListSection({ title, values }: { title: string; values: string[] | unde
       <ul className="compact-list">
         {values.map((value) => <li key={value}>{value}</li>)}
       </ul>
+    </section>
+  );
+}
+
+function EvaluationSection({ evaluation }: { evaluation: MethodEvaluation }) {
+  const axes = [
+    { name: "Theoretical validity + identifiability", axis: evaluation.theoretical_validity },
+    { name: "Literature positioning + novelty", axis: evaluation.literature_positioning },
+    { name: "Empirical testability + computational efficiency", axis: evaluation.empirical_feasibility },
+  ];
+  return (
+    <section className="method-details__section">
+      <strong>Lead evaluation (sealed)</strong>
+      {axes.map(({ name, axis }) => (
+        <p key={name}>
+          <b>{name}</b> — Score {axis.score}/10. {axis.justification}
+          {axis.issue_refs.length ? ` ${axis.issue_refs.length} linked issue${axis.issue_refs.length === 1 ? "" : "s"}.` : ""}
+        </p>
+      ))}
+      <p>
+        Adjudicated {formatDate(evaluation.adjudicated_at)} from {evaluation.review_basis_ids.length} review
+        report(s).
+      </p>
     </section>
   );
 }
@@ -55,6 +79,7 @@ export function MethodDetails({ method }: { method: MethodRow }) {
           <p>{method.feasibility_summary}</p>
         </section>
       ) : null}
+      {method.evaluation ? <EvaluationSection evaluation={method.evaluation} /> : null}
       <ListSection title="Calculation-defining assumptions" values={method.assumptions} />
       <ListSection title="Principal risks" values={method.principal_risks} />
     </div>

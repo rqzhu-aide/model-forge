@@ -14,13 +14,16 @@
  *    clamped summary when no category content exists.
  */
 import "@testing-library/jest-dom/vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
-import type { MethodRow, PhaseView, ScientificStatus } from "../api/types";
+import type { MethodEvaluation, MethodRow, PhaseView, ScientificStatus } from "../api/types";
 import { CompactPhaseStatus } from "./Status";
 import { PhaseStatusCard } from "./PhaseStatusCard";
-import { MethodCategorySummary } from "./MethodTable";
+import { MethodCategorySummary, MethodTable } from "./MethodTable";
+import { MethodScores, scoreTone } from "./MethodScores";
+import { MethodSelector } from "./MethodSelector";
 
 afterEach(() => {
   cleanup();
@@ -187,5 +190,116 @@ describe("MethodCategorySummary", () => {
     expect(fallback).not.toBeNull();
     expect(fallback?.textContent).toContain("plain summary paragraph");
     expect(container.querySelector(".method-table__category")).toBeNull();
+  });
+});
+
+function evaluation(overrides: Partial<MethodEvaluation> = {}): MethodEvaluation {
+  return {
+    theoretical_validity: {
+      score: 8,
+      justification: "Identifiable under the stated invariance.",
+      issue_refs: ["issue-1", "issue-2"],
+    },
+    literature_positioning: {
+      score: 7,
+      justification: "Novel coupling, adjacent to prior work.",
+      issue_refs: [],
+    },
+    empirical_feasibility: {
+      score: 4,
+      justification: "Compute budget exceeds the pilot scale.",
+      issue_refs: ["issue-3"],
+    },
+    adjudicated_at: "2026-08-21T12:00:00Z",
+    review_basis_ids: ["review-1"],
+    ...overrides,
+  };
+}
+
+describe("scoreTone", () => {
+  it("bands scores 8+ as ok, 5-7 as warn, 1-4 as danger", () => {
+    expect(scoreTone(10)).toBe("ok");
+    expect(scoreTone(8)).toBe("ok");
+    expect(scoreTone(7)).toBe("warn");
+    expect(scoreTone(5)).toBe("warn");
+    expect(scoreTone(4)).toBe("danger");
+    expect(scoreTone(1)).toBe("danger");
+  });
+});
+
+describe("MethodScores", () => {
+  it("renders a single muted chip when no evaluation exists", () => {
+    render(<MethodScores evaluation={undefined} />);
+    const chip = screen.getByText("Not yet evaluated");
+    expect(chip).toHaveAttribute("data-tone", "muted");
+  });
+
+  it("renders a muted chip for an explicit null evaluation", () => {
+    render(<MethodScores evaluation={null} />);
+    expect(screen.getByText("Not yet evaluated")).toHaveAttribute("data-tone", "muted");
+  });
+
+  it("renders three toned chips with justifications as tooltips", () => {
+    const { container } = render(<MethodScores evaluation={evaluation()} />);
+    const chips = Array.from(container.querySelectorAll(".method-score"));
+    expect(chips.map((chip) => chip.textContent)).toEqual([
+      "Validity 8/10",
+      "Novelty 7/10",
+      "Feasibility 4/10",
+    ]);
+    expect(chips.map((chip) => chip.getAttribute("data-tone"))).toEqual(["ok", "warn", "danger"]);
+    expect(chips[0]).toHaveAttribute("title", "Identifiable under the stated invariance.");
+    expect(chips[1]).toHaveAttribute("title", "Novel coupling, adjacent to prior work.");
+    expect(chips[2]).toHaveAttribute("title", "Compute budget exceeds the pilot scale.");
+    expect(container.querySelector(".method-scores")).toHaveAttribute(
+      "aria-label",
+      "Lead evaluation scores: Validity 8/10, Novelty 7/10, Feasibility 4/10",
+    );
+  });
+});
+
+describe("MethodTable evaluation strip", () => {
+  function renderTable(method: MethodRow) {
+    const queryClient = new QueryClient();
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <MethodTable projectId="project-1" methods={[method]} />
+      </QueryClientProvider>,
+    );
+  }
+
+  it("shows the score strip on the catalog row when an evaluation exists", () => {
+    const { container } = renderTable(methodRow({ actions: [], evaluation: evaluation() }));
+    const strip = container.querySelector(".method-scores");
+    expect(strip).not.toBeNull();
+    expect(screen.getByText("Validity 8/10")).toBeInTheDocument();
+    expect(screen.getByText("Feasibility 4/10")).toBeInTheDocument();
+  });
+
+  it("shows the muted chip on the catalog row when no evaluation exists", () => {
+    renderTable(methodRow({ actions: [] }));
+    expect(screen.getByText("Not yet evaluated")).toHaveAttribute("data-tone", "muted");
+  });
+});
+
+describe("MethodSelector evaluation strip", () => {
+  it("renders the score strip inside the option card", () => {
+    render(
+      <MethodSelector
+        methods={[methodRow({ evaluation: evaluation() })]}
+        selectedMethodId="method.example"
+        onChange={() => {}}
+      />,
+    );
+    expect(screen.getByText("Validity 8/10")).toBeInTheDocument();
+    expect(screen.getByText("Novelty 7/10")).toBeInTheDocument();
+    expect(screen.getByText("Feasibility 4/10")).toBeInTheDocument();
+  });
+
+  it("renders the muted chip inside the option card without an evaluation", () => {
+    render(
+      <MethodSelector methods={[methodRow()]} selectedMethodId="method.example" onChange={() => {}} />,
+    );
+    expect(screen.getByText("Not yet evaluated")).toHaveAttribute("data-tone", "muted");
   });
 });

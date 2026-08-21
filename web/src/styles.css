@@ -1418,6 +1418,48 @@ dd {
   font-weight: 650;
 }
 
+/* Sealed lead evaluation score chips (ADR-017 D4): compact three-chip strip
+   on catalog rows and selector option cards; tone bands 8+/5-7/1-4. */
+.method-scores {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.3rem;
+}
+
+.method-score {
+  font-size: 0.75rem;
+  font-weight: 760;
+  padding: 0.14rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.method-score[data-tone="ok"] {
+  color: var(--positive);
+  background: var(--positive-soft);
+  border-color: var(--positive);
+}
+
+.method-score[data-tone="warn"] {
+  color: var(--warning);
+  background: var(--warning-soft);
+  border-color: var(--warning);
+}
+
+.method-score[data-tone="danger"] {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: var(--danger);
+}
+
+.method-score[data-tone="muted"] {
+  color: var(--muted);
+  background: transparent;
+  border-color: var(--line);
+  font-weight: 650;
+}
+
 /* Fallback when no category content exists: the summary, clamped. */
 .method-table__summary--clamped {
   max-width: 62ch;

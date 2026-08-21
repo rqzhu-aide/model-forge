@@ -2,6 +2,7 @@ import type { MethodRow } from "../api/types";
 import { CompactPhaseStatus, StatusPill } from "./Status";
 import { shortDigest } from "../utils/format";
 import { MethodDetailsDisclosure } from "./MethodDetails";
+import { MethodScores } from "./MethodScores";
 
 export function MethodSelector({
   methods,
@@ -43,6 +44,7 @@ export function MethodSelector({
                     <StatusPill>{`v${method.identity.version}`}</StatusPill>
                   </span>
                   <span className="method-option__summary">{method.summary}</span>
+                  <MethodScores evaluation={method.evaluation} />
                   <span className="method-option__identity">
                     <code>{method.identity.stable_id}</code>
                     <span>definition {shortDigest(method.identity.definition_sha256)}</span>

@@ -8,6 +8,7 @@ import { CompactPhaseStatus, StatusPill } from "./Status";
 import { ConfirmActionDialog } from "./ConfirmActionDialog";
 import { ErrorState } from "./Feedback";
 import { MethodDetailsDisclosure } from "./MethodDetails";
+import { MethodScores } from "./MethodScores";
 
 interface PendingLifecycleAction {
   method: MethodRow;
@@ -109,6 +110,7 @@ export function MethodTable({ projectId, methods }: { projectId: string; methods
                   <th scope="row">
                     <span className="method-table__name">{method.display_name}</span>
                     <MethodCategorySummary method={method} />
+                    <MethodScores evaluation={method.evaluation} />
                     <code title={method.identity.definition_sha256}>{method.identity.stable_id}, v{method.identity.version}</code>
                     <MethodDetailsDisclosure method={method} />
                   </th>

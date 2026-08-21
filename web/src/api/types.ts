@@ -185,6 +185,20 @@ export interface ScientificStatus {
   last_published_at?: string;
 }
 
+export interface MethodAxisScore {
+  score: number;
+  justification: string;
+  issue_refs: string[];
+}
+
+export interface MethodEvaluation {
+  theoretical_validity: MethodAxisScore;
+  literature_positioning: MethodAxisScore;
+  empirical_feasibility: MethodAxisScore;
+  adjudicated_at: string;
+  review_basis_ids: string[];
+}
+
 export interface MethodRow {
   identity: MethodIdentity;
   display_name: string;
@@ -195,6 +209,7 @@ export interface MethodRow {
   assumptions?: string[];
   provenance_summary?: string;
   novelty_summary?: string;
+  evaluation?: MethodEvaluation | null;
   feasibility_summary?: string;
   principal_risks?: string[];
   definition_artifact?: ArtifactLink;

@@ -49,19 +49,10 @@ disagreement, prepares candidate formal records, and states user decisions.
 
 ### Phase 2: Method catalog
 
-#### `p2.independent_proposals`, parallel
-
-- Modes: `p2.full_catalog`, `p2.focused_method`, `p2.researcher_proposal`
-- Reads: `p2.project_brief`, `p2.literature_synthesis`, `p2.literature_library`, `p2.literature_coverage`, `p2.current_catalog`
-- Writes: `p2.lead_proposal`
-- Boundary: `p2.current_catalog` is rerun-only. Focused mode is limited to the
-  selected stable method. Researcher-proposal mode evaluates the supplied
-  `p2.researcher_method_spec`. Parallel proposals remain isolated.
-
 #### `p2.lead_reconciliation`, serial
 
 - Modes: `p2.full_catalog`, `p2.focused_method`, `p2.researcher_proposal`
-- Reads: `p2.project_brief`, `p2.literature_synthesis`, `p2.literature_library`, `p2.literature_coverage`, `p2.current_catalog`, `p2.lead_proposal`, `p2.theory_proposal`, `p2.empirical_proposal`, `p2.theory_review`, `p2.empirical_review`
+- Reads: `p2.project_brief`, `p2.literature_synthesis`, `p2.literature_library`, `p2.literature_coverage`, `p2.current_catalog`, `p2.theory_proposal`, `p2.empirical_proposal`, `p2.theory_review`, `p2.empirical_review`
 - Writes: `p2.method_changes`, `p2.attention_items`, `p2.decision`
 - Boundary: the lead reconciles only the authorized scope. In
   researcher-proposal mode, it decides whether the supplied method warrants
@@ -137,7 +128,7 @@ is not treated as proof.
 #### `p2.cross_review`, parallel
 
 - Modes: `p2.full_catalog`, `p2.focused_method`, `p2.researcher_proposal`
-- Reads: `p2.project_brief`, `p2.literature_synthesis`, `p2.literature_library`, `p2.literature_coverage`, `p2.current_catalog`, `p2.lead_proposal`, `p2.theory_proposal`, `p2.empirical_proposal`
+- Reads: `p2.project_brief`, `p2.literature_synthesis`, `p2.literature_library`, `p2.literature_coverage`, `p2.current_catalog`, `p2.theory_proposal`, `p2.empirical_proposal`
 - Writes: `p2.theory_review`
 - Boundary: all proposals must be accepted first. The theorist cannot read the
   analyst's current-run review.
@@ -205,7 +196,7 @@ provenance, uncertainty, interpretation, and reproducibility.
 #### `p2.cross_review`, parallel
 
 - Modes: `p2.full_catalog`, `p2.focused_method`, `p2.researcher_proposal`
-- Reads: `p2.project_brief`, `p2.literature_synthesis`, `p2.literature_library`, `p2.literature_coverage`, `p2.current_catalog`, `p2.lead_proposal`, `p2.theory_proposal`, `p2.empirical_proposal`
+- Reads: `p2.project_brief`, `p2.literature_synthesis`, `p2.literature_library`, `p2.literature_coverage`, `p2.current_catalog`, `p2.theory_proposal`, `p2.empirical_proposal`
 - Writes: `p2.empirical_review`
 - Boundary: all proposals must be accepted first. The analyst cannot read the
   theorist's current-run review.

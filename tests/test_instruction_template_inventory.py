@@ -44,7 +44,6 @@ _EXPECTED_STAGE_ROLE_TEMPLATES: list[tuple[str, str, str]] = [
         for stage_id, role in (
             ("p2.independent_proposals", "theorist"),
             ("p2.independent_proposals", "data_analyst"),
-            ("p2.independent_proposals", "research_lead"),
             ("p2.cross_review", "theorist"),
             ("p2.cross_review", "data_analyst"),
             ("p2.lead_reconciliation", "research_lead"),
@@ -93,7 +92,6 @@ def test_stage_role_template_renders(mode: str, stage_id: str, role: str) -> Non
 
 
 _P2_STAGE_ROLES = (
-    ("p2.independent_proposals", "research_lead"),
     ("p2.independent_proposals", "theorist"),
     ("p2.independent_proposals", "data_analyst"),
     ("p2.cross_review", "theorist"),

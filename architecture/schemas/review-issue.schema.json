@@ -57,6 +57,11 @@
                        "affected_statement_id":  {
                                                      "$ref":  "common-definitions.schema.json#/$defs/stableId"
                                                  },
+                       "stable_id":  {
+                                         "type":  "string",
+                                         "minLength":  1,
+                                         "description":  "The contracted method key this issue attributes to (ADR-017); ends attribution by naming convention."
+                                     },
                        "issue":  {
                                      "type":  "string",
                                      "minLength":  1

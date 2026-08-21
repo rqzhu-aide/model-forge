@@ -203,7 +203,7 @@ EXPECTED_PHASE_ROLES = {
         ("serial", ["research_lead"]),
     ],
     "P2": [
-        ("parallel", ["research_lead", "theorist", "data_analyst"]),
+        ("parallel", ["theorist", "data_analyst"]),
         ("parallel", ["theorist", "data_analyst"]),
         ("serial", ["research_lead"]),
     ],

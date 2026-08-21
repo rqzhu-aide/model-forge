@@ -53,9 +53,9 @@ The system computes and records the input digests before work starts. Later Phas
 
 Phase 2 has three stages.
 
-1. The research lead, theorist, and data analyst independently generate method proposals or scoped revisions from the same frozen basis. They do not see one another's in-run proposals before submitting their own.
-2. The theorist and data analyst cross-review all in-scope proposals against the frozen project, literature, and catalog basis. The theorist examines mathematical definition, assumptions, identifiability, and inferential claims. The data analyst examines implementability, study design, data requirements, computational behavior, and empirical distinguishability.
-3. The research lead receives the frozen project, literature, and catalog basis together with the independent proposals and cross-reviews, reconciles disagreements, and produces the candidate catalog update and user decision record. In researcher-proposal mode the lead additionally decides whether the proposed method warrants formal registration.
+1. The theorist and data analyst independently generate method proposals or scoped revisions from the same frozen basis. The research lead does not author proposals in Phase 2. Proposals should seek unique literature positioning and high novelty relative to the frozen literature basis. The two proposers do not see one another's in-run proposals before submitting their own.
+2. The theorist and data analyst cross-review all in-scope proposals against the frozen project, literature, and catalog basis. The theorist examines mathematical definition, assumptions, identifiability, and inferential claims. The data analyst examines implementability, study design, data requirements, computational behavior, and empirical distinguishability. Each review includes a structured per-method evaluation keyed by the method stable ID, within the reviewer competency axis: the theorist evaluates theoretical validity and identifiability, and the data analyst evaluates empirical testability and computational efficiency. Both reviewers may raise issues on any axis, and each issue carries the method stable ID. Neither reviewer files a structured assessment of literature positioning or novelty.
+3. The research lead receives the frozen project, literature, and catalog basis together with the independent proposals and cross-reviews, reconciles disagreements, adjudicates, and seals an evaluation block into every method record in the change set: an integer score from 1 to 10 with a required justification and issue references on each of three axes (theoretical validity and identifiability; literature positioning and novelty; empirical testability and computational efficiency), plus the adjudication timestamp and the review basis IDs. The lead produces the candidate catalog update and user decision record. In researcher-proposal mode the lead additionally decides whether the proposed method warrants formal registration.
 
 The lead may recommend later investigation or retirement but cannot choose the user's Phase 3 or Phase 4 branch. The outside reviewer does not participate in Phase 2.
 
@@ -63,10 +63,11 @@ The lead may recommend later investigation or retirement but cannot choose the u
 
 The active run workspace must contain:
 
-- Independent proposal reports from the lead, theorist, and data analyst
-- The theorist and data analyst cross-review reports
+- Independent proposal reports from the theorist and data analyst
+- The theorist and data analyst cross-review reports, each carrying structured per-method evaluations keyed by the method stable ID within the reviewer competency axis
 - Candidate structured method records within the authorized scope
 - A catalog change set with additions, revisions, unchanged records, and retirement recommendations
+- For each method in the change set, a sealed evaluation block: an integer score from 1 to 10, a justification, and issue references on each of the three axes, plus the adjudication timestamp and the review basis IDs
 - For each method, an authoritative mathematical definition, stable ID, version, definition digest, whole-record digest, and lineage
 - Literature provenance linking method motivation and claims to Phase 1 references
 - Assumptions, target or estimand, calculation-defining equations, algorithm, tuning definitions, constraints, and intended scope
@@ -90,6 +91,8 @@ Before promotion, the system verifies that:
 - Every source supporting a formal material claim resolves to the frozen Phase 1 basis; unresolved new literature remains run-local and creates a Phase 1 attention item
 - Focused-method mode changes no record outside the selected stable ID
 - Method retirement is either a recommendation or an explicitly user-authorized catalog action
+- Every method record in the catalog change set carries an evaluation block with integer scores from 1 to 10 and non-empty justifications on all three axes, and every issue reference in the block resolves to a sealed review issue
+- Theorist review reports evaluate only the theoretical-validity axis and data analyst review reports evaluate only the empirical-feasibility axis; literature positioning and novelty is adjudicated by the research lead alone
 - Catalog references, lineage links, and parent-child relationships resolve without cycles or missing identities
 - The complete change set is contained within the active run workspace
 
@@ -97,7 +100,7 @@ Machine validation cannot determine that a method is novel, mathematically corre
 
 ## 8. Scientific assessment boundary
 
-The theorist owns assessment of mathematical coherence, assumptions, identifiability, and claim plausibility. The data analyst owns assessment of implementation, measurement, data requirements, computation, and empirical discriminability. The research lead owns synthesis of scientific importance, biological or substantive interpretation, portfolio distinctness, and unresolved disagreement.
+The theorist owns the stage-2 structured evaluation of theoretical validity and identifiability, and the assessment of mathematical coherence, assumptions, and claim plausibility. The data analyst owns the stage-2 structured evaluation of empirical testability and computational efficiency, and the assessment of implementation, measurement, data requirements, computation, and empirical discriminability. The research lead owns synthesis of scientific importance, biological or substantive interpretation, portfolio distinctness, and unresolved disagreement, including sole adjudication of literature positioning and novelty. The lead seals the official integer scores from 1 to 10 on all three axes; reviewer evaluations remain sealed in the review reports as the visible input to adjudication.
 
 Feasibility and novelty are scientific assessments, not machine validation states. A method may be promoted with a negative, partial, contested, or inconclusive assessment if the record states that outcome accurately. Promotion makes the record current; it does not certify the method as correct or preferred.
 

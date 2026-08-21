@@ -178,6 +178,40 @@
     },
     "authority_at_creation": {
       "const": "run_local_candidate"
+    },
+    "method_evaluations": {
+      "type": "array",
+      "description": "Structured per-method evaluations keyed by the contracted method stable_id, within the reviewer competency axis (ADR-017).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "stable_id",
+          "axis",
+          "assessment",
+          "issue_refs"
+        ],
+        "properties": {
+          "stable_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "axis": {
+            "enum": ["theoretical_validity", "empirical_feasibility"]
+          },
+          "assessment": {
+            "type": "string",
+            "minLength": 1
+          },
+          "issue_refs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
     }
   }
 }

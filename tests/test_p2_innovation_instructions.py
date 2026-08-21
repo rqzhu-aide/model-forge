@@ -35,9 +35,8 @@ def test_p2_full_catalog_encourages_bounded_complementary_innovation() -> None:
                 stage_id="p2.independent_proposals",
             )
         )
-        for role in ("research_lead", "theorist", "data_analyst")
+        for role in ("theorist", "data_analyst")
     }
-    assert "scientific or statistical framing" in proposals["research_lead"]
     assert "mathematical mechanism" in proposals["theorist"]
     assert "empirical or computational mechanism" in proposals["data_analyst"]
     for text in proposals.values():

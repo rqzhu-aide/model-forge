@@ -88,12 +88,11 @@ in the current role-stage read allowlists. The table therefore omits them.
 
 | Stage | Role | Reads | Writes |
 |---|---|---|---|
-| `p2.independent_proposals`, parallel | Research lead | `p2.project_brief`, `p2.literature_synthesis`, `p2.literature_library`, `p2.literature_coverage`, `p2.current_catalog` | `p2.lead_proposal` |
 | `p2.independent_proposals`, parallel | Theorist | `p2.project_brief`, `p2.literature_synthesis`, `p2.literature_library`, `p2.literature_coverage`, `p2.current_catalog` | `p2.theory_proposal` |
 | `p2.independent_proposals`, parallel | Data analyst | `p2.project_brief`, `p2.literature_synthesis`, `p2.literature_library`, `p2.literature_coverage`, `p2.current_catalog` | `p2.empirical_proposal` |
-| `p2.cross_review`, parallel | Theorist | `p2.project_brief`, `p2.literature_synthesis`, `p2.literature_library`, `p2.literature_coverage`, `p2.current_catalog`, `p2.lead_proposal`, `p2.theory_proposal`, `p2.empirical_proposal` | `p2.theory_review` |
-| `p2.cross_review`, parallel | Data analyst | `p2.project_brief`, `p2.literature_synthesis`, `p2.literature_library`, `p2.literature_coverage`, `p2.current_catalog`, `p2.lead_proposal`, `p2.theory_proposal`, `p2.empirical_proposal` | `p2.empirical_review` |
-| `p2.lead_reconciliation`, serial | Research lead | `p2.project_brief`, `p2.literature_synthesis`, `p2.literature_library`, `p2.literature_coverage`, `p2.current_catalog`, `p2.lead_proposal`, `p2.theory_proposal`, `p2.empirical_proposal`, `p2.theory_review`, `p2.empirical_review` | `p2.method_changes`, `p2.attention_items`, `p2.decision` |
+| `p2.cross_review`, parallel | Theorist | `p2.project_brief`, `p2.literature_synthesis`, `p2.literature_library`, `p2.literature_coverage`, `p2.current_catalog`, `p2.theory_proposal`, `p2.empirical_proposal` | `p2.theory_review` |
+| `p2.cross_review`, parallel | Data analyst | `p2.project_brief`, `p2.literature_synthesis`, `p2.literature_library`, `p2.literature_coverage`, `p2.current_catalog`, `p2.theory_proposal`, `p2.empirical_proposal` | `p2.empirical_review` |
+| `p2.lead_reconciliation`, serial | Research lead | `p2.project_brief`, `p2.literature_synthesis`, `p2.literature_library`, `p2.literature_coverage`, `p2.current_catalog`, `p2.theory_proposal`, `p2.empirical_proposal`, `p2.theory_review`, `p2.empirical_review` | `p2.method_changes`, `p2.attention_items`, `p2.decision` |
 
 The same stage sequence applies to all three modes. Isolation applies within
 both parallel stages.

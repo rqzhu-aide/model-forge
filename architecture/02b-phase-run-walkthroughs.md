@@ -96,25 +96,36 @@ proposed method).
 
 **Stage 1 `p2.independent_proposals` (parallel).** Objective: "Generate
 independent proposals, scoped revisions, or evaluations of a
-researcher-proposed method." All three roles propose blind
-(`p2.lead_proposal`, `p2.theory_proposal`, `p2.empirical_proposal`).
+researcher-proposed method. Proposals should seek unique literature
+positioning and high novelty relative to the frozen literature basis."
+Theorist and data_analyst propose blind (`p2.theory_proposal`,
+`p2.empirical_proposal`); the research lead does not propose (ADR-017).
 
 **Stage 2 `p2.cross_review` (parallel, theorist + data_analyst).** Objective:
 "Cross-review definitions, assumptions, identifiability, implementation, data
 requirements, computation, empirical distinguishability, or the validity and
-novelty of a researcher-proposed method." Writes `p2.theory_review`,
-`p2.empirical_review`.
+novelty of a researcher-proposed method. Each review includes a structured
+per-method evaluation keyed by the method stable_id, within the reviewer
+competency axis." Writes `p2.theory_review` (theoretical_validity axis),
+`p2.empirical_review` (empirical_feasibility axis). Literature positioning
+and novelty is lead-only; reviewers may only raise issues on it.
 
 **Stage 3 `p2.lead_reconciliation` (serial, research_lead).** Objective:
 "Reconcile or expose disagreements and produce the candidate scoped catalog
 change and decision summary. For researcher proposals, decide whether the
-method warrants formal registration." Writes `p2.method_changes` (method
-schema), `p2.attention_items`, `p2.decision`. The lead may recommend but
-cannot choose the user's P3/P4 branch.
+method warrants formal registration. The lead adjudicates and seals a 1-10
+score with justification on three axes (theoretical validity and
+identifiability; literature positioning and novelty; empirical testability
+and computational efficiency) for every method in the change set." Writes
+`p2.method_changes` (method schema, each record carrying the sealed
+`evaluation` block), `p2.attention_items`, `p2.decision`. The lead may
+recommend but cannot choose the user's P3/P4 branch.
 
 **Validators.** `_validate_p2` (plus `_validate_method_definition` for
 method changes: mathematical definition, assumptions, identifiability
-claims).
+claims), including the new blocking rules `p2.method_evaluation` (sealed
+evaluation block completeness, score range, issue refs) and
+`p2.review_axis_ownership` (reviewer axis ownership).
 
 **Publication.** Append attention items; `upsert_each` method records into
 keyed current slots `p2.method_records`; replace the method catalog and phase

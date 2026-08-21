@@ -215,11 +215,10 @@
       ],
       "execution": "parallel",
       "roles": [
-        "research_lead",
         "theorist",
         "data_analyst"
       ],
-      "objective": "Generate independent proposals, scoped revisions, or evaluations of a researcher-proposed method from the same frozen basis.",
+      "objective": "Generate independent proposals, scoped revisions, or evaluations of a researcher-proposed method from the same frozen basis. Proposals should seek unique literature positioning and high novelty relative to the frozen literature basis.",
       "reads": [
         "p2.project_brief",
         "p2.literature_synthesis",
@@ -228,7 +227,6 @@
         "p2.current_catalog"
       ],
       "writes": [
-        "p2.lead_proposal",
         "p2.theory_proposal",
         "p2.empirical_proposal"
       ],
@@ -248,14 +246,13 @@
         "theorist",
         "data_analyst"
       ],
-      "objective": "Cross-review definitions, assumptions, identifiability, implementation, data requirements, computation, empirical distinguishability, or the validity and novelty of a researcher-proposed method.",
+      "objective": "Cross-review definitions, assumptions, identifiability, implementation, data requirements, computation, empirical distinguishability, or the validity and novelty of a researcher-proposed method. Each review includes a structured per-method evaluation keyed by the method stable_id, within the reviewer competency axis.",
       "reads": [
         "p2.project_brief",
         "p2.literature_synthesis",
         "p2.literature_library",
         "p2.literature_coverage",
         "p2.current_catalog",
-        "p2.lead_proposal",
         "p2.theory_proposal",
         "p2.empirical_proposal"
       ],
@@ -277,14 +274,13 @@
       "roles": [
         "research_lead"
       ],
-      "objective": "Reconcile or expose disagreements and produce the candidate scoped catalog change and decision summary. For researcher proposals, decide whether the method warrants formal registration.",
+      "objective": "Reconcile or expose disagreements and produce the candidate scoped catalog change and decision summary. For researcher proposals, decide whether the method warrants formal registration. The lead adjudicates and seals a 1-10 score with justification on three axes (theoretical validity and identifiability; literature positioning and novelty; empirical testability and computational efficiency) for every method in the change set.",
       "reads": [
         "p2.project_brief",
         "p2.literature_synthesis",
         "p2.literature_library",
         "p2.literature_coverage",
         "p2.current_catalog",
-        "p2.lead_proposal",
         "p2.theory_proposal",
         "p2.empirical_proposal",
         "p2.theory_review",
@@ -299,16 +295,6 @@
     }
   ],
   "run_local_outputs": [
-    {
-      "output_id": "p2.lead_proposal",
-      "output_kind": "handoff",
-      "producer": "research_lead",
-      "schema_application": "object",
-      "schema_uri": "architecture/schemas/handoff.schema.json",
-      "purpose": "Preserve the lead's independent methodological proposal.",
-      "required": true,
-      "requirement": "always"
-    },
     {
       "output_id": "p2.theory_proposal",
       "output_kind": "handoff",
@@ -410,6 +396,18 @@
       "category": "promotion_safety",
       "severity": "blocking",
       "description": "A retirement recommendation cannot change method lifecycle without a separate authenticated user action."
+    },
+    {
+      "validator_id": "p2.method_evaluation",
+      "category": "alignment",
+      "severity": "blocking",
+      "description": "Every method record in the catalog change set carries an evaluation block with integer scores 1-10 and non-empty justifications on all three axes; issue_refs resolve to sealed review issues."
+    },
+    {
+      "validator_id": "p2.review_axis_ownership",
+      "category": "run_boundary",
+      "severity": "blocking",
+      "description": "Theorist review reports evaluate only the theoretical_validity axis; data analyst review reports evaluate only the empirical_feasibility axis; literature positioning and novelty is adjudicated by the research lead alone."
     }
   ],
   "publication_bindings": [

@@ -924,6 +924,25 @@ def verify_correction_blast_radius(
     return tuple(violations)
 
 
+def incomplete_correction_chain(
+    *, services: HarnessExecutionServices
+) -> tuple[str, ...]:
+    """Stage-role labels lacking a SUCCEEDED closure (K5-4, ADR-016).
+
+    Mirrors ``seal_correction_submission``'s family-aware walk.  An empty
+    result means the complete-chain submission path is legal; a non-empty
+    result means the correction pass must take the resume-execution edge
+    because the run's pipeline did not complete.
+    """
+    gaps: list[str] = []
+    for stage in services.context.plan.stages:
+        for step in stage.role_steps:
+            closure = services.roles.load_existing(stage=stage, role=step.role)
+            if closure is None or closure.status is not RoleExecutionStatus.SUCCEEDED:
+                gaps.append(f"{stage.stage_id}/{step.role}")
+    return tuple(gaps)
+
+
 def seal_correction_submission(
     *,
     services: HarnessExecutionServices,
@@ -1103,6 +1122,7 @@ __all__ = [
     "NormalizeExecution",
     "TargetedCorrectionOutcome",
     "execute_targeted_correction",
+    "incomplete_correction_chain",
     "normalize_closure_outputs",
     "preview_normalize",
     "record_normalize_closure",

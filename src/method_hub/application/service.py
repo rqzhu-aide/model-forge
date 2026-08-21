@@ -89,6 +89,7 @@ from ..executors.protocol import ExecutionObserver, RoleInvocation
 from ..harness.commands import build_run_command, require_complete_sealed_basis
 from ..harness.outputs import build_output_plan
 from ..harness.role_resource_snapshot import compute_role_resources, load_skill_manifest
+from ..harness.stage_execution import HarnessExecutionServices
 from ..specification import SpecificationPackage
 from ..storage.artifacts import ArtifactStore
 from ..storage.database import Database
@@ -110,6 +111,7 @@ from .correction_execution import (
     _plan_from_recipe,
     _recipe_for_run,
     execute_targeted_correction,
+    incomplete_correction_chain,
     normalize_closure_outputs,
     preview_normalize,
     record_normalize_closure,
@@ -2379,15 +2381,12 @@ class MethodHubService:
                 user_instruction=command.user_instruction,
             )
             if outcome.passed:
-                seal_correction_submission(
+                self._complete_correction_pass(
+                    run_id=run_id,
                     services=services,
-                    correction_command_id=command_id,
+                    command_id=command_id,
                     correction_type=command.correction_type,
                 )
-                if self.run_launcher is not None:
-                    task = asyncio.create_task(self.run_launcher(run_id))
-                    self._background.add(task)
-                    task.add_done_callback(self._background.discard)
             else:
                 # Recount attempts INCLUDING this failed one (HV-5.6): when
                 # both bounded attempts are spent the correction lane is
@@ -2486,16 +2485,28 @@ class MethodHubService:
                     invocation_sha256=str(sealed.row["command_sha256"]),
                 )
         if passed:
+            services = self.run_coordinator.correction_services(
+                run_id,
+                correction_command_id=command_id,
+                correction_type=command.correction_type,
+            )
+            gaps = incomplete_correction_chain(services=services)
+            verb = (
+                "Revalidation"
+                if command.correction_type == "revalidate"
+                else "Normalization"
+            )
+            detail = (
+                " The run resumes execution; the remaining stages continue "
+                "with the corrected closure chain."
+                if gaps
+                else
+                " The run re-enters submission with the corrected closure "
+                "chain."
+            )
             event = {
                 "event_type": "run.correcting",
-                "message": (
-                    "Revalidation passed. The run re-enters submission with "
-                    "the corrected closure chain."
-                    if command.correction_type == "revalidate"
-                    else
-                    "Normalization passed. The run re-enters submission with "
-                    "the corrected closure chain."
-                ),
+                "message": f"{verb} passed.{detail}",
                 "occurred_at": isoformat_utc(utc_now()),
             }
             result = self.repository.compare_and_swap_run(
@@ -2522,24 +2533,81 @@ class MethodHubService:
                         ),
                     )
                 )
-            services = self.run_coordinator.correction_services(
-                run_id,
-                correction_command_id=command_id,
-                correction_type=command.correction_type,
-            )
-            seal_correction_submission(
+            self._complete_correction_pass(
+                run_id=run_id,
                 services=services,
-                correction_command_id=command_id,
+                command_id=command_id,
                 correction_type=command.correction_type,
             )
-            if self.run_launcher is not None:
-                task = asyncio.create_task(self.run_launcher(run_id))
-                self._background.add(task)
-                task.add_done_callback(self._background.discard)
         # D1: a failed revalidation/normalization stays in
         # correction_authorized; the recorded attempt row is the failure
         # evidence.
         return await self.get_run(project_id, run_id)
+
+    def _complete_correction_pass(
+        self,
+        *,
+        run_id: str,
+        services: HarnessExecutionServices,
+        command_id: str,
+        correction_type: str,
+    ) -> None:
+        """Shared pass tail for every correction lane (K5-4, ADR-016).
+
+        A complete closure chain re-enters submission; an incomplete chain
+        (a mid-pipeline failure whose later stages never ran) resumes
+        execution through the correcting -> running edge, and the
+        coordinator continues the pipeline over the family-aware closures.
+        """
+        gaps = incomplete_correction_chain(services=services)
+        if not gaps:
+            seal_correction_submission(
+                services=services,
+                correction_command_id=command_id,
+                correction_type=correction_type,
+            )
+        else:
+            fresh = self.repository.get_run(run_id)
+            payload = row_json(fresh)
+            payload.pop("terminal_reason", None)
+            payload.pop("closure_findings", None)
+            event = {
+                "event_type": "run.execution_resumed",
+                "message": (
+                    "The correction passed. Execution resumes with the "
+                    "corrected closure chain; the pipeline continues through "
+                    f"the remaining stage roles: {', '.join(gaps)}."
+                ),
+                "occurred_at": isoformat_utc(utc_now()),
+            }
+            result = self.repository.compare_and_swap_run(
+                run_id,
+                "correcting",
+                int(fresh["head_sequence"]),
+                "running",
+                payload,
+                _event_id(run_id, int(fresh["head_sequence"]) + 1),
+                _content_digest(event),
+                event,
+            )
+            if not result.applied:
+                raise CommandRejected(
+                    new_command_error(
+                        "CONTROL_HEAD_STALE",
+                        object_refs=[run_id],
+                        researcher_message=(
+                            "The run changed after the correction passed."
+                        ),
+                        smallest_correction=(
+                            "Refresh the run; the recorded validation attempt "
+                            "is the evidence of the pass."
+                        ),
+                    )
+                )
+        if self.run_launcher is not None:
+            task = asyncio.create_task(self.run_launcher(run_id))
+            self._background.add(task)
+            task.add_done_callback(self._background.discard)
 
     def _correction_target_closure(
         self, run_id: str, requested_scope: set[str]

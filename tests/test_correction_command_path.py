@@ -51,7 +51,6 @@ from method_hub.application.settings import ApplicationSettings
 from method_hub.configuration.resources import RoleResourceCatalog
 from method_hub.digests.jcs import canonicalize
 from method_hub.executors import DeterministicFakeExecutor
-from method_hub.harness.submissions import SubmissionAssemblyError
 from method_hub.harness.execution_records import (
     closure_artifact_id,
     correction_role_identity,
@@ -944,9 +943,10 @@ def test_correction_scope_uses_plan_declared_outputs_when_nothing_sealed(
     materializes no source bytes (skip-missing), the blast-radius check
     skips source-absent outputs, and the attempt PASSES.
 
-    K5-4 boundary (open design item): re-entry then raises
-    SubmissionAssemblyError because this run's stage chain is incomplete —
-    mid-pipeline failures have no resume path yet.
+    K5-4 (ADR-016): this run's stage chain is incomplete, so the pass
+    takes the resume-execution edge (correcting -> running) instead of
+    raising SubmissionAssemblyError; the coordinator continues the
+    pipeline over the corrected closure chain.
     """
 
     async def scenario() -> None:
@@ -963,10 +963,13 @@ def test_correction_scope_uses_plan_declared_outputs_when_nothing_sealed(
             action_descriptor_id=action.descriptor_id,
         )
         receipt = await _preserve(stack.service, command, "corr-empty-scope")
-        with pytest.raises(SubmissionAssemblyError, match="successful closure"):
-            await stack.service.request_output_correction(
-                PROJECT, RUN, command, raw_request=receipt
-            )
+        result = await stack.service.request_output_correction(
+            PROJECT, RUN, command, raw_request=receipt
+        )
+        await asyncio.sleep(0)  # let the scheduled handoff launcher run
+        # K5-4: the incomplete chain resumes execution instead of raising.
+        assert result.state == "running"
+        assert stack.launched == [RUN]
         # The attempt itself passed and the correction closure sealed
         # SUCCEEDED: the gates, materialization, and blast radius all worked
         # on the empty-outputs shape.

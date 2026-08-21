@@ -88,7 +88,10 @@ _TRANSITIONS: Mapping[RunStatus, frozenset[RunStatus]] = {
         {RunStatus.CORRECTING, RunStatus.CORRECTION_EXHAUSTED}
     ),
     RunStatus.CORRECTING: frozenset(
-        {RunStatus.SUBMITTED, RunStatus.CORRECTION_EXHAUSTED}
+        # K5-4 (ADR-016): a passed correction on an incomplete closure
+        # chain (mid-pipeline failure) resumes execution instead of
+        # sealing a submission.
+        {RunStatus.SUBMITTED, RunStatus.CORRECTION_EXHAUSTED, RunStatus.RUNNING}
     ),
     RunStatus.CANCELLED: frozenset(),
     RunStatus.PUBLISHED: frozenset(),

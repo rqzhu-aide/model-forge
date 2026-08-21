@@ -70,6 +70,10 @@ class TestCorrectionStateTransitions:
     def test_correcting_to_submitted(self) -> None:
         require_transition(RunStatus.CORRECTING, RunStatus.SUBMITTED)
 
+    def test_correcting_to_running(self) -> None:
+        """CORRECTING → RUNNING must be a valid transition (K5-4, ADR-016)."""
+        require_transition(RunStatus.CORRECTING, RunStatus.RUNNING)
+
     def test_correcting_to_exhausted(self) -> None:
         require_transition(
             RunStatus.CORRECTING, RunStatus.CORRECTION_EXHAUSTED

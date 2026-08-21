@@ -1192,13 +1192,12 @@ class RoleLifecycleService:
         invocation_id, execution_id, closure_id = _role_identity(
             self.context, stage, role
         )
-        recovered = self._load_closure(
-            stage=stage,
-            role=role,
-            invocation_id=invocation_id,
-            execution_id=execution_id,
-            closure_id=closure_id,
-        )
+        # K5-4 (ADR-016): family-aware reconciliation.  A succeeded
+        # correction closure supersedes the base closure (D4), so a run
+        # resumed after a mid-pipeline correction reconciles the corrected
+        # role instead of re-failing on the stale base failure.  Runs with
+        # no correction attempts fall back to the identical base read.
+        recovered = self.load_existing(stage=stage, role=role)
         if recovered is not None:
             return recovered
         if self.repository.cancellation_requested(str(self.context.run_id)):

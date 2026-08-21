@@ -443,6 +443,101 @@ Web implementation pins:
   extend RunPage.test.ts.
 
 
+## K5-4 design pins (2026-08-20, coder; Tez decided option (a): resume-execution edge)
+
+Contract record: ADR-016. Doc updates: 02-run-harness.md sections 2.3/3,
+S26 expected/prohibited behavior. All facts below probed against the tree at
+`f6a6371`.
+
+Probed facts that shape the pins:
+
+- `seal_correction_submission` (correction_execution.py:927) walks every
+  plan stage role through family-aware `load_existing` and raises
+  SubmissionAssemblyError on the first gap BEFORE any write. Mid-pipeline
+  failures (later stages never ran) always gap.
+- `RoleLifecycleService.execute_or_reconcile` (role_execution.py:1185)
+  recovers through base-identity `_load_closure` ONLY (line 1195); the
+  family-aware `load_existing` (:1771) is NOT consulted. A resumed run
+  would re-fail the corrected role on its stale FAILED base closure.
+  `_load_closure` returns closures of ANY status with `reconciled=True`.
+- `load_existing` walks `list_validation_attempts(run_id)` newest-first,
+  skipping rows with empty `correction_command_id` (base attempts), then
+  falls back to the base closure. Correction-free runs behave identically.
+- `submission_from_status` defaults to `"running"`
+  (execution_context.py:56), so after a correcting -> running CAS the
+  normal seal path CASes running -> submitted; no submissions.py change.
+- The coordinator loop (run_coordinator.py:143-147) returns on
+  correction_authorized/correcting (HV-5.8) and handles `running` via
+  `_execute` -> orchestrator -> `execute_or_reconcile_stage`
+  (stage_execution.py:86), which reconciles roles with succeeded closures
+  and executes roles without closures. `_basis_before` (:240-257) builds
+  later-stage inputs from family-aware `load_existing` reads of prior
+  stages (already D4-correct).
+- `_fail` (run_coordinator.py:939) writes `terminal_reason` +
+  `closure_findings` into the run payload; K5-2 propagates failed-closure
+  findings, so a straggler re-failure re-enters the lane with correct
+  gates.
+- The correction pass tails in service.py: Lane A (~:2488-2538, CAS
+  correction_authorized -> correcting AFTER the pass) and Lane B
+  (~:2381-2390, run already correcting from the pre-invocation CAS). Both
+  end with `seal_correction_submission(...)` + run_launcher handoff.
+- `row_json` (repository_views.py:72) parses the full payload;
+  `compare_and_swap_run` stores the payload wholesale (repository.py:423),
+  so popping a key clears it.
+- Event vocabulary is free-form strings (no schema enum); existing:
+  run.correction_authorized, run.correcting, run.correction_exhausted,
+  run_submitted. Tests assert event TYPES, not messages.
+- The repository CAS does not enforce the domain transition table;
+  RunLifecycle does. Add the edge to `_TRANSITIONS` regardless (contract
+  honesty; test_correction_flow.py asserts edges via require_transition).
+- UI needs NO change: `running` is fully handled (Status.tsx,
+  isRunActive, projection recovery_summary "in_progress"); the correction
+  descriptor surface condition excludes running.
+
+Pins:
+
+1. `domain/runs.py`: CORRECTING gains `RunStatus.RUNNING` in its
+   frozenset. Test: `test_correcting_to_running` in
+   TestCorrectionStateTransitions (require_transition(CORRECTING, RUNNING)).
+2. `harness/role_execution.py` `execute_or_reconcile`: replace the
+   base-identity `_load_closure` recovery read with
+   `self.load_existing(stage=stage, role=role)` (K5-4 comment: family-aware
+   reconciliation; correction-free runs fall back to the identical base
+   read). The base identity triple is still computed below for the fresh
+   execution path; keep it.
+3. `application/correction_execution.py`: new harness-pure
+   `incomplete_correction_chain(*, services) -> tuple[str, ...]` mirroring
+   seal_correction_submission's walk; returns `f"{stage_id}/{role}"` labels
+   for roles whose family-aware closure is missing or not SUCCEEDED; empty
+   means the submission path is legal. Add to `__all__`.
+4. `application/service.py`: new private `_complete_correction_pass(
+   run_id, services, command_id, correction_type)` holding the shared pass
+   tail: probe gaps; empty -> `seal_correction_submission`; non-empty ->
+   fresh row read, payload pops `terminal_reason`/`closure_findings`, CAS
+   correcting -> running with event_type `run.execution_resumed`
+   (CONTROL_HEAD_STALE CommandRejected on CAS miss, mirroring the existing
+   correction CASes), then the shared run_launcher handoff. Lane A tail:
+   build `services` BEFORE the correcting CAS, probe first, and choose the
+   run.correcting event message by branch ("re-enters submission..." vs
+   "resumes execution; the remaining stages continue with the corrected
+   closure chain."). Lane B tail: replace the seal+handoff block with the
+   helper call.
+5. Tests (subagent package): the transition test; a family-aware
+   execute_or_reconcile unit test (failed base closure + passed correction
+   closure -> reconciles the correction closure, executor NOT re-invoked);
+   an incomplete_correction_chain unit test (empty on a complete chain,
+   labels on a gap). Fixture vocabulary: tests/test_correction_execution.py
+   `_Fixture`, `_seal_failed_base_closure`, `_record_passed_attempt`,
+   `_record_closure`; reconciliation returns before `inputs` are consulted,
+   so `inputs={}` suffices.
+6. Multi-stage mid-pipeline E2E (P2 plan, stage-1 failure, correction ->
+   running -> coordinator drives to submitted; corrected role not
+   re-invoked): PLANNER-BUILT after the package lands (rich-fixture test
+   work; four prior cap-deaths on this shape).
+
+Out of scope: no web changes, no new error codes (MH-73/74/75 suffice), no
+traceability.json or validator changes (S26 edit is narrative-only).
+
 ## K-5 execution plan (2026-08-20, coder; Tez directive "plan and complete")
 
 Intent (audit, K-5): a controlled re-run of the known-failing P2

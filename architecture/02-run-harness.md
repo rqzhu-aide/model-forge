@@ -72,6 +72,7 @@ failed or rejected
   -> correction_authorized
   -> correcting
   -> submitted                      (re-enters the normal pipeline)
+  -> running                        (mid-pipeline correction; remaining stages resume)
 correction_authorized or correcting
   -> correction_exhausted           (bounded attempts spent; terminal)
 ```
@@ -79,7 +80,12 @@ correction_authorized or correcting
 `correction_authorized` records the sealed user authorization; nothing is
 rewritten. `correcting` is the bounded re-entry lane: each attempt appends a
 new validation-attempt record, correction closure, or submission attempt;
-sealed outputs and closures are never edited in place. `correction_exhausted`
+sealed outputs and closures are never edited in place. When the corrected
+failure interrupted the pipeline before every stage closed, a passed
+correction resumes execution (`correcting -> running`, ADR-016): completed
+and corrected stage roles reconcile through the family-aware closure read,
+the remaining stages execute, and submission follows once every stage role
+holds a succeeded closure. `correction_exhausted`
 is terminal: the correction bounds are spent and the run remains on record as
 requiring correction. A correction never creates a formal generation,
 authority event, or current-index change by itself; only the re-entered
@@ -125,6 +131,7 @@ Scientific outcomes such as contradicted or inconclusive are not run failures.
 | `failed` or `rejected` -> `correction_authorized` | User or delegated operator (OutputCorrectionCommand) | Authenticated command, idempotency, exact run-head compare-and-swap, at least one correctable finding, scope within the target closure's declared outputs, correction bounds remaining | Sealed correction command and authorization event |
 | `correction_authorized` -> `correcting` | Harness | Revalidation of the sealed bytes passed, or a bounded correction launch was authorized | Validation-attempt record and correction-start event |
 | `correcting` -> `submitted` | Harness | Corrected outputs conform; the correction closure is sealed in the closure family | Submission-attempt record; the base submission is never rewritten |
+| `correcting` -> `running` | Harness | Correction passed on a run whose pipeline did not complete; some stage roles hold no succeeded closure (ADR-016) | Resume event; the run continues through the normal execution path |
 | `correction_authorized` or `correcting` -> `correction_exhausted` | Harness | Correction bounds spent (MH-75) | Terminal event; findings and attempts preserved |
 | Phase-defined failure, rejection, or conflict source -> corresponding terminal state | Executor, validator, or concurrency check | Legal source state, reason code, and evidence | Terminal event; current records unchanged |
 

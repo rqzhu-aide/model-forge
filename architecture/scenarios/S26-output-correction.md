@@ -42,6 +42,12 @@ optional instruction for scientific correction.
   reruns only the nonconforming role after user authorization.
 - Start the downstream lead stage only after every required parallel closure
   conforms.
+- When the corrected failure interrupted the pipeline before every stage
+  closed (a mid-pipeline failure), a passed correction resumes execution
+  (`correcting -> running`, ADR-016) instead of sealing a submission:
+  completed and corrected stage roles reconcile through the family-aware
+  closure read without re-invocation, the remaining stages execute, and the
+  submission seal follows once every stage role holds a succeeded closure.
 - Publication of the corrected output goes through the existing atomic head
   check and may yield `conflicted`.
 
@@ -52,6 +58,8 @@ optional instruction for scientific correction.
 - The correction cannot mutate or replace a prior immutable closure.
 - The harness cannot relaunch a correction automatically after a restart.
 - The harness cannot relaunch completed upstream roles.
+- A resumed run cannot re-invoke a role that already holds a succeeded base
+  or correction closure.
 - Packaging correction cannot change primary scientific artifact digests.
 - Exhaustion cannot be displayed as a false execution failure. It displays as
   "completed, correction still required".

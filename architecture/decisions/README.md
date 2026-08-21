@@ -62,3 +62,4 @@ Create a decision record for at least:
 - [ADR-013: Layered Prompts and Phase-Specific Output Contracts](ADR-013-layered-prompts-and-phase-specific-output-contracts.md)
 - [ADR-014: Independent Lifecycle Axes and Validation Policy](ADR-014-independent-lifecycle-axes-and-validation-policy.md)
 - [ADR-015: Broadcast Handoff Addressing and Harness-Owned-Field Finding Routing](ADR-015-broadcast-handoff-and-harness-owned-findings.md)
+- [ADR-016: Correction Resume-Execution Edge for Mid-Pipeline Failures](ADR-016-correction-resume-execution-edge.md)

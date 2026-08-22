@@ -1394,30 +1394,6 @@ dd {
   font-weight: 500;
 }
 
-/* Category rows (option A redesign, 2026-08-21): one clamped line per
-   decision category; full text stays in the details disclosure. */
-.method-table__categories {
-  display: block;
-  margin: 0.22rem 0;
-  max-width: 62ch;
-}
-
-.method-table__category {
-  display: block;
-  font-size: 0.85rem;
-  line-height: 1.4;
-  color: var(--text-soft);
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.method-table__category b {
-  color: var(--text);
-  font-weight: 650;
-}
-
 /* Sealed lead evaluation score chips (ADR-017 D4): compact three-chip strip
    on catalog rows and selector option cards; tone bands 8+/5-7/1-4. */
 .method-scores {
@@ -1429,7 +1405,7 @@ dd {
 
 /* Catalog row layout (2026-08-21, Tez direction): the left cell carries the
    method identity (title row = name + lifecycle badge + Retire action, then
-   the category lines); the right cell stacks two panels - phase statuses on
+   the clamped summary); the right cell stacks two panels - phase statuses on
    top, lead evaluation scores below. */
 .method-table__title-row {
   display: flex;
@@ -1531,9 +1507,10 @@ dd {
   font-weight: 650;
 }
 
-/* Fallback when no category content exists: the summary, clamped. */
+/* Row description: the summary clamped to two lines, spanning the full cell
+   width like the title row (Tez direction, 2026-08-21). */
 .method-table__summary--clamped {
-  max-width: 62ch;
+  max-width: none;
   font-size: 0.85rem;
   line-height: 1.4;
   display: -webkit-box;

@@ -9,9 +9,10 @@
  *    appears only when the text overflows the 3-line clamp, and toggles the
  *    clamp. (jsdom has no layout, so overflow is simulated via defined
  *    scrollHeight/clientHeight getters.)
- * 3. MethodCategorySummary: one clamped line per populated category
- *    (Novel / Risk / Assumes, first list item only), falling back to the
- *    clamped summary when no category content exists.
+ * 3. Catalog row description (Tez direction): short scannable title (em-dash
+ *    descriptor moved to the hover tooltip) plus the plain summary clamped
+ *    to two lines at full cell width; the Novel/Risk/Assumes category lines
+ *    were retired as not on point.
  */
 import "@testing-library/jest-dom/vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -21,7 +22,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { MethodEvaluation, MethodRow, PhaseView, ScientificStatus } from "../api/types";
 import { CompactPhaseStatus } from "./Status";
 import { PhaseStatusCard } from "./PhaseStatusCard";
-import { MethodCategorySummary, MethodTable } from "./MethodTable";
+import { MethodTable, shortMethodName } from "./MethodTable";
 import { MethodScores, scoreTone } from "./MethodScores";
 import { MethodSelector } from "./MethodSelector";
 
@@ -151,45 +152,46 @@ function methodRow(overrides: Partial<MethodRow> = {}): MethodRow {
   } as MethodRow;
 }
 
-describe("MethodCategorySummary", () => {
-  it("renders one line per populated category, first list item only", () => {
-    const { container } = render(
-      <MethodCategorySummary
-        method={methodRow({
-          novelty_summary: "First catalog candidate with noise-channel coupling.",
-          principal_risks: ["The main risk.", "A secondary risk."],
-          assumptions: ["Exact product invariance.", "Constant step size."],
-        })}
-      />,
+describe("catalog row description (Tez direction)", () => {
+  it("shortMethodName strips the em-dash descriptor for scanning", () => {
+    expect(shortMethodName("Exact Entangled Langevin (EEL) — fixed-gamma scheme")).toBe(
+      "Exact Entangled Langevin (EEL)",
     );
-    const lines = Array.from(container.querySelectorAll(".method-table__category"));
-    expect(lines).toHaveLength(3);
-    const [novel, risk, assumes] = lines as [Element, Element, Element];
-    expect(novel.textContent).toContain("Novel:");
-    expect(risk.textContent).toContain("Risk:");
-    expect(risk.textContent).toContain("The main risk.");
-    expect(risk.textContent).not.toContain("A secondary risk.");
-    expect(assumes.textContent).toContain("Assumes:");
-    expect(assumes.textContent).toContain("Exact product invariance.");
-    // The plain summary is not rendered alongside categories.
-    expect(screen.queryByText(/plain summary paragraph/)).not.toBeInTheDocument();
+    expect(shortMethodName("Correlated-Noise Entangled Langevin (CNEL)")).toBe(
+      "Correlated-Noise Entangled Langevin (CNEL)",
+    );
   });
 
-  it("renders only the populated categories", () => {
+  it("renders the short title with the full name on hover, plus the clamped summary", () => {
     const { container } = render(
-      <MethodCategorySummary method={methodRow({ principal_risks: ["Only risk."] })} />,
+      <QueryClientProvider client={new QueryClient()}>
+        <MethodTable
+          projectId="project-1"
+          methods={[
+            methodRow({
+              actions: [],
+              display_name: "Example Method — with a long descriptor",
+              summary: "The plain summary paragraph used as the row description.",
+            }),
+          ]}
+        />
+      </QueryClientProvider>,
     );
-    const lines = Array.from(container.querySelectorAll(".method-table__category"));
-    expect(lines).toHaveLength(1);
-    expect(lines[0]?.textContent).toContain("Risk:");
-  });
-
-  it("falls back to the clamped summary when no category content exists", () => {
-    const { container } = render(<MethodCategorySummary method={methodRow()} />);
-    const fallback = container.querySelector(".method-table__summary--clamped");
-    expect(fallback).not.toBeNull();
-    expect(fallback?.textContent).toContain("plain summary paragraph");
+    const name = container.querySelector(".method-table__name");
+    expect(name?.textContent).toBe("Example Method");
+    expect(name).toHaveAttribute("title", "Example Method — with a long descriptor");
+    const summary = container.querySelector(".method-table__summary--clamped");
+    expect(summary?.textContent).toContain("plain summary paragraph");
     expect(container.querySelector(".method-table__category")).toBeNull();
+  });
+
+  it("omits the hover title when the name has no descriptor", () => {
+    const { container } = render(
+      <QueryClientProvider client={new QueryClient()}>
+        <MethodTable projectId="project-1" methods={[methodRow({ actions: [] })]} />
+      </QueryClientProvider>,
+    );
+    expect(container.querySelector(".method-table__name")).not.toHaveAttribute("title");
   });
 });
 

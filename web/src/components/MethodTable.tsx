@@ -35,41 +35,13 @@ export async function invalidateMethodLifecycleDependents(
 }
 
 /**
- * Category rows (approved redesign option A, 2026-08-21): the single long
- * summary is replaced by one clamped line per decision category — Novel /
- * Risk / Assumes — using fields already sealed on the method record. The
- * full text stays one click away in the MethodDetails disclosure. When no
- * category content exists, fall back to the summary clamped to two lines.
+ * Row description (Tez direction, 2026-08-21): the plain summary clamped to
+ * two lines at full cell width; the Novel/Risk/Assumes category lines were
+ * retired as not on point for scanning - that content lives in the details
+ * disclosure.
  */
-export function MethodCategorySummary({ method }: { method: MethodRow }) {
-  const categories: Array<{ label: string; text: string }> = [];
-  if (method.novelty_summary) {
-    categories.push({ label: "Novel", text: method.novelty_summary });
-  }
-  const firstRisk = method.principal_risks?.[0];
-  if (firstRisk) {
-    categories.push({ label: "Risk", text: firstRisk });
-  }
-  const firstAssumption = method.assumptions?.[0];
-  if (firstAssumption) {
-    categories.push({ label: "Assumes", text: firstAssumption });
-  }
-  if (categories.length === 0) {
-    return (
-      <span className="method-table__summary method-table__summary--clamped">
-        {method.summary}
-      </span>
-    );
-  }
-  return (
-    <span className="method-table__categories">
-      {categories.map((category) => (
-        <span className="method-table__category" key={category.label}>
-          <b>{category.label}:</b> {category.text}
-        </span>
-      ))}
-    </span>
-  );
+export function shortMethodName(displayName: string): string {
+  return displayName.split(/\s+—\s+/)[0] ?? displayName;
 }
 
 export function MethodTable({ projectId, methods }: { projectId: string; methods: MethodRow[] }) {
@@ -108,7 +80,12 @@ export function MethodTable({ projectId, methods }: { projectId: string; methods
                 <tr key={`${method.identity.stable_id}-${method.identity.version}`}>
                   <th scope="row">
                     <span className="method-table__title-row">
-                      <span className="method-table__name">{method.display_name}</span>
+                      <span
+                        className="method-table__name"
+                        title={shortMethodName(method.display_name) !== method.display_name ? method.display_name : undefined}
+                      >
+                        {shortMethodName(method.display_name)}
+                      </span>
                       <StatusPill>{method.lifecycle_state}</StatusPill>
                       {lifecycleAction ? (
                         <button
@@ -123,7 +100,7 @@ export function MethodTable({ projectId, methods }: { projectId: string; methods
                         </button>
                       ) : null}
                     </span>
-                    <MethodCategorySummary method={method} />
+                    <span className="method-table__summary method-table__summary--clamped">{method.summary}</span>
                     <code title={method.identity.definition_sha256}>{method.identity.stable_id}, v{method.identity.version}</code>
                     <MethodDetailsDisclosure method={method} />
                   </th>

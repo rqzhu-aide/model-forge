@@ -1,6 +1,17 @@
 # E-2 Program: Information Layers Made Real (2026-08-22)
 
-Status: plan approved by Tez (three rulings below). E-2a/E-2b/E-2c pending.
+Status: E-2a (ee16531: pointer stamping, compact-view schema, P1/P3
+contracts 2.1.0, work_summaries, validation policy 1.10.0) and E-2b
+(c648a0d: layer-aware materialization + compact-first briefs) LANDED.
+E-2c LANDED 2026-08-22: P1 run run.p1.p1-literature-update.19ff3cc0 and
+P2 run run.p2.p2-full-catalog.48c8b90b both published; the sealed
+synthesis record carries a compact_decision_view whose sha256
+(b41c5b13...) resolves to hash-verified artifact-store bytes plus 72
+work_summaries entries, and every P2 role received
+inputs/compact/p2.literature_synthesis.md (2.75 KB) alongside the full
+records (compact-first, drill-down preserved). Residual: primary_artifact
+representation pointers remain agent-declared and do not resolve to
+artifact-store bytes; closing that is the E-2d follow-up package.
 Contract authority: architecture/03-storage-and-authority.md section 2
 (three information layers). Evidence base:
 architecture/evidence/storage-memory-review-2026-08-22.md (incl. addendum).

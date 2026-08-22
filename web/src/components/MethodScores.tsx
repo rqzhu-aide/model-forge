@@ -25,8 +25,8 @@ export function MethodScores({ evaluation }: { evaluation: MethodEvaluation | nu
   }
   const axes = [
     { label: "Validity", axis: evaluation.theoretical_validity },
-    { label: "Novelty", axis: evaluation.literature_positioning },
     { label: "Feasibility", axis: evaluation.empirical_feasibility },
+    { label: "Novelty", axis: evaluation.literature_positioning },
   ];
   const ariaLabel = axes.map(({ label, axis }) => `${label} ${axis.score}/10`).join(", ");
   return (

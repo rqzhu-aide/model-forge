@@ -16,8 +16,8 @@ function ListSection({ title, values }: { title: string; values: string[] | unde
 function EvaluationSection({ evaluation }: { evaluation: MethodEvaluation }) {
   const axes = [
     { name: "Theoretical validity + identifiability", axis: evaluation.theoretical_validity },
-    { name: "Literature positioning + novelty", axis: evaluation.literature_positioning },
     { name: "Empirical testability + computational efficiency", axis: evaluation.empirical_feasibility },
+    { name: "Literature positioning + novelty", axis: evaluation.literature_positioning },
   ];
   return (
     <section className="method-details__section">

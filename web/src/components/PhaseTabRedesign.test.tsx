@@ -244,16 +244,16 @@ describe("MethodScores", () => {
     const chips = Array.from(container.querySelectorAll(".method-score"));
     expect(chips.map((chip) => chip.textContent)).toEqual([
       "Validity 8/10",
-      "Novelty 7/10",
       "Feasibility 4/10",
+      "Novelty 7/10",
     ]);
-    expect(chips.map((chip) => chip.getAttribute("data-tone"))).toEqual(["ok", "warn", "danger"]);
+    expect(chips.map((chip) => chip.getAttribute("data-tone"))).toEqual(["ok", "danger", "warn"]);
     expect(chips[0]).toHaveAttribute("title", "Identifiable under the stated invariance.");
-    expect(chips[1]).toHaveAttribute("title", "Novel coupling, adjacent to prior work.");
-    expect(chips[2]).toHaveAttribute("title", "Compute budget exceeds the pilot scale.");
+    expect(chips[1]).toHaveAttribute("title", "Compute budget exceeds the pilot scale.");
+    expect(chips[2]).toHaveAttribute("title", "Novel coupling, adjacent to prior work.");
     expect(container.querySelector(".method-scores")).toHaveAttribute(
       "aria-label",
-      "Lead evaluation scores: Validity 8/10, Novelty 7/10, Feasibility 4/10",
+      "Lead evaluation scores: Validity 8/10, Feasibility 4/10, Novelty 7/10",
     );
   });
 });

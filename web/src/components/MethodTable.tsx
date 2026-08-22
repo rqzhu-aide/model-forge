@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import type { ActionDescriptor, MethodRow, PhaseId } from "../api/types";
 import { api } from "../api/client";
-import { shortDigest } from "../utils/format";
+import { shortDigest, phaseShortNames } from "../utils/format";
 import { CompactPhaseStatus, StatusPill } from "./Status";
 import { ConfirmActionDialog } from "./ConfirmActionDialog";
 import { ErrorState } from "./Feedback";
@@ -92,12 +92,7 @@ export function MethodTable({ projectId, methods }: { projectId: string; methods
           <thead>
             <tr>
               <th scope="col">Method</th>
-              <th scope="col">Lead evaluation</th>
-              <th scope="col">Lifecycle</th>
-              <th scope="col">Theory</th>
-              <th scope="col">Evidence</th>
-              <th scope="col">Manuscript</th>
-              <th scope="col"><span className="sr-only">Actions</span></th>
+              <th scope="col">Phase status and lead evaluation</th>
             </tr>
           </thead>
           <tbody>
@@ -109,19 +104,10 @@ export function MethodTable({ projectId, methods }: { projectId: string; methods
               return (
                 <tr key={`${method.identity.stable_id}-${method.identity.version}`}>
                   <th scope="row">
-                    <span className="method-table__name">{method.display_name}</span>
-                    <MethodCategorySummary method={method} />
-                    <code title={method.identity.definition_sha256}>{method.identity.stable_id}, v{method.identity.version}</code>
-                    <MethodDetailsDisclosure method={method} />
-                  </th>
-                  <td className="method-table__scores"><MethodScores evaluation={method.evaluation} /></td>
-                  <td><StatusPill>{method.lifecycle_state}</StatusPill></td>
-                  {(["P3", "P4", "P5"] as PhaseId[]).map((phase) => (
-                    <td key={phase}><CompactPhaseStatus status={method.phase_statuses[phase]} /></td>
-                  ))}
-                  <td className="method-table__action">
-                    {lifecycleAction ? (
-                      <div className="action-with-reason">
+                    <span className="method-table__title-row">
+                      <span className="method-table__name">{method.display_name}</span>
+                      <StatusPill>{method.lifecycle_state}</StatusPill>
+                      {lifecycleAction ? (
                         <button
                           type="button"
                           className="button button--small button--quiet"
@@ -131,15 +117,29 @@ export function MethodTable({ projectId, methods }: { projectId: string; methods
                         >
                           {lifecycleAction.action_type === "retire_method" ? "Retire" : "Reactivate"}
                         </button>
-                        {!lifecycleAction.enabled ? (
-                          <p id={disabledReasonId} className="disabled-reason" role="status">
-                            {lifecycleAction.researcher_message ?? "This lifecycle change is unavailable in the current method state."}
-                          </p>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <span className="muted-text">No lifecycle action</span>
-                    )}
+                      ) : null}
+                    </span>
+                    {lifecycleAction && !lifecycleAction.enabled ? (
+                      <p id={disabledReasonId} className="disabled-reason" role="status">
+                        {lifecycleAction.researcher_message ?? "This lifecycle change is unavailable in the current method state."}
+                      </p>
+                    ) : null}
+                    <MethodCategorySummary method={method} />
+                    <code title={method.identity.definition_sha256}>{method.identity.stable_id}, v{method.identity.version}</code>
+                    <MethodDetailsDisclosure method={method} />
+                  </th>
+                  <td className="method-table__panel">
+                    <span className="method-table__panel-row">
+                      {(["P3", "P4", "P5"] as PhaseId[]).map((phase) => (
+                        <span className="method-table__panel-item" key={phase}>
+                          <span className="method-table__panel-label">{phaseShortNames[phase]}</span>
+                          <CompactPhaseStatus status={method.phase_statuses[phase]} />
+                        </span>
+                      ))}
+                    </span>
+                    <span className="method-table__panel-row method-table__panel-row--scores">
+                      <MethodScores evaluation={method.evaluation} />
+                    </span>
                   </td>
                 </tr>
               );

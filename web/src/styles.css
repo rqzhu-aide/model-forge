@@ -1427,14 +1427,46 @@ dd {
   margin-top: 0.3rem;
 }
 
-/* In the catalog's dedicated Lead evaluation column, stack the three
-   score chips vertically so they fill the column beside tall rows. */
-.method-table__scores .method-scores {
+/* Catalog row layout (2026-08-21, Tez direction): the left cell carries the
+   method identity (title row = name + lifecycle badge + Retire action, then
+   the category lines); the right cell stacks two panels - phase statuses on
+   top, lead evaluation scores below. */
+.method-table__title-row {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.3rem;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.method-table__panel-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 1.4rem;
+}
+
+.method-table__panel-row--scores {
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed var(--line);
+}
+
+.method-table__panel-row--scores .method-scores {
   margin-top: 0;
+}
+
+.method-table__panel-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.method-table__panel-label {
+  font-size: 0.72rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
 }
 
 .method-score {

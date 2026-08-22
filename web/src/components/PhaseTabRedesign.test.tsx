@@ -242,10 +242,15 @@ describe("MethodScores", () => {
   it("renders three toned chips with justifications as tooltips", () => {
     const { container } = render(<MethodScores evaluation={evaluation()} />);
     const chips = Array.from(container.querySelectorAll(".method-score"));
-    expect(chips.map((chip) => chip.textContent)).toEqual([
-      "Validity 8/10",
-      "Feasibility 4/10",
-      "Novelty 7/10",
+    expect(chips.map((chip) => chip.querySelector(".method-score__label")?.textContent)).toEqual([
+      "Validity",
+      "Feasibility",
+      "Novelty",
+    ]);
+    expect(chips.map((chip) => chip.querySelector(".method-score__value")?.textContent)).toEqual([
+      "8/10",
+      "4/10",
+      "7/10",
     ]);
     expect(chips.map((chip) => chip.getAttribute("data-tone"))).toEqual(["ok", "danger", "warn"]);
     expect(chips[0]).toHaveAttribute("title", "Identifiable under the stated invariance.");
@@ -272,8 +277,10 @@ describe("MethodTable evaluation strip", () => {
     const { container } = renderTable(methodRow({ actions: [], evaluation: evaluation() }));
     const strip = container.querySelector(".method-scores");
     expect(strip).not.toBeNull();
-    expect(screen.getByText("Validity 8/10")).toBeInTheDocument();
-    expect(screen.getByText("Feasibility 4/10")).toBeInTheDocument();
+    expect(screen.getByText("Validity")).toBeInTheDocument();
+    expect(screen.getByText("8/10")).toBeInTheDocument();
+    expect(screen.getByText("Feasibility")).toBeInTheDocument();
+    expect(screen.getByText("4/10")).toBeInTheDocument();
   });
 
   it("shows the muted chip on the catalog row when no evaluation exists", () => {
@@ -291,9 +298,12 @@ describe("MethodSelector evaluation strip", () => {
         onChange={() => {}}
       />,
     );
-    expect(screen.getByText("Validity 8/10")).toBeInTheDocument();
-    expect(screen.getByText("Novelty 7/10")).toBeInTheDocument();
-    expect(screen.getByText("Feasibility 4/10")).toBeInTheDocument();
+    expect(screen.getByText("Validity")).toBeInTheDocument();
+    expect(screen.getByText("8/10")).toBeInTheDocument();
+    expect(screen.getByText("Novelty")).toBeInTheDocument();
+    expect(screen.getByText("7/10")).toBeInTheDocument();
+    expect(screen.getByText("Feasibility")).toBeInTheDocument();
+    expect(screen.getByText("4/10")).toBeInTheDocument();
   });
 
   it("renders the muted chip inside the option card without an evaluation", () => {

@@ -38,7 +38,8 @@ export function MethodScores({ evaluation }: { evaluation: MethodEvaluation | nu
           title={axis.justification}
           key={label}
         >
-          {label} {axis.score}/10
+          <span className="method-score__label">{label}</span>
+          <span className="method-score__value">{axis.score}/10</span>
         </span>
       ))}
     </span>

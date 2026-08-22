@@ -113,7 +113,7 @@ export function MethodTable({ projectId, methods }: { projectId: string; methods
                       {lifecycleAction ? (
                         <button
                           type="button"
-                          className="button button--small button--quiet"
+                          className={`button button--small ${lifecycleAction.action_type === "retire_method" ? "button--danger" : "button--quiet"}`}
                           disabled={!lifecycleAction.enabled}
                           title={disabledReason}
                           aria-label={disabledReason ? `${actionLabel} (unavailable: ${disabledReason})` : undefined}

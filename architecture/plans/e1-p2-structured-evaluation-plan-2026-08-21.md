@@ -1,7 +1,11 @@
 # E-1: P2 Structured Lead Evaluation - Implementation Program
 
-Status: E-1a LANDED 2026-08-21 (cd82437; validator 0, suite 1197 green).
-E-1b/E-1c/E-1d pending. Contract authority: ADR-017 (Accepted).
+Status: E-1a (cd82437), E-1b (664e57a + wiring fixup 3fee8f6), E-1c
+(e8efc27) LANDED; E-1d production exercise COMPLETE 2026-08-21 (run
+published clean under contract 2.1.0, real scores live in the UI;
+evidence: architecture/evidence/e1d-run-2026-08-21/). One gap exposed:
+reviewer structured evaluations absent (stage-2 outputs use the handoff
+schema, not review-report) - E-1e patch proposed in the evidence doc.
 
 Tez directive (2026-08-21): restructure P2 evaluation - stage 1 proposes
 without the lead; stage 2 reviewers file structured per-method

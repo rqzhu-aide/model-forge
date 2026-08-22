@@ -1427,6 +1427,16 @@ dd {
   margin-top: 0.3rem;
 }
 
+/* In the catalog's dedicated Lead evaluation column, stack the three
+   score chips vertically so they fill the column beside tall rows. */
+.method-table__scores .method-scores {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  margin-top: 0;
+}
+
 .method-score {
   font-size: 0.75rem;
   font-weight: 760;

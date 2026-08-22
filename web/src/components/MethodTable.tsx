@@ -92,6 +92,7 @@ export function MethodTable({ projectId, methods }: { projectId: string; methods
           <thead>
             <tr>
               <th scope="col">Method</th>
+              <th scope="col">Lead evaluation</th>
               <th scope="col">Lifecycle</th>
               <th scope="col">Theory</th>
               <th scope="col">Evidence</th>
@@ -110,10 +111,10 @@ export function MethodTable({ projectId, methods }: { projectId: string; methods
                   <th scope="row">
                     <span className="method-table__name">{method.display_name}</span>
                     <MethodCategorySummary method={method} />
-                    <MethodScores evaluation={method.evaluation} />
                     <code title={method.identity.definition_sha256}>{method.identity.stable_id}, v{method.identity.version}</code>
                     <MethodDetailsDisclosure method={method} />
                   </th>
+                  <td className="method-table__scores"><MethodScores evaluation={method.evaluation} /></td>
                   <td><StatusPill>{method.lifecycle_state}</StatusPill></td>
                   {(["P3", "P4", "P5"] as PhaseId[]).map((phase) => (
                     <td key={phase}><CompactPhaseStatus status={method.phase_statuses[phase]} /></td>

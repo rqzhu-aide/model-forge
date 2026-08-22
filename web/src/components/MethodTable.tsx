@@ -100,7 +100,10 @@ export function MethodTable({ projectId, methods }: { projectId: string; methods
               const lifecycleAction = method.actions.find((action) =>
                 action.action_type === "retire_method" || action.action_type === "reactivate_method",
               );
-              const disabledReasonId = `method-lifecycle-reason-${method.identity.stable_id}-${method.identity.version}`;
+              const actionLabel = lifecycleAction?.action_type === "retire_method" ? "Retire" : "Reactivate";
+              const disabledReason = lifecycleAction && !lifecycleAction.enabled
+                ? (lifecycleAction.researcher_message ?? "This lifecycle change is unavailable in the current method state.")
+                : undefined;
               return (
                 <tr key={`${method.identity.stable_id}-${method.identity.version}`}>
                   <th scope="row">
@@ -112,18 +115,14 @@ export function MethodTable({ projectId, methods }: { projectId: string; methods
                           type="button"
                           className="button button--small button--quiet"
                           disabled={!lifecycleAction.enabled}
-                          aria-describedby={!lifecycleAction.enabled ? disabledReasonId : undefined}
+                          title={disabledReason}
+                          aria-label={disabledReason ? `${actionLabel} (unavailable: ${disabledReason})` : undefined}
                           onClick={() => setPending({ method, action: lifecycleAction })}
                         >
-                          {lifecycleAction.action_type === "retire_method" ? "Retire" : "Reactivate"}
+                          {actionLabel}
                         </button>
                       ) : null}
                     </span>
-                    {lifecycleAction && !lifecycleAction.enabled ? (
-                      <p id={disabledReasonId} className="disabled-reason" role="status">
-                        {lifecycleAction.researcher_message ?? "This lifecycle change is unavailable in the current method state."}
-                      </p>
-                    ) : null}
                     <MethodCategorySummary method={method} />
                     <code title={method.identity.definition_sha256}>{method.identity.stable_id}, v{method.identity.version}</code>
                     <MethodDetailsDisclosure method={method} />

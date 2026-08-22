@@ -30,7 +30,7 @@ export function MethodScores({ evaluation }: { evaluation: MethodEvaluation | nu
   ];
   const ariaLabel = axes.map(({ label, axis }) => `${label} ${axis.score}/10`).join(", ");
   return (
-    <span className="method-scores" aria-label={`Lead evaluation scores: ${ariaLabel}`}>
+    <span className="method-scores" role="group" aria-label={`Lead evaluation scores: ${ariaLabel}`}>
       {axes.map(({ label, axis }) => (
         <span
           className="method-score"

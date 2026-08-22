@@ -1438,11 +1438,15 @@ dd {
   gap: 0.5rem;
 }
 
+.method-table__panel {
+  min-width: 330px;
+}
+
 .method-table__panel-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.45rem 1.4rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem 0.9rem;
+  align-items: start;
 }
 
 .method-table__panel-row--scores {
@@ -1451,14 +1455,24 @@ dd {
   border-top: 1px dashed var(--line);
 }
 
+/* Chips become grid items so each score sits directly under its status
+   column (Validity under Theory, Feasibility under Evidence, Novelty
+   under Manuscript). */
 .method-table__panel-row--scores .method-scores {
+  display: contents;
   margin-top: 0;
 }
 
+.method-table__panel-row--scores .method-score[data-tone="muted"] {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
 .method-table__panel-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.28rem;
 }
 
 .method-table__panel-label {
@@ -3161,6 +3175,12 @@ dd {
   border-top: 1px solid var(--line);
   color: var(--text);
   font-weight: 500;
+}
+
+/* The author display:grid above defeats the UA's closed-details hiding;
+   restore the collapse explicitly so rows stay compact until expanded. */
+details:not([open]) > .method-details {
+  display: none;
 }
 
 .method-details__section > strong {

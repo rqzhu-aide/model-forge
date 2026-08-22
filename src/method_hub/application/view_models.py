@@ -138,6 +138,7 @@ class ResearchProjectionService:
                     assumptions=assumption_text or None,
                     provenance_summary=_provenance_summary(payload),
                     novelty_summary=str(payload.get("rationale", "")) or None,
+                    evaluation=_method_evaluation(payload),
                     feasibility_summary=str(payload.get("feasibility_summary", "")) or None,
                     principal_risks=[str(item) for item in payload.get("limitations", [])] or None,
                     phase_statuses=self._method_phase_statuses(project_id, identity),

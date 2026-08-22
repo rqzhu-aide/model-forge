@@ -114,12 +114,16 @@ def _publish_method_catalog(
     repository: HubRepository,
     artifacts: ArtifactStore,
     project_id: str,
+    *,
+    method_mutator: Any = None,
 ) -> dict[str, Any]:
     method = json.loads(
         (ROOT / "architecture" / "examples" / "method.example.json").read_text(
             encoding="utf-8"
         )
     )
+    if method_mutator is not None:
+        method_mutator(method)
     method_id = str(method["identity"]["stable_id"])
     method_artifact, _ = _artifact(
         repository, artifacts, project_id, "artifact.test.method", method
@@ -216,6 +220,43 @@ def _publish_method_catalog(
             receipt,
         )
     return method
+
+
+def _sealed_evaluation() -> dict[str, Any]:
+    axis = {
+        "score": 8,
+        "justification": "Complete and internally consistent on this axis.",
+        "issue_refs": [],
+    }
+    return {
+        "theoretical_validity": dict(axis),
+        "literature_positioning": {**axis, "score": 6},
+        "empirical_feasibility": {**axis, "score": 9},
+        "adjudicated_at": "2026-08-21T00:00:00+00:00",
+        "review_basis_ids": ["report.p2.theory_review.test"],
+    }
+
+
+def test_list_methods_surfaces_sealed_evaluation(tmp_path: Path) -> None:
+    """ADR-017 wiring: a sealed evaluation block must reach MethodRow."""
+
+    async def scenario() -> None:
+        service, repository, artifacts = _service(tmp_path)
+        project_id = await _create_project(service)
+
+        def inject(method: dict[str, Any]) -> None:
+            method["evaluation"] = _sealed_evaluation()
+
+        _publish_method_catalog(
+            repository, artifacts, project_id, method_mutator=inject
+        )
+        scored = (await service.list_methods(project_id))[0]
+        assert scored.evaluation is not None
+        assert scored.evaluation.theoretical_validity.score == 8
+        assert scored.evaluation.literature_positioning.score == 6
+        assert scored.evaluation.empirical_feasibility.score == 9
+
+    asyncio.run(scenario())
 
 
 def test_overview_restores_phase_navigation_and_storage_boundary(tmp_path: Path) -> None:

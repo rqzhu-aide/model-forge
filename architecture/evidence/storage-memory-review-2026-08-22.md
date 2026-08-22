@@ -154,3 +154,40 @@ validation gates, not around them.
 - **F5**: `inputs/` duplicates the same sha256 content per role (up to
   5x per stage). Cheap at current scale; symlinks or a shared
   materialization dir would remove the duplication if it matters.
+
+## Addendum: the tiered-summary design (information layers)
+
+Tez asked whether the designed summary tiers (one-paragraph contribution
+per literature work; 1-2 page technical summaries for theory/method) are
+still implemented and useful. Verdict: **specified and plumbed, but
+hollow - never produced with real content, never consumed for context.**
+
+- The design (03-storage-and-authority.md section 2): every record may
+  declare `representations[]` tagged by `information_layer` -
+  `primary_artifact` (full detail), `structured_record`
+  (machine-addressable claims), `compact_decision_view` (the short
+  decision-oriented tier). Layers are retrieval depth, not authority.
+- Implemented: the schema enum; sealed records DO declare layers
+  (store-wide histogram: 8 primary, 5 structured, 6 compact); read-side
+  plumbing extracts the compact view
+  (`repository_views._extract_highlight_artifact_id` ->
+  `CurrentRecordReference.highlight_artifact_id` -> view models).
+- Not implemented: every compact_decision_view in the store is a
+  development-executor placeholder (synthetic sha256, no backing file).
+  No real run has ever generated one. And the harness never materializes
+  a compact view into role inputs - roles always receive the full
+  primary artifact (the 133 KiB literature library in the E-1d run).
+- Per-literature-work one-paragraph contribution summaries do not exist
+  structurally: `literature-source` records carry bibliographic metadata
+  only. The nearest real content is the P1 discovery handoffs'
+  `completed_work` prose (genuinely useful per-finding paragraphs, but
+  unstructured strings, not addressable per-work records).
+- Consequence: the tier that would answer F3 (input-size scaling)
+  already exists as a design but delivers no memory benefit today.
+- Wiring path (small): (a) P1 synthesis stage produces the compact view
+  with real content (it already writes the summary artifact id; the
+  executor just never generates the bytes in real runs); (b) input
+  materialization prefers `highlight_artifact_id` for basis records when
+  present; (c) optionally add structured per-work key-contribution
+  paragraphs to the literature synthesis so stage-1 proposers receive
+  per-work paragraphs instead of raw metadata.

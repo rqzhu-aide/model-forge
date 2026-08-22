@@ -494,7 +494,7 @@
     },
     {
       "phase_id": "P2",
-      "contract_version": "2.1.0",
+      "contract_version": "2.2.0",
       "prose_contract": "architecture/phases/phase-2.md",
       "name": "Method development",
       "scientific_purpose": "Develop and maintain a structured catalog of feasible research methods without selecting a branch for the user.",
@@ -712,7 +712,7 @@
             "theorist",
             "data_analyst"
           ],
-          "objective": "Generate independent proposals, scoped revisions, or evaluations of a researcher-proposed method from the same frozen basis. Proposals should seek unique literature positioning and high novelty relative to the frozen literature basis.",
+          "objective": "Generate independent proposals, scoped revisions, or evaluations of a researcher-proposed method from the same frozen basis. Proposals should seek unique literature positioning and high novelty relative to the frozen literature basis. Draft method records follow the catalog writing rules: a short title that pinpoints the core mechanic (a few words plus acronym, no subtitle clauses), and a summary of exactly two lines - one novelty-mechanism sentence, then the single equation that most sharply expresses the core idea.",
           "reads": [
             "p2.project_brief",
             "p2.literature_synthesis",
@@ -768,7 +768,7 @@
           "roles": [
             "research_lead"
           ],
-          "objective": "Reconcile or expose disagreements and produce the candidate scoped catalog change and decision summary. For researcher proposals, decide whether the method warrants formal registration. The lead adjudicates and seals a 1-10 score with justification on three axes (theoretical validity and identifiability; literature positioning and novelty; empirical testability and computational efficiency) for every method in the change set.",
+          "objective": "Reconcile or expose disagreements and produce the candidate scoped catalog change and decision summary. For researcher proposals, decide whether the method warrants formal registration. The lead adjudicates and seals a 1-10 score with justification on three axes (theoretical validity and identifiability; literature positioning and novelty; empirical testability and computational efficiency) for every method in the change set. Seal titles as short display names that pinpoint the core mechanic (a few words plus acronym, no subtitle clauses) and summaries as exactly two lines - one novelty-mechanism sentence, then the single equation that most sharply expresses the core idea.",
           "reads": [
             "p2.project_brief",
             "p2.literature_synthesis",

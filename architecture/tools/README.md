@@ -18,8 +18,8 @@ unsupported values are rejected before hashing.
 
 The current validator checks:
 
-- 46 valid JSON Schema Draft 2020-12 definitions;
-- 63 complete valid examples and 16 rejected negative fixtures;
+- 47 valid JSON Schema Draft 2020-12 definitions;
+- 64 complete valid examples and 16 rejected negative fixtures;
 - exact registration of every positive and negative fixture file;
 - agreement between advertised package counts and the filesystem, complete schema
   inventory in `schemas/README.md`, and complete accepted-decision inventory in

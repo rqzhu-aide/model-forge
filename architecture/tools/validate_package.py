@@ -51,6 +51,7 @@ VALID_EXAMPLES = {
     "command-attempt-audit-withdrawal-rejected.example.json": "command-attempt-audit-event.schema.json",
     "command-error-delegation-not-active.example.json": "command-error.schema.json",
     "command-error.example.json": "command-error.schema.json",
+    "compact-view.example.json": "compact-view.schema.json",
     "current-index.example.json": "current-index.schema.json",
     "current-index-replay.example.json": "current-index.schema.json",
     "decision-record.example.json": "decision-record.schema.json",

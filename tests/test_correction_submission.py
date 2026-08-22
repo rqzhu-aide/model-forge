@@ -60,6 +60,8 @@ def _golden_output(invocation, offset: int):
         return json.loads((GOLDEN / "decision-record.example.json").read_text())
     if name in ("synthesis-candidate.json", "coverage-candidate.json"):
         return json.loads((GOLDEN / "scientific-record.example.json").read_text())
+    if name in ("synthesis-compact.json", "theory-compact.json"):
+        return json.loads((GOLDEN / "compact-view.example.json").read_text())
     return json.loads((GOLDEN / "handoff.example.json").read_text())
 
 

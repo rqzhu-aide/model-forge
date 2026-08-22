@@ -23,7 +23,7 @@
   "prior_current_index_generation_id": "generation.current_index.004",
   "prior_current_index_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
   "new_current_index_generation_id": "generation.current_index.005",
-  "new_current_index_sha256": "8b2481f5274f92bb4678466bd79266150a9c2af5d1a9c064720cd19b90bc8268",
+  "new_current_index_sha256": "1d82e64e58bf1eef9ecd9c30d53f9e3d0396f4e7d094e902cd4ccbeb3a5ea71e",
   "committed_event_range": {
     "first_sequence": 12,
     "last_sequence": 17,
@@ -67,7 +67,7 @@
     {
       "projection_id": "generation.current_index.005",
       "projection_kind": "current_index",
-      "content_sha256": "8b2481f5274f92bb4678466bd79266150a9c2af5d1a9c064720cd19b90bc8268"
+      "content_sha256": "1d82e64e58bf1eef9ecd9c30d53f9e3d0396f4e7d094e902cd4ccbeb3a5ea71e"
     }
   ],
   "record_changes": [
@@ -115,7 +115,7 @@
   "alignment_impacts": [],
   "atomic": true,
   "published_at": "2026-08-01T15:10:04Z",
-  "content_sha256": "39c90bec4ca271b09df0e8784e22798b12e5161f191966de9e7c7a8c01ff5c60",
+  "content_sha256": "0840f145d7922008acb75e3ef00d5f1ae4b5e6451133f171029fab111f475be2",
   "cumulative_object_changes": [
     {
       "object_id": "evidence.simulation.preliminary.001",

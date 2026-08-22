@@ -9,7 +9,7 @@ import re
 from dataclasses import replace
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Mapping, Sequence
 
 from ..contracts import ResolvedPhasePlan, ResolvedStage
 from ..digests.jcs import canonicalize
@@ -66,6 +66,7 @@ def _apply_disclosed_mechanical_repairs(
     stage: ResolvedStage,
     role: str,
     run_id: str = "",
+    project_id: str = "",
     run_facts: "SealedRunFacts | None" = None,
     record_type_by_output: Mapping[str, str] | None = None,
 ) -> dict[str, "OutputTransformationRecord"]:
@@ -88,6 +89,12 @@ def _apply_disclosed_mechanical_repairs(
     ts = datetime.now(timezone.utc).isoformat()
     specs = output_plan.for_stage_role(stage.stage_id, role)
     records: dict[str, OutputTransformationRecord] = {}
+    pointer_context = _OutputPointerContext(
+        project_id=project_id,
+        run_id=run_id,
+        run_root=run_root,
+        specs=specs,
+    )
 
     if run_facts is not None and not run_facts.produced_at:
         # One closure timestamp for every populated field: per-spec
@@ -207,7 +214,7 @@ def _apply_disclosed_mechanical_repairs(
                 changed = True
             if _add_missing_timestamps(data, nested_timestamps, ts):
                 changed = True
-            if _fix_self_referential_hashes(data, path):
+            if _fix_self_referential_hashes(data, path, pointer_context=pointer_context):
                 changed = True
 
         # Build transformation entries by diffing raw vs repaired.
@@ -636,7 +643,47 @@ def _compute_content_hash(data: Any, exclude_keys: set[str]) -> str:
     return hashlib.sha256(canonicalize(_scrub(data))).hexdigest()
 
 
-def _fix_self_referential_hashes(data: Any, path: Path) -> bool:
+class _OutputPointerContext:
+    """Resolve ``output://<filename>`` representation pointers (E-2).
+
+    Maps a sibling output filename to its contract output id and the sha256
+    of its current on-disk bytes. The repair pass writes each repaired
+    output immediately, so contract declaration order controls which bytes
+    a pointer sees: compact views are declared before the records that
+    reference them.
+    """
+
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        run_id: str,
+        run_root: Path,
+        specs: Sequence[Any],
+    ) -> None:
+        self.project_id = project_id
+        self.run_id = run_id
+        self._run_root = run_root
+        self._by_filename = {
+            Path(spec.relative_path).name: spec for spec in specs
+        }
+
+    def resolve(self, filename: str) -> tuple[str, str] | None:
+        spec = self._by_filename.get(filename)
+        if spec is None:
+            return None
+        path = self._run_root / spec.relative_path
+        if not path.exists():
+            return None
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        return str(spec.contract_output_id), digest
+
+
+def _fix_self_referential_hashes(
+    data: Any,
+    path: Path,
+    pointer_context: "_OutputPointerContext | None" = None,
+) -> bool:
     """Compute and stamp all self-referential SHA-256 fields in agent output.
 
     Agents cannot know the hash of the file they are currently writing.
@@ -644,17 +691,22 @@ def _fix_self_referential_hashes(data: Any, path: Path) -> bool:
     with the correct hash computed from the file content (excluding the
     hash field itself).
 
-    Handles three classes of self-referential hashes:
+    Handles four classes of self-referential hashes:
 
     1. ``content_sha256`` — top-level field on scientific-record, evidence,
        attention-item, decision-record.  Hash of the entire document minus
        this field.
     2. ``handoff_artifact.sha256`` — nested in handoff records.  Hash of the
        handoff document minus the sha256 sub-field.
-    3. ``representations[].artifact.sha256`` / ``artifacts[].sha256`` —
-       pointer hashes inside representation/evidence arrays.  These are NOT
-       self-referential (they point at other files), so they are left alone.
-       Agents source these from the run workspace.
+    3. ``representations[].artifact`` with a ``output://<filename>`` uri —
+       layer pointers at sibling declared outputs (E-2).  Agents cannot hash
+       their own files, so they declare the pointer target by filename and
+       the harness stamps the real artifact_id, uri, and sha256 from the
+       sibling's repaired bytes.  Unresolvable pointers are left untouched
+       for validation to reject.
+    4. Other ``representations[].artifact`` / ``artifacts[].sha256`` pointer
+       hashes — NOT self-referential (they point at previously sealed
+       artifacts), so they are left alone.
     """
     changed = False
 
@@ -668,7 +720,6 @@ def _fix_self_referential_hashes(data: Any, path: Path) -> bool:
             if obj.get("content_sha256") != correct:
                 obj["content_sha256"] = correct
                 touched = True
-
         # 2. handoff_artifact.sha256 — recompute from the handoff dict
         ha = obj.get("handoff_artifact")
         if isinstance(ha, dict) and "sha256" in ha:
@@ -696,6 +747,44 @@ def _fix_self_referential_hashes(data: Any, path: Path) -> bool:
                 correct = hashlib.sha256(canonicalize(canonical_definition)).hexdigest()
                 if identity.get("definition_sha256") != correct:
                     identity["definition_sha256"] = correct
+                    touched = True
+
+        # 4. representations[].artifact output:// pointers (E-2) — stamp the
+        # real pointer to the sibling declared output's repaired bytes.
+        representations = obj.get("representations")
+        if (
+            pointer_context is not None
+            and isinstance(representations, list)
+        ):
+            for representation in representations:
+                if not isinstance(representation, dict):
+                    continue
+                artifact = representation.get("artifact")
+                if not isinstance(artifact, dict):
+                    continue
+                uri = artifact.get("uri")
+                if not (isinstance(uri, str) and uri.startswith("output://")):
+                    continue
+                resolved = pointer_context.resolve(uri[len("output://"):])
+                if resolved is None:
+                    continue
+                output_id, digest = resolved
+                stamped_uri = f"artifact://sha256/{digest}"
+                stamped_id = deterministic_id(
+                    "artifact",
+                    pointer_context.project_id,
+                    pointer_context.run_id,
+                    output_id,
+                    digest,
+                )
+                if (
+                    artifact.get("sha256") != digest
+                    or artifact.get("uri") != stamped_uri
+                    or artifact.get("artifact_id") != stamped_id
+                ):
+                    artifact["sha256"] = digest
+                    artifact["uri"] = stamped_uri
+                    artifact["artifact_id"] = stamped_id
                     touched = True
 
         return touched
@@ -2165,6 +2254,7 @@ class RoleLifecycleService:
                     stage=stage,
                     role=role,
                     run_id=str(self.context.run_id),
+                    project_id=str(self.context.project_id),
                     run_facts=self._sealed_run_facts(stage, role),
                     record_type_by_output=self._record_type_by_output(),
                 )

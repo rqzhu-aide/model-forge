@@ -29,15 +29,6 @@
         "sha256": "8888888888888888888888888888888888888888888888888888888888888888",
         "media_type": "application/json"
       }
-    },
-    {
-      "information_layer": "compact_decision_view",
-      "artifact": {
-        "artifact_id": "artifact.empirical_status_summary",
-        "uri": "artifact://artifact.empirical_status_summary",
-        "sha256": "9999999999999999999999999999999999999999999999999999999999999999",
-        "media_type": "text/markdown"
-      }
     }
   ],
   "basis": [
@@ -80,7 +71,7 @@
     "strongest_counterevidence_ids": [],
     "material_disagreement": []
   },
-  "content_sha256": "dc21a933169408a9660abec9ed66a0484619ece74729ab6cde9559eeab543719",
+  "content_sha256": "75492c8085b5766f8f3964d666944c990fc0e57266196e4a9efd79713e18fb24",
   "publication_receipt_id": "publication.p4.001",
   "published_at": "2026-08-01T15:10:04Z",
   "created_at": "2026-08-01T15:05:00Z",

@@ -29,6 +29,7 @@ The current inventory contains 46 schemas.
 | `delegation-revocation.schema.json` | Append-only revocation of one exact delegation grant and handle |
 | `action-descriptor.schema.json` | Typed backend eligibility and command-construction data for one researcher action |
 | `command-error.schema.json` | Stable researcher-facing command failure envelope shared by Web and remote clients |
+| `compact-view.schema.json` | Layer-3 compact decision view: short decision-oriented markdown summary of a scientific record, referenced via stamped output:// representation pointers |
 | `command-attempt-audit-event.schema.json` | Tamper-evident operational record of an accepted or rejected command attempt, exact raw request, authorization checks, outcome, and durable effect |
 | `run-manifest.schema.json` | Immutable prepared run basis and sealed role-plan recipe, without future execution evidence |
 | `prepared-role-context.schema.json` | Immutable pre-execution context materialized from the manifest recipe and declared broker capabilities |
@@ -271,7 +272,7 @@ and smallest correction. It must not claim to prove scientific truth.
 
 ## Examples
 
-The sibling `../examples/` directory contains 63 valid examples covering every
+The sibling `../examples/` directory contains 64 valid examples covering every
 persisted object schema except `common-definitions`, `phase-contract`, and the
 two registry schemas. The five split phase contracts instantiate
 `phase-contract`; `contracts/digest-contracts.json` and

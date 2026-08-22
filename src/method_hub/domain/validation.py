@@ -30,7 +30,9 @@ class FindingClass(StrEnum):
 # correctable_contract_error.
 # 1.9.0 (ADR-017): P2 structured evaluation findings (three-axis lead scores,
 # reviewer axis ownership).
-POLICY_VERSION = "1.9.0"
+# 1.10.0 (E-2): compact decision view pointer integrity (P1/P3) for the
+# information-layer summary tier.
+POLICY_VERSION = "1.10.0"
 
 
 @dataclass(frozen=True, slots=True)
@@ -302,6 +304,31 @@ def _build_registry() -> dict[str, FindingPolicy]:
             "through the output-correction lane, or restate it as an issue."
         ),
     )
+
+    # E-2: information layers made real. Compact decision view pointers are
+    # declared output:// and stamped mechanically at closure; an unstamped
+    # or synthetic pointer means the layer carries no real bytes.
+    for code, phase in (
+        ("p1.compact_view_pointer_invalid", "P1"),
+        ("p3.compact_view_pointer_invalid", "P3"),
+    ):
+        _register(
+            code,
+            FindingClass.CORRECTABLE_CONTRACT_ERROR,
+            phases=(phase,),
+            correction_class="packaging",
+            deterministic_repair=True,
+            rationale=(
+                "The compact decision view must reference the sealed compact "
+                "output bytes so downstream stages can trust the layer-3 "
+                "summary tier (E-2 information layers)."
+            ),
+            guidance=(
+                "Declare the compact representation as uri output://<compact "
+                "output filename> through the output-correction lane; the "
+                "closure stamps the real artifact pointer."
+            ),
+        )
 
     # --- Scientific claim blockers --- #
 

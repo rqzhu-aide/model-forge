@@ -17,6 +17,7 @@ from .protocol import RoleInvocation
 
 _EXAMPLES = {
     "attention-item.schema.json": "attention-item.example.json",
+    "compact-view.schema.json": "compact-view.example.json",
     "decision-record.schema.json": "decision-record.example.json",
     "evidence.schema.json": "evidence.example.json",
     "handoff.schema.json": "handoff.example.json",

@@ -127,6 +127,14 @@ def _validate_p1(
                 )
             )
 
+    synthesis = _mapping_document(outputs, "p1.synthesis_candidate")
+    _validate_compact_view_pointers(
+        synthesis,
+        code_prefix="p1",
+        object_id="p1.synthesis_candidate",
+        findings=findings,
+    )
+
 
 # ---------------------------------------------------------------------------
 # Phase 2: method development
@@ -443,6 +451,12 @@ def _validate_p3(
         primary_field="primary_artifact",
         object_id="p3.complete_theory",
         code_prefix="p3",
+        findings=findings,
+    )
+    _validate_compact_view_pointers(
+        theory,
+        code_prefix="p3",
+        object_id="p3.complete_theory",
         findings=findings,
     )
 
@@ -1319,6 +1333,50 @@ def _artifact_pointer_matches(left: Any, right: Mapping[str, Any]) -> bool:
         "uri",
         "sha256",
     ))
+
+
+def _validate_compact_view_pointers(
+    document: Mapping[str, Any] | None,
+    *,
+    code_prefix: str,
+    object_id: str,
+    findings: list[ValidationFinding],
+) -> None:
+    """E-2: compact decision view pointers must reference real sealed bytes.
+
+    Agents declare compact pointers as output://<filename>; the closure
+    stamps the real artifact pointer mechanically. A compact pointer that
+    still shows output:// (unresolvable sibling) or a degenerate synthetic
+    sha256 (a single repeated character) can never carry real content.
+    """
+    if not isinstance(document, Mapping):
+        return
+    representations = document.get("representations")
+    if not isinstance(representations, list):
+        return
+    for offset, representation in enumerate(representations):
+        if not isinstance(representation, Mapping):
+            continue
+        if representation.get("information_layer") != "compact_decision_view":
+            continue
+        artifact = representation.get("artifact")
+        uri = artifact.get("uri") if isinstance(artifact, Mapping) else None
+        sha = artifact.get("sha256") if isinstance(artifact, Mapping) else None
+        unstamped = isinstance(uri, str) and uri.startswith("output://")
+        synthetic = (
+            isinstance(sha, str)
+            and len(sha) == 64
+            and len(set(sha)) == 1
+        )
+        if unstamped or synthetic:
+            findings.append(
+                _finding(
+                    f"{code_prefix}.compact_view_pointer_invalid",
+                    "Compact decision view representations must reference the sealed compact output bytes; the closure stamps output:// pointers mechanically.",
+                    object_id,
+                    f"/representations/{offset}/artifact",
+                )
+            )
 
 
 def _unique_ids(

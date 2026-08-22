@@ -20,12 +20,12 @@ def catalog() -> SchemaCatalog:
     return SchemaCatalog.load(SCHEMA_DIRECTORY)
 
 
-def test_catalog_loads_all_46_draft_2020_12_schemas(
+def test_catalog_loads_all_47_draft_2020_12_schemas(
     catalog: SchemaCatalog,
 ) -> None:
-    assert len(catalog) == 46
-    assert len(catalog.schema_names) == 46
-    assert len(catalog.schema_ids) == 46
+    assert len(catalog) == 47
+    assert len(catalog.schema_names) == 47
+    assert len(catalog.schema_ids) == 47
     assert catalog.schema_names == tuple(sorted(catalog.schema_names))
     assert catalog.schema_ids == tuple(sorted(catalog.schema_ids))
 

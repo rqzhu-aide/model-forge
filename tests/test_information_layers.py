@@ -155,3 +155,113 @@ def test_compact_pointer_codes_are_registered_correctable() -> None:
         policy = get_policy(code)
         assert policy is not None
         assert policy.finding_class is FindingClass.CORRECTABLE_CONTRACT_ERROR
+
+
+# ---------------------------------------------------------------------------
+# E-2b: layer-aware materialization
+# ---------------------------------------------------------------------------
+
+def _service_with_store(tmp_path: Path):
+    from method_hub.harness.role_execution import RoleLifecycleService
+    from method_hub.storage import ArtifactStore
+    from method_hub.storage.paths import WorkspacePaths
+
+    service = object.__new__(RoleLifecycleService)
+    service.artifacts = ArtifactStore(WorkspacePaths(tmp_path / "workspace", create=True))
+    return service
+
+
+def _frozen(tmp_path: Path, input_id: str, document: dict) -> SimpleNamespace:
+    path = tmp_path / f"{input_id.replace('.', '-')}.json"
+    path.write_text(json.dumps(document))
+    return SimpleNamespace(path=path, input_id=input_id)
+
+
+def _compact_record(markdown: str, sha: str) -> dict:
+    return {
+        "record_id": "rec.test",
+        "representations": [
+            {
+                "information_layer": "compact_decision_view",
+                "artifact": {
+                    "artifact_id": "artifact.compact.test",
+                    "uri": f"artifact://sha256/{sha}",
+                    "sha256": sha,
+                    "media_type": "application/json",
+                },
+            }
+        ],
+    }
+
+
+def test_compact_view_is_materialized_with_markdown(tmp_path: Path) -> None:
+    service = _service_with_store(tmp_path)
+    envelope = json.dumps({"schema_version": "1.0.0", "title": "t", "summary_markdown": "READ ME FIRST."}).encode()
+    stored = service.artifacts.put_bytes(envelope)
+    role_root = tmp_path / "role"
+    role_root.mkdir()
+    record = _compact_record("unused", str(stored.sha256))
+    inputs = {"p2.literature_synthesis": _frozen(tmp_path, "p2.literature_synthesis", record)}
+
+    compact = service._materialize_compact_views(
+        role_root=role_root,
+        inputs=inputs,
+        input_ids=["p2.literature_synthesis"],
+        access_log_path=role_root / "access.jsonl",
+    )
+
+    assert compact == {"p2.literature_synthesis": "inputs/compact/p2.literature_synthesis.md"}
+    assert (role_root / "inputs/compact/p2.literature_synthesis.md").read_text() == "READ ME FIRST."
+    log_lines = (role_root / "access.jsonl").read_text().strip().splitlines()
+    assert len(log_lines) == 1
+    assert json.loads(log_lines[0])["sha256"] == str(stored.sha256)
+
+
+def test_placeholder_or_missing_compact_is_skipped(tmp_path: Path) -> None:
+    service = _service_with_store(tmp_path)
+    role_root = tmp_path / "role"
+    role_root.mkdir()
+    fake = _compact_record("x", "1" * 64)
+    real_but_absent = _compact_record("x", "ab" * 32)  # well-formed, not in store
+    plain = {"record_id": "rec.plain"}
+    inputs = {
+        "a": _frozen(tmp_path, "a", fake),
+        "b": _frozen(tmp_path, "b", real_but_absent),
+        "c": _frozen(tmp_path, "c", plain),
+    }
+    compact = service._materialize_compact_views(
+        role_root=role_root,
+        inputs=inputs,
+        input_ids=["a", "b", "c"],
+        access_log_path=role_root / "access.jsonl",
+    )
+    assert compact == {}
+    assert not (role_root / "inputs").exists()
+
+
+def test_brief_names_compact_view_and_reading_order(tmp_path: Path) -> None:
+    from method_hub.harness.task_briefs import render_task_brief
+
+    plan = SimpleNamespace(identity=SimpleNamespace(phase_id="P2"), mode_id="p2.full_catalog", choice_values={})
+    step = SimpleNamespace(input_ids=("p2.literature_synthesis",))
+    stage = SimpleNamespace(
+        stage_id="p2.independent_proposals",
+        objective="Propose.",
+        execution="parallel",
+        roles=("theorist",),
+        step_for=lambda role: step,
+    )
+    output_plan = SimpleNamespace(for_stage_role=lambda stage_id, role: ())
+    text = render_task_brief(
+        run_id="run.test",
+        project_id="project.test",
+        plan=plan,
+        stage=stage,
+        role="theorist",
+        input_paths={"p2.literature_synthesis": "/tmp/full.json"},
+        output_plan=output_plan,
+        phase_instruction="Do the phase.",
+        compact_views={"p2.literature_synthesis": "inputs/compact/p2.literature_synthesis.md"},
+    )
+    assert "(compact decision view: `inputs/compact/p2.literature_synthesis.md`)" in text
+    assert "read the compact view FIRST" in text

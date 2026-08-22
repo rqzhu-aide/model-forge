@@ -690,6 +690,7 @@ def render_task_brief(
     same_group_roles: Sequence[str] = (),
     schema_catalog: SchemaCatalog | None = None,
     researcher_method_spec: str = "",
+    compact_views: Mapping[str, str] | None = None,
 ) -> str:
     """Render one bounded role assignment without software-manual prose."""
 
@@ -765,7 +766,16 @@ def render_task_brief(
         lines.extend(["", "## Role stance", "", scientific_stance.strip()])
     lines.extend(["", "## Frozen inputs", ""])
     for input_id in role_step.input_ids:
-        lines.append(f"- `{input_id}`: `{input_paths[input_id]}`")
+        line = f"- `{input_id}`: `{input_paths[input_id]}`"
+        if compact_views and input_id in compact_views:
+            line += f" (compact decision view: `{compact_views[input_id]}`)"
+        lines.append(line)
+    if compact_views:
+        lines.extend([
+            "",
+            "Inputs with a compact decision view: read the compact view FIRST; "
+            "open the full record only where you need the underlying detail.",
+        ])
     if stage.execution == "parallel" and same_group_roles:
         peers = ", ".join(f"`{item}`" for item in same_group_roles if item != role)
         lines.extend(

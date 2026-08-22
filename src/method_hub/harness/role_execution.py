@@ -1540,6 +1540,13 @@ class RoleLifecycleService:
         role_root = self.workspace.ensure_directory(role_relative)
         self.workspace.ensure_directory(task_relative)
         task_path = self.workspace.for_write(f"{task_relative}/task.md")
+        access_log_path = role_root / "access.jsonl"
+        compact_views = self._materialize_compact_views(
+            role_root=role_root,
+            inputs=inputs,
+            input_ids=role_step.input_ids,
+            access_log_path=access_log_path,
+        )
 
         stage_role_instruction = ""
         if self.context.role_instructions:
@@ -1565,11 +1572,11 @@ class RoleLifecycleService:
             same_group_roles=stage.roles,
             schema_catalog=self.schemas,
             researcher_method_spec=self.context.researcher_method_spec,
+            compact_views=compact_views,
         )
         task_payload = task_text.encode("utf-8")
         _immutable_write(task_path, task_payload)
 
-        access_log_path = role_root / "access.jsonl"
         self._broker.materialize_context(
             workspace=role_root,
             frozen_inputs={
@@ -1984,6 +1991,88 @@ class RoleLifecycleService:
                 {"manifest_sha256": str(self.context.manifest_sha256)}
             ),
         )
+
+    def _materialize_compact_views(
+        self,
+        *,
+        role_root: Path,
+        inputs: Mapping[str, Any],
+        input_ids: Iterable[str],
+        access_log_path: Path,
+    ) -> dict[str, str]:
+        """E-2b: materialize layer-3 compact decision views beside the inputs.
+
+        For each frozen input whose record payload declares a
+        ``compact_decision_view`` representation with real bytes in the
+        artifact store, write ``inputs/compact/<input_id>.md`` (the summary
+        markdown from the compact-view envelope) and log the access.
+        Returns ``input_id -> workspace-relative compact path`` for the
+        brief. Placeholder or missing artifacts are skipped silently:
+        legacy records and the development loop keep full-record-only
+        behavior.
+        """
+        compact: dict[str, str] = {}
+        compact_dir = role_root / "inputs" / "compact"
+        from datetime import datetime, timezone
+
+        for input_id in input_ids:
+            frozen = inputs.get(input_id)
+            if frozen is None:
+                continue
+            try:
+                document = json.loads(Path(frozen.path).read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if not isinstance(document, dict):
+                continue
+            representations = document.get("representations")
+            if not isinstance(representations, list):
+                continue
+            for representation in representations:
+                if not isinstance(representation, dict):
+                    continue
+                if representation.get("information_layer") != "compact_decision_view":
+                    continue
+                artifact = representation.get("artifact")
+                if not isinstance(artifact, dict):
+                    continue
+                sha256 = str(artifact.get("sha256", ""))
+                uri = str(artifact.get("uri", ""))
+                if (
+                    len(sha256) != 64
+                    or len(set(sha256)) == 1
+                    or not uri.startswith("artifact://")
+                ):
+                    continue
+                try:
+                    raw = self.artifacts.read_bytes(sha256)
+                except Exception:
+                    continue
+                markdown = ""
+                try:
+                    envelope = json.loads(raw.decode("utf-8"))
+                    if isinstance(envelope, dict):
+                        markdown = str(envelope.get("summary_markdown", ""))
+                except Exception:
+                    markdown = ""
+                if not markdown.strip():
+                    markdown = raw.decode("utf-8", errors="replace")
+                compact_dir.mkdir(parents=True, exist_ok=True)
+                dest = compact_dir / f"{input_id}.md"
+                dest.write_text(markdown, encoding="utf-8")
+                entry = {
+                    "artifact_id": str(artifact.get("artifact_id", "")),
+                    "sha256": sha256,
+                    "byte_length": len(raw),
+                    "materialized_path": str(dest),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+                with open(access_log_path, "a", encoding="utf-8") as fh:
+                    fh.write(json.dumps(entry) + "\n")
+                compact[input_id] = f"inputs/compact/{input_id}.md"
+                break
+        return compact
+
     def _prepare_invocation(
         self,
         *,
@@ -2005,6 +2094,13 @@ class RoleLifecycleService:
         role_root = self.workspace.ensure_directory(role_relative)
         task_root = self.workspace.ensure_directory(task_relative)
         task_path = self.workspace.for_write(f"{task_relative}/task.md")
+        access_log_path = role_root / "access.jsonl"
+        compact_views = self._materialize_compact_views(
+            role_root=role_root,
+            inputs=inputs,
+            input_ids=role_step.input_ids,
+            access_log_path=access_log_path,
+        )
 
         # Keep the frozen mode, stage-role, and researcher directions as
         # separate layers. The task renderer establishes their priority.
@@ -2032,13 +2128,13 @@ class RoleLifecycleService:
             same_group_roles=stage.roles,
             schema_catalog=self.schemas,
             researcher_method_spec=self.context.researcher_method_spec,
+            compact_views=compact_views,
         )
         task_payload = task_text.encode("utf-8")
         _immutable_write(task_path, task_payload)
 
         # Materialize frozen inputs into the role workspace via the
         # capability broker, verifying digests and logging every access.
-        access_log_path = role_root / "access.jsonl"
         self._broker.materialize_context(
             workspace=role_root,
             frozen_inputs={

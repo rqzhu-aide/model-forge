@@ -9,9 +9,12 @@ synthesis record carries a compact_decision_view whose sha256
 (b41c5b13...) resolves to hash-verified artifact-store bytes plus 72
 work_summaries entries, and every P2 role received
 inputs/compact/p2.literature_synthesis.md (2.75 KB) alongside the full
-records (compact-first, drill-down preserved). Residual: primary_artifact
-representation pointers remain agent-declared and do not resolve to
-artifact-store bytes; closing that is the E-2d follow-up package.
+records (compact-first, drill-down preserved). E-2d LANDED 2026-08-22
+(3d00f92): primary_artifact self-pointers are declared output:// by the
+record-authoring roles and stamped at closure against as-authored bytes
+preserved via a sealed .as-authored sidecar; pointer validation now
+covers all information layers (policy 1.11.0). All three layers now
+resolve to verified bytes.
 Contract authority: architecture/03-storage-and-authority.md section 2
 (three information layers). Evidence base:
 architecture/evidence/storage-memory-review-2026-08-22.md (incl. addendum).

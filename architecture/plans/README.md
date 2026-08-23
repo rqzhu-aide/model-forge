@@ -8,13 +8,9 @@ specification or decision record before code relies on such a change.
 ## Active plans
 
 - [K-1 Remaining Implementation Plan + NA-2](k1-remaining-implementation-plan-2026-08-17.md) -
-  the current controlling implementation sequence. P1 through P3b are landed
-  (`ad3e2a6` through `74b243f`): correction error codes, attempt-aware
-  submission read, Lane A submission re-entry, the
-  `request_output_correction` service, and the corrections endpoint.
-  Remaining: P4 (normalize + preview), P5 (Lane B role re-invocation),
-  P6 (UI correction controls), P7 (NA-2 persisted cancel intent), plus the
-  deferred K-2 decision and the K-5 production re-exercise.
+  COMPLETE (2026-08-20): all packages landed and verified (P1 through P7
+  plus D4/D5). Remaining: the K-5 controlled production re-exercise
+  (unblocked). K-7 stays open by design.
 - [K-1 Correction Command Path Design](k1-correction-command-path-design.md) -
   the design basis for the correction lane. D1-D4 are resolved; D5
   (revalidate unreachable for REJECTED runs) is open for the method owner.
@@ -57,8 +53,8 @@ the HV program and K-1.
 
 ## Completion order from the current checkpoint
 
-1. P4-P7 of the K-1 plan (correction lane completion), then the K-5
-   controlled production re-run as the evidence gate.
+1. K-5 controlled production re-run (the evidence gate; the K-1 plan is
+   COMPLETE - P1 through P7 all landed and verified).
 2. WP-I (WP2 adapters and five-phase pilot).
 3. Resolve the context-selection issues above; P0-2 (contract presence model)
    gates any further P5 contract work and needs a contract-author decision.

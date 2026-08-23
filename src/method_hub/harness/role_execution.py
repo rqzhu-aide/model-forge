@@ -9,7 +9,7 @@ import re
 from dataclasses import replace
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Callable, Iterable, Mapping, Sequence
 
 from ..contracts import ResolvedPhasePlan, ResolvedStage
 from ..digests.jcs import canonicalize
@@ -69,6 +69,7 @@ def _apply_disclosed_mechanical_repairs(
     project_id: str = "",
     run_facts: "SealedRunFacts | None" = None,
     record_type_by_output: Mapping[str, str] | None = None,
+    canonical_source_lookup: "Callable[[str], str | None] | None" = None,
 ) -> dict[str, "OutputTransformationRecord"]:
     """Apply mechanical repairs to agent outputs and record every change.
 
@@ -94,6 +95,7 @@ def _apply_disclosed_mechanical_repairs(
         run_id=run_id,
         run_root=run_root,
         specs=specs,
+        canonical_source_lookup=canonical_source_lookup,
     )
 
     if run_facts is not None and not run_facts.produced_at:
@@ -660,6 +662,7 @@ class _OutputPointerContext:
         run_id: str,
         run_root: Path,
         specs: Sequence[Any],
+        canonical_source_lookup: "Callable[[str], str | None] | None" = None,
     ) -> None:
         self.project_id = project_id
         self.run_id = run_id
@@ -667,6 +670,9 @@ class _OutputPointerContext:
         self._by_filename = {
             Path(spec.relative_path).name: spec for spec in specs
         }
+        # E-2e: digest -> artifact_id resolution for canonical_artifact
+        # input:// pointers (None in contexts without artifact rows).
+        self.canonical_source_lookup = canonical_source_lookup
 
     def locate(self, filename: str) -> tuple[Any, Path] | None:
         """Map a declared output filename to its spec and on-disk path."""
@@ -741,6 +747,67 @@ def _stamp_output_pointer(
     return False
 
 
+def _stamp_canonical_artifact(
+    method_record: dict,
+    *,
+    inputs_dir: Path,
+    lookup: "Callable[[str], str | None] | None",
+    project_id: str,
+    run_id: str,
+) -> bool:
+    """Stamp one ``input://<filename>`` canonical_artifact pointer (E-2e).
+
+    The agent declares the method record's
+    ``mathematical_definition.canonical_artifact`` as
+    ``input://<materialized input filename>`` naming the exact
+    content-named file in the role's ``inputs/`` directory that the
+    canonical definition was taken from, with no artifact_id and no
+    sha256.  Materialized inputs are content-named by the sha256 of
+    their sealed source bytes, so the closure stamps the real pointer
+    mechanically: sha256 of the input file bytes, uri
+    ``artifact://sha256/<digest>``, and artifact_id from the artifacts
+    table via *lookup* (the sealed role output those bytes came from).
+    When the lookup returns None (dev-fixture contexts without artifact
+    rows) the artifact_id falls back to a deterministic derivation.  The
+    agent's path and locator fields are preserved.  Unresolvable input
+    names are left untouched for validation to reject.  Returns True only
+    when a field changed.
+    """
+    mathematical = method_record.get("mathematical_definition")
+    if not isinstance(mathematical, dict):
+        return False
+    artifact = mathematical.get("canonical_artifact")
+    if not isinstance(artifact, dict):
+        return False
+    uri = artifact.get("uri")
+    if not (isinstance(uri, str) and uri.startswith("input://")):
+        return False
+    candidate = inputs_dir / uri[len("input://"):]
+    if not candidate.is_file():
+        return False
+    digest = hashlib.sha256(candidate.read_bytes()).hexdigest()
+    stamped_uri = f"artifact://sha256/{digest}"
+    stamped_id = lookup(digest) if lookup is not None else None
+    if not stamped_id:
+        stamped_id = deterministic_id(
+            "artifact",
+            project_id,
+            run_id,
+            "canonical_source",
+            digest,
+        )
+    if (
+        artifact.get("sha256") != digest
+        or artifact.get("uri") != stamped_uri
+        or artifact.get("artifact_id") != stamped_id
+    ):
+        artifact["sha256"] = digest
+        artifact["uri"] = stamped_uri
+        artifact["artifact_id"] = stamped_id
+        return True
+    return False
+
+
 def _fix_self_referential_hashes(
     data: Any,
     path: Path,
@@ -753,7 +820,7 @@ def _fix_self_referential_hashes(
     with the correct hash computed from the file content (excluding the
     hash field itself).
 
-    Handles four classes of self-referential hashes:
+    Handles five classes of self-referential hashes:
 
     1. ``content_sha256`` — top-level field on scientific-record, evidence,
        attention-item, decision-record.  Hash of the entire document minus
@@ -771,6 +838,13 @@ def _fix_self_referential_hashes(
     4. Other ``representations[].artifact`` / ``artifacts[].sha256`` pointer
        hashes — NOT self-referential (they point at previously sealed
        artifacts), so they are left alone.
+    5. ``mathematical_definition.canonical_artifact`` with an
+       ``input://<filename>`` uri — the method record's canonical pointer
+       at a materialized input (E-2e).  Agents cannot know sealed
+       digests, so they declare the pointer target by input filename and
+       the harness stamps the real artifact_id, uri, and sha256 from the
+       input's bytes.  Unresolvable pointers are left untouched for
+       validation to reject.
     """
     changed = False
 
@@ -841,6 +915,27 @@ def _fix_self_referential_hashes(
                     primary, pointer_context=pointer_context, path=path
                 ):
                     touched = True
+
+        # 5. mathematical_definition.canonical_artifact input:// pointers
+        # (E-2e) — stamp the real pointer to the materialized input bytes.
+        # Materialized inputs live in the role's inputs/ directory (a
+        # sibling of the output files inside roles/<NN>-<role>/), derived
+        # per output as path.parent.  The existing recursion into the
+        # method-changes list covers p2.method_changes records.
+        if (
+            pointer_context is not None
+            and isinstance(identity, dict)
+            and isinstance(md, dict)
+            and isinstance(md.get("canonical_artifact"), dict)
+        ):
+            if _stamp_canonical_artifact(
+                obj,
+                inputs_dir=path.parent / "inputs",
+                lookup=pointer_context.canonical_source_lookup,
+                project_id=pointer_context.project_id,
+                run_id=pointer_context.run_id,
+            ):
+                touched = True
 
         return touched
 
@@ -2399,6 +2494,21 @@ class RoleLifecycleService:
                 # transformation entries for each output.  Harness-owned envelope
                 # fields (HV-4) are populated from sealed run facts inside the
                 # same pass, so the source digest remains the agent's raw bytes.
+                # E-2e: canonical_artifact input:// pointers resolve their
+                # artifact_id against the artifacts table (sealed role outputs
+                # carry the true identity of the materialized input bytes).
+                def _canonical_source_lookup(digest: str) -> "str | None":
+                    with self.repository.database.connect() as connection:
+                        row = connection.execute(
+                            "SELECT artifact_id FROM artifacts "
+                            "WHERE sha256 = ? AND project_id = ? "
+                            "ORDER BY rowid LIMIT 1",
+                            (digest, str(self.context.project_id)),
+                        ).fetchone()
+                    if row is None:
+                        return None
+                    return str(row["artifact_id"])
+
                 repair_records = _apply_disclosed_mechanical_repairs(
                     run_root=self.workspace.for_read(f"runs/{self.context.run_id}"),
                     output_plan=self.context.output_plan,
@@ -2408,6 +2518,7 @@ class RoleLifecycleService:
                     project_id=str(self.context.project_id),
                     run_facts=self._sealed_run_facts(stage, role),
                     record_type_by_output=self._record_type_by_output(),
+                    canonical_source_lookup=_canonical_source_lookup,
                 )
                 validation = validate_role_outputs(
                     schema_catalog=self.schemas,

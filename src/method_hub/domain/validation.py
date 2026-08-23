@@ -35,7 +35,10 @@ class FindingClass(StrEnum):
 # 1.11.0 (E-2d): primary artifact pointer integrity (P1/P3) for the
 # information-layer primary tier; self-referential record pointers are
 # stamped from as-authored snapshots sealed at closure.
-POLICY_VERSION = "1.11.0"
+# 1.12.0 (E-2e): P2 canonical_artifact pointer integrity; method record
+# canonical pointers are declared input:// and stamped mechanically at
+# closure from the sealed materialized input bytes.
+POLICY_VERSION = "1.12.0"
 
 
 @dataclass(frozen=True, slots=True)
@@ -355,6 +358,33 @@ def _build_registry() -> dict[str, FindingPolicy]:
             guidance=(
                 "Declare the primary representation as uri output://<record "
                 "output filename> through the output-correction lane; the "
+                "closure stamps the real artifact pointer."
+            ),
+        )
+
+    # E-2e: the P2 method record's canonical_artifact pointer is declared
+    # input://<materialized input filename> and stamped mechanically at
+    # closure from the sealed input bytes the canonical definition was
+    # taken from; an unstamped or synthetic pointer means the canonical
+    # definition carries no verified source bytes.
+    for code, phase in (
+        ("p2.canonical_pointer_invalid", "P2"),
+    ):
+        _register(
+            code,
+            FindingClass.CORRECTABLE_CONTRACT_ERROR,
+            phases=(phase,),
+            correction_class="packaging",
+            deterministic_repair=True,
+            rationale=(
+                "The canonical artifact must reference the sealed "
+                "materialized input bytes the canonical definition was "
+                "taken from, so downstream phases can trust the method "
+                "record's definition source (E-2e canonical pointers)."
+            ),
+            guidance=(
+                "Declare the canonical artifact as uri input://<materialized "
+                "input filename> through the output-correction lane; the "
                 "closure stamps the real artifact pointer."
             ),
         )

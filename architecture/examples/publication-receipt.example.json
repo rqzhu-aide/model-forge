@@ -8,9 +8,9 @@
     "command_id": "command.p4.preliminary.001",
     "run_id": "run.p4.preliminary.20260801t140000z",
     "phase": "P4",
-    "manifest_sha256": "a19226f3169669019504afa43bcd29a11ffbb00a11a76c86fcef79a763a98e42",
+    "manifest_sha256": "4fa395fa113a0da00df30f6449af8a195d384c846f456b98122b77b2c19c0855",
     "submission_id": "submission.p4.001",
-    "submission_sha256": "11669aca4db10b47d327c9d01a14d671428c8d9c98b4ccea2d2bfc24d80ef1d7"
+    "submission_sha256": "17f032fb8967d1a5627ac77079ae09dc0172097022ee77aa90406c076f8d343e"
   },
   "validation_reports": [
     {
@@ -23,7 +23,7 @@
   "prior_current_index_generation_id": "generation.current_index.004",
   "prior_current_index_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
   "new_current_index_generation_id": "generation.current_index.005",
-  "new_current_index_sha256": "c44891163b5c9a4e7ed607e4fde5b92e516d3e7437d04ee5bf039a4a08e0a6d9",
+  "new_current_index_sha256": "33f6c926b9f8f58438de9c9cff428d6e6b94b107bb89a828603264b7966b2b98",
   "committed_event_range": {
     "first_sequence": 12,
     "last_sequence": 17,
@@ -67,7 +67,7 @@
     {
       "projection_id": "generation.current_index.005",
       "projection_kind": "current_index",
-      "content_sha256": "c44891163b5c9a4e7ed607e4fde5b92e516d3e7437d04ee5bf039a4a08e0a6d9"
+      "content_sha256": "33f6c926b9f8f58438de9c9cff428d6e6b94b107bb89a828603264b7966b2b98"
     }
   ],
   "record_changes": [
@@ -115,7 +115,7 @@
   "alignment_impacts": [],
   "atomic": true,
   "published_at": "2026-08-01T15:10:04Z",
-  "content_sha256": "b95e1ccd8b0c0d900313d285ffb28ca6f6aca308a466151020fb844e942c4658",
+  "content_sha256": "0656a3ef485d40ea9af53cec496f75bfa3307a720ab953848b427401f162843c",
   "cumulative_object_changes": [
     {
       "object_id": "evidence.simulation.preliminary.001",

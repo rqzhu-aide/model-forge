@@ -162,6 +162,7 @@ def _validate_p2(
             continue
         _validate_method_definition(method, offset=offset, findings=findings)
         _validate_method_evaluation(method, offset=offset, findings=findings)
+        _validate_canonical_artifact_pointer(method, offset=offset, findings=findings)
 
     for output_id, allowed_axis, message in (
         (
@@ -393,6 +394,46 @@ def _validate_method_evaluation(
                     f"/{offset}/evaluation/{axis}",
                 )
             )
+
+
+def _validate_canonical_artifact_pointer(
+    method: Mapping[str, Any],
+    *,
+    offset: int,
+    findings: list[ValidationFinding],
+) -> None:
+    """E-2e: canonical_artifact pointers must reference real sealed bytes.
+
+    Agents declare the method record's canonical_artifact as
+    input://<materialized input filename>; the closure stamps the real
+    artifact pointer mechanically.  A pointer that still shows input://
+    (unresolvable target) or a degenerate synthetic sha256 (a single
+    repeated character) can never carry real content.
+    """
+    mathematical = method.get("mathematical_definition")
+    if not isinstance(mathematical, Mapping):
+        return
+    artifact = mathematical.get("canonical_artifact")
+    if not isinstance(artifact, Mapping):
+        return
+    uri = artifact.get("uri")
+    sha = artifact.get("sha256")
+    unstamped = isinstance(uri, str) and uri.startswith("input://")
+    synthetic = (
+        isinstance(sha, str)
+        and len(sha) == 64
+        and len(set(sha)) == 1
+    )
+    if not (unstamped or synthetic):
+        return
+    findings.append(
+        _finding(
+            "p2.canonical_pointer_invalid",
+            "Canonical artifact pointers must reference sealed input bytes; the closure stamps input:// pointers mechanically.",
+            "p2.method_changes",
+            f"/{offset}/mathematical_definition/canonical_artifact",
+        )
+    )
 
 
 # ---------------------------------------------------------------------------

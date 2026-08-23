@@ -34,7 +34,7 @@
   },
   "expected_relation": {
     "definition_sha256": "b274bbb26acde9604faad22d05b3f4015f75491a31b5d0f67f139a64f7a7a4f1",
-    "base_content_sha256": "07967bb4c92015f307fe0296aa889092494535223e28f87c541b722faffeb5eb",
+    "base_content_sha256": "d5f37f4aa79667f2bee90ed8b2d93a96bdaa17f393a331ee207cce9c1a5ba979",
     "revised_content_sha256": "b9e104420881e3e1f21511d9fee1184880ffddec3ce8e411ec6078750bba77c3",
     "definition_unchanged": true,
     "artifact_changed": true,

@@ -88,7 +88,7 @@
         "record_type": "method_record",
         "generation_id": "generation.method.001",
         "generation_number": 1,
-        "content_sha256": "07967bb4c92015f307fe0296aa889092494535223e28f87c541b722faffeb5eb",
+        "content_sha256": "d5f37f4aa79667f2bee90ed8b2d93a96bdaa17f393a331ee207cce9c1a5ba979",
         "publication_state_at_use": "formal",
         "record_position_at_use": "current",
         "dependency_class": "hard",
@@ -101,7 +101,7 @@
       "artifact": {
         "artifact_id": "artifact.method_record",
         "uri": "artifact://artifact.method_record",
-        "sha256": "07967bb4c92015f307fe0296aa889092494535223e28f87c541b722faffeb5eb",
+        "sha256": "d5f37f4aa79667f2bee90ed8b2d93a96bdaa17f393a331ee207cce9c1a5ba979",
         "media_type": "application/json"
       },
       "purpose": "Fix the exact calculation-defining method identity for every computation and assessment.",
@@ -513,5 +513,5 @@
     "wall_time_limit_seconds": 14400
   },
   "prepared_at": "2026-08-01T14:00:02Z",
-  "manifest_sha256": "a19226f3169669019504afa43bcd29a11ffbb00a11a76c86fcef79a763a98e42"
+  "manifest_sha256": "4fa395fa113a0da00df30f6449af8a195d384c846f456b98122b77b2c19c0855"
 }

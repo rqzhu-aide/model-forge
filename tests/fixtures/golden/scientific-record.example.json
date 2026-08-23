@@ -37,7 +37,7 @@
       "record_type": "method_record",
       "generation_id": "generation.method.001",
       "generation_number": 1,
-      "content_sha256": "07967bb4c92015f307fe0296aa889092494535223e28f87c541b722faffeb5eb",
+      "content_sha256": "d5f37f4aa79667f2bee90ed8b2d93a96bdaa17f393a331ee207cce9c1a5ba979",
       "publication_state_at_use": "formal",
       "record_position_at_use": "current",
       "dependency_class": "hard",
@@ -71,7 +71,7 @@
     "strongest_counterevidence_ids": [],
     "material_disagreement": []
   },
-  "content_sha256": "62655490789f79520ffaf830df904647a456f7261df32a706d692fa579799c94",
+  "content_sha256": "92f46e9ed1803ed843134f3e0b285631dca746019cb670e81300a9c1bdb34786",
   "publication_receipt_id": "publication.p4.001",
   "published_at": "2026-08-01T15:10:04Z",
   "created_at": "2026-08-01T15:05:00Z",

@@ -17,7 +17,7 @@
       "artifact_id": "artifact.method_definition",
       "uri": "artifact://artifact.method_definition",
       "path": "generations/method_record/record.method.overlap_stabilized_score/generation.method.001/method.md",
-      "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "sha256": "058b04bcaf71f8a48c844f75d311987f4675d15b906930b31bbb69bb516d84b3",
       "media_type": "text/markdown",
       "locator": "Definition 1"
     },
@@ -143,7 +143,7 @@
     "The current definition does not establish finite-sample dominance over inverse-propensity weighting.",
     "Inference still depends on nuisance estimation and the stated moment conditions."
   ],
-  "content_sha256": "07967bb4c92015f307fe0296aa889092494535223e28f87c541b722faffeb5eb",
+  "content_sha256": "d5f37f4aa79667f2bee90ed8b2d93a96bdaa17f393a331ee207cce9c1a5ba979",
   "created_at": "2026-07-15T12:30:00Z",
   "updated_at": "2026-07-15T12:30:00Z",
   "authority_at_creation": "formal_generation",

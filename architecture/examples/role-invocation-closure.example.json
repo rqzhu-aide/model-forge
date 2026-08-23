@@ -17,7 +17,7 @@
       "sha256": "754adfedcb93337a98a5051644514dae0ddcd846d96726e1cd310cba083e86f1",
       "media_type": "application/json"
     },
-    "start_sha256": "0f759a514e4a88106b66616559961389f83b35d2227df3f5e326195917f7be91"
+    "start_sha256": "0443fbc45586cce090e0622cddcf57e94a7b4da1be592e0fa8fb4c12dfff29b3"
   },
   "terminal_status": "succeeded",
   "context_snapshot_binding": {
@@ -25,7 +25,7 @@
     "artifact": {
       "artifact_id": "artifact.context_snapshot.p4.analyst.001",
       "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.context_snapshot.p4.analyst.001",
-      "sha256": "d5e1d086e17c378357918086ca3a3b9a9197c1a4ff62b09d267d6eb422feb2b5",
+      "sha256": "908b58915059f3b799cd9171d26a478d0a24595311ab765ae4ed88e7bfd6983f",
       "media_type": "application/json"
     },
     "prepared_context_source": {
@@ -33,13 +33,13 @@
       "artifact": {
         "artifact_id": "artifact.prepared_context.p4.analyst.001",
         "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.prepared_context.p4.analyst.001",
-        "sha256": "2aeb67a591124847539d0a7e1aea4f48c75465115e022a27220e08411e9d2190",
+        "sha256": "7b196051f23e66813d6de774376f9e6934975449aa28646f0afa7f1bbb1111a6",
         "media_type": "application/json"
       },
-      "content_sha256": "2aeb67a591124847539d0a7e1aea4f48c75465115e022a27220e08411e9d2190",
-      "prepared_context_sha256": "e4382eb470cee365e33b89c44f0a58239900b1e97d740adc73fb67d0cf85caf2"
+      "content_sha256": "7b196051f23e66813d6de774376f9e6934975449aa28646f0afa7f1bbb1111a6",
+      "prepared_context_sha256": "a2d182e2ed51e4ec19ed655d759ec0faeb13395dd30d8d5af085102def938fda"
     },
-    "snapshot_sha256": "d5e1d086e17c378357918086ca3a3b9a9197c1a4ff62b09d267d6eb422feb2b5",
+    "snapshot_sha256": "908b58915059f3b799cd9171d26a478d0a24595311ab765ae4ed88e7bfd6983f",
     "access_ledger_id": "ledger.context.p4.analyst.001",
     "access_ledger_head_sha256": "c107412c5d5ce83cf24b79fde421bddba6c61b9ed9a0072a3c8eba5c73e6bcf2",
     "access_event_count": 1,
@@ -154,5 +154,5 @@
     }
   ],
   "closed_at": "2026-08-01T14:55:12Z",
-  "closure_sha256": "139f42a2ae38dcc99cd62e2f3c926959e52d7ebab2160515eb554bcf95d0c285"
+  "closure_sha256": "52f10e60cf07f1edf4376dde910aae222f1b862ee01b8f3d38895b1ad3b3f37b"
 }

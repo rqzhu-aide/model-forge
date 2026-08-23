@@ -1,7 +1,10 @@
 # E-2e Plan: P2 canonical_artifact pointers made real (2026-08-23)
 
-Status: PLANNED (Tez approved 2026-08-23 as item 6b, "planned package,
-not a hotfix"). Parent program: e2-information-layers-plan-2026-08-22.md.
+Status: LANDED 2026-08-23 (commit 896615a; suite 1234 green - 1222
+baseline + 12 new, validator exit 0). The example digest-chain cascade
+was completed planner-direct after the implementation dispatch paused
+mid-cascade (the documented fixture-cascade pattern). Production probe
+(next P2 run) remains as the closing evidence.
 
 ## Problem (evidence: k5-production-re-run-2026-08-23.md, "New residual")
 

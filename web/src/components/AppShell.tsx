@@ -55,7 +55,7 @@ export async function invalidateProjectSummaryDependents(
 }
 
 function initialTheme(): Theme {
-  const saved = window.localStorage.getItem("method-hub-theme");
+  const saved = window.localStorage.getItem("model-forge-theme");
   if (saved === "light" || saved === "dark") return saved;
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches
     ? "dark"
@@ -66,7 +66,7 @@ export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>(initialTheme);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    window.localStorage.setItem("method-hub-theme", theme);
+    window.localStorage.setItem("model-forge-theme", theme);
   }, [theme]);
   return (
     <div className="theme-toggle" role="group" aria-label="Color theme">
@@ -127,10 +127,10 @@ export function AppShell() {
   return (
     <div className="app-shell">
       <a href="#main-content" className="skip-link">Skip to research content</a>
-      <aside className="sidebar" aria-label="Method Hub navigation">
-        <NavLink to="/" className="brand" aria-label="Method Hub projects">
-          <span className="brand__mark" aria-hidden="true">MH</span>
-          <span><strong>Method Hub</strong><small>Controlled research runs</small></span>
+      <aside className="sidebar" aria-label="Model Forge navigation">
+        <NavLink to="/" className="brand" aria-label="Model Forge projects">
+          <span className="brand__mark" aria-hidden="true">MF</span>
+          <span><strong>Model Forge</strong><small>Controlled research runs</small></span>
         </NavLink>
 
         <nav className="sidebar__nav" aria-label="Research projects">
@@ -197,7 +197,7 @@ export function AppShell() {
 
       <div className="app-main">
         <header className="mobile-header">
-          <NavLink to="/" className="brand"><span className="brand__mark">MH</span><strong>Method Hub</strong></NavLink>
+          <NavLink to="/" className="brand"><span className="brand__mark">MF</span><strong>Model Forge</strong></NavLink>
           <details className="mobile-menu">
             <summary>Navigate</summary>
             <nav>

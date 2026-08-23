@@ -22,20 +22,20 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
-from method_hub.domain import MethodIdentity
-from method_hub.domain.validation import (
+from model_forge.domain import MethodIdentity
+from model_forge.domain.validation import (
     ValidationFinding,
     ValidationReport,
     ValidationSeverity,
     get_policy,
     make_finding,
 )
-from method_hub.harness.publication import (
+from model_forge.harness.publication import (
     RegisteredArtifactMetadata,
     RegisteredValidatedOutput,
 )
-from method_hub.harness.scientific_validators import validate_phase_scientific
-from method_hub.schemas import SchemaCatalog
+from model_forge.harness.scientific_validators import validate_phase_scientific
+from model_forge.schemas import SchemaCatalog
 
 ROOT = Path(__file__).resolve().parents[1]
 ARCHITECTURE = ROOT / "architecture"

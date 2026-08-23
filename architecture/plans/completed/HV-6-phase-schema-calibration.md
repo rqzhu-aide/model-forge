@@ -55,7 +55,7 @@ phase is a separate reviewed change. Do not batch phases.
 ### HV-6.P1: Literature
 
 **Target:** `architecture/schemas/scientific-record.schema.json` (P1 output),
-`src/method_hub/harness/scientific_validators.py` (P1 validators)
+`src/model_forge/harness/scientific_validators.py` (P1 validators)
 
 Calibration goals:
 
@@ -75,7 +75,7 @@ Calibration goals:
 ### HV-6.P2: Methods
 
 **Target:** `architecture/schemas/scientific-record.schema.json` (P2 output),
-`src/method_hub/harness/scientific_validators.py` (P2 validators)
+`src/model_forge/harness/scientific_validators.py` (P2 validators)
 
 Calibration goals:
 
@@ -97,7 +97,7 @@ Calibration goals:
 ### HV-6.P3: Theory
 
 **Target:** `architecture/schemas/theory-record.schema.json`,
-`src/method_hub/harness/scientific_validators.py` (P3 validators, 18 codes)
+`src/model_forge/harness/scientific_validators.py` (P3 validators, 18 codes)
 
 Calibration goals:
 
@@ -135,7 +135,7 @@ correctly after the mode fix).
 ### HV-6.P4: Evidence
 
 **Target:** `architecture/schemas/empirical-protocol.schema.json`,
-`src/method_hub/harness/scientific_validators.py` (P4 validators, 17 codes)
+`src/model_forge/harness/scientific_validators.py` (P4 validators, 17 codes)
 
 Calibration goals:
 
@@ -182,7 +182,7 @@ Calibration goals:
 **Target:** `architecture/schemas/manuscript-package.schema.json`,
 `architecture/schemas/review-finding.schema.json`,
 `architecture/schemas/review-report.schema.json`,
-`src/method_hub/harness/scientific_validators.py` (P5 validators, 13 codes)
+`src/model_forge/harness/scientific_validators.py` (P5 validators, 13 codes)
 
 Calibration goals:
 

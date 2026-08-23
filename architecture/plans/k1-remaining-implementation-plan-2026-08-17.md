@@ -63,16 +63,16 @@ Resolution (pins D-follow-up, consistent with HV-5 revision A1):
 
 ## Error code registry pins (verified free)
 
-- CORRECTION_NOT_APPLICABLE: transition, 409, retryable no, MH-73
-- CORRECTION_SCOPE_INVALID: schema, 400, retryable yes, MH-74
-- CORRECTION_EXHAUSTED: transition, 409, retryable no, MH-75
+- CORRECTION_NOT_APPLICABLE: transition, 409, retryable no, MF-73
+- CORRECTION_SCOPE_INVALID: schema, 400, retryable yes, MF-74
+- CORRECTION_EXHAUSTED: transition, 409, retryable no, MF-75
 
 Each new code requires edits in exactly five places:
 `api/errors.py` (Literal + ERROR_RULES),
 `architecture/schemas/command-error.schema.json` (code enum + oneOf
 policy entry), `architecture/09-control-commands.md` (catalog row),
 `architecture/tools/validate_package.py` (`error_policies` table ~:1338),
-`architecture/07-contract-traceability.md` (MH-73/74/75 rows).
+`architecture/07-contract-traceability.md` (MF-73/74/75 rows).
 
 ## Package split (dispatch order, sequential, single writer)
 
@@ -175,7 +175,7 @@ policy entry), `architecture/09-control-commands.md` (catalog row),
 ## P3 design pins (added 2026-08-17, verified against code)
 
 Service-side facts (all probed in the tree):
-- `MethodHubService` gains an additive kwarg `run_coordinator` (wired in
+- `ModelForgeService` gains an additive kwarg `run_coordinator` (wired in
   bootstrap.py:104-117). When None (executor disabled), correction
   commands refuse with CORRECTION_NOT_APPLICABLE (Lane A needs the
   coordinator's harness construction; Lane B needs its executor).
@@ -538,7 +538,7 @@ Pins:
    re-invoked): PLANNER-BUILT after the package lands (rich-fixture test
    work; four prior cap-deaths on this shape).
 
-Out of scope: no web changes, no new error codes (MH-73/74/75 suffice), no
+Out of scope: no web changes, no new error codes (MF-73/74/75 suffice), no
 traceability.json or validator changes (S26 edit is narrative-only).
 
 ## K-5 execution plan (2026-08-20, coder; Tez directive "plan and complete")
@@ -564,17 +564,17 @@ Probed production facts:
 - Run shape: 3 stages (independent_proposals, cross_review,
   lead_reconciliation), roles research_lead + theorist + data_analyst,
   15-22 min wall time each (deepseek-v4-flash profiles).
-- Executor: METHOD_HUB_EXECUTOR_KIND=local_hermes. The
+- Executor: MODEL_FORGE_EXECUTOR_KIND=local_hermes. The
   data_analyst ROLE must map to the data_scientist PROFILE via
-  METHOD_HUB_DATA_ANALYST_PROFILE=data_scientist (no data_analyst
+  MODEL_FORGE_DATA_ANALYST_PROFILE=data_scientist (no data_analyst
   profile directory exists; bootstrap._verify_hermes_profiles fails
   fast otherwise). All four role profiles carry deepseek credentials.
 
 Procedure:
 
-1. Timestamped backup of ~/.method-hub (database, artifacts, runs).
-2. Serve: METHOD_HUB_EXECUTOR_KIND=local_hermes
-   METHOD_HUB_DATA_ANALYST_PROFILE=data_scientist method-hub serve
+1. Timestamped backup of ~/.model-forge (database, artifacts, runs).
+2. Serve: MODEL_FORGE_EXECUTOR_KIND=local_hermes
+   MODEL_FORGE_DATA_ANALYST_PROFILE=data_scientist model-forge serve
    (port 8765, loopback). Health check before any command.
 3. Launch the controlled run via the API exactly as the UI would:
    phase view -> start_run descriptor -> POST start with the SAME

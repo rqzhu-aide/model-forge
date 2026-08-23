@@ -2,17 +2,17 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from method_hub.contracts.runtime import resolve_runtime_contract
-from method_hub.domain import ArtifactPointer
-from method_hub.harness.inputs import (
+from model_forge.contracts.runtime import resolve_runtime_contract
+from model_forge.domain import ArtifactPointer
+from model_forge.harness.inputs import (
     CurrentRecordReference,
     InputResolutionResult,
     ResolvedRunInput,
 )
-from method_hub.harness.outputs import build_output_plan
-from method_hub.harness.preparation import build_prepared_run_recipe
-from method_hub.orchestration import ContractSequentialOrchestrator
-from method_hub.specification import SpecificationPackage
+from model_forge.harness.outputs import build_output_plan
+from model_forge.harness.preparation import build_prepared_run_recipe
+from model_forge.orchestration import ContractSequentialOrchestrator
+from model_forge.specification import SpecificationPackage
 
 
 ARCHITECTURE = Path(__file__).resolve().parents[1] / "architecture"

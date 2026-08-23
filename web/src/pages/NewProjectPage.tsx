@@ -6,7 +6,7 @@ import { api } from "../api/client";
 import { ErrorState } from "../components/Feedback";
 import { Panel } from "../components/Panel";
 
-const DRAFT_KEY = "method-hub-new-project-draft";
+const DRAFT_KEY = "model-forge-new-project-draft";
 
 interface ProjectDraft {
   name: string;

@@ -1,6 +1,6 @@
 {
     "$schema":  "https://json-schema.org/draft/2020-12/schema",
-    "$id":  "https://method-hub.local/architecture/schemas/attention-item.schema.json",
+    "$id":  "https://model-forge.local/architecture/schemas/attention-item.schema.json",
     "title":  "Research Attention Item",
     "description":  "An immutable version of a research question or defect. Later disposition changes create a new version and current attention is derived separately.",
     "type":  "object",

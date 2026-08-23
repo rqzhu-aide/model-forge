@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/command-attempt-audit-event.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/command-attempt-audit-event.schema.json",
   "title": "Command Attempt Audit Event",
   "description": "One append-only, tamper-evident operational record of a controlled command check. It records authorization and command-processing facts but has no scientific authority.",
   "type": "object",

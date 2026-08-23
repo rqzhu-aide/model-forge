@@ -23,7 +23,7 @@ blast-radius verification):
 - Descriptor surface: the correcting state advertises all four correction
   descriptors and lists all four available_recovery_controls.
 
-Fixture strategy: the P3a ``_ServiceStack`` (real MethodHubService +
+Fixture strategy: the P3a ``_ServiceStack`` (real ModelForgeService +
 RunCoordinator over the K-1a3 fixture stack).  The passing lane uses the
 golden-output executor; the failing lane uses a factory that re-emits the
 SAME defective bytes so validation keeps failing.
@@ -37,13 +37,13 @@ from pathlib import Path
 
 import pytest
 
-from method_hub.api.errors import CommandRejected
-from method_hub.api.models import CorrectionRequest
-from method_hub.application.correction_execution import (
+from model_forge.api.errors import CommandRejected
+from model_forge.api.models import CorrectionRequest
+from model_forge.application.correction_execution import (
     record_revalidation_closure,
 )
-from method_hub.executors import DeterministicFakeExecutor
-from method_hub.json_io import loads_json
+from model_forge.executors import DeterministicFakeExecutor
+from model_forge.json_io import loads_json
 
 from test_correction_command_path import (
     CORRECTABLE,

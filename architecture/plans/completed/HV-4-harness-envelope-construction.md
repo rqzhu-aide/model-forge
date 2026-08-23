@@ -95,7 +95,7 @@ artifact bytes, never recomputed-from-memory content.
 
 ### HV-4.1: Define per-output-type scientific payload schema
 
-**Target:** `architecture/schemas/`, `src/method_hub/harness/task_briefs.py`
+**Target:** `architecture/schemas/`, `src/model_forge/harness/task_briefs.py`
 
 For each output type (theory-record, empirical-protocol, manuscript-package,
 review-finding, review-report, and earlier P1/P2 types), define a
@@ -109,8 +109,8 @@ never drift.
 
 ### HV-4.2: Populate harness-owned fields from sealed run facts
 
-**Target:** `src/method_hub/harness/role_execution.py`, new module
-`src/method_hub/harness/envelope.py`
+**Target:** `src/model_forge/harness/role_execution.py`, new module
+`src/model_forge/harness/envelope.py`
 
 A function that takes:
 - The agent's scientific payload (raw output, preserved per HV-1)
@@ -153,7 +153,7 @@ Fields the harness must own:
 
 ### HV-4.4: Pre-validation workspace tool
 
-**Target:** `src/method_hub/harness/envelope.py`
+**Target:** `src/model_forge/harness/envelope.py`
 
 Provide a function the role can call (or the harness applies automatically
 after agent exit) to build and validate a candidate output before closure:
@@ -173,7 +173,7 @@ This:
 
 ### HV-4.5: Update task briefs with concise examples
 
-**Target:** `src/method_hub/harness/task_briefs.py`
+**Target:** `src/model_forge/harness/task_briefs.py`
 
 Include concise, complete, mode-correct examples of the **scientific payload**
 in the task brief -- not the full canonical envelope. The agent sees what it
@@ -187,7 +187,7 @@ so the agent does not attempt to write them.
 
 ### HV-4.6: Update default instruction templates
 
-**Target:** `resources/instructions/`, `src/method_hub/application/default_instructions.py`
+**Target:** `resources/instructions/`, `src/model_forge/application/default_instructions.py`
 
 Instruction templates should instruct agents to focus on scientific content
 and not attempt to populate system envelope fields. The instruction should say
@@ -212,10 +212,10 @@ something like:
 
 | File | Change |
 | --- | --- |
-| `src/method_hub/harness/envelope.py` | New: canonical envelope builder |
-| `src/method_hub/harness/role_execution.py` | Use envelope builder after agent exit |
-| `src/method_hub/harness/task_briefs.py` | Payload-focused examples |
-| `src/method_hub/application/default_instructions.py` | Updated instructions |
+| `src/model_forge/harness/envelope.py` | New: canonical envelope builder |
+| `src/model_forge/harness/role_execution.py` | Use envelope builder after agent exit |
+| `src/model_forge/harness/task_briefs.py` | Payload-focused examples |
+| `src/model_forge/application/default_instructions.py` | Updated instructions |
 | `resources/instructions/**/*.md` | Updated role instructions |
 | `architecture/schemas/` | Optional: payload schema documents |
 | `tests/` | Envelope construction tests |

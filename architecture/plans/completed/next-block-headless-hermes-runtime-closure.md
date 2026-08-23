@@ -102,7 +102,7 @@ automatically.
 
 ### 3.3 Scientific authority and Hermes memory
 
-Formal Method Hub records remain authoritative. Hermes memory is
+Formal Model Forge records remain authoritative. Hermes memory is
 supplementary working context and must be researcher-visible and
 reconstructible. No assumption, method definition, result, conclusion, or
 user decision may exist only in memory.
@@ -161,7 +161,7 @@ Work:
 2. Update architecture 08 and the role-profile schema only as authorized by
    that ADR.
 3. Define a versioned `ProfileManifest` containing:
-   - exact project ID and Method Hub role;
+   - exact project ID and Model Forge role;
    - mapped Hermes profile name;
    - SOUL, configuration, and skill digests;
    - exact skill names and versions;
@@ -231,7 +231,7 @@ Work:
 Memory-policy realization:
 
 The canonical project profile is never mounted directly as writable. While
-holding the profile mutex, Method Hub creates a per-invocation writable
+holding the profile mutex, Model Forge creates a per-invocation writable
 runtime profile or overlay from a consistent canonical snapshot. Hermes
 writes only to that isolated runtime state.
 
@@ -523,7 +523,7 @@ Use the real pinned Hermes runtime:
     diagnostics, retained state, and evidence;
 25. Hermes internal failure with process exit code 0;
 26. cleanup and retention with active, unresolved, and closed invocations; and
-27. before and after inventories of formal scientific Method Hub state.
+27. before and after inventories of formal scientific Model Forge state.
 
 Linux-only tests must be marked clearly on unsupported hosts. They are not
 replaced by mocks.

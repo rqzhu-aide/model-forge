@@ -1,6 +1,6 @@
 {
     "$schema":  "https://json-schema.org/draft/2020-12/schema",
-    "$id":  "https://method-hub.local/architecture/schemas/phase-contract.schema.json",
+    "$id":  "https://model-forge.local/architecture/schemas/phase-contract.schema.json",
     "title":  "Research Phase Contract Registry",
     "description":  "Machine-readable contracts that define what each phase means, what the user controls, what roles do, and how validated work becomes current.",
     "type":  "object",

@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from method_hub.contracts.runtime import resolve_runtime_contract
-from method_hub.domain.identities import ArtifactPointer, MethodIdentity
-from method_hub.harness.inputs import (
+from model_forge.contracts.runtime import resolve_runtime_contract
+from model_forge.domain.identities import ArtifactPointer, MethodIdentity
+from model_forge.harness.inputs import (
     CurrentRecordReference,
     resolve_run_inputs,
 )
-from method_hub.specification import SpecificationPackage
+from model_forge.specification import SpecificationPackage
 
 
 ARCHITECTURE = Path(__file__).resolve().parents[1] / "architecture"

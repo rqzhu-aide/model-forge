@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/run-submission.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/run-submission.schema.json",
   "title": "Immutable Run Submission",
   "description": "The harness-assembled immutable candidate package accepted at the running-to-submitted boundary after every selected role-plan step has one successful validated closure.",
   "type": "object",

@@ -1,0 +1,906 @@
+"""Local Hermes executor: supervised direct execution (ADR-012, Block 4).
+
+This executor replaces the interim OneShotExecutor + bwrap combination with
+direct supervised execution of the installed Hermes binary.  It is the only
+supported Version 1 real-Hermes backend.
+
+Key differences from OneShotExecutor:
+
+* **No bwrap.** Hermes runs directly as a local process.  The host is trusted
+  (ADR-012); Model Forge does not claim operating-system isolation.
+* **Durable process identity.** The external execution ID binds the PID,
+  process start time, executable path, and a per-invocation marker to
+  distinguish PID reuse.
+* **Restart reconciliation.** On application restart, the recorded identity
+  is inspected to determine whether the process is still running, exited
+  naturally, or was terminated.  No automatic relaunch.
+* **Hermes version detection.** Preflight records the installed Hermes
+  executable path and version.  A changed version is surfaced and recorded
+  in the next manifest — no image rebuild.
+* **Process-tree quiescence.** Cancellation and timeout terminate the
+  complete process tree (via process group) and verify quiescence before
+  recording closure.
+
+Built from ``executors/oneshot.py`` which already implements:
+  - one-shot ``hermes -z`` launch (the process IS the agent)
+  - file-mounted task briefs
+  - bounded streamed output with a live cap
+  - secret redaction
+  - PID-based external identity
+  - heartbeat polling
+  - before/after memory digests
+
+The Block 4 work strips the ``bwrap`` wrapper, adds durable process identity,
+restart reconciliation, and verified process-tree quiescence.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import hashlib
+import logging
+import os
+import re
+import signal
+import subprocess
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Mapping
+
+from ..capabilities.network import NetworkPolicy
+from .protocol import (
+    ExecutionObserver,
+    RoleExecutionResult,
+    RoleExecutionStatus,
+    RoleInvocation,
+)
+
+logger = logging.getLogger(__name__)
+
+# --------------------------------------------------------------------------- #
+# Constants                                                                    #
+# --------------------------------------------------------------------------- #
+
+_HERMES_BINARY = "hermes"
+
+#: Environment variables passed through to Hermes.
+_ENVIRONMENT_ALLOWLIST: frozenset[str] = frozenset(
+    {"PATH", "HOME", "USER", "SHELL", "LANG", "LC_ALL", "LC_CTYPE",
+     "TERM", "TMPDIR"}
+)
+
+#: Regex for redacting secrets from captured output.  ``sk-`` keys may
+#: contain dashes and underscores (e.g. ``sk-proj-...``), so the class
+#: includes both.
+_SECRET_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"(sk-[a-zA-Z0-9_-]{20,})"),
+    re.compile(r"(Bearer\s+[a-zA-Z0-9._\-]{20,})"),
+    re.compile(
+        r"((?:api[_-]?key|token|secret|password)\s*[=:]\s*['\"]?"
+        r"[a-zA-Z0-9+/=]{16,}['\"]?)",
+        re.IGNORECASE,
+    ),
+)
+
+_DEFAULT_OUTPUT_LIMIT_BYTES = 1_048_576  # 1 MiB
+_HEARTBEAT_INTERVAL_SECONDS = 10.0
+_TERMINATE_GRACE_SECONDS = 5
+_KILL_GRACE_SECONDS = 3
+
+#: The prompt instructing the agent to read its brief.
+_BRIEF_PROMPT_TEMPLATE = (
+    "Read and execute the task brief at {brief_path}. "
+    "Write only the declared output files."
+)
+
+
+def _redact(text: str) -> str:
+    """Replace likely-secret substrings with a placeholder."""
+    redacted = text
+    for pattern in _SECRET_PATTERNS:
+        redacted = pattern.sub("[REDACTED]", redacted)
+    return redacted
+
+
+#: Read chunk size for bounded stream reading.  Using read(N) instead of
+#: readline() avoids LimitOverrunError on over-long lines (F2).
+_CHUNK_SIZE = 65536
+
+
+class _StreamCapture:
+    """Mutable per-stream capture state for cumulative output bounds.
+
+    Tracks the number of bytes actually stored (``captured``) and whether
+    the ``[output truncated]`` marker has already been appended.  Bytes
+    beyond the cap are drained from the pipe but discarded so the child
+    process never blocks on a full pipe (F1).
+    """
+
+    __slots__ = ("captured", "truncated", "buffer")
+
+    def __init__(self) -> None:
+        self.captured: int = 0
+        self.truncated: bool = False
+        self.buffer: list[str] = []
+
+
+# --------------------------------------------------------------------------- #
+# Process identity                                                            #
+# --------------------------------------------------------------------------- #
+
+
+@dataclass(frozen=True, slots=True)
+class ProcessIdentity:
+    """Durable identity for a local Hermes process.
+
+    Binds the PID, executable path, a per-invocation marker, and the host
+    boot ID to distinguish PID reuse across process lifetimes.  The start
+    time is deliberately not stored here (M2): it is read from
+    ``/proc/<pid>/stat`` at format/verify time so it can never go stale.
+    """
+
+    pid: int
+    executable: str  # resolved Hermes binary path
+    invocation_marker: str  # unique per-invocation token
+    host_boot_id: str | None = None  # /proc/sys/kernel/random/boot_id if available
+
+
+def _read_boot_id() -> str | None:
+    """Read the host boot identity for PID-reuse disambiguation."""
+    try:
+        return Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+    except OSError:
+        return None
+
+
+def _check_process_alive(pid: int) -> bool:
+    """Check whether a process with the given PID exists and is not a zombie.
+
+    ``os.kill(pid, 0)`` also succeeds for zombie entries, so the process
+    state (field 3 of ``/proc/<pid>/stat``) is inspected as well: a zombie
+    ('Z') has already exited and counts as dead (M6).
+    """
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    # The PID exists — but the entry may be a zombie awaiting reaping.
+    try:
+        stat_data = Path(f"/proc/{pid}/stat").read_text()
+        paren_end = stat_data.rfind(")")
+        if paren_end == -1:
+            return True
+        fields = stat_data[paren_end + 2:].split()
+        return not (fields and fields[0] == "Z")
+    except (OSError, ValueError, IndexError):
+        # /proc entry vanished between the kill check and the read.
+        return False
+
+
+def _get_process_starttime(pid: int) -> float | None:
+    """Get the process start time (field 22 of /proc/<pid>/stat).
+
+    This distinguishes PID reuse: if the start time changes, the original
+    process has exited and a different process now uses the same PID.
+    """
+    try:
+        stat_data = Path(f"/proc/{pid}/stat").read_text()
+        # The start time is field 22 (1-indexed).  But comm (field 2) may
+        # contain spaces if the process name has them, so we find the
+        # closing paren and parse from there.
+        paren_end = stat_data.rfind(")")
+        if paren_end == -1:
+            return None
+        fields = stat_data[paren_end + 2:].split()
+        # After "comm) state ppid pgrp session tty_nr tpgid flags ..."
+        # field 22 in the full stat is starttime (index 19 after paren).
+        if len(fields) > 19:
+            return float(fields[19])
+        return None
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+def _identity_matches(identity: Mapping[str, Any], pid: int) -> bool:
+    """Check whether ``pid`` still refers to the process in ``identity``.
+
+    Compares ``/proc/<pid>/stat`` field 22 (start time) against the ``st:``
+    value embedded in the identity, and the embedded ``bi:`` boot ID against
+    the current host boot ID.  A mismatch means the PID was recycled for an
+    unrelated process, so signalling it would be unsafe.
+    """
+    expected_starttime = identity.get("starttime")
+    if expected_starttime is not None:
+        actual_starttime = _get_process_starttime(pid)
+        if actual_starttime is None or actual_starttime != expected_starttime:
+            return False
+    expected_boot_id = identity.get("boot_id")
+    if expected_boot_id is not None:
+        current_boot_id = _read_boot_id()
+        if current_boot_id is not None and current_boot_id != expected_boot_id:
+            return False
+    return True
+
+
+# --------------------------------------------------------------------------- #
+# Settings                                                                     #
+# --------------------------------------------------------------------------- #
+
+
+@dataclass(frozen=True, slots=True)
+class LocalHermesExecutorSettings:
+    """Configuration for :class:`LocalHermesExecutor`."""
+
+    #: Hermes binary name or absolute path.  Resolved via shutil.which.
+    hermes_binary: str = _HERMES_BINARY
+    #: Hermes home directory (``~/.hermes``).
+    hermes_home: Path | None = None
+    #: Emit ``-p <profile>`` when the invocation names a profile.  When
+    #: False the profile argument is never emitted: the invocation runs
+    #: with the Hermes home itself as the active profile (WP-E0 run
+    #: launcher, where the assembled run profile IS the home).
+    use_profile_arg: bool = True
+    #: Polling interval for heartbeats.
+    poll_interval_seconds: float = _HEARTBEAT_INTERVAL_SECONDS
+    #: Maximum captured output size per stream.
+    output_limit_bytes: int = _DEFAULT_OUTPUT_LIMIT_BYTES
+    #: Secret environment variables injected at runtime — never persisted.
+    secret_env: Mapping[str, str] = field(default_factory=dict)
+    #: Default network policy (informational only under trusted-local;
+    #: Model Forge does not enforce network isolation per ADR-012).
+    default_network_policy: NetworkPolicy | None = None
+    #: Grace period (seconds) for SIGTERM before escalating to SIGKILL.
+    terminate_grace_seconds: int = _TERMINATE_GRACE_SECONDS
+    #: Grace period (seconds) for SIGKILL before giving up.
+    kill_grace_seconds: int = _KILL_GRACE_SECONDS
+
+
+# --------------------------------------------------------------------------- #
+# Executor                                                                     #
+# --------------------------------------------------------------------------- #
+
+
+class LocalHermesExecutor:
+    """Execute role invocations via direct local Hermes execution.
+
+    Implements the :class:`RoleExecutor` protocol.  Each invocation:
+
+    1. Resolves and verifies the Hermes executable (records version).
+    2. Launches ``hermes -z`` directly (no shell, no bwrap).
+    3. Records a durable process identity immediately after creation.
+    4. Streams stdout/stderr under fixed bounds.
+    5. Heartbeats at regular intervals.
+    6. On exit: validates output, returns terminal result.
+    7. On cancellation/timeout: terminates the full process tree.
+    8. On restart: reconciles using the recorded identity.
+
+    This executor does NOT provide host isolation (ADR-012).
+    """
+
+    def __init__(self, settings: LocalHermesExecutorSettings) -> None:
+        self.settings = settings
+        #: Cache of Hermes version info, populated by preflight.
+        self._hermes_version: str | None = None
+        self._hermes_executable: str | None = None
+
+    # ------------------------------------------------------------------ #
+    # Execute                                                            #
+    # ------------------------------------------------------------------ #
+
+    async def execute(
+        self,
+        invocation: RoleInvocation,
+        observer: ExecutionObserver,
+    ) -> RoleExecutionResult:
+        await observer.launch_intent(invocation)
+
+        # Preflight: resolve and verify the Hermes executable.
+        hermes_bin = self._resolve_hermes_binary()
+        if hermes_bin is None:
+            return RoleExecutionResult(
+                status=RoleExecutionStatus.FAILED,
+                external_execution_id=None,
+                exit_code=None,
+                summary="Hermes binary not found.",
+                diagnostic_text=(
+                    f"Could not find '{self.settings.hermes_binary}' in PATH "
+                    f"or at known locations."
+                ),
+            )
+
+        # Record Hermes version (no container rebuild — just record it).
+        version_info = await self._get_hermes_version(hermes_bin)
+
+        # Verify mount sources.
+        mount_problems = self._verify_mounts(invocation)
+        if mount_problems:
+            return RoleExecutionResult(
+                status=RoleExecutionStatus.FAILED,
+                external_execution_id=None,
+                exit_code=None,
+                summary="Pre-launch verification failed.",
+                diagnostic_text="; ".join(mount_problems),
+            )
+
+        try:
+            command = self._build_command(invocation, hermes_bin)
+            env = self._build_environment(invocation)
+
+            # Launch the process directly (no shell, no bwrap).
+            workspace_cwd = invocation.workspace.resolve()
+            process = await asyncio.create_subprocess_exec(
+                *command,
+                stdin=asyncio.subprocess.DEVNULL,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env=env,
+                cwd=str(workspace_cwd),  # F3: run in the run workspace.
+                start_new_session=True,  # Creates a new process group.
+            )
+
+            try:
+                # Record durable process identity immediately.
+                boot_id = _read_boot_id()
+                identity = ProcessIdentity(
+                    pid=process.pid,
+                    executable=hermes_bin,
+                    invocation_marker=invocation.execution_id,
+                    host_boot_id=boot_id,
+                )
+                external_id = self._format_external_id(identity)
+
+                # C1: acknowledge the launch with the REAL durable external
+                # ID (not a placeholder) so cancel()/reconcile() can act on
+                # it later — the old placeholder carried no parseable PID.
+                await observer.launch_acknowledged(invocation, external_id)
+
+                # Incremental output streaming.  F1: a single cumulative cap per
+                # stream is enforced across the whole execute() call.  F2: bounded
+                # chunk reads (read(N)) make line length irrelevant.
+                limit = self.settings.output_limit_bytes
+                stdout_cap = _StreamCapture()
+                stderr_cap = _StreamCapture()
+
+                deadline = time.monotonic() + invocation.timeout_seconds
+                start_time = time.monotonic()
+
+                async def _read_stream(
+                    stream: asyncio.StreamReader | None,
+                    cap: _StreamCapture,
+                ) -> None:
+                    """Read bounded chunks; store up to limit, drain the rest.
+
+                    Uses read(CHUNK) instead of readline() so over-long lines
+                    (F2) do not raise LimitOverrunError.  The cumulative cap
+                    (F1) is enforced via the ``cap`` state object: once it is
+                    reached, remaining bytes are drained from the pipe and
+                    discarded so the child never blocks on a full pipe, and a
+                    single ``[output truncated]`` marker is appended once.
+                    """
+                    if stream is None:
+                        return
+                    marker = "\n[output truncated]"
+                    while True:
+                        try:
+                            chunk = await stream.read(_CHUNK_SIZE)
+                        except asyncio.LimitOverrunError:
+                            # StreamReader internal buffer exceeded — should not
+                            # happen with read(N), but drain defensively.
+                            continue
+                        except Exception:
+                            break
+                        if not chunk:
+                            break
+                        if cap.truncated:
+                            # Cap already reached — discard bytes but keep
+                            # draining so the child does not block on a full pipe.
+                            continue
+                        remaining = limit - cap.captured
+                        if remaining <= len(marker.encode()):
+                            # No room for more data — append marker once, then
+                            # keep draining the rest of the pipe.
+                            cap.buffer.append(marker)
+                            cap.captured += len(marker.encode())
+                            cap.truncated = True
+                            continue
+                        # Store as many bytes as we can, reserving room for the
+                        # marker if this chunk crosses the boundary.
+                        room = remaining - len(marker.encode())
+                        store = chunk[:room]
+                        cap.buffer.append(store.decode("utf-8", errors="replace"))
+                        cap.captured += len(store)
+                        if len(chunk) > room:
+                            # Chunk crossed the cap boundary.
+                            cap.buffer.append(marker)
+                            cap.captured += len(marker.encode())
+                            cap.truncated = True
+
+                while True:
+                    read_task = asyncio.gather(
+                        _read_stream(process.stdout, stdout_cap),
+                        _read_stream(process.stderr, stderr_cap),
+                    )
+                    try:
+                        await asyncio.wait_for(
+                            read_task, timeout=self.settings.poll_interval_seconds
+                        )
+                    except asyncio.TimeoutError:
+                        read_task.cancel()
+
+                    if process.returncode is not None:
+                        # Process exited — drain remaining output.
+                        drain_task = asyncio.gather(
+                            _read_stream(process.stdout, stdout_cap),
+                            _read_stream(process.stderr, stderr_cap),
+                        )
+                        try:
+                            await asyncio.wait_for(drain_task, timeout=5)
+                        except asyncio.TimeoutError:
+                            drain_task.cancel()
+
+                        stdout_text = "".join(stdout_cap.buffer)
+                        stderr_text = "".join(stderr_cap.buffer)
+                        exit_code = process.returncode
+                        status = (
+                            RoleExecutionStatus.SUCCEEDED
+                            if exit_code == 0
+                            else RoleExecutionStatus.FAILED
+                        )
+                        return RoleExecutionResult(
+                            status=status,
+                            external_execution_id=external_id,
+                            exit_code=exit_code,
+                            summary=(
+                                f"Hermes exited with code {exit_code}. "
+                                f"Version: {version_info}"
+                            ),
+                            diagnostic_text=_redact(
+                                f"{stderr_text}\n--- stdout ---\n{stdout_text}".strip()
+                            ),
+                            captured_stdout=_redact(stdout_text),
+                            captured_stderr=_redact(stderr_text),
+                        )
+
+                    elapsed = time.monotonic() - start_time
+                    await observer.heartbeat(
+                        invocation,
+                        f"Hermes PID {process.pid} running "
+                        f"(elapsed {elapsed:.0f}s, version: {version_info})",
+                    )
+
+                    if time.monotonic() >= deadline:
+                        # Timeout — terminate the full process tree.
+                        await self._terminate_process_tree(process)
+                        stdout_text = "".join(stdout_cap.buffer)
+                        stderr_text = "".join(stderr_cap.buffer)
+                        return RoleExecutionResult(
+                            status=RoleExecutionStatus.FAILED,
+                            external_execution_id=external_id,
+                            exit_code=None,
+                            summary="Hermes exceeded its time limit.",
+                            diagnostic_text=_redact(
+                                f"Timed out after {invocation.timeout_seconds}s\n"
+                                f"--- stderr ---\n{stderr_text}\n"
+                                f"--- stdout ---\n{stdout_text}"
+                            ),
+                            captured_stdout=_redact(stdout_text),
+                            captured_stderr=_redact(stderr_text),
+                        )
+            finally:
+                # C3: on any abnormal exit (task cancellation, an observer
+                # raising, ...) ensure the child process tree is terminated
+                # and the pipe FDs are released — never leak them.
+                if process.returncode is None:
+                    await self._terminate_process_tree(process)
+                # Force-close the subprocess transport so the pipe FDs are
+                # released even if the streams were never drained to EOF.
+                transport = getattr(process, "_transport", None)
+                if transport is not None:
+                    try:
+                        transport.close()
+                    except Exception:
+                        pass  # Best effort — the process tree is already gone.
+
+        except (OSError, subprocess.SubprocessError) as error:
+            return RoleExecutionResult(
+                status=RoleExecutionStatus.FAILED,
+                external_execution_id=None,
+                exit_code=None,
+                summary="Local Hermes execution failed to start.",
+                diagnostic_text=str(error),
+            )
+
+    # ------------------------------------------------------------------ #
+    # Process-tree termination                                           #
+    # ------------------------------------------------------------------ #
+
+    async def _terminate_process_tree(
+        self, process: asyncio.subprocess.Process
+    ) -> None:
+        """Terminate the complete process tree with verified quiescence.
+
+        1. Send SIGTERM to the process group.
+        2. Wait up to terminate_grace_seconds for the process to exit.
+        3. If still alive, send SIGKILL to the process group.
+        4. Wait up to kill_grace_seconds for exit.
+        5. Verify quiescence (process no longer exists).
+        """
+        pid = process.pid
+        # 1. SIGTERM to the process group.
+        try:
+            os.killpg(os.getpgid(pid), signal.SIGTERM)
+        except OSError:
+            pass
+
+        # 2. Wait for graceful exit.
+        try:
+            await asyncio.wait_for(
+                process.wait(), timeout=self.settings.terminate_grace_seconds
+            )
+            return  # Process exited gracefully.
+        except asyncio.TimeoutError:
+            pass
+
+        # 3. SIGKILL the process group.
+        try:
+            os.killpg(os.getpgid(pid), signal.SIGKILL)
+        except OSError:
+            pass
+
+        # 4. Wait for forced exit.
+        try:
+            await asyncio.wait_for(
+                process.wait(), timeout=self.settings.kill_grace_seconds
+            )
+        except asyncio.TimeoutError:
+            pass
+
+        # 5. Verify quiescence.
+        if _check_process_alive(pid):
+            # Process is somehow still alive — log but don't hang.
+            pass
+
+    # ------------------------------------------------------------------ #
+    # Cancel (protocol conformance)                                      #
+    # ------------------------------------------------------------------ #
+
+    async def cancel(self, external_execution_id: str) -> None:
+        """Terminate a running Hermes process by external execution ID.
+
+        Parses the full durable identity and verifies it still matches the
+        process behind the PID before sending SIGTERM → SIGKILL to the
+        process group.  If the PID was recycled for an unrelated process
+        (start time or boot ID mismatch), the group is NOT killed (C2).
+        """
+        identity = self._parse_external_id(external_execution_id)
+        if identity is None:
+            return
+        pid = identity.get("pid")
+        if pid is None:
+            return
+
+        # C2: verify identity before killing.  Signalling on PID alone is
+        # unsafe: the OS may have recycled the PID for an unrelated
+        # process group since the invocation was recorded.
+        if not _identity_matches(identity, pid):
+            logger.warning(
+                "cancel(%s): refusing to kill PID %d — identity mismatch "
+                "(PID reused or host rebooted); process group left alone.",
+                external_execution_id,
+                pid,
+            )
+            return
+
+        # SIGTERM the process group.
+        try:
+            os.killpg(os.getpgid(pid), signal.SIGTERM)
+        except OSError:
+            return  # Already dead.
+
+        # Wait for exit.
+        for _ in range(self.settings.terminate_grace_seconds * 10):
+            if not _check_process_alive(pid):
+                return
+            await asyncio.sleep(0.1)
+
+        # Escalate to SIGKILL.
+        try:
+            os.killpg(os.getpgid(pid), signal.SIGKILL)
+        except OSError:
+            pass
+
+    # ------------------------------------------------------------------ #
+    # Reconcile (restart recovery)                                       #
+    # ------------------------------------------------------------------ #
+
+    async def reconcile(
+        self, external_execution_id: str
+    ) -> RoleExecutionResult | None:
+        """Check if a Hermes process from a previous session is still running.
+
+        Uses durable process identity to distinguish PID reuse:
+        - If the PID no longer exists → process exited naturally.
+        - If the PID exists but start time changed → PID was reused.
+        - If the PID exists with same start time → still running.
+        """
+        identity = self._parse_external_id(external_execution_id)
+        if identity is None:
+            return None
+
+        pid = identity.get("pid")
+        if pid is None:
+            return None
+
+        if not _check_process_alive(pid):
+            return RoleExecutionResult(
+                status=RoleExecutionStatus.FAILED,
+                external_execution_id=external_execution_id,
+                exit_code=None,
+                summary="Hermes process exited (no longer exists).",
+                diagnostic_text="Process not found during restart reconciliation.",
+            )
+
+        # Check PID reuse via start time.
+        expected_starttime = identity.get("starttime")
+        if expected_starttime is not None:
+            actual_starttime = _get_process_starttime(pid)
+            if actual_starttime is not None and actual_starttime != expected_starttime:
+                # PID was reused — original process is gone.
+                return RoleExecutionResult(
+                    status=RoleExecutionStatus.FAILED,
+                    external_execution_id=external_execution_id,
+                    exit_code=None,
+                    summary="Hermes process exited (PID reused by another process).",
+                    diagnostic_text=(
+                        f"PID {pid} start time changed from "
+                        f"{expected_starttime} to {actual_starttime}."
+                    ),
+                )
+
+        # Process is still running with the same identity.
+        # C4: the start time alone cannot detect cross-reboot PID reuse —
+        # the boot ID embedded in the external ID must still match the
+        # current host boot.  If the host rebooted since launch, any
+        # process now holding this PID is unrelated.
+        expected_boot_id = identity.get("boot_id")
+        if expected_boot_id is not None:
+            current_boot_id = _read_boot_id()
+            if current_boot_id is not None and current_boot_id != expected_boot_id:
+                return RoleExecutionResult(
+                    status=RoleExecutionStatus.FAILED,
+                    external_execution_id=external_execution_id,
+                    exit_code=None,
+                    summary="Hermes process exited (host rebooted since launch).",
+                    diagnostic_text=(
+                        f"Boot ID changed from {expected_boot_id} to "
+                        f"{current_boot_id} — PID {pid} cannot belong to "
+                        "the recorded invocation."
+                    ),
+                )
+
+        # Process is still running with the same identity.
+        return None  # Still running — caller can decide to cancel or wait.
+
+    # ------------------------------------------------------------------ #
+    # Hermes version detection                                           #
+    # ------------------------------------------------------------------ #
+
+    async def _get_hermes_version(self, hermes_bin: str) -> str:
+        """Get the installed Hermes version for manifest recording."""
+        if self._hermes_version is not None:
+            return self._hermes_version
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                hermes_bin, "--version",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            try:
+                stdout_b, _ = await asyncio.wait_for(
+                    proc.communicate(), timeout=10
+                )
+            except asyncio.TimeoutError:
+                # M7: the version probe timed out — kill the child instead
+                # of leaking it.
+                proc.kill()
+                await proc.wait()
+                raise
+            version = stdout_b.decode("utf-8", errors="replace").strip()
+            self._hermes_version = version
+            self._hermes_executable = hermes_bin
+            return version
+        except (OSError, asyncio.TimeoutError):
+            return "unknown"
+
+    # ------------------------------------------------------------------ #
+    # Command construction                                               #
+    # ------------------------------------------------------------------ #
+
+    def _build_command(
+        self, invocation: RoleInvocation, hermes_bin: str
+    ) -> list[str]:
+        """Build the Hermes command for one invocation.
+
+        No bwrap wrapper — Hermes runs directly.  The command is:
+            hermes -p <profile> -z "<prompt>" [--model M] [--provider P]
+                   [--skills S1,S2] --usage-file <path>
+        """
+        workspace = invocation.workspace.resolve()
+        task_brief = invocation.task_brief.resolve()
+
+        one_shot_prompt = _BRIEF_PROMPT_TEMPLATE.format(
+            brief_path=str(task_brief)
+        )
+
+        command: list[str] = [hermes_bin]
+        if invocation.profile and self.settings.use_profile_arg:
+            command.extend(["-p", invocation.profile])
+        command.extend(["-z", one_shot_prompt])
+
+        model = invocation.metadata.get("model")
+        provider = invocation.metadata.get("provider")
+        if model:
+            command.extend(["-m", str(model)])
+        if provider:
+            command.extend(["--provider", str(provider)])
+        if invocation.preloaded_skills:
+            command.extend(
+                ["--skills", ",".join(invocation.preloaded_skills)]
+            )
+        usage_file = str(workspace / "usage.json")
+        command.extend(["--usage-file", usage_file])
+
+        return command
+
+    def _build_environment(self, invocation: RoleInvocation) -> dict[str, str]:
+        """Build a minimal environment for the Hermes process."""
+        env: dict[str, str] = {}
+        for key in _ENVIRONMENT_ALLOWLIST:
+            value = os.environ.get(key)
+            if value is not None:
+                env[key] = value
+        # Set HERMES_HOME if configured.
+        hermes_home = self._resolve_hermes_home(invocation)
+        if hermes_home is not None:
+            env["HERMES_HOME"] = str(hermes_home)
+        # Inject secret env vars.
+        for key, value in self.settings.secret_env.items():
+            env[key] = value
+        return env
+
+    # ------------------------------------------------------------------ #
+    # Preflight and verification                                         #
+    # ------------------------------------------------------------------ #
+
+    def _resolve_hermes_binary(self) -> str | None:
+        """Resolve the Hermes binary to an absolute path."""
+        import shutil
+        path = shutil.which(self.settings.hermes_binary)
+        if path:
+            return path
+        for candidate in (
+            Path.home() / ".local/bin/hermes",
+            Path("/usr/local/bin/hermes"),
+            Path("/usr/bin/hermes"),
+        ):
+            if candidate.exists():
+                return str(candidate)
+        return None
+
+    def _resolve_hermes_home(self, invocation: RoleInvocation) -> Path | None:
+        if self.settings.hermes_home is not None:
+            return self.settings.hermes_home.resolve()
+        hermes_home = (Path.home() / ".hermes")
+        return hermes_home if hermes_home.is_dir() else None
+
+    def _verify_mounts(self, invocation: RoleInvocation) -> list[str]:
+        """Pre-launch verification of workspace and task brief."""
+        problems: list[str] = []
+        workspace = invocation.workspace.resolve()
+        if not workspace.is_dir():
+            problems.append(f"Workspace directory missing: {workspace}")
+        task_brief = invocation.task_brief.resolve()
+        if not task_brief.is_file():
+            problems.append(f"Task brief file missing: {task_brief}")
+        return problems
+
+    # ------------------------------------------------------------------ #
+    # External identity format                                           #
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def _format_external_id(identity: ProcessIdentity) -> str:
+        """Format a durable external execution ID.
+
+        Format:
+        ``local:pid:<N>:st:<STARTTIME>:mk:<MARKER>:bi:<BOOT_ID>``
+        where STARTTIME is /proc/<pid>/stat field 22 (clock ticks) and
+        BOOT_ID is the host boot ID, which makes cross-reboot PID reuse
+        detectable (C4).
+        """
+        starttime = _get_process_starttime(identity.pid)
+        st_str = f"{starttime}" if starttime is not None else "unknown"
+        boot_id = identity.host_boot_id or "unknown"
+        return (
+            f"local:pid:{identity.pid}:st:{st_str}:"
+            f"mk:{identity.invocation_marker[:12]}:bi:{boot_id}"
+        )
+
+    @staticmethod
+    def _extract_pid(external_execution_id: str) -> int | None:
+        """Extract the PID from a local external execution ID.
+
+        Only accepts IDs with the ``local:`` prefix.
+        """
+        if not external_execution_id.startswith("local:"):
+            return None
+        parts = external_execution_id.split(":")
+        # local:pid:<N>:st:...:mk:...
+        if len(parts) >= 3 and parts[1] == "pid":
+            try:
+                return int(parts[2])
+            except ValueError:
+                return None
+        return None
+
+    @staticmethod
+    def _parse_external_id(
+        external_execution_id: str
+    ) -> dict[str, Any] | None:
+        """Parse a durable external execution ID into its components."""
+        parts = external_execution_id.split(":")
+        if len(parts) < 3 or parts[0] != "local":
+            return None
+        result: dict[str, Any] = {}
+        i = 1
+        while i + 1 < len(parts):
+            key = parts[i]
+            value = parts[i + 1]
+            if key == "pid":
+                try:
+                    result["pid"] = int(value)
+                except ValueError:
+                    pass
+            elif key == "st":
+                try:
+                    result["starttime"] = float(value)
+                except ValueError:
+                    result["starttime"] = None
+            elif key == "mk":
+                result["marker"] = value
+            elif key == "bi":
+                result["boot_id"] = value
+            i += 2
+        return result if "pid" in result else None
+
+    # ------------------------------------------------------------------ #
+    # Memory-state digests (C3)                                          #
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def record_memory_state(profile_dir: Path) -> dict[str, Any]:
+        """Record a digest snapshot of the profile's memory state (C3).
+
+        Called before and after each invocation.  The digests are attached
+        to the invocation record so every run's full context basis is
+        reproducible.
+        """
+        memories_dir = profile_dir / "memories"
+        result: dict[str, Any] = {}
+        for filename in ("MEMORY.md", "USER.md"):
+            path = memories_dir / filename
+            if path.exists():
+                result[filename.lower().replace(".md", "_sha256")] = (
+                    hashlib.sha256(path.read_bytes()).hexdigest()
+                )
+            else:
+                result[filename.lower().replace(".md", "_sha256")] = None
+        return result
+
+
+__all__ = [
+    "LocalHermesExecutor",
+    "LocalHermesExecutorSettings",
+    "ProcessIdentity",
+]

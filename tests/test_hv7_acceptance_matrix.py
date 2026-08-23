@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import pytest
 
-from method_hub.application.correction import (
+from model_forge.application.correction import (
     MAX_PACKAGING_ATTEMPTS,
     MAX_SCIENTIFIC_ATTEMPTS,
     OutputCorrectionCommand,
@@ -32,21 +32,21 @@ from method_hub.application.correction import (
     is_correction_exhausted,
     revalidate,
 )
-from method_hub.application.run_views import _compute_projection
-from method_hub.application.shadow_comparison import (
+from model_forge.application.run_views import _compute_projection
+from model_forge.application.shadow_comparison import (
     ShadowComparison,
     ShadowComparisonSummary,
     compare_findings,
 )
-from method_hub.domain.runs import RunStatus, TERMINAL_RUN_STATUSES
-from method_hub.domain.validation import (
+from model_forge.domain.runs import RunStatus, TERMINAL_RUN_STATUSES
+from model_forge.domain.validation import (
     FindingClass,
     ValidationFinding,
     ValidationReport,
     ValidationSeverity,
     make_finding,
 )
-from method_hub.harness.envelope import (
+from model_forge.harness.envelope import (
     SealedRunFacts,
     harness_owned_fields,
     populate_harness_fields,
@@ -231,7 +231,7 @@ class TestCase7PreliminaryOutput:
         """After HV-6.P4 reclassification, this code should be advisory."""
         # This test will pass after the HV-6.P4 subagent reclassifies the code.
         # Until then, verify the shadow comparison would catch the change.
-        from method_hub.domain.validation import get_policy
+        from model_forge.domain.validation import get_policy
         policy = get_policy("p4.evidence_not_exactly_applicable")
         # After reclassification: blocks_publication should be False
         # Before: True. The shadow comparison tracks the difference.
@@ -267,7 +267,7 @@ class TestCase8PreviousMethodEvidence:
     def test_evidence_preserved_not_rejected(self) -> None:
         """The shadow comparison should show the old policy blocking
         and the new policy passing (preserved as advisory)."""
-        from method_hub.domain.validation import get_policy
+        from model_forge.domain.validation import get_policy
         policy = get_policy("p4.evidence_not_exactly_applicable")
         comparison = compare_findings(
             run_id="run-002",
@@ -440,7 +440,7 @@ class TestCase14RestartDuringCorrection:
 
     def test_correction_authorized_not_auto_advanced(self) -> None:
         """The coordinator must return on correction states."""
-        from method_hub.application.run_coordinator import RunCoordinator
+        from model_forge.application.run_coordinator import RunCoordinator
         import inspect
         source = inspect.getsource(RunCoordinator.run)
         assert "correction_authorized" in source
@@ -523,7 +523,7 @@ class TestRegistryCompleteness:
     """The registry-completeness test: every literal finding code registered."""
 
     def test_registry_has_all_three_blocking_classes(self) -> None:
-        from method_hub.domain.validation import (
+        from model_forge.domain.validation import (
             FindingClass,
             all_registered_codes,
             get_policy,

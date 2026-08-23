@@ -5,14 +5,14 @@ import hashlib
 import json
 from pathlib import Path
 
-from method_hub.api.models import (
+from model_forge.api.models import (
     CreateProjectRequest,
     ReasonedActionRequest,
     StartRunRequest,
 )
-from method_hub.api.ports import RawRequestBody
-from method_hub.application.bootstrap import build_service
-from method_hub.application.settings import ApplicationSettings
+from model_forge.api.ports import RawRequestBody
+from model_forge.application.bootstrap import build_service
+from model_forge.application.settings import ApplicationSettings
 
 
 ARCHITECTURE = Path(__file__).resolve().parents[1] / "architecture"

@@ -15,16 +15,16 @@ import hashlib
 import json
 from pathlib import Path
 
-from method_hub.api.models import CorrectionRequest
-from method_hub.application.correction_execution import (
+from model_forge.api.models import CorrectionRequest
+from model_forge.application.correction_execution import (
     incomplete_correction_chain,
 )
-from method_hub.application.run_coordinator import ContractSequentialOrchestrator
-from method_hub.digests.jcs import canonicalize
-from method_hub.executors import DeterministicFakeExecutor, RoleExecutionStatus
-from method_hub.harness.execution_records import correction_role_identity
-from method_hub.harness.preparation import PreparedRunRecipe
-from method_hub.json_io import loads_json
+from model_forge.application.run_coordinator import ContractSequentialOrchestrator
+from model_forge.digests.jcs import canonicalize
+from model_forge.executors import DeterministicFakeExecutor, RoleExecutionStatus
+from model_forge.harness.execution_records import correction_role_identity
+from model_forge.harness.preparation import PreparedRunRecipe
+from model_forge.json_io import loads_json
 
 from test_correction_command_path import (
     CORRECTABLE,

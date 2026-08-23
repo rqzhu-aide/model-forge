@@ -1,5 +1,5 @@
 # Base Hermes profile configuration for the data analyst.
-# Managed by Method Hub configuration. Do not edit inside a run profile.
+# Managed by Model Forge configuration. Do not edit inside a run profile.
 
 profile:
   display_name: Data analyst

@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from method_hub.api.models import CreateProjectRequest
-from method_hub.application.project_commands import ProjectCommandService
-from method_hub.application.view_models import ResearchProjectionService
-from method_hub.specification import SpecificationPackage
-from method_hub.storage.artifacts import ArtifactStore
-from method_hub.storage.paths import WorkspacePaths
-from method_hub.storage.repository import HubRepository
+from model_forge.api.models import CreateProjectRequest
+from model_forge.application.project_commands import ProjectCommandService
+from model_forge.application.view_models import ResearchProjectionService
+from model_forge.specification import SpecificationPackage
+from model_forge.storage.artifacts import ArtifactStore
+from model_forge.storage.paths import WorkspacePaths
+from model_forge.storage.repository import HubRepository
 
 
 ARCHITECTURE = Path(__file__).resolve().parents[1] / "architecture"

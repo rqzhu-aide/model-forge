@@ -16,8 +16,8 @@ much state other roles have accumulated.
 - Closure plan Block 3, fixed rule 3, and acceptance item 4 (a reviewer run
   receives no prior project-role memory or sessions):
   [next-block-local-hermes-execution-closure](../plans/next-block-local-hermes-execution-closure.md).
-- [07-contract-traceability](../07-contract-traceability.md) MH-64 (fresh
-  reviewer state) and MH-29 (the outside reviewer receives only the
+- [07-contract-traceability](../07-contract-traceability.md) MF-64 (fresh
+  reviewer state) and MF-29 (the outside reviewer receives only the
   harness-prepared review packet). Invariant INV-004.
 
 ## Setup

@@ -4,25 +4,25 @@ import asyncio
 import json
 from pathlib import Path
 
-from method_hub.api.models import CreateProjectRequest
-from method_hub.api.ports import RawRequestBody
-from method_hub.application.service import MethodHubService
-from method_hub.application.settings import ApplicationSettings
-from method_hub.configuration.resources import RoleResourceCatalog
-from method_hub.specification import SpecificationPackage
-from method_hub.storage.artifacts import ArtifactStore
-from method_hub.storage.paths import WorkspacePaths
-from method_hub.storage.repository import HubRepository
+from model_forge.api.models import CreateProjectRequest
+from model_forge.api.ports import RawRequestBody
+from model_forge.application.service import ModelForgeService
+from model_forge.application.settings import ApplicationSettings
+from model_forge.configuration.resources import RoleResourceCatalog
+from model_forge.specification import SpecificationPackage
+from model_forge.storage.artifacts import ArtifactStore
+from model_forge.storage.paths import WorkspacePaths
+from model_forge.storage.repository import HubRepository
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def _service(tmp_path: Path) -> MethodHubService:
+def _service(tmp_path: Path) -> ModelForgeService:
     workspace = WorkspacePaths(tmp_path / "data", create=True)
     repository = HubRepository(workspace.root / "hub.sqlite3")
     repository.initialize()
-    return MethodHubService(
+    return ModelForgeService(
         settings=ApplicationSettings(data_root=workspace.root),
         specification=SpecificationPackage.load(ROOT / "architecture"),
         repository=repository,

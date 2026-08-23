@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/current-index.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/current-index.schema.json",
   "title": "Formal Current Record Index",
   "description": "The backend-owned mapping from logical record slots to exactly one current formal generation.",
   "type": "object",

@@ -18,22 +18,22 @@ from typing import Any
 
 import pytest
 
-from method_hub.application.output_validation import (
+from model_forge.application.output_validation import (
     LaunchNotClosedError,
     OutputValidationReport,
     validate_run_outputs,
 )
-from method_hub.application.run_profile_assembler import (
+from model_forge.application.run_profile_assembler import (
     HermesProbe,
     RunProfileAssembler,
     RunSealError,
     SealedRun,
 )
-from method_hub.configuration.resources import RoleResourceCatalog
-from method_hub.domain.runs import isoformat_utc, utc_now
-from method_hub.profiles.project_profiles import MemoryPolicy
-from method_hub.storage.database import Database
-from method_hub.storage.migrations import HUB_MIGRATIONS
+from model_forge.configuration.resources import RoleResourceCatalog
+from model_forge.domain.runs import isoformat_utc, utc_now
+from model_forge.profiles.project_profiles import MemoryPolicy
+from model_forge.storage.database import Database
+from model_forge.storage.migrations import HUB_MIGRATIONS
 
 ROOT = Path(__file__).resolve().parents[1]
 RESOURCE_ROOT = ROOT / "resources" / "team"
@@ -46,7 +46,7 @@ _GOOD_THEORY = {
     "representations": {"statements": []},
     "invocation_id": "inv-001",
     "run_id": "inv-001",
-    "method_id": "mh-1",
+    "method_id": "mf-1",
 }
 
 
@@ -95,7 +95,7 @@ def _seal_kwargs(**overrides: Any) -> dict[str, Any]:
         project_id="proj-001",
         role="theorist",
         phase="P3",
-        method_identity={"method_id": "mh-1", "version": "1.0"},
+        method_identity={"method_id": "mf-1", "version": "1.0"},
         user_choices={"mode": "headless", "context_policy": "strict"},
         selected_context_references=[
             {"context_id": "ctx-1", "record_id": "rec-1"},
@@ -219,7 +219,7 @@ class TestAllValidPass:
         assert stored["verdict"] == "pass"
         stored_doc = json.loads(stored["report_json"])
         assert stored_doc["verdict"] == "pass"
-        assert stored_doc["format"] == "method-hub.output-validation-report"
+        assert stored_doc["format"] == "model-forge.output-validation-report"
         assert assembler.store.get_seal(sealed.seal_id)["seal_id"] == sealed.seal_id
 
     def test_digests_recorded_match_bytes_on_disk(
@@ -498,7 +498,7 @@ class TestIdentityFailures:
     ) -> None:
         sealed = _seal(assembler)
         doc = dict(_GOOD_THEORY)
-        doc["method_id"] = "mh-other"
+        doc["method_id"] = "mf-other"
         _write_output(sealed, "p3/complete_theory.json", json.dumps(doc))
         _write_output(sealed, "p3/notes.json", json.dumps({"note": "ok"}))
         _write_output(sealed, "p3/fig1.pdf", b"x")

@@ -1,6 +1,6 @@
 {
     "$schema":  "https://json-schema.org/draft/2020-12/schema",
-    "$id":  "https://method-hub.local/architecture/schemas/delegation-revocation.schema.json",
+    "$id":  "https://model-forge.local/architecture/schemas/delegation-revocation.schema.json",
     "title":  "Delegation Revocation",
     "description":  "Append-only user revocation of one exact delegation grant and revocation handle.",
     "type":  "object",

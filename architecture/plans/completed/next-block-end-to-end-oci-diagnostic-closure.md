@@ -28,7 +28,7 @@ Related records:
 Deliver one real Linux path with this exact control flow:
 
 ```text
-method-hub diag start
+model-forge diag start
   -> diagnostic composition root
   -> DiagnosticService
   -> OciExecutor

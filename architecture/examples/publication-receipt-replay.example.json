@@ -9,8 +9,8 @@
     "run_id": "run.p3.replay.20260801t160000z",
     "phase": "P3",
     "manifest_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
-    "submission_id": "submission.p3.replay.001",
-    "submission_sha256": "ac95e19822dbd8dc1eb7d1e921cdc00ec57f4c4e538450974ccb5288754ae1bf"
+    "submission_id": "submission.p4.001",
+    "submission_sha256": "dc718d79e1006554fd39dd523a548a0d1a7f8d49131f69e5d56c602b821dcd20"
   },
   "validation_reports": [
     {
@@ -88,5 +88,5 @@
   "attention_impacts": [],
   "atomic": true,
   "published_at": "2026-08-01T16:00:01Z",
-  "content_sha256": "f158e628fefa95092c66475690a242e0a1569a30320ded4709974fad1186d0c8"
+  "content_sha256": "15e5addae24c852135e46816eb44d407363a40dd61e82959152b74be63fcce72"
 }

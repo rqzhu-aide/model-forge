@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/manuscript-package.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/manuscript-package.schema.json",
   "title": "Phase 5 Manuscript Package",
   "description": "A complete P5 manuscript record that points to the actual readable manuscript artifact and classifies its central claims by upstream support phase.",
   "allOf": [

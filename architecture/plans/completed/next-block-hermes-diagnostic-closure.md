@@ -26,7 +26,7 @@ Related plans:
 
 Deliver one trustworthy Linux diagnostic path in which a researcher can
 explicitly start a fixed synthetic Hermes task, inspect bounded progress and
-logs, cancel it, restart Method Hub, and reconcile the same external execution.
+logs, cancel it, restart Model Forge, and reconcile the same external execution.
 
 The actual Hermes agent and its tools must run inside the declared containment
 boundary. The diagnostic must never create or replace a formal research record.
@@ -51,7 +51,7 @@ through Phase 5 with real Hermes output.
 
 ## 2. Why this block is next
 
-The current code proves that Method Hub can reach Hermes and that one synthetic
+The current code proves that Model Forge can reach Hermes and that one synthetic
 task can finish through the development Kanban adapter. It does not yet prove a
 reliable execution boundary.
 
@@ -207,7 +207,7 @@ Preflight must verify before launch:
 - container creation, inspection, stop, kill, and log capabilities;
 - writable diagnostic root, free space, and configured quotas;
 - effective network policy and provider-only egress mechanism;
-- no access path to a real Method Hub project or formal storage.
+- no access path to a real Model Forge project or formal storage.
 
 Provide a recorded setup procedure for the image and disposable profile. A
 resource that only exists because it was manually created on one developer
@@ -232,7 +232,7 @@ For each diagnostic invocation:
 
 `external_execution_id` must be the identifier accepted by runtime inspect,
 stop, kill, logs, and removal commands. Do not derive cancellation from a
-Method Hub execution ID that the operating system cannot resolve.
+Model Forge execution ID that the operating system cannot resolve.
 
 If the application crashes between create and acknowledgement, recovery must
 locate the existing container by its deterministic invocation label. If its
@@ -358,7 +358,7 @@ Add a small loopback-only diagnostic view. It should show:
 - disposable profile and non-secret provider metadata;
 - configured limits and effective network policy;
 - one Start action;
-- Method Hub invocation ID and actual container ID;
+- Model Forge invocation ID and actual container ID;
 - lifecycle state, heartbeat, elapsed time, and stale-activity warning;
 - bounded redacted stdout, stderr, and structured events;
 - Cancel only while cancellation is legal;

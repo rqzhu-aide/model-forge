@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/traceability-registry.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/traceability-registry.schema.json",
   "title": "Architecture Traceability Registry",
   "description": "Machine-readable links among system invariants, research-workflow requirements, implementation test groups, acceptance scenarios, phase contracts, and roadmap milestones.",
   "type": "object",
@@ -36,7 +36,7 @@
     },
     "requirementId": {
       "type": "string",
-      "pattern": "^MH-[0-9]{2}$"
+      "pattern": "^MF-[0-9]{2}$"
     },
     "testId": {
       "type": "string",

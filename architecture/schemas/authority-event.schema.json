@@ -1,6 +1,6 @@
 {
     "$schema":  "https://json-schema.org/draft/2020-12/schema",
-    "$id":  "https://method-hub.local/architecture/schemas/authority-event.schema.json",
+    "$id":  "https://model-forge.local/architecture/schemas/authority-event.schema.json",
     "title":  "Append-only research authority event",
     "description":  "An immutable event that changes derived publication, record-position, alignment, attention, or evidence-eligibility state without mutating a scientific generation.",
     "type":  "object",

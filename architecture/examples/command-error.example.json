@@ -5,7 +5,7 @@
   "category": "concurrency",
   "http_status": 409,
   "retryable": true,
-  "rule_id": "MH-49",
+  "rule_id": "MF-49",
   "object_refs": [
     "project.demo",
     "command.method.retire.001",

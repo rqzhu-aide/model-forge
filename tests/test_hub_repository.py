@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from method_hub.storage.repository import (
+from model_forge.storage.repository import (
     HubRepository,
     RepositoryConflictError,
     ZERO_SHA256,

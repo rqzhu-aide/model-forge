@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/run-state.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/run-state.schema.json",
   "title": "Controlled Run State Journal",
   "description": "The mutable lifecycle projection and cryptographically chained append-only event journal for a run. It is separate from the immutable run manifest.",
   "type": "object",

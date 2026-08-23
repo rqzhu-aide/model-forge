@@ -26,7 +26,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from method_hub.executors.local_hermes import (
+from model_forge.executors.local_hermes import (
     LocalHermesExecutor,
     LocalHermesExecutorSettings,
     ProcessIdentity,
@@ -34,7 +34,7 @@ from method_hub.executors.local_hermes import (
     _get_process_starttime,
     _read_boot_id,
 )
-from method_hub.executors.protocol import (
+from model_forge.executors.protocol import (
     ExecutionObserver,
     RoleExecutionResult,
     RoleExecutionStatus,

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/role-invocation-closure.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/role-invocation-closure.schema.json",
   "title": "Immutable Role Invocation Closure",
   "description": "The terminal record for one immutable role invocation start. It seals actual context use, verified outputs, accepted handoffs, and failure or cancellation information without changing the start record.",
   "type": "object",

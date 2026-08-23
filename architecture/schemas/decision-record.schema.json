@@ -1,6 +1,6 @@
 {
     "$schema":  "https://json-schema.org/draft/2020-12/schema",
-    "$id":  "https://method-hub.local/architecture/schemas/decision-record.schema.json",
+    "$id":  "https://model-forge.local/architecture/schemas/decision-record.schema.json",
     "title":  "Researcher Decision Record",
     "description":  "An immutable compact lead synthesis that informs the researcher without selecting or launching the next action. Current authority and alignment are derived separately.",
     "type":  "object",

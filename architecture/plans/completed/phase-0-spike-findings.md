@@ -28,7 +28,7 @@ VALID_STATUSES = {"triage", "todo", "scheduled", "ready", "running",
                   "blocked", "review", "done", "archived"}
 ```
 
-There is **no `failed` and no `cancelled`** status. The current Method Hub
+There is **no `failed` and no `cancelled`** status. The current Model Forge
 adapter (`executors/hermes.py:165-184`) maps both, which are dead branches.
 
 Real failure surfaces as **`blocked`** via the circuit breaker
@@ -77,7 +77,7 @@ The effective limit resolution (`kanban_db.py:7653-7663`):
 3. `DEFAULT_FAILURE_LIMIT` (value: 2)
 
 **`--max-retries 1` blocks on the first failure (zero retries).** This is
-the correct setting for Method Hub: a timed-out task goes straight to
+the correct setting for Model Forge: a timed-out task goes straight to
 `blocked` and is never re-dispatched.
 
 The current adapter sets `--max-retries 0`, which means "use the dispatcher
@@ -126,7 +126,7 @@ terminal closure gives bounded agent-output capture.
 - Boards are per-project SQLite DBs under `~/.hermes/kanban/boards/<slug>/`
 - The host gateway dispatches all boards by default
 - Board hygiene (dedicated gateway for diagnostic board) is a Track B concern
-- For Track A, the existing `method-hub` board on the host gateway is sufficient
+- For Track A, the existing `model-forge` board on the host gateway is sufficient
 
 ### 7. Cancellation semantics
 
@@ -154,7 +154,7 @@ writes became quiescent.
 
 Date: 2026-08-03
 Hermes version: v0.19.0
-Task: t_bd8831c8 on board `method-hub`
+Task: t_bd8831c8 on board `model-forge`
 
 A real Hermes agent (profile: `theorist`) completed a synthetic word-count
 task through the hardened executor in 78.4 seconds. Evidence:

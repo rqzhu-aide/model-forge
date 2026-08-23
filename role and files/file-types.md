@@ -3,7 +3,7 @@
 ## Purpose
 
 This page explains the files and structured records that researchers encounter
-in Method Hub. The executable [phase contracts](../architecture/contracts/phases/)
+in Model Forge. The executable [phase contracts](../architecture/contracts/phases/)
 and [schemas](../architecture/schemas/) remain normative. A logical record may
 be stored as a file, database row, or object-store entry as long as its identity,
 access rules, and update behavior remain unchanged.

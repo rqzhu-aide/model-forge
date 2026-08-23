@@ -63,7 +63,7 @@ export function ConfigurationPage() {
   return (
     <div className="page-stack">
       <header className="page-header">
-        <p className="eyebrow">Method Hub configuration</p>
+        <p className="eyebrow">Model Forge configuration</p>
         <h1>Role definitions and installation health</h1>
         <p>
           Inspect the four research roles, their SOUL definitions, configuration files, and

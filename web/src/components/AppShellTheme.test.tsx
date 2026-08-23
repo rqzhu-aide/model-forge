@@ -31,7 +31,7 @@ describe("ThemeToggle", () => {
 
   it("prefers the saved theme over the system preference", () => {
     stubSystemTheme("dark");
-    window.localStorage.setItem("method-hub-theme", "light");
+    window.localStorage.setItem("model-forge-theme", "light");
     render(<ThemeToggle />);
     expect(document.documentElement.dataset.theme).toBe("light");
     expect(screen.getByRole("button", { name: "Light" })).toHaveAttribute("aria-pressed", "true");
@@ -46,7 +46,7 @@ describe("ThemeToggle", () => {
     await user.click(screen.getByRole("button", { name: "Dark" }));
 
     expect(document.documentElement.dataset.theme).toBe("dark");
-    expect(window.localStorage.getItem("method-hub-theme")).toBe("dark");
+    expect(window.localStorage.getItem("model-forge-theme")).toBe("dark");
     expect(screen.getByRole("button", { name: "Dark" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Light" })).toHaveAttribute("aria-pressed", "false");
   });

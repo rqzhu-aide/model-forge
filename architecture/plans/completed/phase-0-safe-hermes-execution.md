@@ -90,7 +90,7 @@ flagged as unverified. The amendments are:
    child contexts; the spike must run from a plain operator shell, and the
    backend's CLI invocation context must be verified for the same guard.
 8. **A8 - Provisioning repeatability.** The current adapter assumes a board
-   named `method-hub` and four role profiles with no in-repo provisioning.
+   named `model-forge` and four role profiles with no in-repo provisioning.
    Phase 0 diagnostic resources (board, profile, container image) must be
    created by a recorded, repeatable procedure - not unrecorded host state
    (Section 4, Section 5.1). This preserves the future WP7 stop-ship
@@ -103,7 +103,7 @@ isolation design, not just its documentation.
 
 ## 1. Target goal
 
-Phase 0 must demonstrate that Method Hub can execute one real Hermes role
+Phase 0 must demonstrate that Model Forge can execute one real Hermes role
 through a bounded, observable, cancellable, and recoverable execution path.
 
 The role works only in a disposable diagnostic workspace. Its output must not
@@ -112,7 +112,7 @@ publication path of any research project.
 
 Phase 0 is complete only when:
 
-1. Method Hub verifies the actual Hermes installation and selected profile
+1. Model Forge verifies the actual Hermes installation and selected profile
    before launch.
 2. One real single-role invocation succeeds through the bounded execution path.
 3. Failure, timeout, cancellation, and application restart are observable and
@@ -130,7 +130,7 @@ sealing remains a later prerequisite for publishable Hermes work.
 ## 2. Relationship to the existing architecture
 
 The following description records the pre-fb326de state of the
-[Hermes executor](../../../src/method_hub/executors/hermes.py). It is retained as
+[Hermes executor](../../../src/model_forge/executors/hermes.py). It is retained as
 historical rationale for Revision 1. The current implementation checkpoint at
 the start of this plan supersedes it.
 
@@ -163,7 +163,7 @@ The grounded review additionally established:
 - the adapter sets `--max-runtime` to the frozen invocation timeout, which
   under documented dispatcher behavior can re-queue the task after a kill
   (see A4);
-- the adapter assumes a board named `method-hub` and four role profiles that
+- the adapter assumes a board named `model-forge` and four role profiles that
   no in-repo procedure provisions (see A8).
 
 Phase 0 now uses these findings to strengthen the shared executor boundary
@@ -236,7 +236,7 @@ Before Phase 0 implementation begins:
    persistent memory, through a recorded, repeatable provisioning procedure.
    It must not be confused with a production research profile.
 5. Use a dedicated diagnostic data root and workspace. It must not contain or
-   mount a real Method Hub project.
+   mount a real Model Forge project.
 6. Record a digest or equivalent inventory of formal test-project state before
    any real invocation so unchanged state can be demonstrated afterward.
 7. Confirm that credentials required to reach Hermes or its model provider can
@@ -373,7 +373,7 @@ environment, persistent memory, tools, and network access of its host.
 
 **Controlling completion topology.** The remaining Phase 0 implementation uses
 one synchronous Hermes one-shot process inside one rootless OCI container. The
-container process is the actual agent boundary. Method Hub persists the real
+container process is the actual agent boundary. Model Forge persists the real
 container ID and uses runtime create, start, inspect, logs, stop, and kill
 operations for supervision. No Kanban gateway or host dispatcher participates
 in the completion path.
@@ -397,7 +397,7 @@ The one-shot container runs under:
 - no-new-privileges policy;
 - one writable role root;
 - read-only, digest-verified declared inputs;
-- no direct Method Hub database, formal-storage, or current-project access;
+- no direct Model Forge database, formal-storage, or current-project access;
 - an allowlisted profile bundle containing only the declared profile, soul,
   instruction, skills, tools, knowledge resources, and memory policy;
 - no host `HERMES_HOME`, profile memory, history, caches, logs, undeclared
@@ -448,7 +448,7 @@ scientific records.
 
 ### 5.6 Durable identity and no-duplicate recovery
 
-The invocation lifecycle must preserve one durable identity across Method Hub
+The invocation lifecycle must preserve one durable identity across Model Forge
 and the rootless OCI runtime:
 
 1. Persist launch intent before contacting the runtime.
@@ -462,7 +462,7 @@ and the rootless OCI runtime:
    quiescent output.
 
 Introduce the minimum lease or fencing mechanism needed to ensure that only
-one Method Hub worker may advance an invocation at a time.
+one Model Forge worker may advance an invocation at a time.
 
 Startup reconciliation must distinguish at least:
 
@@ -555,7 +555,7 @@ The interface must show:
 - bounded and redacted runtime and Hermes stdout and stderr;
 - only the structured runtime or Hermes events verified by the one-shot spike,
   without inventing an event stream;
-- bounded Method Hub system events;
+- bounded Model Forge system events;
 - one cancellation action when cancellation is legal;
 - terminal outcome and smallest safe next step;
 - diagnostic output inventory and downloads;
@@ -868,10 +868,10 @@ the actual situation would require:
 
 The exact decomposition is adaptable, but likely work areas include:
 
-- [executor protocol](../../../src/method_hub/executors/protocol.py);
-- [Hermes adapter](../../../src/method_hub/executors/hermes.py);
-- [execution observer](../../../src/method_hub/harness/execution_observer.py);
-- [role execution service](../../../src/method_hub/harness/role_execution.py);
+- [executor protocol](../../../src/model_forge/executors/protocol.py);
+- [Hermes adapter](../../../src/model_forge/executors/hermes.py);
+- [execution observer](../../../src/model_forge/harness/execution_observer.py);
+- [role execution service](../../../src/model_forge/harness/role_execution.py);
 - executor configuration and application startup;
 - diagnostic application service and API transport;
 - diagnostic status and log components in the Web interface;

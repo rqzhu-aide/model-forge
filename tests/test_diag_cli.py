@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
-from method_hub.cli import _parser, main
+from model_forge.cli import _parser, main
 
 
 class TestCLIParser:
@@ -78,10 +78,10 @@ class TestCLIReconcile:
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         """diag reconcile with an empty DB should report no work."""
-        from method_hub.storage.database import Database
-        from method_hub.storage.migrations import HUB_MIGRATIONS
-        from method_hub.diagnostics.store import DiagnosticStore
-        from method_hub.diagnostics.cli import _diag_reconcile
+        from model_forge.storage.database import Database
+        from model_forge.storage.migrations import HUB_MIGRATIONS
+        from model_forge.diagnostics.store import DiagnosticStore
+        from model_forge.diagnostics.cli import _diag_reconcile
 
         db_path = tmp_path / "test.sqlite3"
         db = Database(db_path, migrations=HUB_MIGRATIONS)
@@ -97,10 +97,10 @@ class TestCLIReconcile:
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         """diag reconcile finds a non-terminal invocation."""
-        from method_hub.storage.database import Database
-        from method_hub.storage.migrations import HUB_MIGRATIONS
-        from method_hub.diagnostics.store import DiagnosticStore
-        from method_hub.diagnostics.cli import _diag_reconcile
+        from model_forge.storage.database import Database
+        from model_forge.storage.migrations import HUB_MIGRATIONS
+        from model_forge.diagnostics.store import DiagnosticStore
+        from model_forge.diagnostics.cli import _diag_reconcile
 
         db_path = tmp_path / "test.sqlite3"
         db = Database(db_path, migrations=HUB_MIGRATIONS)
@@ -127,7 +127,7 @@ class TestCLIPreflight:
     def test_preflight_reports_hermes_and_bwrap(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        from method_hub.diagnostics.cli import _diag_preflight
+        from model_forge.diagnostics.cli import _diag_preflight
 
         # Create a fake Hermes home.
         hermes_root = tmp_path / "hermes"
@@ -147,7 +147,7 @@ class TestCLIPreflight:
     def test_preflight_missing_hermes_home(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        from method_hub.diagnostics.cli import _diag_preflight
+        from model_forge.diagnostics.cli import _diag_preflight
 
         result = _diag_preflight(tmp_path / "nonexistent")
         assert result == 1  # Failure.

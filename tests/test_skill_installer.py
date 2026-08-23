@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from method_hub.configuration.skill_installer import (
+from model_forge.configuration.skill_installer import (
     SkillConflictError,
     install_bundled_skill,
 )

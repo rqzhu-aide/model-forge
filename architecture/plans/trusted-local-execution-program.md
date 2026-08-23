@@ -103,7 +103,7 @@ Done and verified:
   fully implemented.
 - **WP-G complete** (commit `8edeeb1`; subagent capped before commit,
   validator verified and committed): S13-S24 trusted-local scenario suite,
-  traceability extended MH-61..MH-72 with contract/test/scenario mapping
+  traceability extended MF-61..MF-72 with contract/test/scenario mapping
   and pilot evidence citations, OCI scenarios marked deferred hardening.
   592 tests green. **Pilot milestone**: project-004-eld Phase 2 completed
   through the real supervised path (5 runs, 6 promotions, memory

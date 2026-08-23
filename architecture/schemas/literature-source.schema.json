@@ -1,6 +1,6 @@
 {
     "$schema":  "https://json-schema.org/draft/2020-12/schema",
-    "$id":  "https://method-hub.local/architecture/schemas/literature-source.schema.json",
+    "$id":  "https://model-forge.local/architecture/schemas/literature-source.schema.json",
     "title":  "Literature Source Record",
     "description":  "An immutable generation of one stable, deduplicated literature identity with bibliographic metadata, search provenance, and source status at creation.",
     "type":  "object",

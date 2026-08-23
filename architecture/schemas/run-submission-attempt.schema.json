@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/run-submission-attempt.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/run-submission-attempt.schema.json",
   "title": "Run Submission Attempt",
   "description": "Immutable submission-attempt record for correction re-entry. The base run_submissions row is unique per run and never rewritten; a correction that passes validation creates a new attempt row here. Publication binds the latest passing attempt.",
   "type": "object",

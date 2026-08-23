@@ -8,19 +8,19 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from method_hub.api import create_app
-from method_hub.api.errors import CommandRejected
-from method_hub.api.models import (
+from model_forge.api import create_app
+from model_forge.api.errors import CommandRejected
+from model_forge.api.models import (
     CreateProjectRequest,
     InstallSkillRequest,
     SaveProfileRequest,
 )
-from method_hub.api.ports import RawRequestBody
-from method_hub.application.profile_views import build_profile_configuration_view
-from method_hub.application.run_coordinator import RunCoordinator
-from method_hub.application.service import MethodHubService
-from method_hub.application.settings import ApplicationSettings
-from method_hub.configuration.profiles import (
+from model_forge.api.ports import RawRequestBody
+from model_forge.application.profile_views import build_profile_configuration_view
+from model_forge.application.run_coordinator import RunCoordinator
+from model_forge.application.service import ModelForgeService
+from model_forge.application.settings import ApplicationSettings
+from model_forge.configuration.profiles import (
     AUTHOR_PROFILE_ROLES,
     PROFILE_ROLES,
     REVIEWER_PROFILE_ISOLATION_MESSAGE,
@@ -28,12 +28,12 @@ from method_hub.configuration.profiles import (
     ProfileMapping,
     discover_profiles,
 )
-from method_hub.configuration.resources import RoleResourceCatalog
-from method_hub.executors import DeterministicFakeExecutor
-from method_hub.specification import SpecificationPackage
-from method_hub.storage.artifacts import ArtifactStore
-from method_hub.storage.paths import WorkspacePaths
-from method_hub.storage.repository import (
+from model_forge.configuration.resources import RoleResourceCatalog
+from model_forge.executors import DeterministicFakeExecutor
+from model_forge.specification import SpecificationPackage
+from model_forge.storage.artifacts import ArtifactStore
+from model_forge.storage.paths import WorkspacePaths
+from model_forge.storage.repository import (
     HubRepository,
     RepositoryConflictError,
     RepositoryNotFoundError,
@@ -67,7 +67,7 @@ def _raw(
 
 async def _service_project(
     tmp_path: Path,
-) -> tuple[MethodHubService, str, Path]:
+) -> tuple[ModelForgeService, str, Path]:
     workspace = WorkspacePaths(tmp_path / "data", create=True)
     hermes = tmp_path / "hermes"
     (hermes / "profiles").mkdir(parents=True)
@@ -82,7 +82,7 @@ async def _service_project(
         (hermes / "profiles" / name).mkdir()
     repository = HubRepository(workspace.root / "hub.sqlite3")
     repository.initialize()
-    service = MethodHubService(
+    service = ModelForgeService(
         settings=ApplicationSettings(
             data_root=workspace.root,
             hermes_root=hermes,

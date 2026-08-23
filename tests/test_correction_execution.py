@@ -24,29 +24,29 @@ from pathlib import Path
 
 import pytest
 
-from method_hub.application.correction_execution import (
+from model_forge.application.correction_execution import (
     record_revalidation_closure,
     revalidate_closure_outputs,
 )
-from method_hub.digests.jcs import canonicalize
-from method_hub.executors import DeterministicFakeExecutor, RoleExecutionStatus
-from method_hub.harness.execution_context import RunExecutionContext
-from method_hub.harness.execution_records import (
+from model_forge.digests.jcs import canonicalize
+from model_forge.executors import DeterministicFakeExecutor, RoleExecutionStatus
+from model_forge.harness.execution_context import RunExecutionContext
+from model_forge.harness.execution_records import (
     closure_artifact_id,
     correction_role_identity,
     document_sha256,
     output_artifact_id,
     role_identity,
 )
-from method_hub.harness.outputs import build_output_plan
-from method_hub.harness.preparation import PreparedRunRecipe
-from method_hub.harness.stage_execution import HarnessExecutionServices
-from method_hub.json_io import loads_json
-from method_hub.orchestration import StageStatus
-from method_hub.schemas import SchemaCatalog
-from method_hub.specification import SpecificationPackage
-from method_hub.storage import ArtifactStore, WorkspacePaths
-from method_hub.storage.repository import HubRepository
+from model_forge.harness.outputs import build_output_plan
+from model_forge.harness.preparation import PreparedRunRecipe
+from model_forge.harness.stage_execution import HarnessExecutionServices
+from model_forge.json_io import loads_json
+from model_forge.orchestration import StageStatus
+from model_forge.schemas import SchemaCatalog
+from model_forge.specification import SpecificationPackage
+from model_forge.storage import ArtifactStore, WorkspacePaths
+from model_forge.storage.repository import HubRepository
 
 ARCHITECTURE = Path(__file__).resolve().parents[1] / "architecture"
 GOLDEN = Path(__file__).resolve().parent / "fixtures" / "golden"
@@ -151,7 +151,7 @@ class _Fixture:
                 }
             )
         recipe_document = {
-            "format": "method-hub.prepared-run-recipe",
+            "format": "model-forge.prepared-run-recipe",
             "format_version": "1.0.0",
             "run_id": "run.revalidate_test",
             "project_id": "project.revalidate_test",
@@ -402,7 +402,7 @@ def _seal_failed_base_closure(fixture: _Fixture, role: str) -> str:
         {"kind": "role_acknowledgement", "role": role},
     )
     document = {
-        "format": "method-hub.role-invocation-closure",
+        "format": "model-forge.role-invocation-closure",
         "format_version": "1.0.0",
         "conformance_state": "vertical_slice",
         "closure_id": closure_id,

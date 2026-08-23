@@ -1,6 +1,6 @@
-# Method Hub
+# Model Forge
 
-Method Hub is a user-directed Web interface and research harness for coordinating
+Model Forge is a user-directed Web interface and research harness for coordinating
 Hermes agents through reproducible statistical and scientific method development.
 
 This repository is an independent successor to the legacy
@@ -11,7 +11,7 @@ will require the separate audited migration path described in the architecture.
 
 ## Current development baseline
 
-Method Hub currently provides:
+Model Forge currently provides:
 
 - a FastAPI service and React researcher interface;
 - explicit user commands for all five research phases;
@@ -78,19 +78,19 @@ On Windows, replace the activation command with
 Start the safe application with role execution disabled:
 
 ```bash
-method-hub serve
+model-forge serve
 ```
 
 To exercise the development harness with schema examples in PowerShell:
 
 ```powershell
-$env:METHOD_HUB_EXECUTOR_KIND = "fake"
-$env:METHOD_HUB_DEVELOPMENT_MODE = "true"
-method-hub serve
+$env:MODEL_FORGE_EXECUTOR_KIND = "fake"
+$env:MODEL_FORGE_DEVELOPMENT_MODE = "true"
+model-forge serve
 ```
 
 The application listens on `http://127.0.0.1:8765` by default and stores local
-state under `~/.method-hub`. The production frontend build supports direct
+state under `~/.model-forge`. The production frontend build supports direct
 navigation to clean application URLs.
 
 For frontend development, run `npm run dev` inside `web`. Vite proxies `/api`
@@ -119,13 +119,13 @@ publication behavior. They do not establish scientific correctness.
 | [`role and files/`](role%20and%20files/README.md) | Cross-checked file, phase, and role read/write guide |
 | `resources/team/` | Role definitions and phase-aware scientific souls |
 | `resources/skills/` | Pinned recommended writing and reviewer skill bundles |
-| `src/method_hub/` | Storage, harness, orchestration, application, and API code |
+| `src/model_forge/` | Storage, harness, orchestration, application, and API code |
 | `web/` | React researcher interface |
 | `tests/` | Unit, contract, recovery, and end-to-end tests |
 
 ## Deliberate boundaries
 
-Method Hub does not yet claim production readiness. The remaining work includes
+Model Forge does not yet claim production readiness. The remaining work includes
 exact command-to-basis sealing, closed-packet reviewer attestation, a rootless
 Hermes executor and capability broker, real-output phase validation,
 authentication and bounded remote operation, backup and restore, failure

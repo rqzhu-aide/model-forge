@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from method_hub.application.default_instructions import (
+from model_forge.application.default_instructions import (
     load_instruction,
     load_mode_instruction,
     load_stage_instruction,

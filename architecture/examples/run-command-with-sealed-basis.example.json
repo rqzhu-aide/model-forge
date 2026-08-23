@@ -20,7 +20,7 @@
     "wall_time_limit_seconds": 14400,
     "network_policy": "approved_resources"
   },
-  "content_sha256": "e1461bb2a01ab9c7dad33dc78644eb4cfc369c93816bc87ea0dc0d6866117532",
+  "content_sha256": "901cec6d1264220fc0081514ec93a0b6348191f1fb0a35fc4d8524eaca53815f",
   "requested_at": "2026-08-01T14:00:00Z",
   "phase_contract_version": "2.0.0",
   "phase_contract_sha256": "f0ac6e0b4e76cf94e0f3db0d0967640cd15eb7833b0faa30e9f9be9098f4723e",
@@ -89,7 +89,7 @@
         "soul_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
         "skills": [
           {
-            "skill_id": "method-hub-research-lead",
+            "skill_id": "model-forge-research-lead",
             "source": "bundled",
             "source_revision": "rev-001",
             "bundle_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
@@ -102,7 +102,7 @@
         "soul_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
         "skills": [
           {
-            "skill_id": "method-hub-data-scientist",
+            "skill_id": "model-forge-data-scientist",
             "source": "bundled",
             "source_revision": "rev-001",
             "bundle_sha256": "4444444444444444444444444444444444444444444444444444444444444444"

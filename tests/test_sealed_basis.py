@@ -18,19 +18,19 @@ from pathlib import Path
 
 import pytest
 
-from method_hub.api.models import CreateProjectRequest, StartRunRequest
-from method_hub.api.ports import RawRequestBody
-from method_hub.application.bootstrap import build_service
-from method_hub.application.run_coordinator import RunCoordinator
-from method_hub.application.settings import ApplicationSettings
-from method_hub.configuration.resources import RoleResourceCatalog
-from method_hub.contracts.runtime import RuntimePhaseContract, resolve_runtime_contract
-from method_hub.domain.identities import MethodIdentity
-from method_hub.executors import DeterministicFakeExecutor
-from method_hub.harness.commands import require_complete_sealed_basis
-from method_hub.harness.preparation import PreparedRunRecipe
-from method_hub.specification import SpecificationPackage
-from method_hub.storage.repository import RepositoryConflictError
+from model_forge.api.models import CreateProjectRequest, StartRunRequest
+from model_forge.api.ports import RawRequestBody
+from model_forge.application.bootstrap import build_service
+from model_forge.application.run_coordinator import RunCoordinator
+from model_forge.application.settings import ApplicationSettings
+from model_forge.configuration.resources import RoleResourceCatalog
+from model_forge.contracts.runtime import RuntimePhaseContract, resolve_runtime_contract
+from model_forge.domain.identities import MethodIdentity
+from model_forge.executors import DeterministicFakeExecutor
+from model_forge.harness.commands import require_complete_sealed_basis
+from model_forge.harness.preparation import PreparedRunRecipe
+from model_forge.specification import SpecificationPackage
+from model_forge.storage.repository import RepositoryConflictError
 
 import yaml
 
@@ -82,7 +82,7 @@ def test_legacy_command_without_sealed_basis_still_validates() -> None:
 
 def test_stale_basis_error_code_registered() -> None:
     """STALE_BASIS must be in the command error code enum and error rules."""
-    from method_hub.api.errors import ERROR_RULES, CommandErrorCode
+    from model_forge.api.errors import ERROR_RULES, CommandErrorCode
 
     literal_values = typing.get_args(CommandErrorCode)
     assert "STALE_BASIS" in literal_values

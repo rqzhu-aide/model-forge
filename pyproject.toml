@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "method-hub"
+name = "model-forge"
 version = "0.1.0"
 description = "Research workflow harness and web interface for Hermes agents"
 requires-python = ">=3.11"
@@ -23,11 +23,11 @@ dev = [
 ]
 
 [project.scripts]
-method-hub = "method_hub.cli:main"
+model-forge = "model_forge.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["method_hub*"]
+include = ["model_forge*"]
 namespaces = true
 
 [tool.pytest.ini_options]

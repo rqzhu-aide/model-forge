@@ -138,9 +138,9 @@ capability before resolving an artifact.
 Prompt wording is not an access boundary. The version 1 executor invokes the
 installed Hermes executable directly, without a shell, with an explicit argument
 vector, environment, working directory, invocation profile, and workspace. The
-host is trusted: Method Hub does not claim that Hermes or its tools are prevented
+host is trusted: Model Forge does not claim that Hermes or its tools are prevented
 from reading other files, using the host network, inspecting processes, or
-exercising the researcher's operating-system permissions (ADR-012). Method Hub
+exercising the researcher's operating-system permissions (ADR-012). Model Forge
 supplies only declared inputs and paths and can prove which inputs it supplied;
 that is workflow discipline, not an operating-system security guarantee. The
 capability broker is reached through the frozen broker transport, and every
@@ -472,8 +472,8 @@ The harness validates that:
 - the lead disposed or preserved every material role issue;
 - no formal output depends only on an unindexed transcript or hidden memory.
 
-These checks implement the role-context and role-isolation requirements MH-53
-and MH-54.
+These checks implement the role-context and role-isolation requirements MF-53
+and MF-54.
 
 These checks establish reproducibility and communication discipline. They do not
 establish that the role's scientific reasoning is correct.

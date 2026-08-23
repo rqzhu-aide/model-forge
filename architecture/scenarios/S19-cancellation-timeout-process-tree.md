@@ -16,8 +16,8 @@ tree, including descendants, and reach verified quiescence before closure.
   crash, and application restart do not leave unaccounted descendants or
   launch replacements):
   [next-block-local-hermes-execution-closure](../plans/next-block-local-hermes-execution-closure.md).
-- [07-contract-traceability](../07-contract-traceability.md) MH-67
-  (complete process-tree termination with verified quiescence) and MH-52
+- [07-contract-traceability](../07-contract-traceability.md) MF-67
+  (complete process-tree termination with verified quiescence) and MF-52
   (authenticated idempotent cancellation). Invariants INV-001 and INV-017.
 
 ## Setup

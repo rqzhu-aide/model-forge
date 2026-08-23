@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/validation-attempt.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/validation-attempt.schema.json",
   "title": "Validation Attempt",
   "description": "Immutable record of one validation pass over a candidate output, containing the complete structured findings, overall conformance decision, policy version, and links to the run, role, output, and prior attempt.",
   "type": "object",

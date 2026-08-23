@@ -1,6 +1,6 @@
 {
     "$schema":  "https://json-schema.org/draft/2020-12/schema",
-    "$id":  "https://method-hub.local/architecture/schemas/statement.schema.json",
+    "$id":  "https://model-forge.local/architecture/schemas/statement.schema.json",
     "title":  "Scientific Statement",
     "description":  "An immutable statement within one record generation, with frozen scope, evidence, assessment, and creation-time alignment.",
     "type":  "object",

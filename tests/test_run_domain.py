@@ -4,13 +4,13 @@ from datetime import datetime, timezone
 
 import pytest
 
-from method_hub.domain.identities import PhaseContractIdentity
-from method_hub.domain.runs import (
+from model_forge.domain.identities import PhaseContractIdentity
+from model_forge.domain.runs import (
     RunRequest,
     RunStatus,
     require_transition,
 )
-from method_hub.errors import DomainValidationError
+from model_forge.errors import DomainValidationError
 
 
 def test_run_request_freezes_user_choices() -> None:

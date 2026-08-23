@@ -5,15 +5,15 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from method_hub.api import create_app
-from method_hub.application.service import MethodHubService
-from method_hub.application.settings import ApplicationSettings
-from method_hub.configuration.resources import RoleResourceCatalog
-from method_hub.digests.jcs import canonicalize
-from method_hub.specification import SpecificationPackage
-from method_hub.storage.artifacts import ArtifactStore
-from method_hub.storage.paths import WorkspacePaths
-from method_hub.storage.repository import HubRepository, ZERO_SHA256
+from model_forge.api import create_app
+from model_forge.application.service import ModelForgeService
+from model_forge.application.settings import ApplicationSettings
+from model_forge.configuration.resources import RoleResourceCatalog
+from model_forge.digests.jcs import canonicalize
+from model_forge.specification import SpecificationPackage
+from model_forge.storage.artifacts import ArtifactStore
+from model_forge.storage.paths import WorkspacePaths
+from model_forge.storage.repository import HubRepository, ZERO_SHA256
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,12 +26,12 @@ def _sha(value: bytes) -> str:
 
 def _service(
     tmp_path: Path,
-) -> tuple[MethodHubService, HubRepository, ArtifactStore]:
+) -> tuple[ModelForgeService, HubRepository, ArtifactStore]:
     workspace = WorkspacePaths(tmp_path / "data", create=True)
     repository = HubRepository(workspace.root / "hub.sqlite3")
     repository.initialize()
     artifacts = ArtifactStore(workspace)
-    service = MethodHubService(
+    service = ModelForgeService(
         settings=ApplicationSettings(data_root=workspace.root),
         specification=SpecificationPackage.load(ROOT / "architecture"),
         repository=repository,
@@ -83,7 +83,7 @@ def _record_receipt(
     event_sha256 = _sha(canonicalize(event_document))
     new_root = _sha(bytes.fromhex(ZERO_SHA256) + bytes.fromhex(event_sha256))
     unsigned = {
-        "format": "method-hub.publication-receipt",
+        "format": "model-forge.publication-receipt",
         "format_version": "1.0.0",
         "receipt_id": receipt_id,
         "project_id": project_id,

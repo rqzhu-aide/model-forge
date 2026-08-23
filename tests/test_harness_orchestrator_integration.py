@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
-from method_hub.orchestration import (
+from model_forge.orchestration import (
     ContractSequentialOrchestrator,
     OrchestrationStatus,
 )

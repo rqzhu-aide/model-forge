@@ -19,7 +19,7 @@ export function SystemSettingsPage() {
   return (
     <div className="page-stack">
       <header className="page-header">
-        <p className="eyebrow">Method Hub configuration</p>
+        <p className="eyebrow">Model Forge configuration</p>
         <h1>System settings</h1>
         <p>Inspect the local service, execution adapter, and backend-managed storage used by this installation.</p>
       </header>

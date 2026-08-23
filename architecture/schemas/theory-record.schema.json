@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/theory-record.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/theory-record.schema.json",
   "title": "Phase 3 Theory Record",
   "description": "A complete Phase 3 theory account for one exact method identity. It carries a readable primary artifact, explicit assumptions, a statement-level proof ledger, dependencies, empirical implications, limitations, and revision provenance.",
   "type": "object",

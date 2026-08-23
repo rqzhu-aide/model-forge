@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/delegation-grant.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/delegation-grant.schema.json",
   "title": "Delegation Grant",
   "description": "Immutable user-issued authority for one remote operator, one project, and explicit action-specific target scopes.",
   "type": "object",

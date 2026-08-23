@@ -9,9 +9,9 @@ exposed K5-1..4).
 
 ## Setup (identical to the 2026-08-20 exercise)
 
-- Backup before exercise: `~/.method-hub-backups/20260821-074407` (56 MB).
-- Server: `METHOD_HUB_EXECUTOR_KIND=local_hermes
-  METHOD_HUB_DATA_ANALYST_PROFILE=data_scientist method-hub serve`
+- Backup before exercise: `~/.model-forge-backups/20260821-074407` (56 MB).
+- Server: `MODEL_FORGE_EXECUTOR_KIND=local_hermes
+  MODEL_FORGE_DATA_ANALYST_PROFILE=data_scientist model-forge serve`
   (loopback :8765), started fresh from the tree at `5a287cc` (a stale
   Aug-20 server process still bound to :8765 was stopped first; it held
   pre-fix code in memory).

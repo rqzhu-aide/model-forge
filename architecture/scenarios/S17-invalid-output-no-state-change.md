@@ -16,9 +16,9 @@ run changes no current state.
   missing, malformed, wrong-basis, or undeclared outputs fails validation
   and changes no current state):
   [next-block-local-hermes-execution-closure](../plans/next-block-local-hermes-execution-closure.md).
-- [07-contract-traceability](../07-contract-traceability.md) MH-65 (exit
-  code zero alone is never sufficient), MH-04 (validation precedes formal
-  generation) and MH-12 (invalid work cannot replace current state).
+- [07-contract-traceability](../07-contract-traceability.md) MF-65 (exit
+  code zero alone is never sufficient), MF-04 (validation precedes formal
+  generation) and MF-12 (invalid work cannot replace current state).
   Invariants INV-006 and INV-017.
 
 ## Setup

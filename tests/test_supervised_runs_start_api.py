@@ -27,22 +27,22 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from method_hub.api import create_app
-from method_hub.api.models import StartSupervisedRunRequest
-from method_hub.application.run_profile_assembler import (
+from model_forge.api import create_app
+from model_forge.api.models import StartSupervisedRunRequest
+from model_forge.application.run_profile_assembler import (
     HermesProbe,
     RunProfileAssembler,
 )
-from method_hub.application.service import MethodHubService
-from method_hub.application.settings import ApplicationSettings
-from method_hub.configuration.resources import RoleResourceCatalog
-from method_hub.executors.local_hermes import LocalHermesExecutorSettings
-from method_hub.specification import SpecificationPackage
-from method_hub.storage.artifacts import ArtifactStore
-from method_hub.storage.database import Database
-from method_hub.storage.migrations import HUB_MIGRATIONS
-from method_hub.storage.paths import WorkspacePaths
-from method_hub.storage.repository import HubRepository
+from model_forge.application.service import ModelForgeService
+from model_forge.application.settings import ApplicationSettings
+from model_forge.configuration.resources import RoleResourceCatalog
+from model_forge.executors.local_hermes import LocalHermesExecutorSettings
+from model_forge.specification import SpecificationPackage
+from model_forge.storage.artifacts import ArtifactStore
+from model_forge.storage.database import Database
+from model_forge.storage.migrations import HUB_MIGRATIONS
+from model_forge.storage.paths import WorkspacePaths
+from model_forge.storage.repository import HubRepository
 
 ROOT = Path(__file__).resolve().parents[1]
 RESOURCE_ROOT = ROOT / "resources" / "team"
@@ -125,9 +125,9 @@ def _environment(
 ) -> dict[str, Any]:
     """Service + TestClient over one tmp data root (WP-F1a layout)."""
     workspace = WorkspacePaths(tmp_path / "data", create=True)
-    repository = HubRepository(workspace.root / "method-hub.sqlite3")
+    repository = HubRepository(workspace.root / "model-forge.sqlite3")
     repository.initialize()
-    service = MethodHubService(
+    service = ModelForgeService(
         settings=ApplicationSettings(
             data_root=workspace.root,
             hermes_executable=str(stub_hermes),
@@ -158,7 +158,7 @@ def _start_payload(**overrides: Any) -> dict[str, Any]:
         "idempotency_key": "key-001",
         "role": "theorist",
         "phase": "P3",
-        "method_identity": {"method_id": "mh-1", "version": "1.0"},
+        "method_identity": {"method_id": "mf-1", "version": "1.0"},
         "brief_text": "# Brief\nProduce the declared output.\n",
         "expected_outputs": [
             {
@@ -240,7 +240,7 @@ def test_start_returns_202_and_launch_progresses_to_succeeded(
     assert detail["manifest"]["phase"] == "P3"
     assert detail["seal_id"]
     assert detail["manifest"]["method_identity"] == {
-        "method_id": "mh-1",
+        "method_id": "mf-1",
         "version": "1.0",
     }
     assert detail["manifest"]["memory_snapshot"]["policy"] == "persistent"
@@ -488,7 +488,7 @@ async def _exercise_service_level_transition(
     tmp_path: Path, stub_hermes: Path
 ) -> None:
     environment = _environment(tmp_path, stub_hermes)
-    service: MethodHubService = environment["service"]
+    service: ModelForgeService = environment["service"]
     command = StartSupervisedRunRequest(**_start_payload())
     start = time.monotonic()
     await service.start_supervised_run(PROJECT, command, raw_request=None)

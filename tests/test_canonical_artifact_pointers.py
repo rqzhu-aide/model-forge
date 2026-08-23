@@ -14,21 +14,21 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
-from method_hub.domain.validation import FindingClass, get_policy
-from method_hub.harness.execution_records import deterministic_id
-from method_hub.harness.publication import (
+from model_forge.domain.validation import FindingClass, get_policy
+from model_forge.harness.execution_records import deterministic_id
+from model_forge.harness.publication import (
     RegisteredArtifactMetadata,
     RegisteredValidatedOutput,
 )
-from method_hub.harness.role_execution import (
+from model_forge.harness.role_execution import (
     _OutputPointerContext,
     _fix_self_referential_hashes,
 )
-from method_hub.harness.scientific_validators import (
+from model_forge.harness.scientific_validators import (
     _validate_canonical_artifact_pointer,
     validate_phase_scientific,
 )
-from method_hub.domain.validation import ValidationFinding
+from model_forge.domain.validation import ValidationFinding
 
 
 def _context(tmp_path: Path, lookup=None) -> _OutputPointerContext:

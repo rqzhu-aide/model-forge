@@ -13,21 +13,21 @@ from pathlib import Path
 
 import pytest
 
-from method_hub.application.settings import ApplicationSettings
-from method_hub.diagnostics.composition import (
+from model_forge.application.settings import ApplicationSettings
+from model_forge.diagnostics.composition import (
     DiagnosticNotEnabled,
     build_diagnostic_service,
     open_diagnostic_store,
 )
-from method_hub.diagnostics.store import DiagnosticStore
-from method_hub.executors.local_hermes import LocalHermesExecutor
+from model_forge.diagnostics.store import DiagnosticStore
+from model_forge.executors.local_hermes import LocalHermesExecutor
 
 
 @pytest.fixture
 def test_settings(tmp_path: Path) -> ApplicationSettings:
     """Settings with diagnostic_enabled=True and a temp data root."""
     return ApplicationSettings(
-        data_root=tmp_path / "method-hub-data",
+        data_root=tmp_path / "model-forge-data",
         diagnostic_enabled=True,
         development_mode=True,
     )
@@ -37,7 +37,7 @@ def test_settings(tmp_path: Path) -> ApplicationSettings:
 def disabled_settings(tmp_path: Path) -> ApplicationSettings:
     """Settings with diagnostic_enabled=False."""
     return ApplicationSettings(
-        data_root=tmp_path / "method-hub-data",
+        data_root=tmp_path / "model-forge-data",
         diagnostic_enabled=False,
         development_mode=True,
     )

@@ -1,6 +1,6 @@
 {
     "$schema":  "https://json-schema.org/draft/2020-12/schema",
-    "$id":  "https://method-hub.local/architecture/schemas/run-manifest.schema.json",
+    "$id":  "https://model-forge.local/architecture/schemas/run-manifest.schema.json",
     "title":  "Immutable Controlled Research Run Manifest",
     "description":  "The sealed prepared basis of one user-launched run. Lifecycle events and publication results are stored separately.",
     "type":  "object",

@@ -34,7 +34,7 @@ validation as correctable `p2.canonical_pointer_invalid`.
 ## Verified code facts (probed 2026-08-23 on 1f0b240)
 
 - Repair pass: `_apply_disclosed_mechanical_repairs`
-  (src/method_hub/harness/role_execution.py:62) runs per closure BEFORE
+  (src/model_forge/harness/role_execution.py:62) runs per closure BEFORE
   structural validation; `_fix_self_referential_hashes` (line 744)
   recurses into nested record arrays including the method-changes list,
   and already stamps `identity.definition_sha256` on method records
@@ -59,7 +59,7 @@ validation as correctable `p2.canonical_pointer_invalid`.
   check `_validate_compact_view_pointers` (line 1354) is the mirror
   template: unstamped scheme OR single-repeated-char 64-hex sha256 ->
   finding.
-- Validation codes register in src/method_hub/domain/validation.py near
+- Validation codes register in src/model_forge/domain/validation.py near
   lines 340-348 as (code, phase) tuples with
   CORRECTABLE_CONTRACT_ERROR, correction_class "packaging",
   deterministic_repair=True. POLICY_VERSION = "1.11.0" (line 38).

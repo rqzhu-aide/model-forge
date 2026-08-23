@@ -26,17 +26,17 @@ from pathlib import Path
 
 import pytest
 
-from method_hub.application.correction_execution import (
+from model_forge.application.correction_execution import (
     normalize_closure_outputs,
     preview_normalize,
     record_normalize_closure,
     revalidate_closure_outputs,
     seal_correction_submission,
 )
-from method_hub.executors import DeterministicFakeExecutor, RoleExecutionStatus
-from method_hub.harness.execution_records import correction_role_identity
-from method_hub.harness.stage_execution import HarnessExecutionServices
-from method_hub.json_io import loads_json
+from model_forge.executors import DeterministicFakeExecutor, RoleExecutionStatus
+from model_forge.harness.execution_records import correction_role_identity
+from model_forge.harness.stage_execution import HarnessExecutionServices
+from model_forge.json_io import loads_json
 
 from test_correction_command_path import _seal_failed_closure_bytes
 from test_correction_execution import (

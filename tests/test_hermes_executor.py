@@ -28,7 +28,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from method_hub.executors.hermes import (
+from model_forge.executors.hermes import (
     HermesExecutionError,
     HermesKanbanExecutor,
     HermesSettings,
@@ -39,7 +39,7 @@ from method_hub.executors.hermes import (
     profile_home,
     resolve_hermes_root,
 )
-from method_hub.executors.protocol import (
+from model_forge.executors.protocol import (
     RoleExecutionStatus,
     RoleInvocation,
 )
@@ -154,7 +154,7 @@ class TestMaxRetries:
 
         def fake_run_bounded(command, **kwargs):
             captured_command.extend(command)
-            from method_hub.executors.hermes import _CommandResult
+            from model_forge.executors.hermes import _CommandResult
             return _CommandResult(
                 returncode=0,
                 stdout=json.dumps({"id": "t_test123", "status": "ready"}),
@@ -163,7 +163,7 @@ class TestMaxRetries:
             )
 
         monkeypatch.setattr(
-            "method_hub.executors.hermes._run_bounded", fake_run_bounded
+            "model_forge.executors.hermes._run_bounded", fake_run_bounded
         )
 
         executor = make_executor()
@@ -187,7 +187,7 @@ class TestArchivedTaskHole:
     def test_reconcile_archived_returns_cancelled(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from method_hub.executors.hermes import _CommandResult
+        from model_forge.executors.hermes import _CommandResult
 
         def fake_show_response(*args, **kwargs):
             return _CommandResult(
@@ -200,7 +200,7 @@ class TestArchivedTaskHole:
             )
 
         monkeypatch.setattr(
-            "method_hub.executors.hermes._run_bounded", fake_show_response
+            "model_forge.executors.hermes._run_bounded", fake_show_response
         )
 
         executor = make_executor()
@@ -212,7 +212,7 @@ class TestArchivedTaskHole:
     def test_reconcile_running_returns_none(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from method_hub.executors.hermes import _CommandResult
+        from model_forge.executors.hermes import _CommandResult
 
         def fake_show_response(*args, **kwargs):
             return _CommandResult(
@@ -225,7 +225,7 @@ class TestArchivedTaskHole:
             )
 
         monkeypatch.setattr(
-            "method_hub.executors.hermes._run_bounded", fake_show_response
+            "model_forge.executors.hermes._run_bounded", fake_show_response
         )
 
         executor = make_executor()
@@ -379,7 +379,7 @@ class TestConfirmedCancellation:
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        from method_hub.executors.hermes import _CommandResult
+        from model_forge.executors.hermes import _CommandResult
 
         call_count = {"show": 0}
 
@@ -399,7 +399,7 @@ class TestConfirmedCancellation:
             return _CommandResult(0, "", "", False)
 
         monkeypatch.setattr(
-            "method_hub.executors.hermes._run_bounded", fake_run_bounded
+            "model_forge.executors.hermes._run_bounded", fake_run_bounded
         )
 
         executor = make_executor(cancel_confirm_timeout_seconds=5.0)
@@ -412,7 +412,7 @@ class TestConfirmedCancellation:
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        from method_hub.executors.hermes import _CommandResult
+        from model_forge.executors.hermes import _CommandResult
 
         def fake_run_bounded(command, **kwargs):
             if "archive" in command:
@@ -428,7 +428,7 @@ class TestConfirmedCancellation:
             return _CommandResult(0, "", "", False)
 
         monkeypatch.setattr(
-            "method_hub.executors.hermes._run_bounded", fake_run_bounded
+            "model_forge.executors.hermes._run_bounded", fake_run_bounded
         )
 
         executor = make_executor(
@@ -450,7 +450,7 @@ class TestAgentLogCapture:
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        from method_hub.executors.hermes import _CommandResult
+        from model_forge.executors.hermes import _CommandResult
 
         def fake_run_bounded(command, **kwargs):
             if "create" in command:
@@ -477,7 +477,7 @@ class TestAgentLogCapture:
             return _CommandResult(0, "", "", False)
 
         monkeypatch.setattr(
-            "method_hub.executors.hermes._run_bounded", fake_run_bounded
+            "model_forge.executors.hermes._run_bounded", fake_run_bounded
         )
 
         executor = make_executor()
@@ -495,7 +495,7 @@ class TestAgentLogCapture:
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        from method_hub.executors.hermes import _CommandResult
+        from model_forge.executors.hermes import _CommandResult
 
         def fake_run_bounded(command, **kwargs):
             if "create" in command:
@@ -517,7 +517,7 @@ class TestAgentLogCapture:
             return _CommandResult(0, "", "", False)
 
         monkeypatch.setattr(
-            "method_hub.executors.hermes._run_bounded", fake_run_bounded
+            "model_forge.executors.hermes._run_bounded", fake_run_bounded
         )
 
         executor = make_executor()
@@ -538,7 +538,7 @@ class TestExecuteFlow:
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        from method_hub.executors.hermes import _CommandResult
+        from model_forge.executors.hermes import _CommandResult
 
         def fake_run_bounded(command, **kwargs):
             if "create" in command:
@@ -558,7 +558,7 @@ class TestExecuteFlow:
             return _CommandResult(0, "", "", False)
 
         monkeypatch.setattr(
-            "method_hub.executors.hermes._run_bounded", fake_run_bounded
+            "model_forge.executors.hermes._run_bounded", fake_run_bounded
         )
 
         executor = make_executor()
@@ -580,7 +580,7 @@ class TestExecuteFlow:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """When the circuit breaker trips, status becomes 'blocked'."""
-        from method_hub.executors.hermes import _CommandResult
+        from model_forge.executors.hermes import _CommandResult
 
         def fake_run_bounded(command, **kwargs):
             if "create" in command:
@@ -608,7 +608,7 @@ class TestExecuteFlow:
             return _CommandResult(0, "", "", False)
 
         monkeypatch.setattr(
-            "method_hub.executors.hermes._run_bounded", fake_run_bounded
+            "model_forge.executors.hermes._run_bounded", fake_run_bounded
         )
 
         executor = make_executor()
@@ -625,13 +625,13 @@ class TestExecuteFlow:
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        from method_hub.executors.hermes import _CommandResult
+        from model_forge.executors.hermes import _CommandResult
 
         def fake_run_bounded(command, **kwargs):
             return _CommandResult(1, "", "hermes: command not found", False)
 
         monkeypatch.setattr(
-            "method_hub.executors.hermes._run_bounded", fake_run_bounded
+            "model_forge.executors.hermes._run_bounded", fake_run_bounded
         )
 
         executor = make_executor()

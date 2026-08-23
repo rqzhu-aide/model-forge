@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from method_hub.domain.validation import (
+from model_forge.domain.validation import (
     FindingClass,
     FindingPolicy,
     ValidationFinding,
@@ -61,7 +61,7 @@ def _extract_finding_literals(source: str) -> set[str]:
 
 def test_registry_covers_all_scientific_validator_codes() -> None:
     """Every finding code literal in scientific_validators.py must be registered."""
-    source = Path("src/method_hub/harness/scientific_validators.py").read_text()
+    source = Path("src/model_forge/harness/scientific_validators.py").read_text()
     literals = _extract_finding_literals(source)
     # Remove known non-code constants
     literals.discard("p3.complete_theory")
@@ -75,7 +75,7 @@ def test_registry_covers_all_scientific_validator_codes() -> None:
 
 def test_registry_covers_all_submission_validator_codes() -> None:
     """Every finding code literal in submission_validation.py must be registered."""
-    source = Path("src/method_hub/harness/submission_validation.py").read_text()
+    source = Path("src/model_forge/harness/submission_validation.py").read_text()
     literals = _extract_finding_literals(source)
     registered = all_registered_codes()
     unregistered = literals - registered
@@ -85,7 +85,7 @@ def test_registry_covers_all_submission_validator_codes() -> None:
 
 def test_registry_covers_all_output_codes() -> None:
     """Every finding code literal in outputs.py must be registered."""
-    source = Path("src/method_hub/harness/outputs.py").read_text()
+    source = Path("src/model_forge/harness/outputs.py").read_text()
     literals = _extract_finding_literals(source)
     registered = all_registered_codes()
     unregistered = literals - registered
@@ -95,7 +95,7 @@ def test_registry_covers_all_output_codes() -> None:
 
 def test_registry_covers_all_input_codes() -> None:
     """Every finding code literal in inputs.py must be registered."""
-    source = Path("src/method_hub/harness/inputs.py").read_text()
+    source = Path("src/model_forge/harness/inputs.py").read_text()
     literals = _extract_finding_literals(source)
     registered = all_registered_codes()
     unregistered = literals - registered

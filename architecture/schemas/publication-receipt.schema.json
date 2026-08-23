@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/publication-receipt.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/publication-receipt.schema.json",
   "title": "Atomic Formal Transaction Receipt",
   "description": "Append-only proof that one validated research run or control command atomically changed formal generations or objects, appended authority events, and committed reproducible derived state.",
   "type": "object",

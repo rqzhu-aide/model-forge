@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/role-profile.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/role-profile.schema.json",
   "title": "Versioned Research Role Profile",
   "description": "The frozen scientific stance, instruction, memory, skills, knowledge resources, tools, and visibility contract for one role stage.",
   "type": "object",

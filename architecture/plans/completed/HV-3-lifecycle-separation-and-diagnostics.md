@@ -126,7 +126,7 @@ without the deep domain refactor in the same package.
 
 ### HV-3.1: Add lifecycle projection to run detail
 
-**Target:** `src/method_hub/api/models.py`, `src/method_hub/application/run_views.py`
+**Target:** `src/model_forge/api/models.py`, `src/model_forge/application/run_views.py`
 
 Add `RunLifecycleProjection` to `RunDetail` and `RunSummary`:
 
@@ -181,7 +181,7 @@ with a comment linking this plan.
 
 ### HV-3.3: Expose complete diagnostics through the run detail API
 
-**Target:** `src/method_hub/api/models.py`, `src/method_hub/application/run_views.py`
+**Target:** `src/model_forge/api/models.py`, `src/model_forge/application/run_views.py`
 
 Add to `RunDetail`:
 - Complete validation attempts (from HV-0.6/parent plan §6.1)
@@ -246,8 +246,8 @@ summaries.
 
 | File | Change |
 | --- | --- |
-| `src/method_hub/api/models.py` | `RunLifecycleProjection`, extend `RunDetail`/`RunSummary` |
-| `src/method_hub/application/run_views.py` | Compute projection, expose complete diagnostics |
+| `src/model_forge/api/models.py` | `RunLifecycleProjection`, extend `RunDetail`/`RunSummary` |
+| `src/model_forge/application/run_views.py` | Compute projection, expose complete diagnostics |
 | `web/src/pages/RunPage.tsx` | Accurate status wording, grouped findings, recovery controls |
 | `web/src/pages/OverviewPage.tsx` | Separate failure types in counting |
 | `web/src/utils/format.ts` | `isRunActive` may need to account for `needs_output_correction` |

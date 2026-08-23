@@ -16,33 +16,33 @@ from pathlib import Path
 
 import pytest
 
-from method_hub.api.errors import CommandRejected
-from method_hub.api.models import (
+from model_forge.api.errors import CommandRejected
+from model_forge.api.models import (
     ConfigurationHealthView,
     ProvisionRoleRequest,
     RoleDefinitionCatalogView,
     RoleDefinitionView,
     RoleHealthReportView,
 )
-from method_hub.application.role_views import (
+from model_forge.application.role_views import (
     build_configuration_health_view,
     build_role_definition_catalog_view,
     build_role_health_view,
 )
-from method_hub.application.service import MethodHubService
-from method_hub.application.settings import ApplicationSettings
-from method_hub.configuration.profiles import PROFILE_ROLES
-from method_hub.configuration.resources import RoleResourceCatalog
-from method_hub.configuration.role_provisioner import (
+from model_forge.application.service import ModelForgeService
+from model_forge.application.settings import ApplicationSettings
+from model_forge.configuration.profiles import PROFILE_ROLES
+from model_forge.configuration.resources import RoleResourceCatalog
+from model_forge.configuration.role_provisioner import (
     CustomizationConflict,
     ProvisioningError,
     assess_role_health,
     provision_role_definition,
 )
-from method_hub.specification import SpecificationPackage
-from method_hub.storage.artifacts import ArtifactStore
-from method_hub.storage.paths import WorkspacePaths
-from method_hub.storage.repository import HubRepository
+from model_forge.specification import SpecificationPackage
+from model_forge.storage.artifacts import ArtifactStore
+from model_forge.storage.paths import WorkspacePaths
+from model_forge.storage.repository import HubRepository
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -65,12 +65,12 @@ def bundle_root() -> Path:
     return ROOT / "resources" / "skills"
 
 
-def _make_service(tmp_path: Path) -> MethodHubService:
+def _make_service(tmp_path: Path) -> ModelForgeService:
     workspace = WorkspacePaths(tmp_path / "data", create=True)
     hermes = tmp_path / "hermes"
     repository = HubRepository(workspace.root / "hub.sqlite3")
     repository.initialize()
-    return MethodHubService(
+    return ModelForgeService(
         settings=ApplicationSettings(data_root=workspace.root, hermes_root=hermes),
         specification=SpecificationPackage.load(ARCH_ROOT),
         repository=repository,
@@ -137,7 +137,7 @@ def test_role_definition_soul_sha_matches_content(catalog: RoleResourceCatalog) 
 
 
 def test_individual_role_definition_lookup(catalog: RoleResourceCatalog) -> None:
-    from method_hub.application.role_views import build_role_definition_view
+    from model_forge.application.role_views import build_role_definition_view
 
     for role_id in PROFILE_ROLES:
         view = build_role_definition_view(catalog, role_id)
@@ -147,7 +147,7 @@ def test_individual_role_definition_lookup(catalog: RoleResourceCatalog) -> None
 def test_individual_role_definition_unknown_role_raises(
     catalog: RoleResourceCatalog,
 ) -> None:
-    from method_hub.application.role_views import build_role_definition_view
+    from model_forge.application.role_views import build_role_definition_view
 
     with pytest.raises(ValueError):
         build_role_definition_view(catalog, "nonexistent_role")
@@ -202,7 +202,7 @@ def test_provision_reports_installed_skill_digest(tmp_path: Path) -> None:
     assert installed.created is True
     assert len(installed.content_sha256) == 64
     # Verify the digest matches the bundle
-    from method_hub.configuration.skill_installer import directory_sha256
+    from model_forge.configuration.skill_installer import directory_sha256
 
     bundle_digest = directory_sha256(bundle / "stat-paper-writing")
     assert installed.content_sha256 == bundle_digest
@@ -338,7 +338,7 @@ def test_provision_does_not_overwrite_customized_skill(tmp_path: Path) -> None:
     guidance_path.parent.mkdir(parents=True, exist_ok=True)
     guidance_path.write_text(resource.library_guidance.content, encoding="utf-8")
     # Pre-install a different skill under the same name
-    from method_hub.configuration.skill_installer import SkillConflictError
+    from model_forge.configuration.skill_installer import SkillConflictError
 
     custom_skill_dir = profile_home / "skills" / "stat-paper-writing"
     custom_skill_dir.mkdir(parents=True)
@@ -449,7 +449,7 @@ def test_health_hermes_missing(tmp_path: Path) -> None:
     bundle = ROOT / "resources" / "skills"
     hermes_root = tmp_path / "nonexistent_hermes"
 
-    from method_hub.configuration.role_provisioner import hermes_available
+    from model_forge.configuration.role_provisioner import hermes_available
 
     assert not hermes_available(hermes_root)
 
@@ -992,7 +992,7 @@ def test_restore_backup_recovers_profile_when_move_fails(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """If the backup cannot be moved into place, the original profile is recovered."""
-    from method_hub.configuration import role_provisioner as provisioner_module
+    from model_forge.configuration import role_provisioner as provisioner_module
 
     profile_home = tmp_path / "profiles" / "theorist"
     profile_home.mkdir(parents=True)
@@ -1023,7 +1023,7 @@ def test_restore_backup_crash_between_rename_and_move_leaves_recoverable_trash(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A crash after the rename (before the move) never deletes the original."""
-    from method_hub.configuration import role_provisioner as provisioner_module
+    from model_forge.configuration import role_provisioner as provisioner_module
 
     profile_home = tmp_path / "profiles" / "theorist"
     profile_home.mkdir(parents=True)
@@ -1081,7 +1081,7 @@ def test_service_provision_rejects_default_profile(tmp_path: Path) -> None:
         hermes.mkdir(parents=True)
         repository = HubRepository(workspace.root / "hub.sqlite3")
         repository.initialize()
-        service = MethodHubService(
+        service = ModelForgeService(
             settings=ApplicationSettings(
                 data_root=workspace.root,
                 hermes_root=hermes,
@@ -1167,7 +1167,7 @@ def test_configuration_health_unavailable_skills_conditions(tmp_path: Path) -> N
 
 
 def test_force_overwrite_creates_recovery_backup(tmp_path: Path) -> None:
-    """Force-overwrite of a customized SOUL leaves an .mh-custom-* copy."""
+    """Force-overwrite of a customized SOUL leaves an .mf-custom-* copy."""
     catalog = RoleResourceCatalog.load(RESOURCE_ROOT)
     bundle = ROOT / "resources" / "skills"
     hermes_root = tmp_path / "hermes"
@@ -1183,14 +1183,14 @@ def test_force_overwrite_creates_recovery_backup(tmp_path: Path) -> None:
         resource, profile_home, bundle, force_overwrite_assets=True
     )
 
-    backups = list(profile_home.glob("SOUL.md.mh-custom-*"))
+    backups = list(profile_home.glob("SOUL.md.mf-custom-*"))
     assert len(backups) == 1, "force-overwrite must create one recovery copy"
     assert backups[0].read_text(encoding="utf-8") == custom_text
     assert (profile_home / "SOUL.md").read_text(encoding="utf-8") == (
         resource.soul_text
     )
     assert len(result.backups_created) == 1
-    assert result.backups_created[0].startswith("SOUL.md.mh-custom-")
+    assert result.backups_created[0].startswith("SOUL.md.mf-custom-")
 
 
 def test_skip_assets_keeps_customized_file_untouched(tmp_path: Path) -> None:

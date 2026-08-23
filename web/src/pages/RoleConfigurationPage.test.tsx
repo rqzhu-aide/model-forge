@@ -60,7 +60,7 @@ function definition(overrides: Partial<RoleDefinitionView> = {}): RoleDefinition
         skill_id: "lit-review-orchestrator",
         name: "Literature review orchestrator",
         description: "Plans and tracks literature review work.",
-        source: "method-hub-bundle",
+        source: "model-forge-bundle",
         recommended_version: "pinned",
       },
     ],
@@ -147,7 +147,7 @@ describe("RoleConfigurationPage", () => {
     expect(screen.getByText("b".repeat(64))).toBeInTheDocument();
     // Recommended + custom skills
     expect(screen.getByText("Literature review orchestrator")).toBeInTheDocument();
-    expect(screen.getByText("method-hub-bundle")).toBeInTheDocument();
+    expect(screen.getByText("model-forge-bundle")).toBeInTheDocument();
     expect(screen.getByText("pinned")).toBeInTheDocument();
     expect(screen.getByText("Lab notes helper")).toBeInTheDocument();
     expect(screen.getByText("team-vault")).toBeInTheDocument();

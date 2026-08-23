@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/digest-vectors.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/digest-vectors.schema.json",
   "title": "Digest Interoperability Vectors",
   "description": "Accepted and fail-closed vectors for the bundled restricted RFC 8785 reference.",
   "type": "object",

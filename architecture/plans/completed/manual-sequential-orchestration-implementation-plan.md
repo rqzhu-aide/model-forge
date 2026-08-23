@@ -1,4 +1,4 @@
-# Manual Method Hub with Sequential-First Orchestration
+# Manual Model Forge with Sequential-First Orchestration
 
 Status: Development baseline implemented; production completion is tracked in [the operational plan](operational-completion-plan.md)
 
@@ -8,7 +8,7 @@ Decision basis: [ADR-009](../../decisions/ADR-009-sequential-first-orchestration
 
 ## 1. Decision in one sentence
 
-Method Hub version 1 remains manually directed and uses a small,
+Model Forge version 1 remains manually directed and uses a small,
 contract-driven sequential orchestrator, while a stable engine-neutral boundary
 keeps LangGraph or another workflow engine available as a future adapter.
 
@@ -27,7 +27,7 @@ data analyst -> theorist -> research lead
 
 LangGraph would not supply the scientific judgment, output validation, exact
 method identity, isolation, or publication transaction that this procedure
-requires. Those responsibilities belong to Method Hub and must be implemented
+requires. Those responsibilities belong to Model Forge and must be implemented
 regardless of the orchestration library.
 
 A direct phase-specific script would be smaller initially, but it would mix
@@ -359,7 +359,7 @@ identity remains outside that scientific contract.
 ## 15. Recommended package boundaries
 
 ```text
-src/method_hub/
+src/model_forge/
   application/
     run_commands.py
     run_queries.py

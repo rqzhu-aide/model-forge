@@ -3,7 +3,7 @@
 First controlled P2 run under ADR-017 (structured lead evaluation).
 Project: entangled Langevin particle acceleration (same controlled
 instruction, `current_only`, five default inputs as the K-5 re-run, for
-comparability). Backup: ~/.method-hub-backups/20260821-185755 (61 MB).
+comparability). Backup: ~/.model-forge-backups/20260821-185755 (61 MB).
 
 ## Run facts
 

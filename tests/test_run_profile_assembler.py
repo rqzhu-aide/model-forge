@@ -24,7 +24,7 @@ from typing import Any, Iterator
 
 import pytest
 
-from method_hub.application.run_profile_assembler import (
+from model_forge.application.run_profile_assembler import (
     MANIFEST_FORMAT,
     MANIFEST_FORMAT_VERSION,
     RUN_DIR_LAYOUT,
@@ -42,23 +42,23 @@ from method_hub.application.run_profile_assembler import (
     _copy_tree_excluding,
     resolve_memory_policy,
 )
-from method_hub.application.session_snapshots import (
+from model_forge.application.session_snapshots import (
     SESSION_SNAPSHOT_EMPTY,
     SESSION_SNAPSHOT_PROCEDURE,
     snapshot_session_db,
 )
-from method_hub.configuration.resources import (
+from model_forge.configuration.resources import (
     RoleResourceCatalog,
     SkillRecommendation,
 )
-from method_hub.configuration.skill_installer import directory_sha256
-from method_hub.digests.jcs import canonicalize
-from method_hub.profiles.project_profiles import (
+from model_forge.configuration.skill_installer import directory_sha256
+from model_forge.digests.jcs import canonicalize
+from model_forge.profiles.project_profiles import (
     MemoryPolicy,
     project_role_profile_name,
 )
-from method_hub.storage.database import Database
-from method_hub.storage.migrations import HUB_MIGRATIONS
+from model_forge.storage.database import Database
+from model_forge.storage.migrations import HUB_MIGRATIONS
 
 ROOT = Path(__file__).resolve().parents[1]
 RESOURCE_ROOT = ROOT / "resources" / "team"
@@ -138,7 +138,7 @@ def _seal_kwargs(**overrides: Any) -> dict[str, Any]:
         project_id="proj-001",
         role="theorist",
         phase="P3",
-        method_identity={"method_id": "mh-1", "version": "1.0"},
+        method_identity={"method_id": "mf-1", "version": "1.0"},
         user_choices={"mode": "headless", "context_policy": "strict"},
         selected_context_references=[
             {"context_id": "ctx-1", "record_id": "rec-1"},
@@ -257,7 +257,7 @@ class TestDirectoryLayout:
             assert (run_dir / name).is_dir(), f"missing {name}/"
         assert (run_dir / "manifest" / "manifest.json").is_file()
         assert (run_dir / "manifest" / "manifest.sha256").is_file()
-        # Under the Method Hub data root, never the Hermes root.
+        # Under the Model Forge data root, never the Hermes root.
         assert assembler.runs_root.is_relative_to(
             assembler._data_root  # type: ignore[attr-defined]
         )
@@ -519,7 +519,7 @@ class TestManifest:
             assert root_key in manifest["working_roots"]
         assert manifest["hermes"] == {"executable": "/fake/hermes", "version": "9.9.9"}
         assert manifest["expected_outputs"][0]["output_id"] == "out-1"
-        assert manifest["method_identity"]["method_id"] == "mh-1"
+        assert manifest["method_identity"]["method_id"] == "mf-1"
 
     def test_manifest_digest_is_stable_and_verifiable(
         self, assembler: RunProfileAssembler

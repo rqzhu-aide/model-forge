@@ -23,28 +23,28 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from method_hub.diagnostics.store import (
+from model_forge.diagnostics.store import (
     DiagnosticStore,
     FencingError,
     ProfileLockHeld,
     utc_now_iso,
 )
-from method_hub.diagnostics.service import (
+from model_forge.diagnostics.service import (
     DiagnosticRequest,
     DiagnosticResult,
     DiagnosticService,
 )
-from method_hub.executors.local_hermes import (
+from model_forge.executors.local_hermes import (
     LocalHermesExecutor,
     LocalHermesExecutorSettings,
 )
-from method_hub.executors.protocol import (
+from model_forge.executors.protocol import (
     ExecutionObserver,
     RoleExecutionResult,
     RoleExecutionStatus,
     RoleInvocation,
 )
-from method_hub.profiles.project_profiles import (
+from model_forge.profiles.project_profiles import (
     CREDENTIAL_FILES,
     MemoryPolicy,
     MemoryStateDigest,
@@ -53,8 +53,8 @@ from method_hub.profiles.project_profiles import (
     RoleProfileSpec,
     project_role_profile_name,
 )
-from method_hub.storage.database import Database
-from method_hub.storage.migrations import HUB_MIGRATIONS
+from model_forge.storage.database import Database
+from model_forge.storage.migrations import HUB_MIGRATIONS
 
 
 # --------------------------------------------------------------------------- #
@@ -682,7 +682,7 @@ class TestDiagnosticStore:
         self, store: DiagnosticStore
     ) -> None:
         """H0.6: invalid state transitions must be rejected."""
-        from method_hub.diagnostics.contracts import StateTransitionError
+        from model_forge.diagnostics.contracts import StateTransitionError
 
         store.create_invocation(
             invocation_id="inv-bad",
@@ -698,7 +698,7 @@ class TestDiagnosticStore:
         self, store: DiagnosticStore
     ) -> None:
         """H0.6: update_status with wrong token must fail."""
-        from method_hub.diagnostics.contracts import StateTransitionError
+        from model_forge.diagnostics.contracts import StateTransitionError
 
         store.create_invocation(
             invocation_id="inv-tok",
@@ -1062,7 +1062,7 @@ class TestLocalHermesMemoryState:
 class TestBootstrapOneshot:
     def test_oneshot_executor_kind_rejected(self) -> None:
         """H0.2: 'oneshot' is NOT a valid scientific executor kind."""
-        from method_hub.application.settings import ApplicationSettings
+        from model_forge.application.settings import ApplicationSettings
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):

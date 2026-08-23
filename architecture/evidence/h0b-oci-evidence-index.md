@@ -6,7 +6,7 @@ Recorded: 2026-08-04
 Source commit: `009a50a`
 Platform: Linux 7.0.0-27-generic (x86_64)
 Runtime: Podman 5.7.0 (rootless)
-Image tag used: `localhost/method-hub-runtime:latest`
+Image tag used: `localhost/model-forge-runtime:latest`
 Observed image digest:
 `sha256:c93fe9e3d5dd05960b5d0fcf00dd6f8e5d841a6a9f7c802f46211d7d7f5007ac`
 Reported suite result: 441 passed, 2 skipped, 0 failed

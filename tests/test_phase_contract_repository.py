@@ -8,10 +8,10 @@ from pathlib import Path
 
 import pytest
 
-from method_hub.contracts import PhaseContractError, PhaseContractRepository
-from method_hub.digests import DigestContractRegistry
-from method_hub.domain import PhaseContractIdentity, SemanticVersion, Sha256Digest
-from method_hub.schemas import SchemaCatalog
+from model_forge.contracts import PhaseContractError, PhaseContractRepository
+from model_forge.digests import DigestContractRegistry
+from model_forge.domain import PhaseContractIdentity, SemanticVersion, Sha256Digest
+from model_forge.schemas import SchemaCatalog
 
 
 ARCHITECTURE = Path(__file__).resolve().parents[1] / "architecture"

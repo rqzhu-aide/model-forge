@@ -3,10 +3,10 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-from method_hub.domain.identities import PhaseContractIdentity
-from method_hub.domain.runs import RunRequest
-from method_hub.harness.commands import build_run_command
-from method_hub.specification import SpecificationPackage
+from model_forge.domain.identities import PhaseContractIdentity
+from model_forge.domain.runs import RunRequest
+from model_forge.harness.commands import build_run_command
+from model_forge.specification import SpecificationPackage
 
 
 ARCHITECTURE = Path(__file__).resolve().parents[1] / "architecture"

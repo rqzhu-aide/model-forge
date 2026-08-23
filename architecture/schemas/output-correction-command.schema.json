@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/output-correction-command.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/output-correction-command.schema.json",
   "title": "Output Correction Command",
   "description": "Authenticated user authorization to correct a specified role output without repeating completed scientific work. The command identifies the exact run, role closure, validation attempt, expected lifecycle head, correction type, permitted output scope, and optional user instruction.",
   "type": "object",

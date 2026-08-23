@@ -21,18 +21,18 @@ from typing import Any
 
 import pytest
 
-from method_hub.domain.validation import (
+from model_forge.domain.validation import (
     FindingClass,
     ValidationReport,
     ValidationSeverity,
     get_policy,
     make_finding,
 )
-from method_hub.harness.publication import (
+from model_forge.harness.publication import (
     RegisteredArtifactMetadata,
     RegisteredValidatedOutput,
 )
-from method_hub.harness.scientific_validators import validate_phase_scientific
+from model_forge.harness.scientific_validators import validate_phase_scientific
 
 
 def _output(output_id: str, document: Any) -> RegisteredValidatedOutput:

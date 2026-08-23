@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/method-exposition-revision.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/method-exposition-revision.schema.json",
   "title": "Method Exposition Revision Vector",
   "description": "A deterministic patch vector proving that exposition-only revision preserves exact mathematical identity while changing artifact and record integrity digests.",
   "type": "object",

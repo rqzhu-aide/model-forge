@@ -1,6 +1,6 @@
 {
     "$schema":  "https://json-schema.org/draft/2020-12/schema",
-    "$id":  "https://method-hub.local/architecture/schemas/handoff.schema.json",
+    "$id":  "https://model-forge.local/architecture/schemas/handoff.schema.json",
     "title":  "Role Handoff",
     "description":  "An immutable run-local research communication record that states what changed, what is supported, and what the next role must check.",
     "type":  "object",

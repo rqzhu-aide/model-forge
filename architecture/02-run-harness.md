@@ -132,7 +132,7 @@ Scientific outcomes such as contradicted or inconclusive are not run failures.
 | `correction_authorized` -> `correcting` | Harness | Revalidation of the sealed bytes passed, or a bounded correction launch was authorized | Validation-attempt record and correction-start event |
 | `correcting` -> `submitted` | Harness | Corrected outputs conform; the correction closure is sealed in the closure family | Submission-attempt record; the base submission is never rewritten |
 | `correcting` -> `running` | Harness | Correction passed on a run whose pipeline did not complete; some stage roles hold no succeeded closure (ADR-016) | Resume event; the run continues through the normal execution path |
-| `correction_authorized` or `correcting` -> `correction_exhausted` | Harness | Correction bounds spent (MH-75) | Terminal event; findings and attempts preserved |
+| `correction_authorized` or `correcting` -> `correction_exhausted` | Harness | Correction bounds spent (MF-75) | Terminal event; findings and attempts preserved |
 | Phase-defined failure, rejection, or conflict source -> corresponding terminal state | Executor, validator, or concurrency check | Legal source state, reason code, and evidence | Terminal event; current records unchanged |
 
 Only the harness changes run state. Actors request transitions by emitting commands or submissions.
@@ -235,7 +235,7 @@ This is a logical layout. A backend may store it differently if the same identit
 - Validators write only under `validation/`.
 - The publisher writes only the transaction plan, receipt, and formal storage targets.
 
-Permission discipline runs through the capability broker defined in the role-context contract. A role process receives no project-store or formal-store credentials. Because Hermes inherits the researcher's host permissions, Method Hub supplies only declared inputs and paths; it does not deny path, link, subprocess, network, secret, or direct-storage access at the operating-system level. OS-level denial is deferred optional hardening (ADR-012), and prompt wording alone is not an access boundary.
+Permission discipline runs through the capability broker defined in the role-context contract. A role process receives no project-store or formal-store credentials. Because Hermes inherits the researcher's host permissions, Model Forge supplies only declared inputs and paths; it does not deny path, link, subprocess, network, secret, or direct-storage access at the operating-system level. OS-level denial is deferred optional hardening (ADR-012), and prompt wording alone is not an access boundary.
 
 ## 6. Role execution and communication
 

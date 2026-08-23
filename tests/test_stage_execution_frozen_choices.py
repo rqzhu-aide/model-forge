@@ -4,7 +4,7 @@ from dataclasses import replace
 from pathlib import Path
 from types import MappingProxyType
 
-from method_hub.orchestration import StageStatus
+from model_forge.orchestration import StageStatus
 
 from test_stage_execution_service import Fixture
 

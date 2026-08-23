@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from method_hub.application.profile_views import build_profile_configuration_view
-from method_hub.configuration.profiles import (
+from model_forge.application.profile_views import build_profile_configuration_view
+from model_forge.configuration.profiles import (
     ProfileMapping,
     discover_profiles,
 )
-from method_hub.configuration.resources import RoleResourceCatalog
-from method_hub.configuration.skill_installer import install_bundled_skill
+from model_forge.configuration.resources import RoleResourceCatalog
+from model_forge.configuration.skill_installer import install_bundled_skill
 
 
 RESOURCES = Path(__file__).resolve().parents[1] / "resources" / "team"

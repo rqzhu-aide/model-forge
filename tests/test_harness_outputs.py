@@ -5,26 +5,26 @@ from pathlib import Path
 
 import pytest
 
-from method_hub.contracts import (
+from model_forge.contracts import (
     ResolvedPhasePlan,
     ResolvedRoleStep,
     ResolvedStage,
 )
-from method_hub.domain import PhaseContractIdentity
-from method_hub.domain.validation import FindingClass
-from method_hub.harness.outputs import (
+from model_forge.domain import PhaseContractIdentity
+from model_forge.domain.validation import FindingClass
+from model_forge.harness.outputs import (
     OutputPlan,
     build_output_plan,
     validate_role_outputs,
 )
-from method_hub.harness.task_briefs import (
+from model_forge.harness.task_briefs import (
     _extract_conditional_requirements,
     _load_schema_example,
     _render_schema_constraints,
     render_task_brief,
 )
-from method_hub.schemas import SchemaCatalog
-from method_hub.specification import SpecificationPackage
+from model_forge.schemas import SchemaCatalog
+from model_forge.specification import SpecificationPackage
 
 
 ROOT = Path(__file__).resolve().parents[1]

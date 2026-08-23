@@ -21,7 +21,7 @@ references. They are not Version 1 prerequisites.
 
 ## 1. Target outcome
 
-Make Method Hub a reliable local control plane for Hermes:
+Make Model Forge a reliable local control plane for Hermes:
 
 ```text
 Role configuration
@@ -38,7 +38,7 @@ User starts a phase run
   -> present a compact result and validation summary
 ```
 
-The researcher decides when to run or rerun every phase. Method Hub does not
+The researcher decides when to run or rerun every phase. Model Forge does not
 select a method, advance a phase, retry scientific work, or promote partial
 material automatically.
 
@@ -49,15 +49,15 @@ whole path and the same control path is ready for all phase and role modes.
 
 Version 1 assumes:
 
-- one researcher operates Method Hub on a trusted local machine;
+- one researcher operates Model Forge on a trusted local machine;
 - the installed Hermes executable, configured profiles, selected skills, and
   tools are trusted by that researcher;
 - Linux is the supported platform;
-- Method Hub controls workflow and state transitions, not host security; and
+- Model Forge controls workflow and state transitions, not host security; and
 - OCI, provider-only networking, filesystem denial, and hostile-tool isolation
   are deferred.
 
-Method Hub must state this boundary plainly. It supplies Hermes only the
+Model Forge must state this boundary plainly. It supplies Hermes only the
 intended run material, but it cannot guarantee that a local Hermes tool will
 not access other files or use the host network.
 
@@ -70,7 +70,7 @@ Keep four kinds of information separate:
 | Role definition | SOUL, base configuration, skills, tool and library guidance | User through configuration |
 | Current project-role state | Latest promoted memory and safe session snapshot | Validated successful runs or explicit user maintenance |
 | Run profile and workspace | Private working copy for one invocation | Hermes during that invocation |
-| Formal project records | Methods, proofs, empirical records, manuscript, summaries, and authority state | Method Hub validation and promotion only |
+| Formal project records | Methods, proofs, empirical records, manuscript, summaries, and authority state | Model Forge validation and promotion only |
 
 A run profile is disposable working state. It is assembled from the role
 definition and selected project-role state. It is never copied wholesale back
@@ -82,7 +82,7 @@ into either source.
    SOUL, base configuration, recommended skills, custom skills, and useful
    library guidance. A run cannot silently modify these files.
 
-2. **Each run gets a private profile.** Method Hub creates a run-specific Hermes
+2. **Each run gets a private profile.** Model Forge creates a run-specific Hermes
    home, named profile, workspace, logs, outputs, and manifest. Hermes does not
    execute against the current project-role profile directly.
 
@@ -96,7 +96,7 @@ into either source.
    state snapshot, Hermes version, model, provider, and expected outputs.
 
 5. **Exit code is not the result.** A run succeeds only after Hermes and its
-   descendants stop and Method Hub validates the required output inventory and
+   descendants stop and Model Forge validates the required output inventory and
    phase-specific artifact contracts.
 
 6. **Promotion is narrow and atomic.** Only declared formal outputs and
@@ -129,7 +129,7 @@ Required work:
   explicit user control, reviewer packet construction, and formal publication
   rules.
 - Replace claims of enforced host isolation with the honest trusted-local
-  boundary. Method Hub can prove which inputs it supplied, not which ambient
+  boundary. Model Forge can prove which inputs it supplied, not which ambient
   host resources Hermes could technically access.
 - Add a versioned `trusted_local` executor binding to manifests and invocation
   records. It records the Hermes executable and version, role-definition and
@@ -276,7 +276,7 @@ Required work:
   phase or role sequence outside the run the user already requested.
 
 Checkpoint: the user can configure, start, observe, cancel, and understand one
-real local run entirely through Method Hub.
+real local run entirely through Model Forge.
 
 ## 6. Reuse and simplification of the current implementation
 
@@ -340,13 +340,13 @@ through the real public path:
 10. successful promotion atomically advances formal outputs and allowed role
     state, while injected promotion failure preserves the last known good state;
 11. changing the locally installed Hermes version requires preflight review and
-    appears in the next manifest, but requires no Method Hub image rebuild; and
+    appears in the next manifest, but requires no Model Forge image rebuild; and
 12. the Web interface exposes the selected basis, live and final logs,
     validation result, outputs, state disposition, and promotion receipt.
 
 A complete real five-phase pilot follows this closure. It is not required to
 prove the local runner itself, but every phase mode must use this same path
-before Method Hub is called operational.
+before Model Forge is called operational.
 
 ## 8. Deliverables
 

@@ -15,14 +15,14 @@ provisioning is atomic with rollback.
   invocation gets a private runtime profile): [ADR-012](../decisions/ADR-012-trusted-local-hermes-execution.md).
 - Closure plan Block 2 and fixed rule 1 (configuration controls role
   identity): [next-block-local-hermes-execution-closure](../plans/next-block-local-hermes-execution-closure.md).
-- [07-contract-traceability](../07-contract-traceability.md) MH-61
-  (configuration-managed role setup), MH-34 (exact role-profile freezing),
-  MH-35 (missing assets block preparation), MH-38 (role definition and
+- [07-contract-traceability](../07-contract-traceability.md) MF-61
+  (configuration-managed role setup), MF-34 (exact role-profile freezing),
+  MF-35 (missing assets block preparation), MF-38 (role definition and
   project-role state remain distinct objects). Invariants INV-003 and INV-012.
 
 ## Setup
 
-- A fresh Method Hub data root with no role definitions.
+- A fresh Model Forge data root with no role definitions.
 - The Hermes executable and a base profile are installed.
 - One role (research lead) has a customized SOUL or configuration file with a
   known digest, and a customized skill.

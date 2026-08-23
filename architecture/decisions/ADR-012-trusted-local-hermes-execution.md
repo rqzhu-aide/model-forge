@@ -11,9 +11,9 @@ record, user-control, and publication invariants remain in force.
 
 ## Context
 
-Method Hub is currently a local application operated by one researcher on a
+Model Forge is currently a local application operated by one researcher on a
 trusted machine. Research work is performed by locally installed Hermes
-profiles. Method Hub prepares each run, starts Hermes, records progress,
+profiles. Model Forge prepares each run, starts Hermes, records progress,
 validates expected outputs, and promotes valid results and role state.
 
 The previous architecture required every role to run inside rootless OCI. That
@@ -28,7 +28,7 @@ Hermes is isolated from the researcher's host account.
 ## Invariants that remain true
 
 - Every run and rerun requires an explicit user action.
-- Method Hub records the exact phase, role, selected context, role assets,
+- Model Forge records the exact phase, role, selected context, role assets,
   Hermes version, and project-state snapshot used by a run.
 - Hermes works in an invocation-specific profile and workspace. It does not
   write the canonical role definition or current project-role state directly.
@@ -40,7 +40,7 @@ Hermes is isolated from the researcher's host account.
 - Cancellation and timeout cover the complete Hermes process tree and reach
   verified quiescence before closure.
 - Application restart never launches a replacement invocation automatically.
-- Method Hub validates operational and artifact contracts. It does not claim to
+- Model Forge validates operational and artifact contracts. It does not claim to
   decide whether a scientific argument is correct or important.
 
 ## Options considered
@@ -53,7 +53,7 @@ container lifecycle recovery.
 
 ### Option B: trusted local execution with per-run profiles
 
-Run the locally installed Hermes executable under Method Hub supervision. Build
+Run the locally installed Hermes executable under Model Forge supervision. Build
 an invocation-specific profile from configuration-managed role assets and the
 selected project-role memory and session snapshot. This matches the current
 single-user operating model and is selected for Version 1.
@@ -65,13 +65,13 @@ testing, and support surface before the research workflow itself is complete.
 
 ## Decision
 
-1. **Version 1 uses a local host executor.** Method Hub invokes the installed
+1. **Version 1 uses a local host executor.** Model Forge invokes the installed
    Hermes executable directly, without a shell, using an explicit argument
    vector, environment, working directory, invocation profile, and workspace.
 
-2. **The host is trusted.** Method Hub does not claim that Hermes or its tools
+2. **The host is trusted.** Model Forge does not claim that Hermes or its tools
    are prevented from reading other files, using the host network, inspecting
-   processes, or exercising the user's operating-system permissions. Method Hub
+   processes, or exercising the user's operating-system permissions. Model Forge
    supplies only declared inputs and paths, but this is workflow discipline,
    not an operating-system security guarantee.
 
@@ -81,7 +81,7 @@ testing, and support surface before the research workflow itself is complete.
    profile is assembled from both sources and is never the canonical source of
    the role assets.
 
-4. **Every invocation gets a private runtime profile.** Method Hub creates a
+4. **Every invocation gets a private runtime profile.** Model Forge creates a
    run-specific Hermes home, profile, workspace, logs, and output directory.
    The run profile receives exact copies of the configured role assets and the
    selected current project-role state. The global Hermes profile is not used
@@ -90,11 +90,11 @@ testing, and support surface before the research workflow itself is complete.
 5. **Memory and sessions use snapshot semantics.** Memory files and any safe
    session snapshot are copied into the run profile before launch. Session
    state is copied only while quiescent, through Hermes export and import when
-   available or a verified SQLite backup procedure. Method Hub never copies a
+   available or a verified SQLite backup procedure. Model Forge never copies a
    live database file.
 
 6. **Only allowed mutable state is promoted.** After Hermes and its descendants
-   stop, Method Hub validates expected artifacts and seals before and after
+   stop, Model Forge validates expected artifacts and seals before and after
    memory and session evidence. Only a successful, valid run under the current
    ownership token may atomically replace the current project-role state. SOUL,
    skills, and base configuration are never copied back from a run.
@@ -105,7 +105,7 @@ testing, and support surface before the research workflow itself is complete.
    cancellation terminate the complete process tree and verify quiescence.
    Restart reconciliation inspects the same identity and never relaunches.
 
-8. **Hermes updates do not require a Method Hub runtime image.** Preflight
+8. **Hermes updates do not require a Model Forge runtime image.** Preflight
    verifies the installed executable and records its path, version, and other
    available immutable identity. A changed Hermes version is shown to the user
    and becomes part of the next run manifest.

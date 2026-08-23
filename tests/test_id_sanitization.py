@@ -32,14 +32,14 @@ PRODUCTION_STATEMENT_ID = "claim.kernel_overhead_dominates_at_large_M"
 
 def _run_repair(tmp_path: Path, schema_file: str, content):
     """Write ``content`` as an agent output and run the real repair pass."""
-    from method_hub.contracts import (
+    from model_forge.contracts import (
         ResolvedPhasePlan,
         ResolvedRoleStep,
         ResolvedStage,
     )
-    from method_hub.domain import PhaseContractIdentity
-    from method_hub.harness.outputs import OutputPlan, OutputSpec
-    from method_hub.harness.role_execution import (
+    from model_forge.domain import PhaseContractIdentity
+    from model_forge.harness.outputs import OutputPlan, OutputSpec
+    from model_forge.harness.role_execution import (
         _apply_disclosed_mechanical_repairs,
     )
 
@@ -107,7 +107,7 @@ def test_classify_labels_lowercase_id_sanitization_exactly() -> None:
     labeled ``id_sanitization`` even when the raw id contains no uppercase
     (the old key-name + case heuristic recorded them as ``value_rewrite``).
     """
-    from method_hub.harness.role_execution import (
+    from model_forge.harness.role_execution import (
         _classify_transformations,
         _sanitize_id,
     )
@@ -136,7 +136,7 @@ def test_classify_labels_lowercase_id_sanitization_exactly() -> None:
 
 def test_classify_still_marks_real_value_rewrites() -> None:
     """K-6: a content change that is NOT an id rename stays value_rewrite."""
-    from method_hub.harness.role_execution import _classify_transformations
+    from model_forge.harness.role_execution import _classify_transformations
 
     raw = {"summary": "old text", "record_id": "record.ok_1"}
     repaired = {"summary": "new text", "record_id": "record.ok_1"}
@@ -146,7 +146,7 @@ def test_classify_still_marks_real_value_rewrites() -> None:
 
 def test_stableid_positions_match_verified_schema_scan() -> None:
     """Cross-check the walker against the audited stableId positions."""
-    from method_hub.harness.role_execution import _stableid_positions
+    from model_forge.harness.role_execution import _stableid_positions
 
     cov = _stableid_positions("statement.schema.json")
     assert not cov["heuristic"]
@@ -169,7 +169,7 @@ def test_stableid_positions_match_verified_schema_scan() -> None:
 
 
 def test_stableid_positions_falls_back_to_heuristic_when_schema_missing() -> None:
-    from method_hub.harness.role_execution import _stableid_positions
+    from model_forge.harness.role_execution import _stableid_positions
 
     cov = _stableid_positions("nonexistent.schema.json")
     assert cov["heuristic"] is True
@@ -187,7 +187,7 @@ def test_early_continue_schema_still_gets_id_sanitization(tmp_path: Path) -> Non
     'claim.kernel_overhead_dominates_at_large_M' (/statement_ids/4) survived
     repair in production.  Both must now match the stableId pattern.
     """
-    from method_hub.harness.role_execution import _schema_info
+    from model_forge.harness.role_execution import _schema_info
 
     # Pin the fixture to the old early-continue path.
     info = _schema_info("statement.schema.json")

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/method.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/method.schema.json",
   "title": "Structured Method Record",
   "description": "An immutable structured scientific and mathematical generation for one method version. Lifecycle state is frozen in the generation; the current catalog selects which generation supplies the current lifecycle view.",
   "type": "object",

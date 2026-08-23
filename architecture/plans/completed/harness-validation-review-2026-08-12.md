@@ -56,9 +56,9 @@ Details below. Verified facts are cited as file:line against `53efd01`.
    rejected]` (`review-issue.schema.json:80-90`); theory statuses
    `conditional`/`untested`/`retracted` have no validator logic (only the
    `retracted_statement_ids` field name appears).
-8. Test count 830 confirmed (pytest collect). `python -m method_hub validate`
+8. Test count 830 confirmed (pytest collect). `python -m model_forge validate`
    exists (`cli.py:21`), so HV-7.5's command is valid.
-9. HV-0.2's evidence base exists: `~/.method-hub/method-hub.sqlite3` holds 39
+9. HV-0.2's evidence base exists: `~/.model-forge/model-forge.sqlite3` holds 39
    runs, 204 role closures, 13 submissions (formal lane).
 
 ## 3. Blocking or distorting issues
@@ -207,7 +207,7 @@ a correct extraction procedure.
   state which digest `submission.digest_mismatch` binds (recommend: publication
   binds the candidate; the raw digest is preserved as evidence on the closure).
 - S4. HV-0.2 should add the supervised pilot DB
-  (`~/method-hub-data/pilot-eld/hub.sqlite3`: 7 seals, 8 launches, 7 validation
+  (`~/model-forge-data/pilot-eld/hub.sqlite3`: 7 seals, 8 launches, 7 validation
   reports, 6 promotion records) as a source. It is the only store with
   persisted validation reports; the formal DB it names has zero validation
   report rows (its findings live on closures).

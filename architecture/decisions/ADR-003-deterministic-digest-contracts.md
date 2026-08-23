@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-Method Hub uses digests for immutable records, commands, manifests, method
+Model Forge uses digests for immutable records, commands, manifests, method
 identity, authority events, and replay projections. Ordinary key-sorted JSON is
 not a cross-language canonicalization standard. Number formatting, Unicode key
 ordering, and escaping can differ between implementations even when the parsed
@@ -104,7 +104,7 @@ other exposition remain outside it and inside the whole method-record digest.
 - The research domain model defines the exact method-identity payload.
 - Storage and authority requires registry resolution, RFC 8785, SHA-256, and
   fail-closed numeric behavior.
-- MH-57 tracks implementation of the registry and interoperability tests.
+- MF-57 tracks implementation of the registry and interoperability tests.
 
 ## Schema changes
 

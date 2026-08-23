@@ -33,7 +33,7 @@ POST /api/v1/projects/{project_id}/supervised-runs/start
 
 ## 2. Seal: the durable contract (synchronous, before any process)
 
-`MethodHubService.start_supervised_run` (`application/service.py`) does, in
+`ModelForgeService.start_supervised_run` (`application/service.py`) does, in
 order, all before returning:
 
 1. **Idempotency**: an existing `idempotency_key` returns the surviving run
@@ -41,7 +41,7 @@ order, all before returning:
 2. **Project-role state lock**: one run per (project, role); a second start
    while one is live gets `SUPERVISED_RUN_LOCKED` 409.
 3. **Seal** (`run_profile_assembler.seal_run`): creates
-   `~/.method-hub/runs/<invocation_id>/`, writes the manifest (brief hash,
+   `~/.model-forge/runs/<invocation_id>/`, writes the manifest (brief hash,
    expected outputs, timeout, resolved Hermes binary, memory policy), hashes
    it, registers it in `hub.sqlite3` (`run_profile_seals`,
    `run_launch_records`). Survives any restart.
@@ -100,7 +100,7 @@ Verdict `pass`/`fail` is persisted (`run_validation_reports`).
 On pass, `state_promotion.promote_run_state` promotes the run profile's
 **allowlisted memory/session state** (`run_dir/profile/memories/` and the
 profile state DB) into the canonical project-role profile directory
-(`~/.method-hub/<project-role profile>/`). It holds the project-role state
+(`~/.model-forge/<project-role profile>/`). It holds the project-role state
 lock, captures before/after inventories and digests, swaps atomically via a
 staging directory, and rolls back entirely on any error.
 
@@ -123,7 +123,7 @@ orphans a `running` record forever.
 ## 7. Run directory layout (supervised lane)
 
 ```
-~/.method-hub/runs/<invocation_id>/
+~/.model-forge/runs/<invocation_id>/
 ├── manifest/
 │   └── manifest.json     # sealed contract (hashed, registered in hub.sqlite3)
 ├── briefs/task.md         # exactly the submitted brief text
@@ -138,7 +138,7 @@ orphans a `running` record forever.
     └── memories/          # promotable memory state
 ```
 
-> `~/.method-hub/runs/run.<phase>.<mode>.<uuid>/` directories with `roles/`
+> `~/.model-forge/runs/run.<phase>.<mode>.<uuid>/` directories with `roles/`
 > and `tasks/` subtrees are **formal-lane** layouts written by
 > `run_coordinator.py` (see [02b](02b-phase-run-walkthroughs.md)). Don't use
 > them as a reference for this lane.

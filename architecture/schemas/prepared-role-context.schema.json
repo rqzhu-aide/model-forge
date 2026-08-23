@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/prepared-role-context.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/prepared-role-context.schema.json",
   "title": "Immutable Prepared Role Context",
   "description": "The complete pre-execution context record fixed before a role starts. The later RoleContextSnapshot must reproduce these fields exactly and add only the sealed on-demand access ledger and closure identity.",
   "type": "object",

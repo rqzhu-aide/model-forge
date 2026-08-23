@@ -15,9 +15,9 @@ and safe session snapshot, byte-identical and with complete provenance.
   rerun sees exactly the latest promoted memory and safe session snapshot,
   with complete provenance):
   [next-block-local-hermes-execution-closure](../plans/next-block-local-hermes-execution-closure.md).
-- [07-contract-traceability](../07-contract-traceability.md) MH-63
-  (continuation state is exactly the latest promoted state), MH-03 (frozen
-  basis) and MH-53 (exact snapshot semantics). Invariant INV-003.
+- [07-contract-traceability](../07-contract-traceability.md) MF-63
+  (continuation state is exactly the latest promoted state), MF-03 (frozen
+  basis) and MF-53 (exact snapshot semantics). Invariant INV-003.
 
 ## Setup
 

@@ -6,7 +6,7 @@ Proposed
 
 ## Context
 
-Method Hub conflates operational execution success with output conformance.
+Model Forge conflates operational execution success with output conformance.
 A successful Hermes exit followed by any schema finding becomes role FAILED
 (`role_execution.py:991-993`), stage FAILED, run FAILED, and the UI reports
 "Execution failed". This happens even when the scientific work is complete and

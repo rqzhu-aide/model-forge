@@ -6,19 +6,19 @@
 
 Verify that a changed locally installed Hermes executable surfaces at
 preflight, is shown to the user, and is recorded in the next run manifest,
-without any Method Hub image rebuild and without false drift alarms from
+without any Model Forge image rebuild and without false drift alarms from
 update-check noise.
 
 ## Contract under test
 
-- ADR-012 item 8 (Hermes updates do not require a Method Hub runtime image;
+- ADR-012 item 8 (Hermes updates do not require a Model Forge runtime image;
   preflight verifies the installed executable and records path, version, and
   other available immutable identity): [ADR-012](../decisions/ADR-012-trusted-local-hermes-execution.md).
 - Closure plan Block 4 and acceptance item 11 (changing the locally installed
   Hermes version requires preflight review and appears in the next manifest):
   [next-block-local-hermes-execution-closure](../plans/next-block-local-hermes-execution-closure.md).
-- [07-contract-traceability](../07-contract-traceability.md) MH-66 (version
-  change surfaces at preflight), MH-03 (frozen basis) and MH-34 (executable
+- [07-contract-traceability](../07-contract-traceability.md) MF-66 (version
+  change surfaces at preflight), MF-03 (frozen basis) and MF-34 (executable
   identity in the run basis). Invariant INV-003.
 
 ## Setup

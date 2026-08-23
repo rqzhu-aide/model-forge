@@ -6,7 +6,7 @@ Prepared: 2026-08-08
 Scope: Create stage+role-specific instruction templates for Phases P1, P3, P4,
 and P5, matching the existing P2 pattern. P2 is complete and serves as the
 format reference. No contract, schema, or code changes are required - the
-template loader (`src/method_hub/application/default_instructions.py`) already
+template loader (`src/model_forge/application/default_instructions.py`) already
 supports stage+role templates; this work only adds the missing template files.
 
 ## 1. Goal in one sentence
@@ -399,11 +399,11 @@ the outside reviewer is packet-isolated - followed by a serial lead stage that
 
 ## 10. Verification
 
-From the repo root (`/home/tez/product/method-hub`), with the project
+From the repo root (`/home/tez/product/model-forge`), with the project
 environment active:
 
 ```python
-from method_hub.application.default_instructions import load_instruction, _resolve_template_name
+from model_forge.application.default_instructions import load_instruction, _resolve_template_name
 
 brief = {
     "research_question": "Test question",

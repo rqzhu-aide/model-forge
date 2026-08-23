@@ -1,6 +1,6 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://method-hub.local/architecture/schemas/run-command.schema.json",
+    "$id": "https://model-forge.local/architecture/schemas/run-command.schema.json",
     "title": "User Run Command",
     "description": "The authenticated user authorization to create one controlled research run.",
     "type": "object",

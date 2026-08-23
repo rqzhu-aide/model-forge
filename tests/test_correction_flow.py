@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import pytest
 
-from method_hub.application.correction import (
+from model_forge.application.correction import (
     ALLOWED_NORMALIZE_CODES,
     MAX_PACKAGING_ATTEMPTS,
     MAX_SCIENTIFIC_ATTEMPTS,
@@ -28,9 +28,9 @@ from method_hub.application.correction import (
     normalize,
     revalidate,
 )
-from method_hub.domain.runs import RunStatus, TERMINAL_RUN_STATUSES
-from method_hub.domain.runs import require_transition
-from method_hub.domain.validation import (
+from model_forge.domain.runs import RunStatus, TERMINAL_RUN_STATUSES
+from model_forge.domain.runs import require_transition
+from model_forge.domain.validation import (
     FindingClass,
     OutputTransformationRecord,
     ValidationFinding,
@@ -38,7 +38,7 @@ from method_hub.domain.validation import (
     ValidationSeverity,
     make_finding,
 )
-from method_hub.application.run_views import _compute_projection
+from model_forge.application.run_views import _compute_projection
 
 
 # --------------------------------------------------------------------------- #
@@ -84,17 +84,17 @@ class TestCorrectionStateTransitions:
 
     def test_correction_exhausted_has_no_outgoing(self) -> None:
         """CORRECTION_EXHAUSTED must be terminal with no outgoing edges."""
-        from method_hub.domain.runs import _TRANSITIONS
+        from model_forge.domain.runs import _TRANSITIONS
         assert _TRANSITIONS[RunStatus.CORRECTION_EXHAUSTED] == frozenset()
 
     def test_failed_still_has_correction_outgoing(self) -> None:
         """FAILED is no longer truly terminal — it has a correction path."""
-        from method_hub.domain.runs import _TRANSITIONS
+        from model_forge.domain.runs import _TRANSITIONS
         assert RunStatus.CORRECTION_AUTHORIZED in _TRANSITIONS[RunStatus.FAILED]
 
     def test_rejected_still_has_correction_outgoing(self) -> None:
         """REJECTED is no longer truly terminal — it has a correction path."""
-        from method_hub.domain.runs import _TRANSITIONS
+        from model_forge.domain.runs import _TRANSITIONS
         assert RunStatus.CORRECTION_AUTHORIZED in _TRANSITIONS[RunStatus.REJECTED]
 
 
@@ -407,14 +407,14 @@ class TestRestartReconciliation:
 
     def test_correction_exhausted_listed_as_terminal(self) -> None:
         """correction_exhausted runs must NOT be listed as incomplete."""
-        from method_hub.storage.repository import HubRepository
+        from model_forge.storage.repository import HubRepository
         import inspect
         source = inspect.getsource(HubRepository.list_incomplete_runs)
         assert "correction_exhausted" in source
 
     def test_correction_states_not_auto_relaunched(self) -> None:
         """The coordinator run loop must return on correction states."""
-        from method_hub.application.run_coordinator import RunCoordinator
+        from model_forge.application.run_coordinator import RunCoordinator
         import inspect
         source = inspect.getsource(RunCoordinator.run)
         assert "correction_authorized" in source

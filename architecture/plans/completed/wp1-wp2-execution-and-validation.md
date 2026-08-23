@@ -373,15 +373,15 @@ When `executor_kind == "oci"`:
 
 | File | Action | Description |
 |---|---|---|
-| `src/method_hub/executors/oci.py` | **NEW** | OciExecutor + OciExecutorSettings + ContainerRuntime |
-| `src/method_hub/capabilities/__init__.py` | **NEW** | Package init |
-| `src/method_hub/capabilities/broker.py` | **NEW** | CapabilityBroker |
-| `src/method_hub/capabilities/network.py` | **NEW** | NetworkPolicy + NetworkProxy |
-| `src/method_hub/harness/invocation_fencing.py` | **NEW** | Fencing token + coordinator lease over existing execution records |
-| `src/method_hub/application/settings.py` | Modify | Add `"oci"` to executor_kind literal |
-| `src/method_hub/application/bootstrap.py` | Modify | Wire OciExecutor when executor_kind=="oci" |
-| `src/method_hub/application/run_coordinator.py` | Modify | Acquire lease/check fencing in execute loop |
-| `src/method_hub/harness/stage_execution.py` | Modify | Integrate capability broker context materialization |
+| `src/model_forge/executors/oci.py` | **NEW** | OciExecutor + OciExecutorSettings + ContainerRuntime |
+| `src/model_forge/capabilities/__init__.py` | **NEW** | Package init |
+| `src/model_forge/capabilities/broker.py` | **NEW** | CapabilityBroker |
+| `src/model_forge/capabilities/network.py` | **NEW** | NetworkPolicy + NetworkProxy |
+| `src/model_forge/harness/invocation_fencing.py` | **NEW** | Fencing token + coordinator lease over existing execution records |
+| `src/model_forge/application/settings.py` | Modify | Add `"oci"` to executor_kind literal |
+| `src/model_forge/application/bootstrap.py` | Modify | Wire OciExecutor when executor_kind=="oci" |
+| `src/model_forge/application/run_coordinator.py` | Modify | Acquire lease/check fencing in execute loop |
+| `src/model_forge/harness/stage_execution.py` | Modify | Integrate capability broker context materialization |
 | `architecture/schemas/role-context-snapshot.schema.json` | Verify | Already defined; broker produces instances |
 | `tests/test_oci_executor.py` | **NEW** | Unit + integration tests |
 | `tests/test_capability_broker.py` | **NEW** | Path traversal, digest, access-log tests |
@@ -545,10 +545,10 @@ def preserve_raw_output(
 
 | File | Action | Description |
 |---|---|---|
-| `src/method_hub/harness/output_adapters.py` | **NEW** | OutputAdapter protocol + base implementations |
-| `src/method_hub/harness/scientific_validators.py` | **NEW** | Phase-specific validation functions |
-| `src/method_hub/harness/submission_validation.py` | Modify | Extend `_validate_phase_semantics` to call new validators |
-| `src/method_hub/harness/stage_execution.py` | Modify | Add raw output preservation |
+| `src/model_forge/harness/output_adapters.py` | **NEW** | OutputAdapter protocol + base implementations |
+| `src/model_forge/harness/scientific_validators.py` | **NEW** | Phase-specific validation functions |
+| `src/model_forge/harness/submission_validation.py` | Modify | Extend `_validate_phase_semantics` to call new validators |
+| `src/model_forge/harness/stage_execution.py` | Modify | Add raw output preservation |
 | `tests/fixtures/golden/` | **NEW** | Golden output fixtures per phase/mode/role (captured via Track A, labelled) |
 | `tests/fixtures/mutations/` | **NEW** | Negative mutation fixtures |
 | `tests/test_output_adapters.py` | **NEW** | Adapter unit tests |

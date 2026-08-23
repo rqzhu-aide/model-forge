@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from method_hub.contracts import ResolvedPhasePlan, ResolvedStage
-from method_hub.domain import Sha256Digest, StableId
-from method_hub.orchestration import (
+from model_forge.contracts import ResolvedPhasePlan, ResolvedStage
+from model_forge.domain import Sha256Digest, StableId
+from model_forge.orchestration import (
     ContractSequentialOrchestrator,
     OrchestrationBinding,
     OrchestrationStatus,
@@ -20,7 +20,7 @@ from method_hub.orchestration import (
     SubmissionReference,
     SubmissionStatus,
 )
-from method_hub.specification import SpecificationPackage
+from model_forge.specification import SpecificationPackage
 
 
 ARCHITECTURE = Path(__file__).resolve().parents[1] / "architecture"

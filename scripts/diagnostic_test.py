@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """End-to-end diagnostic: run one real Hermes task through the hardened executor.
 
-This script creates a real kanban task on the method-hub board, assigns it to
+This script creates a real kanban task on the model-forge board, assigns it to
 the theorist profile, and polls until terminal.  It exercises:
 
   - _create (with --max-retries 1)
@@ -22,16 +22,16 @@ import sys
 import time
 from pathlib import Path
 
-# Add method-hub to path
+# Add model-forge to path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from method_hub.executors.hermes import (
+from model_forge.executors.hermes import (
     HermesKanbanExecutor,
     HermesSettings,
     profile_exists,
     resolve_hermes_root,
 )
-from method_hub.executors.protocol import RoleExecutionStatus, RoleInvocation
+from model_forge.executors.protocol import RoleExecutionStatus, RoleInvocation
 
 
 class DiagnosticObserver:
@@ -54,10 +54,10 @@ class DiagnosticObserver:
 
 
 async def main() -> int:
-    workspace = Path("/tmp/method-hub-diagnostic/workspace")
-    task_brief = Path("/tmp/method-hub-diagnostic/task_brief.md")
+    workspace = Path("/tmp/model-forge-diagnostic/workspace")
+    task_brief = Path("/tmp/model-forge-diagnostic/task_brief.md")
 
-    print("=== Method Hub Diagnostic: Real Hermes Execution ===")
+    print("=== Model Forge Diagnostic: Real Hermes Execution ===")
     print()
 
     # 1. Verify profiles exist
@@ -75,7 +75,7 @@ async def main() -> int:
     print("[2/5] Configuring executor...")
     settings = HermesSettings(
         executable="hermes",
-        board_slug="method-hub",
+        board_slug="model-forge",
         hermes_home=root,
         poll_interval_seconds=5.0,
         command_timeout_seconds=30,

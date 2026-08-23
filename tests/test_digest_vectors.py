@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from method_hub.digests import (
+from model_forge.digests import (
     JCSCanonicalizationError,
     JCSInvalidUnicode,
     JCSUnsupportedNumber,

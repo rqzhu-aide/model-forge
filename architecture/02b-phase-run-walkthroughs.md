@@ -10,17 +10,17 @@ instruction the agents actually receive, validators, and where results land.
 
 The authoritative sources for this doc are the executable phase contracts
 (`architecture/contracts/phases/P1.json` .. `P5.json`, loaded by
-`src/method_hub/contracts/phases.py`), the Jinja2 instruction templates under
+`src/model_forge/contracts/phases.py`), the Jinja2 instruction templates under
 `resources/instructions/<Phase>/`, the stage executor
-(`src/method_hub/harness/stage_execution.py`), and the scientific validators
-(`src/method_hub/harness/scientific_validators.py`). When prose here and a
+(`src/model_forge/harness/stage_execution.py`), and the scientific validators
+(`src/model_forge/harness/scientific_validators.py`). When prose here and a
 contract disagree, the contract wins.
 
 ## 1. Shared machinery (read once)
 
 A formal-lane run is started from a phase page: the user picks a **mode** and
 **choice values**, the UI posts `StartRunRequest` (phase, mode, choices,
-context policy), and `MethodHubService.start_run` freezes a manifest and hands
+context policy), and `ModelForgeService.start_run` freezes a manifest and hands
 the run to the `RunCoordinator`. The coordinator then walks the contract's
 **role stages** in `sequence` order. For each stage:
 
@@ -44,7 +44,7 @@ the run to the `RunCoordinator`. The coordinator then walks the contract's
   (research question, scope, constraints, decision criteria) and
   `phase_id`/`mode_id`/`stage_id`/`role`. A harness-owned/agent-authored
   field separation note is appended once per layer.
-- **Executor**: configured via `METHOD_HUB_EXECUTOR_KIND` (`disabled` |
+- **Executor**: configured via `MODEL_FORGE_EXECUTOR_KIND` (`disabled` |
   `fake` | `hermes_kanban` | `local_hermes`). Real phases run
   `local_hermes`; `fake` (schema-example executor, development mode only)
   emits schema-valid example outputs for pipeline testing; `disabled` builds
@@ -53,7 +53,7 @@ the run to the `RunCoordinator`. The coordinator then walks the contract's
   the contract (`p<N>.<name>` output ids). Validators check the complete
   phase output set, then publication bindings atomically commit formal
   records (current slots, cumulative collections).
-- **Run directory**: `~/.method-hub/runs/run.<phase>.<mode>.<uuid>/` with
+- **Run directory**: `~/.model-forge/runs/run.<phase>.<mode>.<uuid>/` with
   `roles/` and `tasks/` subtrees.
 
 The rest of this document is the phase-specific contract content, quoted or
@@ -261,9 +261,9 @@ issue ledger.
 | Modes, stages, execution types, isolation rules | `architecture/contracts/phases/P<N>.json` (`run_modes`, `role_stages`) |
 | Output ids, producers, schemas | Same contracts (`run_local_outputs`) |
 | Instruction text agents receive | `resources/instructions/<Phase>/*.md` |
-| Parallel/serial dispatch | `src/method_hub/harness/stage_execution.py` |
-| Task brief rendering | `src/method_hub/harness/task_briefs.py` |
-| Scientific validators | `src/method_hub/harness/scientific_validators.py` |
+| Parallel/serial dispatch | `src/model_forge/harness/stage_execution.py` |
+| Task brief rendering | `src/model_forge/harness/task_briefs.py` |
+| Scientific validators | `src/model_forge/harness/scientific_validators.py` |
 | Publication bindings | Contracts (`publication_bindings`) executed by `harness/publication.py` |
-| Formal run dir layout | `~/.method-hub/runs/run.<phase>.<mode>.<uuid>/` |
-| Executor choice | `METHOD_HUB_EXECUTOR_KIND` (`application/settings.py`) |
+| Formal run dir layout | `~/.model-forge/runs/run.<phase>.<mode>.<uuid>/` |
+| Executor choice | `MODEL_FORGE_EXECUTOR_KIND` (`application/settings.py`) |

@@ -3,8 +3,8 @@ from __future__ import annotations
 import hashlib
 import json
 
-from method_hub.application.run_views import run_detail_view
-from method_hub.storage.repository import HubRepository
+from model_forge.application.run_views import run_detail_view
+from model_forge.storage.repository import HubRepository
 
 
 def _digest(value) -> str:

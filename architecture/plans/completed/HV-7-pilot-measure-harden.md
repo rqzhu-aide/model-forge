@@ -68,7 +68,7 @@ hv7-calibration-corpus/
 
 ### HV-7.2: Shadow mode comparison
 
-**Target:** `src/method_hub/harness/` (new shadow comparison harness)
+**Target:** `src/model_forge/harness/` (new shadow comparison harness)
 
 Run the new policy in shadow mode: for each validation, record both:
 - The **current** decision (old all-ERROR policy)
@@ -78,8 +78,8 @@ without changing publication. Two evidence sources:
 
 1. Live runs during the pilot period.
 2. REPLAY of the HV-0 baseline: the 204 historical role closures in
-   `~/.method-hub/method-hub.sqlite3` and the 7 supervised validation reports
-   in `~/method-hub-data/pilot-eld/hub.sqlite3` already carry their findings.
+   `~/.model-forge/model-forge.sqlite3` and the 7 supervised validation reports
+   in `~/model-forge-data/pilot-eld/hub.sqlite3` already carry their findings.
    Re-deciding those findings under the new policy costs no model calls and
    immediately quantifies the false-rejection fix rate before any new run.
 
@@ -152,7 +152,7 @@ whether formal project state changed:
 ```
 .venv/bin/python -m pytest tests/ -q           # Python backend (830+ tests)
 cd web && npx vitest run                        # Frontend (110+ tests)
-python -m method_hub validate                   # Architecture contract validation
+python -m model_forge validate                   # Architecture contract validation
 ```
 
 All must pass. No exceptions.

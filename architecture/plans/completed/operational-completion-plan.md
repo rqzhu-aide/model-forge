@@ -1,4 +1,4 @@
-# Method Hub Operational Completion Plan
+# Model Forge Operational Completion Plan
 
 Status: Historical (superseded by trusted-local-execution-program.md)
 
@@ -8,7 +8,7 @@ Prepared: 2026-08-03
 
 As of commit `a08604d` and ADR-012:
 
-- Method Hub targets a trusted, single-user local Linux application for Version
+- Model Forge targets a trusted, single-user local Linux application for Version
   1;
 - rootless OCI is optional later hardening, not a Phase 0 or WP1 prerequisite;
 - the sequential harness, project profiles, runtime snapshots, lifecycle store,
@@ -30,7 +30,7 @@ five-phase pilots.
 Operational version 1 is a single-host, Linux-supported research harness in
 which an authenticated researcher can:
 
-1. create and inspect a native Method Hub project;
+1. create and inspect a native Model Forge project;
 2. configure reproducible Hermes role profiles and recommended skills;
 3. review the exact scientific and execution basis of a proposed run;
 4. explicitly start, monitor, cancel, and inspect any eligible phase run;
@@ -162,11 +162,11 @@ basis and finish the normative representations required to test real execution.
 
 - `architecture/schemas/`, `architecture/contracts/`, and
   `architecture/examples/`
-- `src/method_hub/harness/commands.py`
-- `src/method_hub/harness/preparation.py`
-- `src/method_hub/harness/execution_records.py`
-- `src/method_hub/domain/runs.py`
-- `src/method_hub/application/run_lifecycle.py`
+- `src/model_forge/harness/commands.py`
+- `src/model_forge/harness/preparation.py`
+- `src/model_forge/harness/execution_records.py`
+- `src/model_forge/domain/runs.py`
+- `src/model_forge/application/run_lifecycle.py`
 
 ### Validation
 
@@ -230,11 +230,11 @@ scientific judgment.
 
 ### Suggested modules
 
-- `src/method_hub/executors/oci.py`
-- `src/method_hub/executors/runtime_profiles.py`
-- `src/method_hub/capabilities/broker.py`
-- `src/method_hub/capabilities/policy.py`
-- `src/method_hub/harness/invocation_recovery.py`
+- `src/model_forge/executors/oci.py`
+- `src/model_forge/executors/runtime_profiles.py`
+- `src/model_forge/capabilities/broker.py`
+- `src/model_forge/capabilities/policy.py`
+- `src/model_forge/harness/invocation_recovery.py`
 
 These are suggested boundaries, not new authority layers.
 
@@ -553,20 +553,20 @@ Turn the development server into a repeatable supported installation.
 ### Exit gate
 
 A new Linux host can install, start, stop, upgrade, back up, restore, and verify
-Method Hub using documented commands and no source-tree assumptions.
+Model Forge using documented commands and no source-tree assumptions.
 
 ## 13. WP8: import legacy Research Hub projects
 
 ### Purpose
 
-Offer a controlled adoption path only after native Method Hub operation is
+Offer a controlled adoption path only after native Model Forge operation is
 stable.
 
 ### Deliverables
 
 1. Accept legacy Research Hub input read-only.
 2. Inventory source records, methods, branches, runs, artifacts, and unresolved
-   states without assigning Method Hub authority.
+   states without assigning Model Forge authority.
 3. Produce a dry-run report that identifies:
    - exact convertible objects;
    - ambiguous or unsupported objects;
@@ -574,7 +574,7 @@ stable.
    - missing provenance;
    - count and digest reconciliation;
    - user decisions required.
-4. Import into a new Method Hub project. Never dual write or update the source.
+4. Import into a new Model Forge project. Never dual write or update the source.
 5. Create a conversion receipt that binds source inventory, mapping rules,
    created generations, and reconciliation results.
 6. Define rollback before cutover and recovery after cutover.
@@ -587,12 +587,12 @@ stable.
   retired methods, old method versions, and incomplete evidence.
 - Repeatable dry runs and idempotent conversion.
 - Exact count, digest, method-lineage, and current-record reconciliation.
-- Failure at every conversion stage without partial Method Hub authority.
+- Failure at every conversion stage without partial Model Forge authority.
 
 ### Exit gate
 
 A researcher can review the complete conversion report and either accept one
-coherent Method Hub project or retain the untouched legacy project. No project
+coherent Model Forge project or retain the untouched legacy project. No project
 is governed by both systems.
 
 ## 14. WP9: real scientific pilots and release gates

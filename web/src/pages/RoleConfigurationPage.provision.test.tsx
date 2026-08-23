@@ -56,7 +56,7 @@ function definition(overrides: Partial<RoleDefinitionView> = {}): RoleDefinition
         skill_id: "lit-review-orchestrator",
         name: "Literature review orchestrator",
         description: "Plans and tracks literature review work.",
-        source: "method-hub-bundle",
+        source: "model-forge-bundle",
         recommended_version: "pinned",
       },
     ],

@@ -182,8 +182,8 @@
       "media_type": "application/json"
     },
     "working_roots": {
-      "run_profile": "/var/lib/method-hub/runs/run-001/profile",
-      "workspace": "/var/lib/method-hub/runs/run-001/workspace"
+      "run_profile": "/var/lib/model-forge/runs/run-001/profile",
+      "workspace": "/var/lib/model-forge/runs/run-001/workspace"
     },
     "process_control": {
       "supervision": "local_process_group",
@@ -243,5 +243,5 @@
   },
   "role_write_root": "runs/P4/run.p4.preliminary.20260801t140000z/roles/01-data_analyst/",
   "started_at": "2026-08-01T14:00:05Z",
-  "start_sha256": "0443fbc45586cce090e0622cddcf57e94a7b4da1be592e0fa8fb4c12dfff29b3"
+  "start_sha256": "8335ec2765ad5c166911990be953332d78f57f5d9957b463490e1b2f928336c0"
 }

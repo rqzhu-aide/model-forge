@@ -1,6 +1,6 @@
 {
     "$schema":  "https://json-schema.org/draft/2020-12/schema",
-    "$id":  "https://method-hub.local/architecture/schemas/role-invocation-start.schema.json",
+    "$id":  "https://model-forge.local/architecture/schemas/role-invocation-start.schema.json",
     "title":  "Immutable Role Invocation Start",
     "description":  "The exact execution basis accepted by the harness immediately before one role process starts. It resolves one sealed run-manifest recipe step without claiming future outputs, reads, or terminal status.",
     "type":  "object",

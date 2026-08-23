@@ -13,7 +13,7 @@ function memoryStorage(): DraftStorage {
 
 describe("run instruction draft storage", () => {
   it("uses a project and phase-specific key", () => {
-    expect(runInstructionDraftKey("study/one", "P3")).toBe("method-hub:run-instructions:v1:study%2Fone:P3");
+    expect(runInstructionDraftKey("study/one", "P3")).toBe("model-forge:run-instructions:v1:study%2Fone:P3");
   });
 
   it("persists exact instruction text and removes an empty draft", () => {

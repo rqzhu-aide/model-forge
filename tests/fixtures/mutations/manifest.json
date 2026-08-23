@@ -1,5 +1,5 @@
 {
-  "format": "method-hub.mutation-fixtures",
+  "format": "model-forge.mutation-fixtures",
   "format_version": "1.0.0",
   "mutations": [
     {

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/empirical-protocol.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/empirical-protocol.schema.json",
   "title": "Phase 4 Empirical Protocol",
   "description": "A prespecified Phase 4 protocol for one exact method identity. Preliminary and comprehensive are scientific scopes, not chronological states. Prespecified fields remain fixed after execution; departures are appended only as deviations.",
   "type": "object",

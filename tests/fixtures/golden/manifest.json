@@ -1,67 +1,67 @@
 {
-  "format": "method-hub.golden-fixtures",
+  "format": "model-forge.golden-fixtures",
   "format_version": "1.0.0",
   "fixtures": [
     {
       "schema_file": "attention-item.schema.json",
       "source": "attention-item.example.json",
-      "sha256": "1dba993a47dfd0fc65090dc7eec7b157d54e27c1ca9116ac650610ca043225d9",
+      "sha256": "f1f58c0bc9e8358f330856d0673a1f55009d86b289758de85236513ea7a55a02",
       "capture_executor": "schema_example",
       "label": "golden_positive"
     },
     {
       "schema_file": "decision-record.schema.json",
       "source": "decision-record.example.json",
-      "sha256": "b300f9d74ad2e35050382a0cde8c5cbd9b5d4a17e5c3dfa9860f3f3c071a587d",
+      "sha256": "6d54bc63af754c7163b408621829b8875f39d9ad8b8bd07c4fdb169235bba0d7",
       "capture_executor": "schema_example",
       "label": "golden_positive"
     },
     {
       "schema_file": "evidence.schema.json",
       "source": "evidence.example.json",
-      "sha256": "56f3d813b5310f213a0330fece2eda4ce198e98c5343b5d6ad6b86622a40b547",
+      "sha256": "f25c628e987c7f87cd1ca0cec2b9b40faa5218d8599c7b202e93f1556a03ed2c",
       "capture_executor": "schema_example",
       "label": "golden_positive"
     },
     {
       "schema_file": "handoff.schema.json",
       "source": "handoff.example.json",
-      "sha256": "18b7cad4d4d1f3df490417112a32cb66cd4c73d3cb0817ae0be81114b78786f9",
+      "sha256": "786fe2a1866ec44f949e7402ffbc99f56c361eadec378c94f2a5b8e03bdd2552",
       "capture_executor": "schema_example",
       "label": "golden_positive"
     },
     {
       "schema_file": "literature-source.schema.json",
       "source": "literature-source.example.json",
-      "sha256": "0d4d68063fca8f269c9bca1ef45084cbd9ca64229da4586bf645357da9f6becc",
+      "sha256": "43593c52c91ebf6e7b3566966ee4a97556b054323fde1f9ccc03ae93cf99eb12",
       "capture_executor": "schema_example",
       "label": "golden_positive"
     },
     {
       "schema_file": "method.schema.json",
       "source": "method.example.json",
-      "sha256": "e60641d01c07e4ffcca00b6111d88afb42a4a515c9eea14378c88b4d49b1f3f2",
+      "sha256": "840fc27ec4b13a7332d0f561adda4b92003d58864aff18b5398738475bd8d658",
       "capture_executor": "schema_example",
       "label": "golden_positive"
     },
     {
       "schema_file": "review-issue.schema.json",
       "source": "review-issue.example.json",
-      "sha256": "9460ce75b7776c039c27a520a310ad9eafaab9fcd7f7f922ec7981b4c119009b",
+      "sha256": "9e3f0a2e2ef5af3b97f2145163f790ffd204593c153f84e67eb28ea41eebb0ff",
       "capture_executor": "schema_example",
       "label": "golden_positive"
     },
     {
       "schema_file": "scientific-record.schema.json",
       "source": "scientific-record.example.json",
-      "sha256": "89dea34ed3bde8f046fc36477eff1d11580104feec5ab6638f7dfb0e3a71f91c",
+      "sha256": "db91a0578322193d8c69b96f338f5bd829c9d70511a83d73c2458d516f471161",
       "capture_executor": "schema_example",
       "label": "golden_positive"
     },
     {
       "schema_file": "statement.schema.json",
       "source": "statement.example.json",
-      "sha256": "76752034aa279749edb03de65454f4f9b993b8aee08d7a94552d07097b4068db",
+      "sha256": "3dafb699c3fd2614ba15f5e941574268aff6aceea215d7fe7d021d27e21c51de",
       "capture_executor": "schema_example",
       "label": "golden_positive"
     }

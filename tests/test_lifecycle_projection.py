@@ -12,7 +12,7 @@ from typing import Any
 
 import pytest
 
-from method_hub.application.run_views import _compute_projection
+from model_forge.application.run_views import _compute_projection
 
 
 def _payload(

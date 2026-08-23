@@ -3,7 +3,7 @@
 Status: findings only (no code changes, no new tests)
 Author: coder profile
 Basis: current tree at `60b1fcc` (post ISS-1..ISS-9), production DB at
-`~/.method-hub/method-hub.sqlite3`, the trusted-local execution program plan,
+`~/.model-forge/model-forge.sqlite3`, the trusted-local execution program plan,
 and the instruction-output-integrity fix plan. Every finding carries
 file:line evidence verified against this tree.
 

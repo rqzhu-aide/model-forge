@@ -9,7 +9,7 @@
       // Apply the saved color theme before first paint to avoid a flash.
       (function () {
         var saved = null;
-        try { saved = window.localStorage.getItem("method-hub-theme"); } catch (e) {}
+        try { saved = window.localStorage.getItem("model-forge-theme"); } catch (e) {}
         if (saved !== "light" && saved !== "dark") {
           saved = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
         }
@@ -18,9 +18,9 @@
     </script>
     <meta
       name="description"
-      content="Method Hub controlled research workflow interface"
+      content="Model Forge controlled research workflow interface"
     />
-    <title>Method Hub</title>
+    <title>Model Forge</title>
   </head>
   <body>
     <div id="root"></div>

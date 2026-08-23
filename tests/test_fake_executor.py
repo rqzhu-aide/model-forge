@@ -3,8 +3,8 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
-from method_hub.executors.fake import DeterministicFakeExecutor
-from method_hub.executors.protocol import RoleExecutionStatus, RoleInvocation
+from model_forge.executors.fake import DeterministicFakeExecutor
+from model_forge.executors.protocol import RoleExecutionStatus, RoleInvocation
 
 
 class Observer:

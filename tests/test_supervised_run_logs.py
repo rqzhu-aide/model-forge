@@ -17,18 +17,18 @@ from typing import Any
 
 import pytest
 
-from method_hub.api.models import SupervisedRunLogs
-from method_hub.application.run_profile_assembler import (
+from model_forge.api.models import SupervisedRunLogs
+from model_forge.application.run_profile_assembler import (
     HermesProbe,
     RunProfileAssembler,
     SealedRun,
 )
-from method_hub.application.service import MethodHubService
-from method_hub.configuration.resources import RoleResourceCatalog
-from method_hub.domain.runs import isoformat_utc, utc_now
-from method_hub.profiles.project_profiles import MemoryPolicy
-from method_hub.storage.database import Database
-from method_hub.storage.migrations import HUB_MIGRATIONS
+from model_forge.application.service import ModelForgeService
+from model_forge.configuration.resources import RoleResourceCatalog
+from model_forge.domain.runs import isoformat_utc, utc_now
+from model_forge.profiles.project_profiles import MemoryPolicy
+from model_forge.storage.database import Database
+from model_forge.storage.migrations import HUB_MIGRATIONS
 
 ROOT = Path(__file__).resolve().parents[1]
 RESOURCE_ROOT = ROOT / "resources" / "team"
@@ -65,7 +65,7 @@ class _FakeSealStore:
         return []
 
 
-def _make_logs_service(run_dir: Path) -> MethodHubService:
+def _make_logs_service(run_dir: Path) -> ModelForgeService:
     """Build a service whose run_seal_store property serves a fake record.
 
     The property lazily initializes from ``self._run_seal_store``; setting
@@ -73,13 +73,13 @@ def _make_logs_service(run_dir: Path) -> MethodHubService:
     the class, so no cross-test pollution is possible.
     """
     record = _FakeSealRecord(run_dir=str(run_dir))
-    service = MethodHubService.__new__(MethodHubService)
+    service = ModelForgeService.__new__(ModelForgeService)
     service._reconcile_watchers = {}
     service._run_seal_store = _FakeSealStore(record)  # type: ignore[assignment]
     return service
 
 
-def _get_logs(service: MethodHubService, invocation: str, tail: int = 65536):
+def _get_logs(service: ModelForgeService, invocation: str, tail: int = 65536):
     return asyncio.run(
         service.get_supervised_run_logs("project.logs", invocation, tail)
     )
@@ -153,7 +153,7 @@ class TestLogsEndpoint:
         assert result.heartbeat_tail == "A" * 1024
 
     def test_unknown_invocation_raises(self, logs_service):
-        from method_hub.api.errors import CommandRejected
+        from model_forge.api.errors import CommandRejected
 
         service, _ = logs_service
         with pytest.raises(CommandRejected):
@@ -161,15 +161,15 @@ class TestLogsEndpoint:
 
 
 class TestReconcileWatcher:
-    def _make_service(self) -> MethodHubService:
-        service = MethodHubService.__new__(MethodHubService)
+    def _make_service(self) -> ModelForgeService:
+        service = ModelForgeService.__new__(ModelForgeService)
         service._reconcile_watchers = {}
         service._run_seal_store = _FakeSealStore(None)
         service.__dict__["run_profile_assembler"] = None
         return service
 
     def test_watcher_closes_record_on_exit(self, tmp_path, monkeypatch):
-        from method_hub.executors.protocol import (
+        from model_forge.executors.protocol import (
             RoleExecutionResult,
             RoleExecutionStatus,
         )
@@ -206,7 +206,7 @@ class TestReconcileWatcher:
             await real_sleep(0)
 
         monkeypatch.setattr(
-            "method_hub.application.service.asyncio.sleep", _fast_sleep
+            "model_forge.application.service.asyncio.sleep", _fast_sleep
         )
 
         async def _run():
@@ -243,7 +243,7 @@ _GOOD_THEORY = {
     "representations": {"statements": []},
     "invocation_id": "inv-001",
     "run_id": "inv-001",
-    "method_id": "mh-1",
+    "method_id": "mf-1",
 }
 
 
@@ -254,7 +254,7 @@ def _seal_kwargs(**overrides: Any) -> dict[str, Any]:
         project_id="proj-001",
         role="theorist",
         phase="P3",
-        method_identity={"method_id": "mh-1", "version": "1.0"},
+        method_identity={"method_id": "mf-1", "version": "1.0"},
         user_choices={"mode": "headless", "context_policy": "strict"},
         selected_context_references=[
             {"context_id": "ctx-1", "record_id": "rec-1"},
@@ -330,7 +330,7 @@ class TestPostExitValidation:
             hermes_binary="stub-hermes",
             hermes_probe=lambda binary: HermesProbe(binary, "0.0.1"),
         )
-        service = MethodHubService.__new__(MethodHubService)
+        service = ModelForgeService.__new__(ModelForgeService)
         service._reconcile_watchers = {}
         service._run_seal_store = assembler.store  # type: ignore[assignment]
         service._run_assembler = assembler

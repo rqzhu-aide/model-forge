@@ -11,7 +11,7 @@ import "./integrity.css";
 const root = document.getElementById("root");
 
 if (!root) {
-  throw new Error("Method Hub could not find its application root.");
+  throw new Error("Model Forge could not find its application root.");
 }
 
 createRoot(root).render(

@@ -16,9 +16,9 @@ invocation automatically.
 - Closure plan Block 4 and acceptance item 7 (application restart does not
   leave unaccounted descendants or launch replacements):
   [next-block-local-hermes-execution-closure](../plans/next-block-local-hermes-execution-closure.md).
-- [07-contract-traceability](../07-contract-traceability.md) MH-68
-  (restart reconciliation never relaunches), MH-01 (only the user starts or
-  reruns) and MH-08 (no completion or status change starts another run).
+- [07-contract-traceability](../07-contract-traceability.md) MF-68
+  (restart reconciliation never relaunches), MF-01 (only the user starts or
+  reruns) and MF-08 (no completion or status change starts another run).
   Invariant INV-001.
 
 ## Setup

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/run-cancellation-command.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/run-cancellation-command.schema.json",
   "title": "Run Cancellation Command",
   "description": "An authenticated, idempotent command that closes one run's submission gate before immutable submission. It is separate from formal ControlCommand transactions.",
   "type": "object",

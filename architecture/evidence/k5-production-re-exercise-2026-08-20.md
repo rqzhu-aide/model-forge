@@ -7,12 +7,12 @@ harness audit 2026-08-16.
 
 ## Setup
 
-- Server: `METHOD_HUB_EXECUTOR_KIND=local_hermes
-  METHOD_HUB_DATA_ANALYST_PROFILE=data_scientist method-hub serve`
+- Server: `MODEL_FORGE_EXECUTOR_KIND=local_hermes
+  MODEL_FORGE_DATA_ANALYST_PROFILE=data_scientist model-forge serve`
   (loopback :8765). The `data_analyst` role needed the profile override: no
   `data_analyst` Hermes profile directory exists; the configured
   `data_scientist` profile carries the deepseek-v4-flash credentials.
-- Backup before exercise: `~/.method-hub-backups/20260820-085410` (55 MB:
+- Backup before exercise: `~/.model-forge-backups/20260820-085410` (55 MB:
   database, artifacts, runs).
 - Project: `project.entangled_langevin_particle_acceleration.b2d9f388...`
   (the project with all 27 historical full-catalog runs: 22 failed, 5

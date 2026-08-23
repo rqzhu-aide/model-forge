@@ -16,7 +16,7 @@ function browserStorage(): DraftStorage | undefined {
 }
 
 export function runInstructionDraftKey(projectId: string, phaseId: string): string {
-  return `method-hub:run-instructions:v1:${encodeURIComponent(projectId)}:${phaseId}`;
+  return `model-forge:run-instructions:v1:${encodeURIComponent(projectId)}:${phaseId}`;
 }
 
 export function readDraft(storage: DraftStorage | undefined, key: string): string {

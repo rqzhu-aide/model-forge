@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from method_hub.storage import WorkspacePathError, WorkspacePaths
+from model_forge.storage import WorkspacePathError, WorkspacePaths
 
 
 @pytest.fixture

@@ -88,7 +88,7 @@ sealed digest thus reflects repaired+rehashed content.
 
 ### HV-1.1: Seal raw output before repair
 
-**Target:** `src/method_hub/harness/role_execution.py`
+**Target:** `src/model_forge/harness/role_execution.py`
 
 Change the ordering in `_validate_and_close` so that:
 1. Read and seal the original workspace output bytes first (pre-repair).
@@ -120,7 +120,7 @@ and validation outcome.
 
 ### HV-1.2: Record all mechanical transformations
 
-**Target:** `src/method_hub/harness/role_execution.py`, new record type
+**Target:** `src/model_forge/harness/role_execution.py`, new record type
 
 Define an `OutputTransformationRecord` (parent plan §6.2) as an immutable
 record for every mechanical transformation:
@@ -142,7 +142,7 @@ changed.
 
 ### HV-1.3: Schema-path-aware timestamp injection
 
-**Target:** `src/method_hub/harness/role_execution.py`, `_add_missing_timestamps`
+**Target:** `src/model_forge/harness/role_execution.py`, `_add_missing_timestamps`
 (line 245) and `_collect_nested_timestamps` (line 539)
 
 Replace the whole-tree walk with schema-path-aware traversal. Only inject
@@ -158,7 +158,7 @@ only at those paths.
 
 ### HV-1.4: Stop silently deleting unknown fields
 
-**Target:** `src/method_hub/harness/role_execution.py`, `_fix_item` (line 100)
+**Target:** `src/model_forge/harness/role_execution.py`, `_fix_item` (line 100)
 
 Current behavior: for closed schemas, any key not in `allowed_props` is `del`-
 eted silently (`role_execution.py:149-154`).
@@ -177,7 +177,7 @@ decision from HV-0.
 
 ### HV-1.5: Unify validation context
 
-**Target:** `src/method_hub/application/output_validation.py`,
+**Target:** `src/model_forge/application/output_validation.py`,
 `_phase_plan_shim` (line 440)
 
 Remove `_phase_plan_shim` entirely. Replace with a real `ValidationContext`
@@ -234,9 +234,9 @@ the real mode is passed to validators:
 
 | File | Change |
 | --- | --- |
-| `src/method_hub/harness/role_execution.py` | Reorder seal-before-repair, schema-path timestamps, stop silent deletion, transformation records |
-| `src/method_hub/application/output_validation.py` | Remove `_phase_plan_shim`, pass real mode |
-| `src/method_hub/domain/validation.py` | Add `OutputTransformationRecord` type (if not added in HV-0) |
+| `src/model_forge/harness/role_execution.py` | Reorder seal-before-repair, schema-path timestamps, stop silent deletion, transformation records |
+| `src/model_forge/application/output_validation.py` | Remove `_phase_plan_shim`, pass real mode |
+| `src/model_forge/domain/validation.py` | Add `OutputTransformationRecord` type (if not added in HV-0) |
 | `tests/test_harness_repairs.py` | Update repair tests for new ordering |
 | `tests/test_harness_outputs.py` | Add raw-preservation tests |
 | `tests/test_scientific_validator_integrity.py` | Add mode-context consistency tests |

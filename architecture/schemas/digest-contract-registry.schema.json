@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/digest-contract-registry.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/digest-contract-registry.schema.json",
   "title": "Digest Contract Registry",
-  "description": "Machine-readable digest payload and construction rules for persisted Method Hub JSON objects and referenced immutable byte artifacts.",
+  "description": "Machine-readable digest payload and construction rules for persisted Model Forge JSON objects and referenced immutable byte artifacts.",
   "type": "object",
   "additionalProperties": false,
   "required": [

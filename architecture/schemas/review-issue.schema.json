@@ -1,6 +1,6 @@
 {
     "$schema":  "https://json-schema.org/draft/2020-12/schema",
-    "$id":  "https://method-hub.local/architecture/schemas/review-issue.schema.json",
+    "$id":  "https://model-forge.local/architecture/schemas/review-issue.schema.json",
     "title":  "Manuscript Review Issue",
     "description":  "An immutable criticism and disposition from one frozen manuscript-review run.",
     "type":  "object",

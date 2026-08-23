@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from method_hub.digests.jcs import canonicalize
-from method_hub.harness.publication import (
+from model_forge.digests.jcs import canonicalize
+from model_forge.harness.publication import (
     ContractPublicationService,
     FrozenPublicationHead,
     PreparedPublisherTransform,
@@ -16,7 +16,7 @@ from method_hub.harness.publication import (
     RegisteredArtifactMetadata,
     RegisteredValidatedOutput,
 )
-from method_hub.storage.repository import (
+from model_forge.storage.repository import (
     HubRepository,
     RepositoryConflictError,
     ZERO_SHA256,
@@ -328,7 +328,7 @@ def test_method_bound_bundle_requires_explicit_scope_and_preserves_components(
     current = repository.get_current_record("project.publication", slot)
     assert current is not None
     bundle = json.loads(current["payload_json"])
-    assert bundle["format"] == "method-hub.deterministic-bundle"
+    assert bundle["format"] == "model-forge.deterministic-bundle"
     assert [item["component_name"] for item in bundle["components"]] == [
         "manuscript",
         "claim_traceability",

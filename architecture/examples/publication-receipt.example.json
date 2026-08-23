@@ -10,7 +10,7 @@
     "phase": "P4",
     "manifest_sha256": "4fa395fa113a0da00df30f6449af8a195d384c846f456b98122b77b2c19c0855",
     "submission_id": "submission.p4.001",
-    "submission_sha256": "17f032fb8967d1a5627ac77079ae09dc0172097022ee77aa90406c076f8d343e"
+    "submission_sha256": "dc718d79e1006554fd39dd523a548a0d1a7f8d49131f69e5d56c602b821dcd20"
   },
   "validation_reports": [
     {
@@ -115,7 +115,7 @@
   "alignment_impacts": [],
   "atomic": true,
   "published_at": "2026-08-01T15:10:04Z",
-  "content_sha256": "0656a3ef485d40ea9af53cec496f75bfa3307a720ab953848b427401f162843c",
+  "content_sha256": "4051970bff74d482d5efc8f7d5f24c3f7e159132c59a1aa74f7b88f8ec3081b7",
   "cumulative_object_changes": [
     {
       "object_id": "evidence.simulation.preliminary.001",

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from method_hub.configuration.resources import RoleResourceCatalog
+from model_forge.configuration.resources import RoleResourceCatalog
 
 
 RESOURCES = Path(__file__).resolve().parents[1] / "resources" / "team"

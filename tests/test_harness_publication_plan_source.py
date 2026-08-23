@@ -5,17 +5,17 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from method_hub.contracts import PhaseContractRepository
-from method_hub.digests import DigestContractRegistry
-from method_hub.harness.publication import (
+from model_forge.contracts import PhaseContractRepository
+from model_forge.digests import DigestContractRegistry
+from model_forge.harness.publication import (
     ContractPublicationService,
     FrozenPublicationHead,
     PreparedPublisherTransform,
     RegisteredArtifactMetadata,
     RegisteredValidatedOutput,
 )
-from method_hub.schemas import SchemaCatalog
-from method_hub.storage.repository import HubRepository, ZERO_SHA256
+from model_forge.schemas import SchemaCatalog
+from model_forge.storage.repository import HubRepository, ZERO_SHA256
 
 
 ARCHITECTURE = Path(__file__).resolve().parents[1] / "architecture"

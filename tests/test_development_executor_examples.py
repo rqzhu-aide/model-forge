@@ -5,11 +5,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from method_hub.executors.development_examples import (
+from model_forge.executors.development_examples import (
     adapt_dedicated_example,
     load_dedicated_examples,
 )
-from method_hub.schemas import SchemaCatalog
+from model_forge.schemas import SchemaCatalog
 
 
 ROOT = Path(__file__).resolve().parents[1]

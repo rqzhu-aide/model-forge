@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/record-state.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/record-state.schema.json",
   "title": "Derived Research Object State",
   "description": "A rebuildable projection of current authority, position, alignment, attention, and evidence eligibility from append-only authority events.",
   "type": "object",

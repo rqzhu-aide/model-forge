@@ -21,16 +21,16 @@ from typing import Any
 
 import pytest
 
-from method_hub.application import state_promotion
-from method_hub.application.output_validation import validate_run_outputs
-from method_hub.application.run_profile_assembler import (
+from model_forge.application import state_promotion
+from model_forge.application.output_validation import validate_run_outputs
+from model_forge.application.run_profile_assembler import (
     HermesProbe,
     RunProfileAssembler,
     RunSealError,
     SealedRun,
     StateLockHeld,
 )
-from method_hub.application.state_promotion import (
+from model_forge.application.state_promotion import (
     LaunchNotSucceededError,
     MemoryPolicyNotPromotableError,
     PromotionResult,
@@ -39,11 +39,11 @@ from method_hub.application.state_promotion import (
     ValidationNotPassedError,
     promote_run_state,
 )
-from method_hub.configuration.resources import RoleResourceCatalog
-from method_hub.domain.runs import isoformat_utc, utc_now
-from method_hub.profiles.project_profiles import MemoryPolicy, project_role_profile_name
-from method_hub.storage.database import Database
-from method_hub.storage.migrations import HUB_MIGRATIONS
+from model_forge.configuration.resources import RoleResourceCatalog
+from model_forge.domain.runs import isoformat_utc, utc_now
+from model_forge.profiles.project_profiles import MemoryPolicy, project_role_profile_name
+from model_forge.storage.database import Database
+from model_forge.storage.migrations import HUB_MIGRATIONS
 
 ROOT = Path(__file__).resolve().parents[1]
 RESOURCE_ROOT = ROOT / "resources" / "team"
@@ -105,7 +105,7 @@ def _seal_kwargs(**overrides: Any) -> dict[str, Any]:
         project_id="proj-001",
         role="theorist",
         phase="P3",
-        method_identity={"method_id": "mh-1", "version": "1.0"},
+        method_identity={"method_id": "mf-1", "version": "1.0"},
         user_choices={"mode": "headless", "context_policy": "strict"},
         selected_context_references=[
             {"context_id": "ctx-1", "record_id": "rec-1"},
@@ -692,7 +692,7 @@ _GOOD_THEORY = {
     "representations": {"statements": []},
     "invocation_id": "inv-001",
     "run_id": "inv-001",
-    "method_id": "mh-1",
+    "method_id": "mf-1",
 }
 
 

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from method_hub.configuration.profiles import (
+from model_forge.configuration.profiles import (
     ProfileConfigurationError,
     ProfileMapping,
     discover_profiles,
@@ -16,7 +16,7 @@ from method_hub.configuration.profiles import (
 def test_explicit_hermes_root_has_priority(tmp_path: Path) -> None:
     root = tmp_path / "hermes"
     assert resolve_hermes_root(
-        environ={"METHOD_HUB_HERMES_ROOT": str(root)},
+        environ={"MODEL_FORGE_HERMES_ROOT": str(root)},
         home=tmp_path / "home",
         platform_name="posix",
     ) == root.resolve()

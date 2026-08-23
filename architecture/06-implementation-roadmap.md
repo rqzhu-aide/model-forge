@@ -15,8 +15,8 @@ publication authority, and derived-state model remain the governing boundaries.
 
 ## Adoption boundary
 
-This roadmap builds Method Hub as one internally consistent system. It does not
-authorize dual writing between Method Hub and the legacy Research Hub, nor does
+This roadmap builds Model Forge as one internally consistent system. It does not
+authorize dual writing between Model Forge and the legacy Research Hub, nor does
 it define a legacy-data importer. Existing-project adoption requires a separate
 accepted decision record with one formal source of truth at every step, an
 audited one-way conversion, reconciliation tests, and an explicit rollback

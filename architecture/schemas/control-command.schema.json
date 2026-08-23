@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/control-command.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/control-command.schema.json",
   "title": "Control Command",
   "description": "Transport union for the two distinct user-authorized control commands. Neither branch creates a research run or role execution.",
   "oneOf": [

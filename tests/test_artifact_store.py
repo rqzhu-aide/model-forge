@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from method_hub.domain import Sha256Digest
-from method_hub.storage import (
+from model_forge.domain import Sha256Digest
+from model_forge.storage import (
     ArtifactIntegrityError,
     ArtifactNotFoundError,
     ArtifactStore,

@@ -5,11 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from method_hub.application.default_instructions import (
+from model_forge.application.default_instructions import (
     load_mode_instruction,
     load_stage_instruction,
 )
-from method_hub.schemas import SchemaCatalog
+from model_forge.schemas import SchemaCatalog
 
 
 ROOT = Path(__file__).resolve().parents[1]

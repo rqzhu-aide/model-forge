@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from method_hub.specification import SpecificationPackage
+from model_forge.specification import SpecificationPackage
 
 
 ARCHITECTURE = Path(__file__).resolve().parents[1] / "architecture"

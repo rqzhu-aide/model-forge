@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from method_hub.application.default_instructions import (
+from model_forge.application.default_instructions import (
     load_mode_instruction,
     load_stage_instruction,
 )
@@ -71,4 +71,4 @@ def test_p3_roles_keep_conjectures_explicitly_open(
     assert any(term in text for term in (
         "proof obligation", "open_obligation",
         "proof or derivation obligation",
-    ))
+    ))

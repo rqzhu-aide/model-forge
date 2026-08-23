@@ -37,12 +37,12 @@ def tmp_output(tmp_path: Path) -> Path:
 
 def test_content_sha256_is_computed_from_record_content(tmp_output: Path) -> None:
     """content_sha256 must be the hash of the record minus the field itself."""
-    from method_hub.harness.role_execution import _fix_self_referential_hashes
+    from model_forge.harness.role_execution import _fix_self_referential_hashes
 
     record = {
         "schema_version": "1.0.0",
         "record_id": "rec.test",
-        "content_sha256": "TBD_BY_METHOD_HUB_ON_WRITE",
+        "content_sha256": "TBD_BY_MODEL_FORGE_ON_WRITE",
         "record_type": "theory",
         "phase": "P3",
         "title": "Test theory",
@@ -51,7 +51,7 @@ def test_content_sha256_is_computed_from_record_content(tmp_output: Path) -> Non
 
     assert changed is True
     # Verify the hash is correct: RFC 8785 hash of the record minus content_sha256
-    from method_hub.digests.jcs import canonicalize
+    from model_forge.digests.jcs import canonicalize
 
     snapshot = {k: v for k, v in record.items() if k != "content_sha256"}
     expected = hashlib.sha256(canonicalize(snapshot)).hexdigest()
@@ -60,7 +60,7 @@ def test_content_sha256_is_computed_from_record_content(tmp_output: Path) -> Non
 
 def test_content_sha256_in_list_of_records(tmp_output: Path) -> None:
     """Evidence/attention outputs are arrays of records — each needs its own hash."""
-    from method_hub.harness.role_execution import _fix_self_referential_hashes
+    from model_forge.harness.role_execution import _fix_self_referential_hashes
 
     records = [
         {"evidence_id": "ev.1", "content_sha256": "placeholder"},
@@ -78,7 +78,7 @@ def test_content_sha256_in_list_of_records(tmp_output: Path) -> None:
 
 def test_content_sha256_idempotent(tmp_output: Path) -> None:
     """Running the repair twice should not change an already-correct hash."""
-    from method_hub.harness.role_execution import _fix_self_referential_hashes
+    from model_forge.harness.role_execution import _fix_self_referential_hashes
 
     record = {"content_sha256": "", "title": "Stable"}
     _fix_self_referential_hashes(record, tmp_output)
@@ -91,7 +91,7 @@ def test_content_sha256_idempotent(tmp_output: Path) -> None:
 
 def test_handoff_artifact_sha256_still_repaired(tmp_output: Path) -> None:
     """The original P2 bug fix (handoff_artifact.sha256) must still work."""
-    from method_hub.harness.role_execution import _fix_self_referential_hashes
+    from model_forge.harness.role_execution import _fix_self_referential_hashes
 
     handoff = {
         "handoff_id": "ho.1",
@@ -107,7 +107,7 @@ def test_handoff_artifact_sha256_still_repaired(tmp_output: Path) -> None:
     ha = handoff["handoff_artifact"]
     assert len(ha["sha256"]) == 64
     # The hash must be the RFC 8785 hash of the record minus the sha256 field
-    from method_hub.digests.jcs import canonicalize
+    from model_forge.digests.jcs import canonicalize
 
     snapshot = {k: v for k, v in handoff.items()}
     snapshot["handoff_artifact"] = {k: v for k, v in ha.items() if k != "sha256"}
@@ -118,8 +118,8 @@ def test_handoff_artifact_sha256_still_repaired(tmp_output: Path) -> None:
 def test_definition_sha256_repaired(tmp_output: Path) -> None:
     """identity.definition_sha256 follows the method_record.definition digest
     contract: RFC 8785 over /mathematical_definition/canonical_definition."""
-    from method_hub.digests.jcs import canonicalize
-    from method_hub.harness.role_execution import _fix_self_referential_hashes
+    from model_forge.digests.jcs import canonicalize
+    from model_forge.harness.role_execution import _fix_self_referential_hashes
 
     record = {
         "identity": {
@@ -144,7 +144,7 @@ def test_definition_sha256_repaired(tmp_output: Path) -> None:
 def test_definition_sha256_added_when_absent(tmp_output: Path) -> None:
     """An identity without the digest gets it stamped from the canonical
     definition (agents cannot compute it: hash paradox)."""
-    from method_hub.harness.role_execution import _fix_self_referential_hashes
+    from model_forge.harness.role_execution import _fix_self_referential_hashes
 
     record = {
         "identity": {"stable_id": "mth_test", "version": 1},
@@ -161,7 +161,7 @@ def test_definition_sha256_added_when_absent(tmp_output: Path) -> None:
 
 def test_strip_empty_optional_strings() -> None:
     """Empty strings in optional fields should be removed."""
-    from method_hub.harness.role_execution import _strip_empty_strings
+    from model_forge.harness.role_execution import _strip_empty_strings
 
     data = {"title": "real", "note": "", "optional_field": ""}
     changed = _strip_empty_strings(data, required_fields={"title"})
@@ -172,7 +172,7 @@ def test_strip_empty_optional_strings() -> None:
 
 def test_strip_preserves_required_empty_strings() -> None:
     """Required fields with empty strings should NOT be stripped."""
-    from method_hub.harness.role_execution import _strip_empty_strings
+    from model_forge.harness.role_execution import _strip_empty_strings
 
     data = {"title": "", "note": ""}
     changed = _strip_empty_strings(data, required_fields={"title"})
@@ -185,7 +185,7 @@ def test_strip_preserves_required_empty_strings() -> None:
 
 def test_strip_preserves_nested_required() -> None:
     """Nested required field names should not be stripped at any depth."""
-    from method_hub.harness.role_execution import _strip_empty_strings
+    from model_forge.harness.role_execution import _strip_empty_strings
 
     data = {
         "artifact": {
@@ -206,7 +206,7 @@ def test_strip_preserves_nested_required() -> None:
 
 def test_strip_recursive_in_lists() -> None:
     """Empty strings inside list elements should be stripped."""
-    from method_hub.harness.role_execution import _strip_empty_strings
+    from model_forge.harness.role_execution import _strip_empty_strings
 
     data = {
         "items": [
@@ -227,7 +227,7 @@ def test_strip_recursive_in_lists() -> None:
 
 def test_neutralize_bare_sha256() -> None:
     """The bare key 'sha256' must be neutralized in task brief examples."""
-    from method_hub.harness.task_briefs import _neutralize_identities
+    from model_forge.harness.task_briefs import _neutralize_identities
 
     data = {
         "artifacts": [
@@ -245,7 +245,7 @@ def test_neutralize_bare_sha256() -> None:
 
 def test_neutralize_handoff_artifact_sha256() -> None:
     """handoff_artifact.sha256 must be neutralized."""
-    from method_hub.harness.task_briefs import _neutralize_identities
+    from model_forge.harness.task_briefs import _neutralize_identities
 
     data = {
         "handoff_artifact": {
@@ -265,7 +265,7 @@ def test_neutralize_handoff_artifact_sha256() -> None:
 
 def test_schema_info_collects_nested_required() -> None:
     """_schema_info should return nested_required from sub-object definitions."""
-    from method_hub.harness.role_execution import _schema_info
+    from model_forge.harness.role_execution import _schema_info
 
     info = _schema_info("evidence.schema.json")
     nested = info.get("nested_required", set())
@@ -277,7 +277,7 @@ def test_schema_info_collects_nested_required() -> None:
 
 def test_schema_info_does_not_fabricate_search_provenance() -> None:
     """Search occurrence time must be supplied by the producer, not repaired."""
-    from method_hub.harness.role_execution import _schema_info
+    from model_forge.harness.role_execution import _schema_info
 
     info = _schema_info("review-report.schema.json")
     assert "searched_at" not in info["nested_timestamps"]
@@ -285,7 +285,7 @@ def test_schema_info_does_not_fabricate_search_provenance() -> None:
 
 def test_schema_info_handles_missing_file() -> None:
     """_schema_info should return empty sets for unknown schemas."""
-    from method_hub.harness.role_execution import _schema_info, _empty_schema_info
+    from model_forge.harness.role_execution import _schema_info, _empty_schema_info
 
     info = _schema_info("nonexistent.schema.json")
     assert info == _empty_schema_info()
@@ -299,14 +299,14 @@ def test_schema_info_handles_missing_file() -> None:
 
 def test_repair_returns_transformation_record_with_source_digest(tmp_path: Path) -> None:
     """The repair function must return a record with the pre-repair digest."""
-    from method_hub.harness.role_execution import _apply_disclosed_mechanical_repairs
-    from method_hub.harness.outputs import OutputPlan, OutputSpec
-    from method_hub.contracts import (
+    from model_forge.harness.role_execution import _apply_disclosed_mechanical_repairs
+    from model_forge.harness.outputs import OutputPlan, OutputSpec
+    from model_forge.contracts import (
         ResolvedPhasePlan,
         ResolvedRoleStep,
         ResolvedStage,
     )
-    from method_hub.domain import PhaseContractIdentity
+    from model_forge.domain import PhaseContractIdentity
     import json as _json
     import hashlib
 
@@ -376,14 +376,14 @@ def test_repair_returns_transformation_record_with_source_digest(tmp_path: Path)
 
 def test_repair_identity_transform_when_no_changes(tmp_path: Path) -> None:
     """When no repair applies, source and result digests are identical."""
-    from method_hub.harness.role_execution import _apply_disclosed_mechanical_repairs
-    from method_hub.harness.outputs import OutputPlan, OutputSpec
-    from method_hub.contracts import (
+    from model_forge.harness.role_execution import _apply_disclosed_mechanical_repairs
+    from model_forge.harness.outputs import OutputPlan, OutputSpec
+    from model_forge.contracts import (
         ResolvedPhasePlan,
         ResolvedRoleStep,
         ResolvedStage,
     )
-    from method_hub.domain import PhaseContractIdentity
+    from model_forge.domain import PhaseContractIdentity
     import json as _json
     import hashlib
 
@@ -450,7 +450,7 @@ def test_repair_identity_transform_when_no_changes(tmp_path: Path) -> None:
 
 def test_classify_transformations_captures_field_stripping() -> None:
     """_classify_transformations must record additional_properties_strip."""
-    from method_hub.harness.role_execution import _classify_transformations
+    from model_forge.harness.role_execution import _classify_transformations
 
     raw = {"title": "real", "undeclared_field": "data", "note": ""}
     repaired = {"title": "real"}
@@ -463,7 +463,7 @@ def test_classify_transformations_captures_field_stripping() -> None:
 
 def test_classify_transformations_captures_timestamp_injection() -> None:
     """_classify_transformations must record timestamp_injection."""
-    from method_hub.harness.role_execution import _classify_transformations
+    from model_forge.harness.role_execution import _classify_transformations
 
     raw = {"title": "real"}
     repaired = {"title": "real", "created_at": "2026-01-01T00:00:00Z"}
@@ -475,7 +475,7 @@ def test_classify_transformations_captures_timestamp_injection() -> None:
 
 def test_classify_transformations_captures_hash_recomputation() -> None:
     """_classify_transformations must record hash_recomputation."""
-    from method_hub.harness.role_execution import _classify_transformations
+    from model_forge.harness.role_execution import _classify_transformations
 
     raw = {"content_sha256": "placeholder"}
     repaired = {"content_sha256": "a" * 64}
@@ -487,7 +487,7 @@ def test_classify_transformations_captures_hash_recomputation() -> None:
 
 def test_classify_transformations_empty_when_identical() -> None:
     """No entries when raw and repaired are identical."""
-    from method_hub.harness.role_execution import _classify_transformations
+    from model_forge.harness.role_execution import _classify_transformations
 
     raw = {"title": "real", "nested": {"a": 1}}
     entries = _classify_transformations(raw, dict(raw))
@@ -500,7 +500,7 @@ def test_classify_transformations_empty_when_identical() -> None:
 
 def test_timestamp_injection_respects_parent_key_scope() -> None:
     """Timestamps should only be injected into dicts under the correct parent key."""
-    from method_hub.harness.role_execution import _add_missing_timestamps
+    from model_forge.harness.role_execution import _add_missing_timestamps
 
     data = {
         "title": "real",
@@ -521,7 +521,7 @@ def test_timestamp_injection_respects_parent_key_scope() -> None:
 
 def test_timestamp_injection_handles_array_of_objects() -> None:
     """Timestamps should be injected into array elements under the parent key."""
-    from method_hub.harness.role_execution import _add_missing_timestamps
+    from model_forge.harness.role_execution import _add_missing_timestamps
 
     data = {
         "assessments": [
@@ -539,7 +539,7 @@ def test_timestamp_injection_handles_array_of_objects() -> None:
 
 def test_collect_nested_timestamps_returns_parent_keyed_map() -> None:
     """_collect_nested_timestamps should return a dict, not a flat set."""
-    from method_hub.harness.role_execution import _collect_nested_timestamps
+    from model_forge.harness.role_execution import _collect_nested_timestamps
 
     schema = {
         "properties": {
@@ -576,7 +576,7 @@ def test_collect_nested_timestamps_returns_parent_keyed_map() -> None:
 
 def test_build_plan_from_manifest_passes_real_mode() -> None:
     """The plan built from the manifest must carry the real mode_id."""
-    from method_hub.application.output_validation import _build_plan_from_manifest
+    from model_forge.application.output_validation import _build_plan_from_manifest
 
     manifest = {
         "phase": "P3",
@@ -591,7 +591,7 @@ def test_build_plan_from_manifest_passes_real_mode() -> None:
 
 def test_build_plan_from_manifest_defaults_safely() -> None:
     """Missing mode/phase should default safely without raising."""
-    from method_hub.application.output_validation import _build_plan_from_manifest
+    from model_forge.application.output_validation import _build_plan_from_manifest
 
     # Empty manifest — phase defaults to "run" (not a valid PhaseContractIdentity
     # phase_id, but this function doesn't validate; it constructs for the
@@ -606,7 +606,7 @@ def test_build_plan_from_manifest_defaults_safely() -> None:
 
 def test_output_transformation_record_serialization() -> None:
     """OutputTransformationRecord.to_dict() should serialize all fields."""
-    from method_hub.domain.validation import (
+    from model_forge.domain.validation import (
         OutputTransformationRecord,
         TransformationEntry,
     )
@@ -635,7 +635,7 @@ def test_output_transformation_record_serialization() -> None:
 
 def test_output_transformation_record_unchanged_when_same_digest() -> None:
     """The changed property should be False when source == result."""
-    from method_hub.domain.validation import OutputTransformationRecord
+    from model_forge.domain.validation import OutputTransformationRecord
 
     record = OutputTransformationRecord(
         contract_output_id="test.output",

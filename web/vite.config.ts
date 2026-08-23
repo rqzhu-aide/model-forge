@@ -8,7 +8,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": {
-        target: process.env.METHOD_HUB_API_ORIGIN ?? "http://127.0.0.1:8765",
+        target: process.env.MODEL_FORGE_API_ORIGIN ?? "http://127.0.0.1:8765",
         changeOrigin: true,
       },
     },

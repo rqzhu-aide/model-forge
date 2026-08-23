@@ -24,21 +24,21 @@ from pathlib import Path
 
 import pytest
 
-from method_hub.application.correction_execution import (
+from model_forge.application.correction_execution import (
     record_revalidation_closure,
     seal_correction_submission,
 )
-from method_hub.executors import DeterministicFakeExecutor
-from method_hub.harness.execution_records import (
+from model_forge.executors import DeterministicFakeExecutor
+from model_forge.harness.execution_records import (
     correction_role_identity,
     document_sha256,
 )
-from method_hub.harness.stage_execution import HarnessExecutionServices
-from method_hub.harness.submission_validation import validate_submission
-from method_hub.harness.submissions import SubmissionAssemblyError
-from method_hub.json_io import loads_json
-from method_hub.orchestration import StageOutcome, StageStatus, SubmissionStatus
-from method_hub.domain import StableId
+from model_forge.harness.stage_execution import HarnessExecutionServices
+from model_forge.harness.submission_validation import validate_submission
+from model_forge.harness.submissions import SubmissionAssemblyError
+from model_forge.json_io import loads_json
+from model_forge.orchestration import StageOutcome, StageStatus, SubmissionStatus
+from model_forge.domain import StableId
 
 from test_correction_execution import (
     GOLDEN,

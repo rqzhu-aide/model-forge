@@ -35,7 +35,7 @@
       "category": "authentication",
       "http_status": 401,
       "retryable": true,
-      "rule_id": "MH-59",
+      "rule_id": "MF-59",
       "object_refs": [
         "project.demo",
         "artifact.command.request.malformed.001"
@@ -47,7 +47,7 @@
     }
   },
   "occurred_at": "2026-08-02T14:30:00Z",
-  "prior_audit_root_sha256": "caf796c70f7c433c019f0ae9533352d85311ed612178d4e0e237a432a77e8c30",
-  "content_sha256": "49bb92af8d0f21c7f4bb13d028c79efedf5d0de8cb5764647977eecc728ac276",
-  "audit_root_sha256": "5973b65c40fc9b87d99f75e941e5f95f70991b593df6ea1e811cd0e699ca7dee"
+  "prior_audit_root_sha256": "88c65c7e59f3dd1e2f213e72ec5ab6f700a38d8e3a508b533b3cbd77b2244941",
+  "content_sha256": "61a51e5ab5af1fa60521c6534516e08553b0b0b0e777ccf6ca5845c120c71c3a",
+  "audit_root_sha256": "905e22209e2da3104138de2906b2f306c238a705c3ee83446eb69a93a357ee1e"
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the Method Hub greenfield architecture specification package."""
+"""Validate the Model Forge greenfield architecture specification package."""
 
 from __future__ import annotations
 
@@ -1337,23 +1337,23 @@ def validate_command_attempt_audit(schemas, registry) -> list[str]:
         errors.append("withdrawal audit does not embed the complete canonical CommandError")
 
     error_policies = {
-        "AUTHENTICATION_REQUIRED": ("authentication", 401, True, "MH-59"),
-        "DELEGATION_NOT_ACTIVE": ("authorization", 403, True, "MH-55"),
-        "COMMAND_SCHEMA_INVALID": ("schema", 422, True, "MH-59"),
-        "COMMAND_DIGEST_MISMATCH": ("digest", 422, True, "MH-57"),
-        "IDEMPOTENCY_KEY_REUSED": ("idempotency", 409, True, "MH-49"),
-        "INVALID_TRANSITION": ("transition", 409, False, "MH-59"),
-        "RUN_ALREADY_SUBMITTED": ("transition", 409, False, "MH-59"),
-        "CANCELLATION_REQUESTED": ("concurrency", 409, False, "MH-59"),
-        "CONTROL_HEAD_STALE": ("concurrency", 409, True, "MH-49"),
-        "TARGET_STATE_MISMATCH": ("concurrency", 409, True, "MH-49"),
-        "TARGET_NOT_FOUND": ("dependency", 404, False, "MH-59"),
-        "DEPENDENCY_CLOSURE_INCOMPLETE": ("dependency", 422, True, "MH-59"),
-        "NO_STATE_CHANGE": ("transition", 409, False, "MH-47"),
-        "PUBLICATION_CONFLICT": ("concurrency", 409, True, "MH-56"),
-        "CORRECTION_NOT_APPLICABLE": ("transition", 409, False, "MH-73"),
-        "CORRECTION_SCOPE_INVALID": ("schema", 400, True, "MH-74"),
-        "CORRECTION_EXHAUSTED": ("transition", 409, False, "MH-75"),
+        "AUTHENTICATION_REQUIRED": ("authentication", 401, True, "MF-59"),
+        "DELEGATION_NOT_ACTIVE": ("authorization", 403, True, "MF-55"),
+        "COMMAND_SCHEMA_INVALID": ("schema", 422, True, "MF-59"),
+        "COMMAND_DIGEST_MISMATCH": ("digest", 422, True, "MF-57"),
+        "IDEMPOTENCY_KEY_REUSED": ("idempotency", 409, True, "MF-49"),
+        "INVALID_TRANSITION": ("transition", 409, False, "MF-59"),
+        "RUN_ALREADY_SUBMITTED": ("transition", 409, False, "MF-59"),
+        "CANCELLATION_REQUESTED": ("concurrency", 409, False, "MF-59"),
+        "CONTROL_HEAD_STALE": ("concurrency", 409, True, "MF-49"),
+        "TARGET_STATE_MISMATCH": ("concurrency", 409, True, "MF-49"),
+        "TARGET_NOT_FOUND": ("dependency", 404, False, "MF-59"),
+        "DEPENDENCY_CLOSURE_INCOMPLETE": ("dependency", 422, True, "MF-59"),
+        "NO_STATE_CHANGE": ("transition", 409, False, "MF-47"),
+        "PUBLICATION_CONFLICT": ("concurrency", 409, True, "MF-56"),
+        "CORRECTION_NOT_APPLICABLE": ("transition", 409, False, "MF-73"),
+        "CORRECTION_SCOPE_INVALID": ("schema", 400, True, "MF-74"),
+        "CORRECTION_EXHAUSTED": ("transition", 409, False, "MF-75"),
     }
     error_validator = Draft202012Validator(
         schemas["command-error.schema.json"],
@@ -2342,7 +2342,7 @@ def validate_contracts(schemas, registry) -> tuple[list[str], dict]:
         {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
             "$ref": (
-                "https://method-hub.local/architecture/schemas/"
+                "https://model-forge.local/architecture/schemas/"
                 "phase-contract.schema.json#/$defs/phaseContract"
             ),
         },
@@ -2933,7 +2933,7 @@ def validate_traceability_registry(schemas, registry, complete: dict) -> list[st
         r"^\| (IT-[0-9]{3}) \| (INV-[0-9]{3}) \|", test_text, re.MULTILINE
     )
     requirement_ids = re.findall(
-        r"^\| (MH-[0-9]{2}) \|", requirement_text, re.MULTILINE
+        r"^\| (MF-[0-9]{2}) \|", requirement_text, re.MULTILINE
     )
     milestone_numbers = [
         int(item)
@@ -2943,7 +2943,7 @@ def validate_traceability_registry(schemas, registry, complete: dict) -> list[st
     ]
     expected_invariants = [f"INV-{number:03d}" for number in range(1, 23)]
     expected_tests = [f"IT-{number:03d}" for number in range(1, 23)]
-    expected_requirements = {f"MH-{number:02d}" for number in range(1, 76)}
+    expected_requirements = {f"MF-{number:02d}" for number in range(1, 76)}
     if principle_ids != expected_invariants:
         errors.append(
             f"principle invariant IDs are {principle_ids}, expected {expected_invariants}"
@@ -2954,7 +2954,7 @@ def validate_traceability_registry(schemas, registry, complete: dict) -> list[st
     if len(requirement_ids) != len(set(requirement_ids)) or set(
         requirement_ids
     ) != expected_requirements:
-        errors.append("narrative requirement IDs must cover MH-01 through MH-75 exactly once")
+        errors.append("narrative requirement IDs must cover MF-01 through MF-75 exactly once")
     if milestone_numbers != list(range(10)):
         errors.append("roadmap milestones must cover M0 through M9 exactly once and in order")
 

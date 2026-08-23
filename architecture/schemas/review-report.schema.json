@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/review-report.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/review-report.schema.json",
   "title": "Independent Outside Review Report",
   "description": "A bounded first-reader assessment of one frozen manuscript packet, with an explicit novelty-search boundary and open prioritized findings.",
   "type": "object",

@@ -17,12 +17,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from method_hub.domain.validation import FindingClass, get_policy
-from method_hub.harness.role_execution import (
+from model_forge.domain.validation import FindingClass, get_policy
+from model_forge.harness.role_execution import (
     _OutputPointerContext,
     _fix_self_referential_hashes,
 )
-from method_hub.harness.scientific_validators import _validate_compact_view_pointers
+from model_forge.harness.scientific_validators import _validate_compact_view_pointers
 
 
 def _context(tmp_path: Path, files: dict[str, str]) -> _OutputPointerContext:
@@ -188,9 +188,9 @@ def test_compact_pointer_codes_are_registered_correctable() -> None:
 # ---------------------------------------------------------------------------
 
 def _service_with_store(tmp_path: Path):
-    from method_hub.harness.role_execution import RoleLifecycleService
-    from method_hub.storage import ArtifactStore
-    from method_hub.storage.paths import WorkspacePaths
+    from model_forge.harness.role_execution import RoleLifecycleService
+    from model_forge.storage import ArtifactStore
+    from model_forge.storage.paths import WorkspacePaths
 
     service = object.__new__(RoleLifecycleService)
     service.artifacts = ArtifactStore(WorkspacePaths(tmp_path / "workspace", create=True))
@@ -266,7 +266,7 @@ def test_placeholder_or_missing_compact_is_skipped(tmp_path: Path) -> None:
 
 
 def test_brief_names_compact_view_and_reading_order(tmp_path: Path) -> None:
-    from method_hub.harness.task_briefs import render_task_brief
+    from model_forge.harness.task_briefs import render_task_brief
 
     plan = SimpleNamespace(identity=SimpleNamespace(phase_id="P2"), mode_id="p2.full_catalog", choice_values={})
     step = SimpleNamespace(input_ids=("p2.literature_synthesis",))

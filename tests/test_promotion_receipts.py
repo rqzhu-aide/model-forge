@@ -23,8 +23,8 @@ from typing import Any
 
 import pytest
 
-from method_hub.application.output_validation import validate_run_outputs
-from method_hub.application.promotion_receipts import (
+from model_forge.application.output_validation import validate_run_outputs
+from model_forge.application.promotion_receipts import (
     RECEIPT_DIGEST_FILE_NAME,
     RECEIPT_FILE_NAME,
     RECEIPT_FORMAT,
@@ -32,28 +32,28 @@ from method_hub.application.promotion_receipts import (
     PromotionReceiptError,
     write_promotion_receipt,
 )
-from method_hub.application.retention import (
+from model_forge.application.retention import (
     RETAIN_BACKUP_DAYS,
     RETAIN_COMPLETED_DAYS,
     RetentionReport,
     apply_retention,
 )
-from method_hub.application.run_profile_assembler import (
+from model_forge.application.run_profile_assembler import (
     HermesProbe,
     RunProfileAssembler,
     SealedRun,
 )
-from method_hub.application.state_promotion import (
+from model_forge.application.state_promotion import (
     PromotionResult,
     PromotionTargetResult,
     promote_run_state,
 )
-from method_hub.configuration.resources import RoleResourceCatalog
-from method_hub.digests.jcs import canonicalize
-from method_hub.domain.runs import isoformat_utc, utc_now
-from method_hub.profiles.project_profiles import MemoryPolicy, project_role_profile_name
-from method_hub.storage.database import Database
-from method_hub.storage.migrations import HUB_MIGRATIONS
+from model_forge.configuration.resources import RoleResourceCatalog
+from model_forge.digests.jcs import canonicalize
+from model_forge.domain.runs import isoformat_utc, utc_now
+from model_forge.profiles.project_profiles import MemoryPolicy, project_role_profile_name
+from model_forge.storage.database import Database
+from model_forge.storage.migrations import HUB_MIGRATIONS
 
 ROOT = Path(__file__).resolve().parents[1]
 RESOURCE_ROOT = ROOT / "resources" / "team"
@@ -66,7 +66,7 @@ _GOOD_THEORY = {
     "representations": {"statements": []},
     "invocation_id": "inv-001",
     "run_id": "inv-001",
-    "method_id": "mh-1",
+    "method_id": "mf-1",
 }
 
 
@@ -125,7 +125,7 @@ def _seal(assembler: RunProfileAssembler, **overrides: Any) -> SealedRun:
         project_id="proj-001",
         role="theorist",
         phase="P3",
-        method_identity={"method_id": "mh-1", "version": "1.0"},
+        method_identity={"method_id": "mf-1", "version": "1.0"},
         expected_outputs=[
             {
                 "output_id": "p3.complete_theory",

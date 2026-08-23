@@ -1,4 +1,4 @@
-# UI Design Audit: Method Hub Web Interface (2026-08-21)
+# UI Design Audit: Model Forge Web Interface (2026-08-21)
 
 Scope: every workspace tab and supporting page of the production UI
 (light + dark themes), driven live against the production database

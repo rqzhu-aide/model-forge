@@ -19,22 +19,22 @@ from pathlib import Path
 
 import pytest
 
-from method_hub.api.errors import CommandRejected
-from method_hub.api.models import CorrectionPreviewRequest, CorrectionRequest
-from method_hub.application.correction_execution import (
+from model_forge.api.errors import CommandRejected
+from model_forge.api.models import CorrectionPreviewRequest, CorrectionRequest
+from model_forge.application.correction_execution import (
     record_revalidation_closure,
 )
-from method_hub.digests.jcs import canonicalize
-from method_hub.executors import DeterministicFakeExecutor
-from method_hub.harness.execution_records import (
+from model_forge.digests.jcs import canonicalize
+from model_forge.executors import DeterministicFakeExecutor
+from model_forge.harness.execution_records import (
     closure_artifact_id,
     correction_role_identity,
     document_sha256,
     output_artifact_id,
     role_identity,
 )
-from method_hub.json_io import loads_json
-from method_hub.orchestration import SubmissionStatus
+from model_forge.json_io import loads_json
+from model_forge.orchestration import SubmissionStatus
 
 from test_correction_command_path import (
     CORRECTABLE,
@@ -93,7 +93,7 @@ def _seal_succeeded_closure_bytes(fixture: _Fixture, role: str, payload: bytes) 
         {"kind": "role_acknowledgement", "role": role},
     )
     document = {
-        "format": "method-hub.role-invocation-closure",
+        "format": "model-forge.role-invocation-closure",
         "format_version": "1.0.0",
         "conformance_state": "vertical_slice",
         "closure_id": closure_id,

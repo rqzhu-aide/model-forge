@@ -12,8 +12,8 @@ from copy import deepcopy
 from types import SimpleNamespace
 from typing import Any
 
-from method_hub.domain import MethodIdentity
-from method_hub.domain.validation import (
+from model_forge.domain import MethodIdentity
+from model_forge.domain.validation import (
     FindingClass,
     ValidationFinding,
     ValidationReport,
@@ -21,11 +21,11 @@ from method_hub.domain.validation import (
     get_policy,
     make_finding,
 )
-from method_hub.harness.publication import (
+from model_forge.harness.publication import (
     RegisteredArtifactMetadata,
     RegisteredValidatedOutput,
 )
-from method_hub.harness.scientific_validators import validate_phase_scientific
+from model_forge.harness.scientific_validators import validate_phase_scientific
 
 METHOD = MethodIdentity(
     stable_id="method.hv6.calibration",

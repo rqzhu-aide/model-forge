@@ -330,11 +330,11 @@ longer current at submit" and stays as-is.
 | `architecture/contracts/digest-contracts.json` | Confirm `run_command.content` coverage; update documented field inventory |
 | `architecture/examples/` + invalid fixtures | New positive example with `sealed_basis`; negative fixtures (bad digest, missing category field) |
 | `architecture/07-contract-traceability.md` + affected scenarios | Register the new sealed-basis guarantee |
-| `src/method_hub/projections/phase_configuration.py` | Add `generation_id` and `role_resources` to `descriptor_basis` |
-| `src/method_hub/harness/commands.py` | Accept and embed sealed basis; require it for new commands |
-| `src/method_hub/application/service.py` | Extract basis from matched descriptor; pass to command builder |
-| `src/method_hub/application/run_coordinator.py` | Verify sealed basis at preparation; legacy fallback path |
-| error model (`src/method_hub/errors.py` / API error definitions) | Register `STALE_BASIS` with category detail |
+| `src/model_forge/projections/phase_configuration.py` | Add `generation_id` and `role_resources` to `descriptor_basis` |
+| `src/model_forge/harness/commands.py` | Accept and embed sealed basis; require it for new commands |
+| `src/model_forge/application/service.py` | Extract basis from matched descriptor; pass to command builder |
+| `src/model_forge/application/run_coordinator.py` | Verify sealed basis at preparation; legacy fallback path |
+| error model (`src/model_forge/errors.py` / API error definitions) | Register `STALE_BASIS` with category detail |
 | `tests/test_*.py` | New tests below; update schema-round-trip and recovery tests |
 
 ## Test Cases

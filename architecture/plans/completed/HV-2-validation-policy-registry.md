@@ -72,7 +72,7 @@ The real correctness gaps in this area:
 
 ### HV-2.1: Implement the policy registry
 
-**Target:** `src/method_hub/domain/validation.py`
+**Target:** `src/model_forge/domain/validation.py`
 
 Add a `FindingClass` enum matching the parent plan §5:
 
@@ -132,9 +132,9 @@ silently inheriting a default.
 `code`/`message` already carry defaults. New fields must follow the same
 pattern (defaulted) so all existing construction sites keep working.
 
-**Target:** `src/method_hub/harness/scientific_validators.py:1296-1302`,
-`src/method_hub/harness/submission_validation.py:404-416`,
-`src/method_hub/harness/inputs.py`, `src/method_hub/harness/outputs.py`
+**Target:** `src/model_forge/harness/scientific_validators.py:1296-1302`,
+`src/model_forge/harness/submission_validation.py:404-416`,
+`src/model_forge/harness/inputs.py`, `src/model_forge/harness/outputs.py`
 
 Currently both `_finding` helpers hardcode `ValidationSeverity.ERROR`:
 - `scientific_validators.py:1299`: `severity=ValidationSeverity.ERROR`
@@ -177,8 +177,8 @@ evidence baseline and the phase-specific review in HV-6.
 
 ### HV-2.4: Compute decision from explicit blocks_publication
 
-**Target:** `src/method_hub/domain/validation.py:53`,
-`src/method_hub/harness/submission_validation.py:31`
+**Target:** `src/model_forge/domain/validation.py:53`,
+`src/model_forge/harness/submission_validation.py:31`
 
 Replace:
 ```python
@@ -199,7 +199,7 @@ the mere presence of any finding or severity level.
 
 ### HV-2.5: Mode-aware policy
 
-**Target:** `src/method_hub/domain/validation.py`, policy registry
+**Target:** `src/model_forge/domain/validation.py`, policy registry
 
 Make policy mode-aware where scientific scope differs:
 - P3: `p3.theory_establishment` vs `p3.theory_revision`
@@ -217,7 +217,7 @@ policy version.
 
 ### HV-2.7: Align validators with the current schema enums
 
-**Target:** `src/method_hub/harness/scientific_validators.py`
+**Target:** `src/model_forge/harness/scientific_validators.py`
 
 Three pieces of work:
 
@@ -256,11 +256,11 @@ same package since the code is already being modified.
 
 | File | Change |
 | --- | --- |
-| `src/method_hub/domain/validation.py` | `FindingClass`, `FindingPolicy`, `ValidationFinding` extension, `passed` logic |
-| `src/method_hub/harness/scientific_validators.py` | Classified findings, dead branch fixes |
-| `src/method_hub/harness/submission_validation.py` | Classified findings, `passed` logic |
-| `src/method_hub/harness/inputs.py` | Classified findings |
-| `src/method_hub/harness/outputs.py` | Classified findings |
+| `src/model_forge/domain/validation.py` | `FindingClass`, `FindingPolicy`, `ValidationFinding` extension, `passed` logic |
+| `src/model_forge/harness/scientific_validators.py` | Classified findings, dead branch fixes |
+| `src/model_forge/harness/submission_validation.py` | Classified findings, `passed` logic |
+| `src/model_forge/harness/inputs.py` | Classified findings |
+| `src/model_forge/harness/outputs.py` | Classified findings |
 | `tests/test_scientific_validator_integrity.py` | Classification tests |
 | `tests/test_harness_outputs.py` | Finding class tests |
 

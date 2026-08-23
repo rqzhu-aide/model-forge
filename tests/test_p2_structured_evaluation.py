@@ -11,17 +11,17 @@ from copy import deepcopy
 from types import SimpleNamespace
 from typing import Any
 
-from method_hub.application.view_models import _method_evaluation
-from method_hub.domain.validation import (
+from model_forge.application.view_models import _method_evaluation
+from model_forge.domain.validation import (
     FindingClass,
     ValidationFinding,
     get_policy,
 )
-from method_hub.harness.publication import (
+from model_forge.harness.publication import (
     RegisteredArtifactMetadata,
     RegisteredValidatedOutput,
 )
-from method_hub.harness.scientific_validators import validate_phase_scientific
+from model_forge.harness.scientific_validators import validate_phase_scientific
 
 
 def _axis(score: Any = 8, justification: str = "Solid on this axis.") -> dict[str, Any]:

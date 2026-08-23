@@ -6,7 +6,7 @@ Accepted, 2026-08-11.
 
 ## Context
 
-Method Hub previously selected one instruction template through a fallback
+Model Forge previously selected one instruction template through a fallback
 chain. A stage-role template could replace the mode directive, and a resolved
 default could replace researcher-authored direction. General scientific-record
 and review-issue schemas also could not express the distinct obligations of a

@@ -1,6 +1,6 @@
 # Architecture Implementation Plans
 
-These documents translate the accepted Method Hub architecture into bounded
+These documents translate the accepted Model Forge architecture into bounded
 implementation work. A plan does not change an invariant, schema, phase
 contract, or acceptance scenario by itself. Update the corresponding
 specification or decision record before code relies on such a change.
@@ -44,7 +44,7 @@ specification or decision record before code relies on such a change.
   remains the publication-integrity gate for further real runs.
 
 [ADR-012](../decisions/ADR-012-trusted-local-hermes-execution.md) defines the
-boundary: Method Hub is a trusted, single-user local control plane.
+boundary: Model Forge is a trusted, single-user local control plane.
 [ADR-013](../decisions/ADR-013-layered-prompts-and-phase-specific-output-contracts.md)
 defines layered prompt composition, phase-mode separation, and the dedicated
 theory, protocol, manuscript, and review output contracts.
@@ -70,7 +70,7 @@ the HV program and K-1.
 Completed and narrowly scoped records are indexed in
 [completed/README.md](completed/README.md). Moving a record there means only
 that its stated scope is complete. It does not imply that Phase 0, a work
-package, or Method Hub itself is production-ready.
+package, or Model Forge itself is production-ready.
 
 Recently archived (2026-08-18 audit):
 

@@ -3,8 +3,8 @@
     "plan": "HV-0.2",
     "purpose": "Failure baseline 'before' metrics for HV-7 shadow comparison",
     "collected_at": "2026-08-12",
-    "formal_db": "/home/tez/.method-hub/method-hub.sqlite3",
-    "pilot_db": "/home/tez/method-hub-data/pilot-eld/hub.sqlite3",
+    "formal_db": "/home/tez/.model-forge/model-forge.sqlite3",
+    "pilot_db": "/home/tez/model-forge-data/pilot-eld/hub.sqlite3",
     "read_only": true,
     "notes": [
       "Formal lane: findings persisted on role_execution_closures.payload_json.findings; run terminal_reason carries submission-validator codes.",

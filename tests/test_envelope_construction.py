@@ -18,8 +18,8 @@ from pathlib import Path
 
 import pytest
 
-from method_hub.domain.validation import FindingClass, make_finding
-from method_hub.harness.envelope import (
+from model_forge.domain.validation import FindingClass, make_finding
+from model_forge.harness.envelope import (
     CandidateOutput,
     SealedRunFacts,
     agent_authored_fields,
@@ -28,7 +28,7 @@ from method_hub.harness.envelope import (
     prepare_candidate_output,
     reclassify_harness_owned_finding,
 )
-from method_hub.harness.outputs import OutputSpec
+from model_forge.harness.outputs import OutputSpec
 
 
 # --------------------------------------------------------------------------- #

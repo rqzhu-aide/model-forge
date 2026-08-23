@@ -4,7 +4,7 @@
 
 This folder answers three practical questions:
 
-1. What scientific files and records exist in Method Hub?
+1. What scientific files and records exist in Model Forge?
 2. In each phase, which role reads and writes each type?
 3. For each role, what does it read and write across the five phases?
 

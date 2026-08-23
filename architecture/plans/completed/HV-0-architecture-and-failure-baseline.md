@@ -66,7 +66,7 @@ script, not a one-line grep:
 ```python
 import re, pathlib
 for name in ("scientific_validators", "submission_validation", "inputs", "outputs"):
-    text = pathlib.Path(f"src/method_hub/harness/{name}.py").read_text()
+    text = pathlib.Path(f"src/model_forge/harness/{name}.py").read_text()
     codes = re.findall(r'_finding\(\s*"([a-z0-9_.]+)"', text)
     print(name, len(set(codes)))
 ```
@@ -98,11 +98,11 @@ Provisional class assignments are reviewed per phase.
 ### HV-0.2: Collect real failure baseline
 
 Gather representative real Hermes outputs from:
-- `~/.method-hub/artifacts/objects/sha256/` (artifact store)
-- `~/.method-hub/method-hub.sqlite3` → `role_execution_closures` table
+- `~/.model-forge/artifacts/objects/sha256/` (artifact store)
+- `~/.model-forge/model-forge.sqlite3` → `role_execution_closures` table
   (formal lane; as of 2026-08-12: 39 runs, 204 closures, 13 submissions;
   findings live on the closures)
-- `~/method-hub-data/pilot-eld/hub.sqlite3` (supervised lane; 7 seals,
+- `~/model-forge-data/pilot-eld/hub.sqlite3` (supervised lane; 7 seals,
   8 launch records, 7 validation reports, 6 promotion records). This is the
   only store with persisted validation reports, and its records exercise the
   supervised mode-shim defect that HV-1.5 fixes.

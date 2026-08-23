@@ -20,12 +20,12 @@ from typing import Any
 
 import pytest
 
-from method_hub.capabilities.broker import CapabilityBroker
-from method_hub.capabilities.network import NetworkPolicy, NetworkPolicyError
-from method_hub.executors.protocol import RoleInvocation, RoleExecutionStatus
-from method_hub.harness.execution_records import FrozenInputPath
-from method_hub.harness.invocation_fencing import InvocationFencer
-from method_hub.harness.output_adapters import DefaultOutputAdapter, preserve_raw_output
+from model_forge.capabilities.broker import CapabilityBroker
+from model_forge.capabilities.network import NetworkPolicy, NetworkPolicyError
+from model_forge.executors.protocol import RoleInvocation, RoleExecutionStatus
+from model_forge.harness.execution_records import FrozenInputPath
+from model_forge.harness.invocation_fencing import InvocationFencer
+from model_forge.harness.output_adapters import DefaultOutputAdapter, preserve_raw_output
 
 
 # ---------------------------------------------------------------------------
@@ -133,7 +133,7 @@ class TestWiringOutputAdapter:
         md_data = b"# Theory\n\nSome theory content."
         md_path.write_bytes(md_data)
 
-        from method_hub.harness.outputs import OutputSpec, ValidatedOutput
+        from model_forge.harness.outputs import OutputSpec, ValidatedOutput
 
         spec = OutputSpec(
             contract_output_id="p3.theory_candidate",
@@ -183,7 +183,7 @@ class TestGoldenFixtures:
         if not manifest_path.exists():
             pytest.skip("Golden fixtures not created")
         manifest = json.loads(manifest_path.read_text())
-        assert manifest["format"] == "method-hub.golden-fixtures"
+        assert manifest["format"] == "model-forge.golden-fixtures"
         assert len(manifest["fixtures"]) >= 9
 
 

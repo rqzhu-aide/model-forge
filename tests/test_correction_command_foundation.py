@@ -10,14 +10,14 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from method_hub.api.errors import CommandError, new_command_error
-from method_hub.api.models import CorrectionPreviewRequest, CorrectionRequest
-from method_hub.harness.execution_records import document_sha256
-from method_hub.harness.outputs import build_output_plan
-from method_hub.harness.submission_validation import validate_submission
-from method_hub.specification import SpecificationPackage
-from method_hub.storage import ArtifactStore, WorkspacePaths
-from method_hub.storage.repository import HubRepository
+from model_forge.api.errors import CommandError, new_command_error
+from model_forge.api.models import CorrectionPreviewRequest, CorrectionRequest
+from model_forge.harness.execution_records import document_sha256
+from model_forge.harness.outputs import build_output_plan
+from model_forge.harness.submission_validation import validate_submission
+from model_forge.specification import SpecificationPackage
+from model_forge.storage import ArtifactStore, WorkspacePaths
+from model_forge.storage.repository import HubRepository
 
 ARCHITECTURE = Path(__file__).resolve().parents[1] / "architecture"
 
@@ -31,9 +31,9 @@ def _digest(character: str) -> str:
 # --------------------------------------------------------------------------- #
 
 CORRECTION_POLICIES = [
-    ("CORRECTION_NOT_APPLICABLE", "transition", 409, False, "MH-73"),
-    ("CORRECTION_SCOPE_INVALID", "schema", 400, True, "MH-74"),
-    ("CORRECTION_EXHAUSTED", "transition", 409, False, "MH-75"),
+    ("CORRECTION_NOT_APPLICABLE", "transition", 409, False, "MF-73"),
+    ("CORRECTION_SCOPE_INVALID", "schema", 400, True, "MF-74"),
+    ("CORRECTION_EXHAUSTED", "transition", 409, False, "MF-75"),
 ]
 
 
@@ -78,7 +78,7 @@ def test_correction_error_codes_reject_wrong_mapping(
             category="digest" if category != "digest" else "schema",  # type: ignore[arg-type]
             http_status=418,
             retryable=not retryable,
-            rule_id="MH-99",
+            rule_id="MF-99",
             object_refs=[],
             researcher_message="The correction command was refused.",
             smallest_correction="Resolve the run state and submit a new command.",

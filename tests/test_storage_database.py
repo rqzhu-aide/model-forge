@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from method_hub.storage import Database, Migration
+from model_forge.storage import Database, Migration
 
 
 MIGRATIONS = (

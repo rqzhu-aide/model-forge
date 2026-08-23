@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/formal-generation-withdrawal-command.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/formal-generation-withdrawal-command.schema.json",
   "title": "Formal Generation Withdrawal Command",
   "description": "An authenticated correction command that withdraws one exact formal generation through an atomic authority transaction. It does not create a research run, replacement scientific generation, or role execution.",
   "type": "object",

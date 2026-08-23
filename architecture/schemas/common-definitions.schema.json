@@ -1,7 +1,7 @@
 {
     "$schema":  "https://json-schema.org/draft/2020-12/schema",
-    "$id":  "https://method-hub.local/architecture/schemas/common-definitions.schema.json",
-    "title":  "Method Hub Common Definitions",
+    "$id":  "https://model-forge.local/architecture/schemas/common-definitions.schema.json",
+    "title":  "Model Forge Common Definitions",
     "description":  "Shared identities, states, references, and assessments for the greenfield research architecture.",
     "$defs":  {
                   "schemaVersion":  {

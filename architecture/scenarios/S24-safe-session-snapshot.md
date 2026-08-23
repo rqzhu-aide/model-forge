@@ -12,13 +12,13 @@ digest, and a fail-fast refusal when the source is busy.
 
 - ADR-012 item 5 (memory and sessions use snapshot semantics; session state
   is copied only while quiescent, through Hermes export and import when
-  available or a verified SQLite backup procedure; Method Hub never copies a
+  available or a verified SQLite backup procedure; Model Forge never copies a
   live database file): [ADR-012](../decisions/ADR-012-trusted-local-hermes-execution.md).
 - Closure plan Block 3 (treat Hermes session storage as opaque; never copy a
   live `state.db`) and acceptance item 3:
   [next-block-local-hermes-execution-closure](../plans/next-block-local-hermes-execution-closure.md).
-- [07-contract-traceability](../07-contract-traceability.md) MH-72 (safe
-  session snapshot) and MH-53 (exact snapshot semantics, silent truncation
+- [07-contract-traceability](../07-contract-traceability.md) MF-72 (safe
+  session snapshot) and MF-53 (exact snapshot semantics, silent truncation
   prohibited). Invariant INV-003.
 
 ## Setup
@@ -40,7 +40,7 @@ digest, and a fail-fast refusal when the source is busy.
    The procedure must fail fast with a clear busy error and compose with the
    seal rollback so no partial run state remains.
 4. Verify the copied session actually restores the same conversation state
-   and that conversation content is never parsed by Method Hub.
+   and that conversation content is never parsed by Model Forge.
 
 ## Expected evidence
 

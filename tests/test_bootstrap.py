@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from method_hub.application.bootstrap import build_application
-from method_hub.application.settings import ApplicationSettings
+from model_forge.application.bootstrap import build_application
+from model_forge.application.settings import ApplicationSettings
 
 
 def test_bootstrapped_application_exposes_api(tmp_path) -> None:

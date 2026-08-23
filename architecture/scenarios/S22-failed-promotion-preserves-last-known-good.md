@@ -17,9 +17,9 @@ advance only after the complete promotion succeeds.
   invalid, stale, cancelled, timed-out, and unresolved runs cannot promote;
   injected promotion failure preserves the last known good state):
   [next-block-local-hermes-execution-closure](../plans/next-block-local-hermes-execution-closure.md).
-- [07-contract-traceability](../07-contract-traceability.md) MH-70
-  (failed promotion preserves last known good state), MH-05 (commit the
-  complete validated change or nothing) and MH-12 (invalid work cannot
+- [07-contract-traceability](../07-contract-traceability.md) MF-70
+  (failed promotion preserves last known good state), MF-05 (commit the
+  complete validated change or nothing) and MF-12 (invalid work cannot
   replace current state). Invariants INV-006 and INV-007.
 
 ## Setup

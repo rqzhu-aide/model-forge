@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/output-transformation-record.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/output-transformation-record.schema.json",
   "title": "Output Transformation Record",
   "description": "Immutable record of one mechanical transformation applied to a role output, with source and result digests, allowlisted transformation code, affected paths, and confirmation that no primary scientific artifact changed.",
   "type": "object",

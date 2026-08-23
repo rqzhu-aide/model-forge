@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/role-context-snapshot.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/role-context-snapshot.schema.json",
   "title": "Role Context Snapshot",
   "description": "Closed record of the deterministic context supplied to one role and every immutable artifact read on demand through the capability broker.",
   "type": "object",

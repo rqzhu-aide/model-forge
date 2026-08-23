@@ -16,7 +16,7 @@ Service-level coverage of the revalidate correction command flow:
 
 Fixture strategy: the K-1a3 ``_Fixture`` stack (real P1 plan resolved
 through the real ``SpecificationPackage``) is wrapped in a REAL
-``MethodHubService`` + ``RunCoordinator`` built over the fixture's
+``ModelForgeService`` + ``RunCoordinator`` built over the fixture's
 repository/artifacts.  The coordinator's ``_execution_components``
 requires a frozen ``role_resources`` key that the K-1a3 fixture recipe
 predates (the CURRENT preparation pipeline freezes it; this fixture
@@ -41,26 +41,26 @@ from pathlib import Path
 
 import pytest
 
-from method_hub.api.errors import CommandRejected
-from method_hub.api.models import CorrectionPreviewRequest, CorrectionRequest
-from method_hub.api.ports import RawRequestBody
-from method_hub.application.correction_execution import record_revalidation_closure
-from method_hub.application.run_coordinator import RunCoordinator
-from method_hub.application.service import MethodHubService
-from method_hub.application.settings import ApplicationSettings
-from method_hub.configuration.resources import RoleResourceCatalog
-from method_hub.digests.jcs import canonicalize
-from method_hub.executors import DeterministicFakeExecutor
-from method_hub.harness.execution_records import (
+from model_forge.api.errors import CommandRejected
+from model_forge.api.models import CorrectionPreviewRequest, CorrectionRequest
+from model_forge.api.ports import RawRequestBody
+from model_forge.application.correction_execution import record_revalidation_closure
+from model_forge.application.run_coordinator import RunCoordinator
+from model_forge.application.service import ModelForgeService
+from model_forge.application.settings import ApplicationSettings
+from model_forge.configuration.resources import RoleResourceCatalog
+from model_forge.digests.jcs import canonicalize
+from model_forge.executors import DeterministicFakeExecutor
+from model_forge.harness.execution_records import (
     closure_artifact_id,
     correction_role_identity,
     document_sha256,
     output_artifact_id,
     role_identity,
 )
-from method_hub.harness.preparation import PreparedRunRecipe
-from method_hub.harness.stage_execution import HarnessExecutionServices
-from method_hub.json_io import loads_json
+from model_forge.harness.preparation import PreparedRunRecipe
+from model_forge.harness.stage_execution import HarnessExecutionServices
+from model_forge.json_io import loads_json
 
 from test_correction_execution import (
     GOLDEN,
@@ -71,7 +71,7 @@ from test_correction_execution import (
     _seal_failed_base_closure,
 )
 from test_correction_submission import _golden_output, _stage_outcomes
-from method_hub.orchestration import SubmissionStatus
+from model_forge.orchestration import SubmissionStatus
 
 ROOT = Path(__file__).resolve().parents[1]
 RUN = "run.revalidate_test"
@@ -151,7 +151,7 @@ def _refreeze_recipe_with_role_resources(fixture: _Fixture) -> None:
 
 
 class _ServiceStack:
-    """A real MethodHubService + RunCoordinator over the fixture stack."""
+    """A real ModelForgeService + RunCoordinator over the fixture stack."""
 
     def __init__(self, fixture: _Fixture) -> None:
         _refreeze_recipe_with_role_resources(fixture)
@@ -171,7 +171,7 @@ class _ServiceStack:
         async def _launcher(run_id: str) -> None:
             self.launched.append(run_id)
 
-        self.service = MethodHubService(
+        self.service = ModelForgeService(
             settings=settings,
             specification=fixture.specification,
             repository=fixture.repository,
@@ -257,7 +257,7 @@ def _seal_failed_closure_bytes(fixture: _Fixture, role: str, payload: bytes) -> 
         {"kind": "role_acknowledgement", "role": role},
     )
     document = {
-        "format": "method-hub.role-invocation-closure",
+        "format": "model-forge.role-invocation-closure",
         "format_version": "1.0.0",
         "conformance_state": "vertical_slice",
         "closure_id": closure_id,
@@ -334,7 +334,7 @@ def _correction_action(detail, action_type: str = "revalidate_run"):
 
 
 async def _preserve(
-    service: MethodHubService, command: CorrectionRequest | CorrectionPreviewRequest, key: str
+    service: ModelForgeService, command: CorrectionRequest | CorrectionPreviewRequest, key: str
 ):
     body = json.dumps(command.model_dump()).encode("utf-8")
     return await service.preserve_raw_request(
@@ -799,7 +799,7 @@ def _seal_empty_outputs_failed_closure(fixture: _Fixture, role: str) -> str:
         {"kind": "role_acknowledgement", "role": role},
     )
     document = {
-        "format": "method-hub.role-invocation-closure",
+        "format": "model-forge.role-invocation-closure",
         "format_version": "1.0.0",
         "closure_id": closure_id,
         "execution_id": execution_id,

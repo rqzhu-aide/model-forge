@@ -319,23 +319,23 @@ Every rejected run, cancellation, lifecycle, or withdrawal command returns a `Co
 
 | Code | Category | HTTP | Retryable | Governing rule |
 |---|---|---:|---|---|
-| `AUTHENTICATION_REQUIRED` | `authentication` | 401 | yes | `MH-59` |
-| `DELEGATION_NOT_ACTIVE` | `authorization` | 403 | yes | `MH-55` |
-| `COMMAND_SCHEMA_INVALID` | `schema` | 422 | yes | `MH-59` |
-| `COMMAND_DIGEST_MISMATCH` | `digest` | 422 | yes | `MH-57` |
-| `IDEMPOTENCY_KEY_REUSED` | `idempotency` | 409 | yes | `MH-49` |
-| `INVALID_TRANSITION` | `transition` | 409 | no | `MH-59` |
-| `RUN_ALREADY_SUBMITTED` | `transition` | 409 | no | `MH-59` |
-| `CANCELLATION_REQUESTED` | `concurrency` | 409 | no | `MH-59` |
-| `CONTROL_HEAD_STALE` | `concurrency` | 409 | yes | `MH-49` |
-| `TARGET_STATE_MISMATCH` | `concurrency` | 409 | yes | `MH-49` |
-| `TARGET_NOT_FOUND` | `dependency` | 404 | no | `MH-59` |
-| `DEPENDENCY_CLOSURE_INCOMPLETE` | `dependency` | 422 | yes | `MH-59` |
-| `NO_STATE_CHANGE` | `transition` | 409 | no | `MH-47` |
-| `PUBLICATION_CONFLICT` | `concurrency` | 409 | yes | `MH-56` |
-| `CORRECTION_NOT_APPLICABLE` | `transition` | 409 | no | `MH-73` |
-| `CORRECTION_SCOPE_INVALID` | `schema` | 400 | yes | `MH-74` |
-| `CORRECTION_EXHAUSTED` | `transition` | 409 | no | `MH-75` |
+| `AUTHENTICATION_REQUIRED` | `authentication` | 401 | yes | `MF-59` |
+| `DELEGATION_NOT_ACTIVE` | `authorization` | 403 | yes | `MF-55` |
+| `COMMAND_SCHEMA_INVALID` | `schema` | 422 | yes | `MF-59` |
+| `COMMAND_DIGEST_MISMATCH` | `digest` | 422 | yes | `MF-57` |
+| `IDEMPOTENCY_KEY_REUSED` | `idempotency` | 409 | yes | `MF-49` |
+| `INVALID_TRANSITION` | `transition` | 409 | no | `MF-59` |
+| `RUN_ALREADY_SUBMITTED` | `transition` | 409 | no | `MF-59` |
+| `CANCELLATION_REQUESTED` | `concurrency` | 409 | no | `MF-59` |
+| `CONTROL_HEAD_STALE` | `concurrency` | 409 | yes | `MF-49` |
+| `TARGET_STATE_MISMATCH` | `concurrency` | 409 | yes | `MF-49` |
+| `TARGET_NOT_FOUND` | `dependency` | 404 | no | `MF-59` |
+| `DEPENDENCY_CLOSURE_INCOMPLETE` | `dependency` | 422 | yes | `MF-59` |
+| `NO_STATE_CHANGE` | `transition` | 409 | no | `MF-47` |
+| `PUBLICATION_CONFLICT` | `concurrency` | 409 | yes | `MF-56` |
+| `CORRECTION_NOT_APPLICABLE` | `transition` | 409 | no | `MF-73` |
+| `CORRECTION_SCOPE_INVALID` | `schema` | 400 | yes | `MF-74` |
+| `CORRECTION_EXHAUSTED` | `transition` | 409 | no | `MF-75` |
 
 The `CommandError` schema enforces this mapping. A code cannot be paired with a different category, HTTP status, retryability value, or rule.
 
@@ -395,10 +395,10 @@ Legal source states are exactly `failed`, `rejected`, and
 `correction_authorized`. Acceptance seals the command and moves the run to
 `correction_authorized`. Every other state, a run without a correctable
 finding, or a correction type the build does not offer is rejected with
-`CORRECTION_NOT_APPLICABLE` (`MH-73`). A permitted scope naming outputs the
+`CORRECTION_NOT_APPLICABLE` (`MF-73`). A permitted scope naming outputs the
 target closure did not declare is rejected with `CORRECTION_SCOPE_INVALID`
-(`MH-74`). Correction attempts are bounded per run; when the bounds are spent
-the command is rejected with `CORRECTION_EXHAUSTED` (`MH-75`) and the run
+(`MF-74`). Correction attempts are bounded per run; when the bounds are spent
+the command is rejected with `CORRECTION_EXHAUSTED` (`MF-75`) and the run
 resolves to `correction_exhausted`.
 
 A `revalidate` correction re-checks the already sealed output bytes against

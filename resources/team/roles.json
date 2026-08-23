@@ -18,10 +18,10 @@
       "recommended_skills": ["stat-paper-writing"],
       "custom_skills": [
         {
-          "skill_id": "mh-contribution-boundary",
+          "skill_id": "mf-contribution-boundary",
           "name": "Contribution boundary analysis",
           "description": "Framework for identifying and articulating the exact contribution boundary relative to prior work.",
-          "source": "method-hub/bundled"
+          "source": "model-forge/bundled"
         }
       ]
     },
@@ -42,10 +42,10 @@
       "recommended_skills": ["stat-paper-writing"],
       "custom_skills": [
         {
-          "skill_id": "mh-proof-dependency",
+          "skill_id": "mf-proof-dependency",
           "name": "Proof dependency tracer",
           "description": "Trace and record formal proof dependencies, identifying the least obvious step and any unresolved gaps.",
-          "source": "method-hub/bundled"
+          "source": "model-forge/bundled"
         }
       ]
     },
@@ -66,10 +66,10 @@
       "recommended_skills": ["stat-paper-writing"],
       "custom_skills": [
         {
-          "skill_id": "mh-reproducibility-checklist",
+          "skill_id": "mf-reproducibility-checklist",
           "name": "Reproducibility checklist",
           "description": "Systematic checklist for recording provenance, seeds, environments, commands, and diagnostics.",
-          "source": "method-hub/bundled"
+          "source": "model-forge/bundled"
         }
       ]
     },
@@ -90,10 +90,10 @@
       "recommended_skills": ["stat-paper-reviewer"],
       "custom_skills": [
         {
-          "skill_id": "mh-review-calibration",
+          "skill_id": "mf-review-calibration",
           "name": "Review severity calibration",
           "description": "Framework for calibrating the severity and confidence of each review concern against available evidence.",
-          "source": "method-hub/bundled"
+          "source": "model-forge/bundled"
         }
       ]
     }

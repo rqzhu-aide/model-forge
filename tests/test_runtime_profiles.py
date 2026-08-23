@@ -16,13 +16,13 @@ from pathlib import Path
 
 import pytest
 
-from method_hub.diagnostics.runtime_profiles import (
+from model_forge.diagnostics.runtime_profiles import (
     MAX_QUARANTINE_ENTRIES,
     RuntimeProfileManager,
     SnapshotError,
     SnapshotState,
 )
-from method_hub.profiles.project_profiles import MemoryPolicy
+from model_forge.profiles.project_profiles import MemoryPolicy
 
 
 # --------------------------------------------------------------------------- #

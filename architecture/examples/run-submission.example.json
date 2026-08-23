@@ -20,7 +20,7 @@
       "stage_id": "p4.analyst",
       "role": "data_analyst",
       "invocation_start_id": "invocation_start.p4.analyst.001",
-      "start_sha256": "0443fbc45586cce090e0622cddcf57e94a7b4da1be592e0fa8fb4c12dfff29b3",
+      "start_sha256": "8335ec2765ad5c166911990be953332d78f57f5d9957b463490e1b2f928336c0",
       "invocation_closure_id": "invocation_closure.p4.analyst.001",
       "closure_artifact": {
         "artifact_id": "artifact.invocation_closure.p4.analyst.001",
@@ -28,7 +28,7 @@
         "sha256": "58c85d3613cdeefd0c84bbaed948ef2f4b98fd3bafe2ed9d875fc517674094c6",
         "media_type": "application/json"
       },
-      "closure_sha256": "52f10e60cf07f1edf4376dde910aae222f1b862ee01b8f3d38895b1ad3b3f37b",
+      "closure_sha256": "9db0ebbb5c172a90e00eea519364a07a52e5073a5f112d1406f460562d98648a",
       "terminal_status": "succeeded"
     },
     {
@@ -36,7 +36,7 @@
       "stage_id": "p4.theorist",
       "role": "theorist",
       "invocation_start_id": "invocation_start.p4.theorist.001",
-      "start_sha256": "5157dbddb012fd0564bd6d504db920125929fd3fd23d598aabaab7115eb453fc",
+      "start_sha256": "f2cbc7829781bd5f098e822f3022e3ea602ed0165b5a925c81fc390967e59e89",
       "invocation_closure_id": "invocation_closure.p4.theorist.001",
       "closure_artifact": {
         "artifact_id": "artifact.invocation_closure.p4.theorist.001",
@@ -73,7 +73,7 @@
       "output_id": "output.protocol",
       "contract_output_id": "p4.protocol",
       "source_invocation_closure_id": "invocation_closure.p4.analyst.001",
-      "source_closure_sha256": "52f10e60cf07f1edf4376dde910aae222f1b862ee01b8f3d38895b1ad3b3f37b",
+      "source_closure_sha256": "9db0ebbb5c172a90e00eea519364a07a52e5073a5f112d1406f460562d98648a",
       "artifact": {
         "artifact_id": "artifact.p4.protocol.accepted.001",
         "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.protocol.accepted.001",
@@ -85,7 +85,7 @@
       "output_id": "output.preliminary_evidence",
       "contract_output_id": "p4.evidence",
       "source_invocation_closure_id": "invocation_closure.p4.analyst.001",
-      "source_closure_sha256": "52f10e60cf07f1edf4376dde910aae222f1b862ee01b8f3d38895b1ad3b3f37b",
+      "source_closure_sha256": "9db0ebbb5c172a90e00eea519364a07a52e5073a5f112d1406f460562d98648a",
       "artifact": {
         "artifact_id": "artifact.p4.evidence.accepted.001",
         "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.evidence.accepted.001",
@@ -97,7 +97,7 @@
       "output_id": "output.analyst_synthesis",
       "contract_output_id": "p4.analyst_synthesis",
       "source_invocation_closure_id": "invocation_closure.p4.analyst.001",
-      "source_closure_sha256": "52f10e60cf07f1edf4376dde910aae222f1b862ee01b8f3d38895b1ad3b3f37b",
+      "source_closure_sha256": "9db0ebbb5c172a90e00eea519364a07a52e5073a5f112d1406f460562d98648a",
       "artifact": {
         "artifact_id": "artifact.p4.analyst_synthesis.accepted.001",
         "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.analyst_synthesis.accepted.001",
@@ -109,7 +109,7 @@
       "output_id": "output.analyst_handoff",
       "contract_output_id": "p4.analyst_handoff",
       "source_invocation_closure_id": "invocation_closure.p4.analyst.001",
-      "source_closure_sha256": "52f10e60cf07f1edf4376dde910aae222f1b862ee01b8f3d38895b1ad3b3f37b",
+      "source_closure_sha256": "9db0ebbb5c172a90e00eea519364a07a52e5073a5f112d1406f460562d98648a",
       "artifact": {
         "artifact_id": "artifact.analyst_handoff.accepted.001",
         "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.analyst_handoff.accepted.001",
@@ -203,5 +203,5 @@
     }
   ],
   "submitted_at": "2026-08-01T15:10:00Z",
-  "submission_sha256": "17f032fb8967d1a5627ac77079ae09dc0172097022ee77aa90406c076f8d343e"
+  "submission_sha256": "dc718d79e1006554fd39dd523a548a0d1a7f8d49131f69e5d56c602b821dcd20"
 }

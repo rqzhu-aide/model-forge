@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import hashlib
 
-from method_hub.application.repository_views import RepositoryQueries, row_json
-from method_hub.digests.jcs import canonicalize
-from method_hub.domain.identities import MethodIdentity
-from method_hub.storage.repository import HubRepository
+from model_forge.application.repository_views import RepositoryQueries, row_json
+from model_forge.digests.jcs import canonicalize
+from model_forge.domain.identities import MethodIdentity
+from model_forge.storage.repository import HubRepository
 
 
 def test_repository_queries_list_project_payloads(tmp_path) -> None:

@@ -14,8 +14,8 @@ memory and session state, never from a stale or foreign copy.
 - Closure plan Block 3, fixed rule 3, and acceptance item 2 (a first
   persistent run starts with clean project-role state):
   [next-block-local-hermes-execution-closure](../plans/next-block-local-hermes-execution-closure.md).
-- [07-contract-traceability](../07-contract-traceability.md) MH-62
-  (first-run state is clean), MH-34 and MH-53 (exact memory and session
+- [07-contract-traceability](../07-contract-traceability.md) MF-62
+  (first-run state is clean), MF-34 and MF-53 (exact memory and session
   snapshot semantics). Invariant INV-003.
 
 ## Setup
@@ -45,7 +45,7 @@ memory and session state, never from a stale or foreign copy.
   session files.
 - Pilot evidence: in the project-004-eld Phase 2 pilot, the three first-stage
   runs each promoted from a null before-state
-  (`/home/tez/method-hub-data/pilot-eld/hub.sqlite3`, `run_promotion_records`
+  (`/home/tez/model-forge-data/pilot-eld/hub.sqlite3`, `run_promotion_records`
   with `before_digest` of `{"memories": null, "state.db": null}`).
 
 ## Failure conditions

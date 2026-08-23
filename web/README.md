@@ -1,17 +1,17 @@
-# Method Hub web interface
+# Model Forge web interface
 
-This folder contains the researcher-facing React interface for the new Method Hub architecture. The interface presents backend-projected research state and submits explicit, typed commands. It does not infer scientific eligibility, silently approve results, or start a phase automatically.
+This folder contains the researcher-facing React interface for the new Model Forge architecture. The interface presents backend-projected research state and submits explicit, typed commands. It does not infer scientific eligibility, silently approve results, or start a phase automatically.
 
 ## Run locally
 
-Requirements: a recent Node.js release and the Method Hub API.
+Requirements: a recent Node.js release and the Model Forge API.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Vite serves the interface and proxies `/api` to `http://127.0.0.1:8765` by default. Set `METHOD_HUB_API_ORIGIN` before starting Vite to use another API origin. Vite runs as a single-page application server, so direct navigation to a frontend route works during development and preview. The bundled FastAPI server applies the same `index.html` fallback for non-API browser routes in a production build.
+Vite serves the interface and proxies `/api` to `http://127.0.0.1:8765` by default. Set `MODEL_FORGE_API_ORIGIN` before starting Vite to use another API origin. Vite runs as a single-page application server, so direct navigation to a frontend route works during development and preview. The bundled FastAPI server applies the same `index.html` fallback for non-API browser routes in a production build.
 
 ```bash
 npm run build

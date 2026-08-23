@@ -108,7 +108,7 @@ older, still-identified basis.
 
 ### HV-5.1: Add non-terminal correction states
 
-**Target:** `src/method_hub/domain/runs.py`
+**Target:** `src/model_forge/domain/runs.py`
 
 Add new states to the transition table:
 
@@ -169,7 +169,7 @@ semantics, bring it back for review before building it.
 
 ### HV-5.2: OutputCorrectionCommand
 
-**Target:** `src/method_hub/domain/`, `src/method_hub/application/run_coordinator.py`
+**Target:** `src/model_forge/domain/`, `src/model_forge/application/run_coordinator.py`
 
 Define the command (parent plan §6.4):
 
@@ -190,7 +190,7 @@ basis. A change to those items remains a new phase run or rerun.
 
 ### HV-5.3: Implement revalidation
 
-**Target:** `src/method_hub/application/run_coordinator.py`
+**Target:** `src/model_forge/application/run_coordinator.py`
 
 The simplest recovery action. Re-run validation against the sealed output with
 the current policy version.
@@ -203,8 +203,8 @@ No model call. No transformation. Just re-checks bytes with new policy.
 
 ### HV-5.4: Implement deterministic normalization
 
-**Target:** `src/method_hub/application/run_coordinator.py`,
-`src/method_hub/harness/role_execution.py`
+**Target:** `src/model_forge/application/run_coordinator.py`,
+`src/model_forge/harness/role_execution.py`
 
 Apply allowlisted transformation codes to the raw output:
 
@@ -218,8 +218,8 @@ alter a primary research artifact or semantic claim.
 
 ### HV-5.5: Implement targeted correction
 
-**Target:** `src/method_hub/application/run_coordinator.py`,
-`src/method_hub/harness/role_execution.py`
+**Target:** `src/model_forge/application/run_coordinator.py`,
+`src/model_forge/harness/role_execution.py`
 
 The most complex action. The correction attempt:
 
@@ -254,8 +254,8 @@ Bounds are configurable later only with a separate decision (not in Version 1).
 
 ### HV-5.7: Expose correction actions in the API and UI
 
-**Target:** `src/method_hub/api/models.py`,
-`src/method_hub/application/run_views.py`,
+**Target:** `src/model_forge/api/models.py`,
+`src/model_forge/application/run_views.py`,
 `web/src/pages/RunPage.tsx`
 
 Add correction controls to the run detail view when applicable:
@@ -268,7 +268,7 @@ Add correction controls to the run detail view when applicable:
 
 ### HV-5.8: Restart reconciliation
 
-**Target:** `src/method_hub/application/run_coordinator.py`
+**Target:** `src/model_forge/application/run_coordinator.py`
 
 If the server restarts during a correction, the correction state must be
 reconciled:
@@ -309,15 +309,15 @@ End-to-end tests must cover at minimum:
 
 | File | Change |
 | --- | --- |
-| `src/method_hub/domain/runs.py` | New states, new transition edges |
-| `src/method_hub/domain/validation.py` | `OutputCorrectionCommand`, `ValidationAttempt` |
-| `src/method_hub/application/run_coordinator.py` | Correction loop, revalidation, normalization |
-| `src/method_hub/harness/role_execution.py` | Correction role invocation |
-| `src/method_hub/storage/migrations.py` | New migration: `run_submission_attempts` (+ the two hard-coded `initialize() == N` test bumps this always triggers) |
-| `src/method_hub/storage/repository.py` | Active-submission reads (attempt-aware) |
-| `src/method_hub/harness/submissions.py` | Correction-context submission entry |
-| `src/method_hub/api/models.py` | Correction action descriptors |
-| `src/method_hub/application/run_views.py` | Expose correction controls |
+| `src/model_forge/domain/runs.py` | New states, new transition edges |
+| `src/model_forge/domain/validation.py` | `OutputCorrectionCommand`, `ValidationAttempt` |
+| `src/model_forge/application/run_coordinator.py` | Correction loop, revalidation, normalization |
+| `src/model_forge/harness/role_execution.py` | Correction role invocation |
+| `src/model_forge/storage/migrations.py` | New migration: `run_submission_attempts` (+ the two hard-coded `initialize() == N` test bumps this always triggers) |
+| `src/model_forge/storage/repository.py` | Active-submission reads (attempt-aware) |
+| `src/model_forge/harness/submissions.py` | Correction-context submission entry |
+| `src/model_forge/api/models.py` | Correction action descriptors |
+| `src/model_forge/application/run_views.py` | Expose correction controls |
 | `web/src/pages/RunPage.tsx` | Correction UI |
 | `tests/` | E2E correction tests |
 

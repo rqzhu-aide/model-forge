@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from method_hub.api.models import CreateProjectRequest
-from method_hub.application.project_commands import ProjectCommandService
-from method_hub.storage.artifacts import ArtifactStore
-from method_hub.storage.paths import WorkspacePaths
-from method_hub.storage.repository import HubRepository
+from model_forge.api.models import CreateProjectRequest
+from model_forge.application.project_commands import ProjectCommandService
+from model_forge.storage.artifacts import ArtifactStore
+from model_forge.storage.paths import WorkspacePaths
+from model_forge.storage.repository import HubRepository
 
 
 def test_project_creation_establishes_formal_current_brief(tmp_path) -> None:

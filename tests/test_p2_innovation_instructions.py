@@ -1,7 +1,7 @@
 """Regression tests for bounded innovation in Phase 2 full-catalog runs."""
 from __future__ import annotations
 
-from method_hub.application.default_instructions import (
+from model_forge.application.default_instructions import (
     load_mode_instruction,
     load_stage_instruction,
 )

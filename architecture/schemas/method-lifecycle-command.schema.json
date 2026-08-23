@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/method-lifecycle-command.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/method-lifecycle-command.schema.json",
   "title": "Method Lifecycle Command",
   "description": "An authenticated user command that retires or reactivates one exact current method through an atomic catalog control transaction. It does not create a research run or role execution.",
   "type": "object",

@@ -5,7 +5,7 @@ Author: coder profile
 Scope: the formal-lane delivery path as implemented (`run_coordinator.py`,
 `stage_execution.py`, `role_execution.py`, `outputs.py`, `task_briefs.py`,
 `envelope.py`, `submission_validation.py`), audited against the phase
-contracts and the real run history in `~/.method-hub/method-hub.sqlite3`.
+contracts and the real run history in `~/.model-forge/model-forge.sqlite3`.
 
 Related: [harness-validation-index.md](harness-validation-index.md) (HV-0..HV-7,
 implemented in `63dca62`). This audit covers what that program did not:

@@ -1,7 +1,7 @@
 """P4a: selective normalize transformation primitive (K-1b).
 
 Covers ``apply_normalize_transformations`` in
-``method_hub.harness.role_execution``:
+``model_forge.harness.role_execution``:
 
 1. Per-code isolation — each of the seven allowlisted normalize codes
    applied alone produces exactly its own change and no other.
@@ -20,7 +20,7 @@ from copy import deepcopy
 from pathlib import Path
 from types import SimpleNamespace
 
-from method_hub.harness.role_execution import (
+from model_forge.harness.role_execution import (
     _compute_content_hash,
     _sanitize_id,
     apply_normalize_transformations,
@@ -203,14 +203,14 @@ def _sentinelize(obj):
 
 def test_parity_with_monolith_all_seven_codes(tmp_path: Path) -> None:
     """All seven codes == _apply_disclosed_mechanical_repairs (minus timestamps)."""
-    from method_hub.contracts import (
+    from model_forge.contracts import (
         ResolvedPhasePlan,
         ResolvedRoleStep,
         ResolvedStage,
     )
-    from method_hub.domain import PhaseContractIdentity
-    from method_hub.harness.outputs import OutputPlan, OutputSpec
-    from method_hub.harness.role_execution import (
+    from model_forge.domain import PhaseContractIdentity
+    from model_forge.harness.outputs import OutputPlan, OutputSpec
+    from model_forge.harness.role_execution import (
         _apply_disclosed_mechanical_repairs,
     )
 

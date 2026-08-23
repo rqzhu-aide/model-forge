@@ -1,8 +1,8 @@
-# Method Hub Architecture Specification
+# Model Forge Architecture Specification
 
 ## Purpose
 
-This directory is the normative architecture for the Method Hub implementation
+This directory is the normative architecture for the Model Forge implementation
 in this repository. It is greenfield relative to the legacy
 [Research Hub](https://github.com/rqzhu-aide/research-hub), which uses a different
 storage and authority model.
@@ -16,7 +16,7 @@ importer, reconciliation tests, and a rollback boundary.
 This boundary is recorded in
 [ADR-006: Greenfield Boundary and Future Existing-Project Adoption](decisions/ADR-006-greenfield-boundary.md).
 The one-time product and protocol identity change is recorded in
-[ADR-010: Method Hub Product and Protocol Namespace](decisions/ADR-010-method-hub-namespace.md).
+[ADR-010: Model Forge Product and Protocol Namespace](decisions/ADR-010-model-forge-namespace.md).
 
 The specification is written for three audiences:
 

@@ -16,10 +16,10 @@ exercise (2026-08-22, tree at `ed85b55`).
 
 - Pre-flight: suite 1222 passed, validator clean (5 phase contracts,
   47 schemas) at `1f0b240`; no stale `:8765` listener.
-- Backup before exercise: `~/.method-hub-backups/20260823-094232`
+- Backup before exercise: `~/.model-forge-backups/20260823-094232`
   (103 MB).
-- Server: `METHOD_HUB_EXECUTOR_KIND=local_hermes
-  METHOD_HUB_DATA_ANALYST_PROFILE=data_scientist method-hub serve`
+- Server: `MODEL_FORGE_EXECUTOR_KIND=local_hermes
+  MODEL_FORGE_DATA_ANALYST_PROFILE=data_scientist model-forge serve`
   (loopback :8765), booted fresh from the tree at `1f0b240`.
 - Project: `project.entangled_langevin_particle_acceleration.b2d9f388...`.
 - Controlled input: the SAME 903-character instruction text as the

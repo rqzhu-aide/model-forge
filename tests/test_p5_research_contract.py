@@ -4,8 +4,8 @@ import copy
 import json
 from pathlib import Path
 
-from method_hub.application.default_instructions import load_instruction
-from method_hub.schemas import SchemaCatalog
+from model_forge.application.default_instructions import load_instruction
+from model_forge.schemas import SchemaCatalog
 
 
 ROOT = Path(__file__).resolve().parents[1]

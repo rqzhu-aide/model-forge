@@ -56,7 +56,7 @@ Create a decision record for at least:
 - [ADR-007: Role Invocation and Submission Records](ADR-007-role-invocation-and-submission-records.md)
 - [ADR-008: Tamper-Evident Operational Command Audit](ADR-008-tamper-evident-operational-audit.md)
 - [ADR-009: Sequential-First Orchestration with a Replaceable Adapter Boundary](ADR-009-sequential-first-orchestration.md)
-- [ADR-010: Method Hub Product and Protocol Namespace](ADR-010-method-hub-namespace.md)
+- [ADR-010: Model Forge Product and Protocol Namespace](ADR-010-model-forge-namespace.md)
 - [ADR-011: Per-project Hermes Profile Memory and Session Model](ADR-011-per-project-memory-model.md)
 - [ADR-012: Trusted Local Hermes Execution for Version 1](ADR-012-trusted-local-hermes-execution.md)
 - [ADR-013: Layered Prompts and Phase-Specific Output Contracts](ADR-013-layered-prompts-and-phase-specific-output-contracts.md)

@@ -1,6 +1,6 @@
 {
     "$schema":  "https://json-schema.org/draft/2020-12/schema",
-    "$id":  "https://method-hub.local/architecture/schemas/evidence.schema.json",
+    "$id":  "https://model-forge.local/architecture/schemas/evidence.schema.json",
     "title":  "Immutable Scientific Evidence Item",
     "description":  "An immutable evidence identity with frozen method applicability, provenance, reproducibility, and scientific assessment at creation. Current eligibility and alignment are derived separately.",
     "type":  "object",

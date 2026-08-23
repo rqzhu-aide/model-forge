@@ -42,7 +42,7 @@ findings:
   blocks_publication: true
   applicable_modes:
   - p1.literature_update
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p1
   call_sites:
   - - scientific_validators.py
@@ -56,7 +56,7 @@ findings:
   blocks_publication: true
   applicable_modes:
   - p1.literature_update
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p1
   call_sites:
   - - scientific_validators.py
@@ -70,7 +70,7 @@ findings:
   blocks_publication: true
   applicable_modes:
   - p1.literature_update
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p1
   call_sites:
   - - scientific_validators.py
@@ -87,7 +87,7 @@ findings:
   - p2.full_catalog
   - p2.focused_method
   - p2.independent_proposals
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_method_definition
   call_sites:
   - - scientific_validators.py
@@ -100,7 +100,7 @@ findings:
   provisional_class: scientific_claim_blocker
   blocks_publication: true
   applicable_modes: *id001
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_method_definition
   call_sites:
   - - scientific_validators.py
@@ -113,7 +113,7 @@ findings:
   provisional_class: scientific_claim_blocker
   blocks_publication: true
   applicable_modes: *id001
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_method_definition
   call_sites:
   - - scientific_validators.py
@@ -127,7 +127,7 @@ findings:
   blocks_publication: true
   applicable_modes: &id002
   - p2.focused_method
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p2
   call_sites:
   - - scientific_validators.py
@@ -140,7 +140,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: *id002
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p2
   call_sites:
   - - scientific_validators.py
@@ -153,7 +153,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: *id002
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p2
   call_sites:
   - - scientific_validators.py
@@ -166,7 +166,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id001
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_method_definition
   call_sites:
   - - scientific_validators.py
@@ -179,7 +179,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id001
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_method_definition
   call_sites:
   - - scientific_validators.py
@@ -192,7 +192,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: *id002
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p2
   call_sites:
   - - scientific_validators.py
@@ -205,7 +205,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: *id002
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p2
   call_sites:
   - - scientific_validators.py
@@ -218,7 +218,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: *id002
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p2
   call_sites:
   - - scientific_validators.py
@@ -231,7 +231,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: *id002
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p2
   call_sites:
   - - scientific_validators.py
@@ -244,7 +244,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id002
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p2
   call_sites:
   - - scientific_validators.py
@@ -257,7 +257,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: *id002
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p2
   call_sites:
   - - scientific_validators.py
@@ -272,7 +272,7 @@ findings:
   applicable_modes: &id003
   - p3.theory_establishment
   - p3.theory_revision
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_theory_statement
   call_sites:
   - - scientific_validators.py
@@ -285,7 +285,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: *id003
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p3
   call_sites:
   - - scientific_validators.py
@@ -298,7 +298,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id003
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p3 (via _unique_ids)
   call_sites:
   - - scientific_validators.py
@@ -311,7 +311,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id003
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p3 (via _unique_ids)
   call_sites:
   - - scientific_validators.py
@@ -324,7 +324,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id003
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p3 (via _unique_ids)
   call_sites:
   - - scientific_validators.py
@@ -337,7 +337,7 @@ findings:
   provisional_class: scientific_claim_blocker
   blocks_publication: true
   applicable_modes: *id003
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_theory_statement
   call_sites:
   - - scientific_validators.py
@@ -350,7 +350,7 @@ findings:
   provisional_class: scientific_claim_blocker
   blocks_publication: true
   applicable_modes: *id003
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_theory_statement
   call_sites:
   - - scientific_validators.py
@@ -363,7 +363,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: *id003
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p3
   call_sites:
   - - scientific_validators.py
@@ -376,7 +376,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id003
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p3
   call_sites:
   - - scientific_validators.py
@@ -389,7 +389,7 @@ findings:
   provisional_class: scientific_claim_blocker
   blocks_publication: true
   applicable_modes: *id003
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p3 (via _validate_primary_artifact)
   call_sites:
   - - scientific_validators.py
@@ -403,7 +403,7 @@ findings:
   blocks_publication: true
   applicable_modes: &id004
   - p3.theory_revision
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p3
   call_sites:
   - - scientific_validators.py
@@ -416,7 +416,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id003
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p3
   call_sites:
   - - scientific_validators.py
@@ -429,7 +429,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id003
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p3
   call_sites:
   - - scientific_validators.py
@@ -442,7 +442,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id003
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p3 (via _require_resolved_ids)
   call_sites:
   - - scientific_validators.py
@@ -455,7 +455,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id003
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p3 (via _require_resolved_ids)
   call_sites:
   - - scientific_validators.py
@@ -468,7 +468,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id003
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p3 (via _require_resolved_ids)
   call_sites:
   - - scientific_validators.py
@@ -481,7 +481,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id004
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p3 (via _require_resolved_ids)
   call_sites:
   - - scientific_validators.py
@@ -494,7 +494,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id003
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p3 (via _require_resolved_ids)
   call_sites:
   - - scientific_validators.py
@@ -507,7 +507,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id003
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p3 (via _require_resolved_ids)
   call_sites:
   - - scientific_validators.py
@@ -522,7 +522,7 @@ findings:
   applicable_modes: &id005
   - p4.preliminary
   - p4.comprehensive
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_empirical_protocol (via _unique_ids)
   call_sites:
   - - scientific_validators.py
@@ -535,7 +535,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id005
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_empirical_protocol (via _unique_ids)
   call_sites:
   - - scientific_validators.py
@@ -548,7 +548,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id005
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_empirical_protocol (via _unique_ids)
   call_sites:
   - - scientific_validators.py
@@ -561,7 +561,7 @@ findings:
   provisional_class: scientific_claim_blocker
   blocks_publication: true
   applicable_modes: *id005
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p4
   call_sites:
   - - scientific_validators.py
@@ -574,7 +574,7 @@ findings:
   provisional_class: scientific_claim_blocker
   blocks_publication: true
   applicable_modes: *id005
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p4
   call_sites:
   - - scientific_validators.py
@@ -587,7 +587,7 @@ findings:
   provisional_class: scientific_claim_blocker
   blocks_publication: true
   applicable_modes: *id005
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p4
   call_sites:
   - - scientific_validators.py
@@ -600,7 +600,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: *id005
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p4
   call_sites:
   - - scientific_validators.py
@@ -614,7 +614,7 @@ findings:
   provisional_class: scientific_claim_blocker
   blocks_publication: true
   applicable_modes: *id005
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p4
   call_sites:
   - - scientific_validators.py
@@ -627,7 +627,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: *id005
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p4
   call_sites:
   - - scientific_validators.py
@@ -640,7 +640,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: *id005
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p4
   call_sites:
   - - scientific_validators.py
@@ -653,7 +653,7 @@ findings:
   provisional_class: scientific_claim_blocker
   blocks_publication: true
   applicable_modes: *id005
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_reproducibility
   call_sites:
   - - scientific_validators.py
@@ -666,7 +666,7 @@ findings:
   provisional_class: scientific_claim_blocker
   blocks_publication: true
   applicable_modes: *id005
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_reproducibility
   call_sites:
   - - scientific_validators.py
@@ -679,7 +679,7 @@ findings:
   provisional_class: scientific_claim_blocker
   blocks_publication: true
   applicable_modes: *id005
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_reproducibility
   call_sites:
   - - scientific_validators.py
@@ -692,7 +692,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id005
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_empirical_protocol (via _require_resolved_ids)
   call_sites:
   - - scientific_validators.py
@@ -705,7 +705,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id005
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_empirical_protocol (via _require_resolved_ids)
   call_sites:
   - - scientific_validators.py
@@ -718,7 +718,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id005
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_empirical_protocol
   call_sites:
   - - scientific_validators.py
@@ -731,7 +731,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id005
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_empirical_protocol
   call_sites:
   - - scientific_validators.py
@@ -746,7 +746,7 @@ findings:
   applicable_modes: &id007
   - p5.assembly
   - p5.review_revision
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p5
   call_sites:
   - - scientific_validators.py
@@ -761,7 +761,7 @@ findings:
   blocks_publication: true
   applicable_modes: &id006
   - p5.review_revision
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p5
   call_sites:
   - - scientific_validators.py
@@ -774,7 +774,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id006
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p5
   call_sites:
   - - scientific_validators.py
@@ -787,7 +787,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id006
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p5
   call_sites:
   - - scientific_validators.py
@@ -800,7 +800,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id007
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_manuscript_package
   call_sites:
   - - scientific_validators.py
@@ -815,7 +815,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id007
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_manuscript_package
   call_sites:
   - - scientific_validators.py
@@ -828,7 +828,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id007
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p5
   call_sites:
   - - scientific_validators.py
@@ -841,7 +841,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: *id007
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_manuscript_package
   call_sites:
   - - scientific_validators.py
@@ -854,7 +854,7 @@ findings:
   provisional_class: scientific_claim_blocker
   blocks_publication: true
   applicable_modes: *id007
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_manuscript_package (via _validate_primary_artifact)
   call_sites:
   - - scientific_validators.py
@@ -867,7 +867,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id006
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p5
   call_sites:
   - - scientific_validators.py
@@ -880,7 +880,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: *id006
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_open_review_finding
   call_sites:
   - - scientific_validators.py
@@ -893,7 +893,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id006
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_p5
   call_sites:
   - - scientific_validators.py
@@ -906,7 +906,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: *id006
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_open_review_finding
   call_sites:
   - - scientific_validators.py
@@ -919,7 +919,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: *id007
-  responsible_file: src/method_hub/harness/scientific_validators.py
+  responsible_file: src/model_forge/harness/scientific_validators.py
   validator: _validate_manuscript_package
   call_sites:
   - - scientific_validators.py
@@ -933,7 +933,7 @@ findings:
   blocks_publication: true
   applicable_modes:
   - p1.literature_update
-  responsible_file: src/method_hub/harness/submission_validation.py
+  responsible_file: src/model_forge/harness/submission_validation.py
   validator: _validate_phase_semantics
   call_sites:
   - - submission_validation.py
@@ -946,7 +946,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/submission_validation.py
+  responsible_file: src/model_forge/harness/submission_validation.py
   validator: _verify_output
   call_sites:
   - - submission_validation.py
@@ -959,7 +959,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/submission_validation.py
+  responsible_file: src/model_forge/harness/submission_validation.py
   validator: _verify_output
   call_sites:
   - - submission_validation.py
@@ -972,7 +972,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/submission_validation.py
+  responsible_file: src/model_forge/harness/submission_validation.py
   validator: _verify_output
   call_sites:
   - - submission_validation.py
@@ -985,7 +985,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/submission_validation.py
+  responsible_file: src/model_forge/harness/submission_validation.py
   validator: _verify_output
   call_sites:
   - - submission_validation.py
@@ -998,7 +998,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/submission_validation.py
+  responsible_file: src/model_forge/harness/submission_validation.py
   validator: validate_submission
   call_sites:
   - - submission_validation.py
@@ -1011,7 +1011,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/submission_validation.py
+  responsible_file: src/model_forge/harness/submission_validation.py
   validator: validate_submission
   call_sites:
   - - submission_validation.py
@@ -1024,7 +1024,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/submission_validation.py
+  responsible_file: src/model_forge/harness/submission_validation.py
   validator: validate_submission
   call_sites:
   - - submission_validation.py
@@ -1037,7 +1037,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/submission_validation.py
+  responsible_file: src/model_forge/harness/submission_validation.py
   validator: validate_submission
   call_sites:
   - - submission_validation.py
@@ -1050,7 +1050,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/submission_validation.py
+  responsible_file: src/model_forge/harness/submission_validation.py
   validator: _validate_phase_semantics
   call_sites:
   - - submission_validation.py
@@ -1063,7 +1063,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/submission_validation.py
+  responsible_file: src/model_forge/harness/submission_validation.py
   validator: validate_submission / _validate_phase_semantics
   call_sites:
   - - submission_validation.py
@@ -1078,7 +1078,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/submission_validation.py
+  responsible_file: src/model_forge/harness/submission_validation.py
   validator: validate_submission
   call_sites:
   - - submission_validation.py
@@ -1091,7 +1091,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/submission_validation.py
+  responsible_file: src/model_forge/harness/submission_validation.py
   validator: _verify_output
   call_sites:
   - - submission_validation.py
@@ -1104,7 +1104,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/submission_validation.py
+  responsible_file: src/model_forge/harness/submission_validation.py
   validator: _verify_output
   call_sites:
   - - submission_validation.py
@@ -1117,7 +1117,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/submission_validation.py
+  responsible_file: src/model_forge/harness/submission_validation.py
   validator: _verify_output
   call_sites:
   - - submission_validation.py
@@ -1130,7 +1130,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/submission_validation.py
+  responsible_file: src/model_forge/harness/submission_validation.py
   validator: validate_submission
   call_sites:
   - - submission_validation.py
@@ -1143,7 +1143,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/submission_validation.py
+  responsible_file: src/model_forge/harness/submission_validation.py
   validator: validate_submission
   call_sites:
   - - submission_validation.py
@@ -1156,7 +1156,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/submission_validation.py
+  responsible_file: src/model_forge/harness/submission_validation.py
   validator: validate_submission
   call_sites:
   - - submission_validation.py
@@ -1169,7 +1169,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/submission_validation.py
+  responsible_file: src/model_forge/harness/submission_validation.py
   validator: validate_submission
   call_sites:
   - - submission_validation.py
@@ -1182,7 +1182,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/inputs.py
+  responsible_file: src/model_forge/harness/inputs.py
   validator: resolve_run_inputs
   call_sites:
   - - inputs.py
@@ -1195,7 +1195,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/inputs.py
+  responsible_file: src/model_forge/harness/inputs.py
   validator: resolve_run_inputs
   call_sites:
   - - inputs.py
@@ -1208,7 +1208,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/inputs.py
+  responsible_file: src/model_forge/harness/inputs.py
   validator: resolve_run_inputs
   call_sites:
   - - inputs.py
@@ -1221,7 +1221,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: *id005
-  responsible_file: src/method_hub/harness/inputs.py
+  responsible_file: src/model_forge/harness/inputs.py
   validator: resolve_run_inputs
   call_sites:
   - - inputs.py
@@ -1235,7 +1235,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/inputs.py
+  responsible_file: src/model_forge/harness/inputs.py
   validator: resolve_run_inputs
   call_sites:
   - - inputs.py
@@ -1248,7 +1248,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/inputs.py
+  responsible_file: src/model_forge/harness/inputs.py
   validator: resolve_run_inputs
   call_sites:
   - - inputs.py
@@ -1261,7 +1261,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/inputs.py
+  responsible_file: src/model_forge/harness/inputs.py
   validator: resolve_run_inputs
   call_sites:
   - - inputs.py
@@ -1274,14 +1274,14 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/outputs.py
+  responsible_file: src/model_forge/harness/outputs.py
   validator: validate_role_outputs / validate_submission (JsonLoadError handler; code defined in json_io.py)
   call_sites:
   - - outputs.py
     - 207
   - - submission_validation.py
     - 66
-  - - src/method_hub/json_io.py
+  - - src/model_forge/json_io.py
     - 88
   user_guidance: The document is not decodable JSON; fix the syntax and resubmit.
 - code: json.duplicate_key
@@ -1291,14 +1291,14 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/outputs.py
+  responsible_file: src/model_forge/harness/outputs.py
   validator: validate_role_outputs / validate_submission (JsonLoadError handler; code defined in json_io.py)
   call_sites:
   - - outputs.py
     - 207
   - - submission_validation.py
     - 66
-  - - src/method_hub/json_io.py
+  - - src/model_forge/json_io.py
     - 19
   user_guidance: The document repeats a JSON object key, which is not allowed under strict JSON semantics; remove the duplicate
     key.
@@ -1309,14 +1309,14 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/outputs.py
+  responsible_file: src/model_forge/harness/outputs.py
   validator: validate_role_outputs / validate_submission (JsonLoadError handler; code defined in json_io.py)
   call_sites:
   - - outputs.py
     - 207
   - - submission_validation.py
     - 66
-  - - src/method_hub/json_io.py
+  - - src/model_forge/json_io.py
     - 64
   user_guidance: The input is not a JSON document (wrong input type); supply a JSON payload.
 - code: json.non_finite_number
@@ -1326,14 +1326,14 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/outputs.py
+  responsible_file: src/model_forge/harness/outputs.py
   validator: validate_role_outputs / validate_submission (JsonLoadError handler; code defined in json_io.py)
   call_sites:
   - - outputs.py
     - 207
   - - submission_validation.py
     - 66
-  - - src/method_hub/json_io.py
+  - - src/model_forge/json_io.py
     - 28
   user_guidance: The document contains a non-finite number (NaN or Infinity), which is not valid JSON; replace it.
 - code: json.read_error
@@ -1343,14 +1343,14 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/outputs.py
+  responsible_file: src/model_forge/harness/outputs.py
   validator: validate_role_outputs / validate_submission (JsonLoadError handler; code defined in json_io.py)
   call_sites:
   - - outputs.py
     - 207
   - - submission_validation.py
     - 66
-  - - src/method_hub/json_io.py
+  - - src/model_forge/json_io.py
     - 104
   user_guidance: The JSON source could not be read; check the file or storage before resubmitting.
 - code: output.expected_array
@@ -1360,7 +1360,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/outputs.py
+  responsible_file: src/model_forge/harness/outputs.py
   validator: validate_role_outputs
   call_sites:
   - - outputs.py
@@ -1373,7 +1373,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/outputs.py
+  responsible_file: src/model_forge/harness/outputs.py
   validator: validate_role_outputs
   call_sites:
   - - outputs.py
@@ -1386,7 +1386,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/outputs.py
+  responsible_file: src/model_forge/harness/outputs.py
   validator: validate_role_outputs
   call_sites:
   - - outputs.py
@@ -1399,7 +1399,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/outputs.py
+  responsible_file: src/model_forge/harness/outputs.py
   validator: validate_role_outputs
   call_sites:
   - - outputs.py
@@ -1412,7 +1412,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/outputs.py
+  responsible_file: src/model_forge/harness/outputs.py
   validator: validate_role_outputs
   call_sites:
   - - outputs.py
@@ -1425,7 +1425,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/outputs.py
+  responsible_file: src/model_forge/harness/outputs.py
   validator: validate_role_outputs
   call_sites:
   - - outputs.py
@@ -1438,7 +1438,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/outputs.py
+  responsible_file: src/model_forge/harness/outputs.py
   validator: validate_role_outputs
   call_sites:
   - - outputs.py
@@ -1451,7 +1451,7 @@ findings:
   provisional_class: integrity_blocker
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/outputs.py
+  responsible_file: src/model_forge/harness/outputs.py
   validator: validate_role_outputs
   call_sites:
   - - outputs.py
@@ -1464,7 +1464,7 @@ findings:
   provisional_class: correctable_contract_error
   blocks_publication: true
   applicable_modes: all
-  responsible_file: src/method_hub/harness/outputs.py
+  responsible_file: src/model_forge/harness/outputs.py
   validator: validate_role_outputs / validate_submission (SchemaCatalog.validate issue handler; composed in schemas/catalog.py)
   call_sites:
   - - outputs.py

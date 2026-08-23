@@ -4,7 +4,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from method_hub.domain import (
+from model_forge.domain import (
     ArtifactPointer,
     MethodIdentity,
     PhaseContractIdentity,
@@ -12,8 +12,8 @@ from method_hub.domain import (
     Sha256Digest,
     StableId,
 )
-from method_hub.errors import DomainValidationError
-from method_hub.json_io import JsonLoadError, loads_json
+from model_forge.errors import DomainValidationError
+from model_forge.json_io import JsonLoadError, loads_json
 
 
 DIGEST = "a" * 64

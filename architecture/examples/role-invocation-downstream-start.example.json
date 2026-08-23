@@ -73,7 +73,7 @@
           "sha256": "58c85d3613cdeefd0c84bbaed948ef2f4b98fd3bafe2ed9d875fc517674094c6",
           "media_type": "application/json"
         },
-        "closure_sha256": "52f10e60cf07f1edf4376dde910aae222f1b862ee01b8f3d38895b1ad3b3f37b",
+        "closure_sha256": "9db0ebbb5c172a90e00eea519364a07a52e5073a5f112d1406f460562d98648a",
         "output_id": "output.protocol"
       }
     },
@@ -95,7 +95,7 @@
           "sha256": "58c85d3613cdeefd0c84bbaed948ef2f4b98fd3bafe2ed9d875fc517674094c6",
           "media_type": "application/json"
         },
-        "closure_sha256": "52f10e60cf07f1edf4376dde910aae222f1b862ee01b8f3d38895b1ad3b3f37b",
+        "closure_sha256": "9db0ebbb5c172a90e00eea519364a07a52e5073a5f112d1406f460562d98648a",
         "output_id": "output.preliminary_evidence"
       }
     },
@@ -117,7 +117,7 @@
           "sha256": "58c85d3613cdeefd0c84bbaed948ef2f4b98fd3bafe2ed9d875fc517674094c6",
           "media_type": "application/json"
         },
-        "closure_sha256": "52f10e60cf07f1edf4376dde910aae222f1b862ee01b8f3d38895b1ad3b3f37b",
+        "closure_sha256": "9db0ebbb5c172a90e00eea519364a07a52e5073a5f112d1406f460562d98648a",
         "output_id": "output.analyst_synthesis"
       }
     },
@@ -139,7 +139,7 @@
           "sha256": "58c85d3613cdeefd0c84bbaed948ef2f4b98fd3bafe2ed9d875fc517674094c6",
           "media_type": "application/json"
         },
-        "closure_sha256": "52f10e60cf07f1edf4376dde910aae222f1b862ee01b8f3d38895b1ad3b3f37b",
+        "closure_sha256": "9db0ebbb5c172a90e00eea519364a07a52e5073a5f112d1406f460562d98648a",
         "output_id": "output.analyst_handoff"
       }
     }
@@ -196,8 +196,8 @@
       "media_type": "application/json"
     },
     "working_roots": {
-      "run_profile": "/var/lib/method-hub/runs/run-001/profile",
-      "workspace": "/var/lib/method-hub/runs/run-001/workspace"
+      "run_profile": "/var/lib/model-forge/runs/run-001/profile",
+      "workspace": "/var/lib/model-forge/runs/run-001/workspace"
     },
     "process_control": {
       "supervision": "local_process_group",
@@ -235,5 +235,5 @@
   },
   "role_write_root": "runs/P4/run.p4.preliminary.20260801t140000z/roles/02-theorist/",
   "started_at": "2026-08-01T14:55:20Z",
-  "start_sha256": "5157dbddb012fd0564bd6d504db920125929fd3fd23d598aabaab7115eb453fc"
+  "start_sha256": "f2cbc7829781bd5f098e822f3022e3ea602ed0165b5a925c81fc390967e59e89"
 }

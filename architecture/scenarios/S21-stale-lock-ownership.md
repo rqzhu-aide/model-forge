@@ -15,8 +15,8 @@ project-role lock, and that fencing tokens and leases protect ownership.
 - ADR-012 item 6 (only a successful, valid run under the current ownership
   token may atomically replace the current project-role state):
   [ADR-012](../decisions/ADR-012-trusted-local-hermes-execution.md).
-- [07-contract-traceability](../07-contract-traceability.md) MH-69 (stale
-  lock ownership) and MH-49 (idempotent compare-and-swap control).
+- [07-contract-traceability](../07-contract-traceability.md) MF-69 (stale
+  lock ownership) and MF-49 (idempotent compare-and-swap control).
   Invariant INV-007.
 
 ## Setup

@@ -10,7 +10,7 @@ it BEFORE signalling, and both close paths (startup
 completion watcher) consult it when the process is gone.
 
 Every "restart" below is simulated by constructing a FRESH
-Database/RunSealStore/MethodHubService over the same ``hub.sqlite3``
+Database/RunSealStore/ModelForgeService over the same ``hub.sqlite3``
 file — no in-memory cancel event carries over.
 """
 
@@ -23,15 +23,15 @@ from typing import Any
 
 import pytest
 
-from method_hub.application.run_profile_assembler import RunSealStore
-from method_hub.application.service import MethodHubService
-from method_hub.domain.runs import isoformat_utc, utc_now
-from method_hub.executors.protocol import (
+from model_forge.application.run_profile_assembler import RunSealStore
+from model_forge.application.service import ModelForgeService
+from model_forge.domain.runs import isoformat_utc, utc_now
+from model_forge.executors.protocol import (
     RoleExecutionResult,
     RoleExecutionStatus,
 )
-from method_hub.storage.database import Database
-from method_hub.storage.migrations import HUB_MIGRATIONS
+from model_forge.storage.database import Database
+from model_forge.storage.migrations import HUB_MIGRATIONS
 
 PROJECT = "proj-001"
 INVOCATION = "inv-001"
@@ -78,9 +78,9 @@ def _seed_running_launch(store: RunSealStore) -> None:
     store.record_launch_external_id(LAUNCH, EXTERNAL_ID)
 
 
-def _restarted_service(store: RunSealStore) -> MethodHubService:
+def _restarted_service(store: RunSealStore) -> ModelForgeService:
     """A 'restarted' service: real store, EMPTY in-memory cancel state."""
-    service = MethodHubService.__new__(MethodHubService)
+    service = ModelForgeService.__new__(ModelForgeService)
     service.settings = SimpleNamespace(  # type: ignore[assignment]
         hermes_executable="/nonexistent/hermes"
     )
@@ -113,7 +113,7 @@ def fast_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
         await real_sleep(0)
 
     monkeypatch.setattr(
-        "method_hub.application.service.asyncio.sleep", _fast_sleep
+        "model_forge.application.service.asyncio.sleep", _fast_sleep
     )
 
 
@@ -133,7 +133,7 @@ def test_reconcile_after_restart_closes_cancelled_when_intent_persisted(
     # Restart: fresh store + service over the same file, no cancel event.
     restarted = _restarted_service(_restarted_store(tmp_path))
     monkeypatch.setattr(
-        "method_hub.application.service.LocalHermesExecutor",
+        "model_forge.application.service.LocalHermesExecutor",
         lambda settings: _GoneExecutor(),
     )
 
@@ -155,7 +155,7 @@ def test_reconcile_after_restart_closes_failed_without_intent(
 
     restarted = _restarted_service(_restarted_store(tmp_path))
     monkeypatch.setattr(
-        "method_hub.application.service.LocalHermesExecutor",
+        "model_forge.application.service.LocalHermesExecutor",
         lambda settings: _GoneExecutor(),
     )
 

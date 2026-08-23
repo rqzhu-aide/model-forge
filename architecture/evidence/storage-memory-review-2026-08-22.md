@@ -3,7 +3,7 @@
 A ground-truth review of (1) the file-system management of everything the
 system produces and (2) the memory management of what each role actually
 receives as context at every phase / run / stage. Verified against the
-live store (`~/.method-hub/`), the SQLite index, and the source
+live store (`~/.model-forge/`), the SQLite index, and the source
 (`harness/inputs.py`, `harness/task_briefs.py`, `executors/hermes.py`,
 `harness/execution_context.py`).
 
@@ -11,14 +11,14 @@ live store (`~/.method-hub/`), the SQLite index, and the source
 
 Three cooperating layers, each with a distinct authority role.
 
-### Layer A - Artifact store (`~/.method-hub/artifacts/objects/`)
+### Layer A - Artifact store (`~/.model-forge/artifacts/objects/`)
 
 Content-addressed immutable bytes (path = sha256 of content). Everything
 the system ever handles lands here exactly once: raw command requests,
 sealed records, task briefs, role outputs, run manifests. Same content =
 same object = automatic dedupe across runs and projects. ~10 MB today.
 
-### Layer B - SQLite index (`method-hub.sqlite3`, 31 tables)
+### Layer B - SQLite index (`model-forge.sqlite3`, 31 tables)
 
 The queryable authority. Four functional groups:
 
@@ -42,7 +42,7 @@ The queryable authority. Four functional groups:
   `project_settings`, `diagnostic_invocations`, `run_profile_seals`,
   `project_role_state_locks`.
 
-### Layer C - Run workspaces (`~/.method-hub/runs/<run_id>/`)
+### Layer C - Run workspaces (`~/.model-forge/runs/<run_id>/`)
 
 One directory per run, split into two trees per role assignment:
 

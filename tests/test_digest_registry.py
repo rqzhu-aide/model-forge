@@ -8,15 +8,15 @@ from types import MappingProxyType
 
 import pytest
 
-from method_hub.digests import (
+from model_forge.digests import (
     DigestConstructionError,
     DigestContractNotFound,
     DigestContractRegistry,
     DigestMismatchError,
     DigestRegistryError,
 )
-from method_hub.errors import MethodHubError
-from method_hub.schemas import SchemaCatalog
+from model_forge.errors import ModelForgeError
+from model_forge.schemas import SchemaCatalog
 
 
 ARCHITECTURE = Path(__file__).resolve().parents[1] / "architecture"
@@ -268,7 +268,7 @@ def test_referenced_bytes_require_full_document_and_exact_byte_resolver(
             audit["raw_request"],
             lambda _uri: b"bytes",
         )
-    assert isinstance(caught.value, MethodHubError)
+    assert isinstance(caught.value, ModelForgeError)
 
 
 def test_referenced_contract_requires_explicit_expected_digest(
@@ -310,14 +310,14 @@ def test_pointer_and_jcs_failures_are_stable_construction_errors(
     del event["prior_event_root_sha256"]
     with pytest.raises(DigestConstructionError) as pointer_error:
         registry.compute("authority_event.root", event)
-    assert isinstance(pointer_error.value, MethodHubError)
+    assert isinstance(pointer_error.value, ModelForgeError)
     assert pointer_error.value.code == "digest_construction_failed"
 
     method = _load("method.example.json")
     method["unsupported_number"] = 0.5
     with pytest.raises(DigestConstructionError) as jcs_error:
         registry.compute("method_record.content", method)
-    assert isinstance(jcs_error.value, MethodHubError)
+    assert isinstance(jcs_error.value, ModelForgeError)
     assert jcs_error.value.code == "digest_construction_failed"
 
 
@@ -447,5 +447,5 @@ def test_malformed_registry_pointer_is_a_registry_error(
     document["contracts"][0]["instance_pointer"] = "/items/not*selector"
     with pytest.raises(DigestRegistryError, match="malformed JSON pointer") as caught:
         DigestContractRegistry.load(_write_registry(tmp_path, document), schemas)
-    assert isinstance(caught.value, MethodHubError)
+    assert isinstance(caught.value, ModelForgeError)
     assert caught.value.code == "digest_registry_invalid"

@@ -9,23 +9,23 @@ from pathlib import Path
 
 import pytest
 
-from method_hub.capabilities.broker import CapabilityBroker, CapabilityBrokerError
-from method_hub.harness.execution_records import FrozenInputPath
-from method_hub.harness.invocation_fencing import (
+from model_forge.capabilities.broker import CapabilityBroker, CapabilityBrokerError
+from model_forge.harness.execution_records import FrozenInputPath
+from model_forge.harness.invocation_fencing import (
     FencingError,
     FencingToken,
     InvocationFencer,
 )
-from method_hub.harness.output_adapters import (
+from model_forge.harness.output_adapters import (
     AdaptedOutput,
     DefaultOutputAdapter,
     LinkedArtifact,
     preserve_raw_output,
 )
-from method_hub.harness.outputs import OutputSpec, ValidatedOutput
-from method_hub.harness.scientific_validators import validate_phase_scientific
-from method_hub.domain.validation import ValidationFinding, ValidationSeverity
-from method_hub.harness.publication import RegisteredValidatedOutput, RegisteredArtifactMetadata
+from model_forge.harness.outputs import OutputSpec, ValidatedOutput
+from model_forge.harness.scientific_validators import validate_phase_scientific
+from model_forge.domain.validation import ValidationFinding, ValidationSeverity
+from model_forge.harness.publication import RegisteredValidatedOutput, RegisteredArtifactMetadata
 
 
 # ---------------------------------------------------------------------------

@@ -6,7 +6,7 @@ Accepted.
 
 ## Context
 
-Method Hub defines a new authority model based on immutable generations,
+Model Forge defines a new authority model based on immutable generations,
 ordered authority events, rebuildable projections, sealed run manifests, and
 typed commands. The legacy
 [Research Hub](https://github.com/rqzhu-aide/research-hub) uses different
@@ -35,7 +35,7 @@ for a later, separately reviewed adoption project.
 
 ### Option A: Incremental dual writing
 
-Write each change to Research Hub and Method Hub
+Write each change to Research Hub and Model Forge
 during development.
 
 This may appear gradual, but disagreement between the two writes creates an
@@ -43,7 +43,7 @@ undefined formal state. Rollback and reconciliation are not well defined.
 
 ### Option B: Include a legacy importer in version 1
 
-Specify mappings from Research Hub projects while Method Hub is being built.
+Specify mappings from Research Hub projects while Model Forge is being built.
 
 This would couple the greenfield domain model to implementation-specific legacy
 records before the new model has passed its own acceptance scenarios. It would
@@ -60,7 +60,7 @@ existing project is adopted.
 Select Option C.
 
 Version 1 defines no Research Hub project importer, dual writer, compatibility
-bridge, or partial cutover. Research Hub and Method Hub may be developed or
+bridge, or partial cutover. Research Hub and Model Forge may be developed or
 operated separately, but they must not both claim formal authority for one
 project.
 
@@ -77,7 +77,7 @@ an executable plan that defines:
 - rollback behavior before that transfer and recovery behavior after it;
 - acceptance scenarios using representative archived projects.
 
-Schema upgrades among Method Hub versions are not legacy adoption.
+Schema upgrades among Model Forge versions are not legacy adoption.
 They remain governed by the normal schema-migration rules.
 
 ## Consequences
@@ -92,7 +92,7 @@ They remain governed by the normal schema-migration rules.
 
 ### Costs and risks
 
-- Research Hub projects cannot use Method Hub until a separate adoption package
+- Research Hub projects cannot use Model Forge until a separate adoption package
   is designed and validated.
 - The two repositories may require short-term development in isolated code paths.
 - Future adoption will require explicit scientific mapping decisions rather than

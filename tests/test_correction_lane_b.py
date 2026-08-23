@@ -8,11 +8,11 @@ Lane B integration tests land with the execution core (P5a-ii).
 
 from __future__ import annotations
 
-from method_hub.application.correction import build_correction_instruction
-from method_hub.application.correction_execution import (
+from model_forge.application.correction import build_correction_instruction
+from model_forge.application.correction_execution import (
     verify_correction_blast_radius,
 )
-from method_hub.domain.validation import make_finding
+from model_forge.domain.validation import make_finding
 
 
 def _verify(source, corrected, correction_type, pointers, scope):
@@ -131,11 +131,11 @@ import dataclasses
 import json
 from pathlib import Path
 
-from method_hub.application.correction_execution import execute_targeted_correction
-from method_hub.executors import DeterministicFakeExecutor
-from method_hub.harness.execution_records import correction_role_identity
-from method_hub.harness.stage_execution import HarnessExecutionServices
-from method_hub.json_io import loads_json
+from model_forge.application.correction_execution import execute_targeted_correction
+from model_forge.executors import DeterministicFakeExecutor
+from model_forge.harness.execution_records import correction_role_identity
+from model_forge.harness.stage_execution import HarnessExecutionServices
+from model_forge.json_io import loads_json
 
 from test_correction_command_path import (
     PROJECT,

@@ -4,7 +4,7 @@ Builds fixture state exactly as the WP-D/E tests do — sealing through
 ``RunProfileAssembler.seal_invocation`` and recording launch, validation,
 and promotion rows through ``RunSealStore`` directly — over the SAME
 ``<data_root>/hub.sqlite3`` that the application service's lazy
-``run_seal_store`` opens (``MethodHubService.run_seal_store`` resolves
+``run_seal_store`` opens (``ModelForgeService.run_seal_store`` resolves
 ``settings.data_root / "hub.sqlite3"``), so the HTTP surface reads the
 seeded durable state.
 
@@ -29,25 +29,25 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from method_hub.api import create_app
-from method_hub.application.run_profile_assembler import (
+from model_forge.api import create_app
+from model_forge.application.run_profile_assembler import (
     HermesProbe,
     RunProfileAssembler,
     RunSealStore,
     SealedRun,
 )
-from method_hub.application.service import MethodHubService
-from method_hub.application.settings import ApplicationSettings
-from method_hub.configuration.resources import RoleResourceCatalog
-from method_hub.domain.runs import isoformat_utc, utc_now
-from method_hub.executors.local_hermes import LocalHermesExecutorSettings
-from method_hub.profiles.project_profiles import MemoryPolicy
-from method_hub.specification import SpecificationPackage
-from method_hub.storage.artifacts import ArtifactStore
-from method_hub.storage.database import Database
-from method_hub.storage.migrations import HUB_MIGRATIONS
-from method_hub.storage.paths import WorkspacePaths
-from method_hub.storage.repository import HubRepository
+from model_forge.application.service import ModelForgeService
+from model_forge.application.settings import ApplicationSettings
+from model_forge.configuration.resources import RoleResourceCatalog
+from model_forge.domain.runs import isoformat_utc, utc_now
+from model_forge.executors.local_hermes import LocalHermesExecutorSettings
+from model_forge.profiles.project_profiles import MemoryPolicy
+from model_forge.specification import SpecificationPackage
+from model_forge.storage.artifacts import ArtifactStore
+from model_forge.storage.database import Database
+from model_forge.storage.migrations import HUB_MIGRATIONS
+from model_forge.storage.paths import WorkspacePaths
+from model_forge.storage.repository import HubRepository
 
 ROOT = Path(__file__).resolve().parents[1]
 RESOURCE_ROOT = ROOT / "resources" / "team"
@@ -123,7 +123,7 @@ def _environment(
 ) -> dict[str, Any]:
     """Service + TestClient over one tmp data root, seeded like WP-E tests.
 
-    The hub repository lives at ``method-hub.sqlite3`` (the production
+    The hub repository lives at ``model-forge.sqlite3`` (the production
     layout); the supervised-run machinery — and the service's lazy
     ``run_seal_store`` — lives at ``hub.sqlite3`` under the same root.
     ``hermes_executable``/``supervised_executor_settings`` wire the
@@ -131,12 +131,12 @@ def _environment(
     environment serves the WP-F0 read surface only.
     """
     workspace = WorkspacePaths(tmp_path / "data", create=True)
-    repository = HubRepository(workspace.root / "method-hub.sqlite3")
+    repository = HubRepository(workspace.root / "model-forge.sqlite3")
     repository.initialize()
     settings = ApplicationSettings(data_root=workspace.root)
     if hermes_executable is not None:
         settings.hermes_executable = hermes_executable
-    service = MethodHubService(
+    service = ModelForgeService(
         settings=settings,
         specification=SpecificationPackage.load(ROOT / "architecture"),
         repository=repository,
@@ -194,7 +194,7 @@ def _start_payload(**overrides: Any) -> dict[str, Any]:
         "idempotency_key": "key-001",
         "role": "theorist",
         "phase": "P3",
-        "method_identity": {"method_id": "mh-1", "version": "1.0"},
+        "method_identity": {"method_id": "mf-1", "version": "1.0"},
         "brief_text": "# Brief\nProduce the declared output.\n",
         "expected_outputs": [
             {
@@ -240,7 +240,7 @@ def _seal_kwargs(**overrides: Any) -> dict[str, Any]:
         project_id=PROJECT,
         role="theorist",
         phase="P3",
-        method_identity={"method_id": "mh-1", "version": "1.0"},
+        method_identity={"method_id": "mf-1", "version": "1.0"},
         user_choices={"mode": "headless", "context_policy": "strict"},
         selected_context_references=[
             {"context_id": "ctx-1", "record_id": "rec-1"},
@@ -342,7 +342,7 @@ def test_list_returns_sealed_invocations_with_summaries(
     assert first["phase"] == "P3"
     assert first["memory_policy"] == "persistent"
     assert first["sealed_at"] == sealed_theorist.sealed_at
-    assert first["method_identity"] == {"method_id": "mh-1", "version": "1.0"}
+    assert first["method_identity"] == {"method_id": "mf-1", "version": "1.0"}
     assert first["promoted"] is False
     assert "latest_launch_status" not in first
     assert "validation_verdict" not in first
@@ -416,7 +416,7 @@ def test_detail_returns_manifest_launches_validation_and_promotions(
     assert manifest["role"] == "theorist"
     assert manifest["phase"] == "P3"
     assert manifest["sealed_at"] == sealed.sealed_at
-    assert manifest["method_identity"] == {"method_id": "mh-1", "version": "1.0"}
+    assert manifest["method_identity"] == {"method_id": "mf-1", "version": "1.0"}
     assert manifest["memory_snapshot"]["policy"] == "persistent"
     assert isinstance(manifest["session_snapshot"], dict)
     assert manifest["expected_outputs"] == [
@@ -574,7 +574,7 @@ def test_preflight_failure_persists_fail_report_visible_in_detail(
     """A refused start (tampered SOUL after sealing) persists the FAIL
     report: the 409 carries it and the detail endpoint shows it."""
     environment = _start_environment(tmp_path, stub_hermes)
-    service: MethodHubService = environment["service"]
+    service: ModelForgeService = environment["service"]
     client = environment["client"]
     store = environment["store"]
     assert store is not None

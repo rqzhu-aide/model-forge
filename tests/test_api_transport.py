@@ -5,7 +5,7 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
-from method_hub.api import (
+from model_forge.api import (
     ArtifactDelivery,
     CommandRejected,
     RawRequestBody,
@@ -13,7 +13,7 @@ from method_hub.api import (
     create_app,
     new_command_error,
 )
-from method_hub.api.models import (
+from model_forge.api.models import (
     ActionDescriptor,
     CorrectionPreviewRequest,
     CorrectionPreviewView,
@@ -214,11 +214,11 @@ def system_settings_view() -> SystemSettingsView:
         executor_kind="disabled",
         execution_available=False,
         development_mode=False,
-        data_root="C:/method-hub",
-        database_path="C:/method-hub/method-hub.sqlite3",
+        data_root="C:/model-forge",
+        database_path="C:/model-forge/model-forge.sqlite3",
         artifact_namespace="artifacts/objects",
-        architecture_root="C:/method-hub/architecture",
-        frontend_dist="C:/method-hub/web/dist",
+        architecture_root="C:/model-forge/architecture",
+        frontend_dist="C:/model-forge/web/dist",
         frontend_available=True,
         database_schema_version=3,
         project_count=1,
@@ -228,7 +228,7 @@ def system_settings_view() -> SystemSettingsView:
 
 def publication_receipt() -> PublicationReceiptDocument:
     return PublicationReceiptDocument(
-        format="method-hub.publication-receipt",
+        format="model-forge.publication-receipt",
         format_version="1.0.0",
         receipt_id="receipt.demo",
         project_id="project.demo",
@@ -554,7 +554,7 @@ def test_invalid_command_is_preserved_before_stable_schema_rejection() -> None:
 
     assert response.status_code == 422
     assert response.json()["code"] == "COMMAND_SCHEMA_INVALID"
-    assert response.json()["rule_id"] == "MH-59"
+    assert response.json()["rule_id"] == "MF-59"
     assert response.json()["retryable"] is True
     assert response.json()["field_path"] == "unexpected"
     assert service.raw_requests[0].body == raw
@@ -634,7 +634,7 @@ def test_service_command_error_keeps_registered_http_mapping() -> None:
     assert response.status_code == 409
     assert payload["code"] == "PUBLICATION_CONFLICT"
     assert payload["category"] == "concurrency"
-    assert payload["rule_id"] == "MH-56"
+    assert payload["rule_id"] == "MF-56"
     assert payload["researcher_message"] == "The selected current basis changed."
 
 

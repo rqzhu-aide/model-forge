@@ -1,4 +1,4 @@
-# Revised Implementation Plan: Hermes Diagnostic Lane for Method Hub
+# Revised Implementation Plan: Hermes Diagnostic Lane for Model Forge
 
 Status: Historical OCI-specific design record. Its profile, memory, validation,
 and lifecycle observations remain useful, but it is not the Version 1 work
@@ -138,7 +138,7 @@ record and the operational gates below. They correct three assumptions:
 | Hermes version | v0.19.0 (2026.7.20), `/home/tez/.local/bin/hermes` |
 | Profile mechanism | `-p PROFILE` / `--profile` selects profile (argv pre-parse in `main.py:499-581`, sets `HERMES_HOME`); each profile has own `config.yaml`, `SOUL.md`, `skills/`, `memories/`, `sessions/`, `.env` |
 | Profile name rules | `^[a-z0-9][a-z0-9_-]*$` (`service_manager.py:29`) - hyphens and underscores allowed; `<project_id>-<role>` is valid |
-| Profile creation | `hermes profile create <name> --clone-from <base> --no-alias` copies `.env`; this is an observed Hermes behavior, not the Method Hub provisioning design |
+| Profile creation | `hermes profile create <name> --clone-from <base> --no-alias` copies `.env`; this is an observed Hermes behavior, not the Model Forge provisioning design |
 | One-shot mode | `hermes -z "prompt"` - synchronous, stdout-only final response, exits with process code |
 | Profile switching | Changes model/provider config correctly (theorist→deepseek, developer→glm-5.2) |
 | Skills | `--skills name1,name2` / `-s` preloads skills; skills live in `~/.hermes/profiles/<name>/skills/` |
@@ -191,7 +191,7 @@ tool only.
 
 ### 2.1 Design decision
 
-Each Method Hub project gets its own set of Hermes profiles. Author-role
+Each Model Forge project gets its own set of Hermes profiles. Author-role
 working memory and session state may persist across runs in that project.
 This can improve continuity, but it is not scientific authority. Formal
 records must independently carry every conclusion, assumption, and decision
@@ -232,7 +232,7 @@ behavioral constraints. It is versioned as part of the profile identity. It
 must not contain the project's research question, current method, results, or
 other mutable scientific context.
 
-The Method Hub resource system (`resources/team/`) supplies the declared role
+The Model Forge resource system (`resources/team/`) supplies the declared role
 soul. Profile provisioning records the source digest and complete rendered
 SOUL.md digest in the profile manifest. A SOUL change is an explicit role
 reconfiguration that creates a new profile revision.
@@ -276,7 +276,7 @@ reconstruct the role's context. Each invocation record must capture:
   metadata from `usage.json`; and
 - separate after-run snapshots and digests for every persistent memory update.
 
-If Hermes can browse prior sessions, Method Hub must either disable that
+If Hermes can browse prior sessions, Model Forge must either disable that
 capability or preserve an immutable snapshot of the exact accessible session
 state, including the relevant `state.db` and request dumps. Recording only a
 database digest and size is not sufficient for reconstruction.
@@ -336,7 +336,7 @@ profile state.
 ### 3.1 Topology: a separate non-publishing diagnostic lane
 
 ```text
-Method Hub diagnostic composition root
+Model Forge diagnostic composition root
   DiagnosticService
     DiagnosticStore and profile mutex
     ProjectProfileManager
@@ -465,7 +465,7 @@ If no secret-safe provider path is available, preflight fails before Hermes
 starts.
 
 The observed `hermes profile create --clone-from` operation copies `.env`.
-Method Hub provisioning therefore builds a clean profile from declared
+Model Forge provisioning therefore builds a clean profile from declared
 identity resources rather than cloning mutable base state. Legacy imports are
 quarantined and verified secret-free before they can become discoverable.
 ---

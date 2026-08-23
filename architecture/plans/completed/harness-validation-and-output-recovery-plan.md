@@ -4,7 +4,7 @@ Status: Proposed
 
 Prepared: 2026-08-12
 
-Scope: Method Hub trusted-local Hermes execution, role output validation,
+Scope: Model Forge trusted-local Hermes execution, role output validation,
 scientific validation, run status, recovery, and researcher-facing diagnostics.
 
 Related architecture:
@@ -27,7 +27,7 @@ The completed design should satisfy all of the following:
 2. Formal project state changes only after all blocking checks pass.
 3. Correctable output problems preserve the completed work and offer the
    smallest user-controlled recovery action.
-4. Method Hub never silently reruns scientific work or invents scientific
+4. Model Forge never silently reruns scientific work or invents scientific
    content.
 5. The researcher can inspect every relevant output, validation finding, and
    mechanical transformation before deciding what to run next.
@@ -42,7 +42,7 @@ integrity, or atomic publication checks permissive.
 The current lifecycle conflates successful execution with output conformance:
 
 1. Hermes exits successfully and may have completed the assigned research.
-2. Method Hub applies one mechanical repair pass to the workspace output.
+2. Model Forge applies one mechanical repair pass to the workspace output.
 3. Any remaining schema error changes the role closure to `FAILED`.
 4. The stage fails, followed by the entire phase run.
 5. The Web UI reports `Execution failed` even when the actual problem is a
@@ -97,7 +97,7 @@ and record an exact transformation report.
 ### 3.5 The harness owns harness facts
 
 Agents should not be responsible for reproducing information already known by
-Method Hub. The harness should populate or compute run identity, role identity,
+Model Forge. The harness should populate or compute run identity, role identity,
 method identity, frozen-basis identity, timestamps, generation identifiers,
 artifact locations, and digests.
 
@@ -678,22 +678,22 @@ correction before raw preservation and complete validation reports exist.
 This is an orientation map, not permission to edit every listed file in one
 change.
 
-- `src/method_hub/harness/role_execution.py`: raw snapshot, candidate repair,
+- `src/model_forge/harness/role_execution.py`: raw snapshot, candidate repair,
   role-attempt identity, and conformance closure.
-- `src/method_hub/harness/outputs.py`: structural findings and classification.
-- `src/method_hub/harness/submission_validation.py`: consolidated validation
+- `src/model_forge/harness/outputs.py`: structural findings and classification.
+- `src/model_forge/harness/submission_validation.py`: consolidated validation
   decision.
-- `src/method_hub/harness/scientific_validators.py`: classified and mode-aware
+- `src/model_forge/harness/scientific_validators.py`: classified and mode-aware
   scientific findings.
-- `src/method_hub/application/output_validation.py`: remove the empty-mode
+- `src/model_forge/application/output_validation.py`: remove the empty-mode
   supervised adapter.
-- `src/method_hub/application/run_coordinator.py`: lifecycle projection,
+- `src/model_forge/application/run_coordinator.py`: lifecycle projection,
   complete reports, and correction commands.
-- `src/method_hub/domain/runs.py`: recoverable conformance state and allowed
+- `src/model_forge/domain/runs.py`: recoverable conformance state and allowed
   transitions.
-- `src/method_hub/domain/validation.py`: policy class and structured finding
+- `src/model_forge/domain/validation.py`: policy class and structured finding
   fields.
-- `src/method_hub/api/models.py` and run views: complete validation and artifact
+- `src/model_forge/api/models.py` and run views: complete validation and artifact
   projections.
 - `web/src/pages/RunPage.tsx` and status components: accurate status,
   diagnostics, and recovery controls.
@@ -705,7 +705,7 @@ change.
 
 This program is complete when a researcher can distinguish, inspect, and
 recover from a correctable output problem without rerunning completed science,
-while Method Hub still proves that no result with the wrong method, basis,
+while Model Forge still proves that no result with the wrong method, basis,
 producer, provenance, artifact bytes, or publication authority can become
 formal project state.
 

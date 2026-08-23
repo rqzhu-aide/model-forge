@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://method-hub.local/architecture/schemas/review-finding.schema.json",
+  "$id": "https://model-forge.local/architecture/schemas/review-finding.schema.json",
   "title": "Open Manuscript Review Finding",
   "description": "One evidence-grounded finding raised during a frozen parallel manuscript review. Findings are open observations, not lead dispositions.",
   "type": "object",

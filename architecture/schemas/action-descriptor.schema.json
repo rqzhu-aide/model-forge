@@ -1,6 +1,6 @@
 {
     "$schema":  "https://json-schema.org/draft/2020-12/schema",
-    "$id":  "https://method-hub.local/architecture/schemas/action-descriptor.schema.json",
+    "$id":  "https://model-forge.local/architecture/schemas/action-descriptor.schema.json",
     "title":  "Researcher Action Descriptor",
     "description":  "Actor-specific backend eligibility and command-construction data for one user action. The descriptor is not authorization or a command.",
     "oneOf":  [

@@ -7,6 +7,7 @@ conformance examples, not research findings and not evidence for a project.
 from __future__ import annotations
 
 import copy
+import hashlib
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -414,7 +415,12 @@ def _artifact(
     return {
         "artifact_id": artifact_id,
         "uri": uri,
-        "sha256": digest_character * 64,
+        # Deterministic dev-fixture digest. A repeated single character is
+        # rejected by the information-layer pointer validation (synthetic
+        # hash), so derive a non-degenerate hex digest from the inputs.
+        "sha256": hashlib.sha256(
+            f"development-example:{artifact_id}:{digest_character}".encode()
+        ).hexdigest(),
         "media_type": media_type,
         "locator": locator,
     }

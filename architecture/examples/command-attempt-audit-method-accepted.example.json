@@ -37,11 +37,11 @@
     "effect_ref": {
       "effect_kind": "publication_receipt",
       "effect_id": "publication.method.retire.001",
-      "effect_sha256": "091253aa76be76d73f83b50ab3593a521609bf0ad35ae7b5b8f75b506e6f09a4"
+      "effect_sha256": "7122153718080e0ac2042824576814edb1573c262344e429a83c25a036b3a709"
     }
   },
   "occurred_at": "2026-08-01T16:00:00Z",
   "prior_audit_root_sha256": "c123c2146784b2cbc015ad5ae9d4bc68f04aadeea8545dffebefd9acf6a97944",
-  "content_sha256": "b2eaf82bb054cd91a1da69520e25dc32c2af3cd3b517d2d428456d61ff55b8f1",
-  "audit_root_sha256": "a76c67ed1441fd3804e4291244f0b2e22585d100ae7820efff9bc89df4aba3eb"
+  "content_sha256": "1ae619f0efa74ca1f2d9eeb8ee69b1e4a7f48ae8c4f17aa81d7f1fcf48d89045",
+  "audit_root_sha256": "538a786cd3dc09d5958f54c5258cb632d176e798c4aa728f2fa0f52a96215efb"
 }

@@ -134,7 +134,7 @@ def test_validation_accepts_real_pointer() -> None:
     assert findings == []
 
 
-def test_validation_ignores_other_layers_and_missing_representations() -> None:
+def test_validation_flags_other_layers_and_ignores_missing_representations() -> None:
     findings: list = []
     doc = {
         "representations": [
@@ -145,9 +145,35 @@ def test_validation_ignores_other_layers_and_missing_representations() -> None:
         ]
     }
     _validate_compact_view_pointers(doc, code_prefix="p1", object_id="o", findings=findings)
+    assert _codes(findings) == ["p1.primary_pointer_invalid"]
+    findings.clear()
     _validate_compact_view_pointers({}, code_prefix="p1", object_id="o", findings=findings)
     _validate_compact_view_pointers(None, code_prefix="p1", object_id="o", findings=findings)
     assert findings == []
+
+
+def test_validation_rejects_unstamped_primary_pointer() -> None:
+    findings: list = []
+    doc = {
+        "representations": [
+            {
+                "information_layer": "primary_artifact",
+                "artifact": {"uri": "output://synthesis-candidate.json"},
+            }
+        ]
+    }
+    _validate_compact_view_pointers(
+        doc, code_prefix="p1", object_id="p1.synthesis_candidate", findings=findings,
+    )
+    assert _codes(findings) == ["p1.primary_pointer_invalid"]
+
+
+def test_primary_pointer_codes_are_registered_correctable() -> None:
+    for code in ("p1.primary_pointer_invalid", "p3.primary_pointer_invalid"):
+        policy = get_policy(code)
+        assert policy is not None
+        assert policy.finding_class is FindingClass.CORRECTABLE_CONTRACT_ERROR
+        assert policy.deterministic_repair_allowed is True
 
 
 def test_compact_pointer_codes_are_registered_correctable() -> None:
@@ -265,3 +291,86 @@ def test_brief_names_compact_view_and_reading_order(tmp_path: Path) -> None:
     )
     assert "(compact decision view: `inputs/compact/p2.literature_synthesis.md`)" in text
     assert "read the compact view FIRST" in text
+
+
+# ---------------------------------------------------------------------------
+# E-2d: primary self-pointer stamping and as-authored sealing
+# ---------------------------------------------------------------------------
+
+def test_primary_self_pointer_is_stamped_sidecarred_and_sealed(tmp_path: Path) -> None:
+    """A record's output:// self-pointer to its own primary layer resolves.
+
+    The repair pass stamps the pointer with the digest of the exact
+    as-authored bytes, preserves those bytes in a ``.as-authored``
+    sidecar, and sealing stores the sidecar so the stamped pointer
+    resolves to hash-verified artifact-store bytes.
+    """
+    filename = "synthesis-candidate.json"
+    record = {
+        "record_id": "rec.test",
+        "primary_artifact": {
+            "uri": f"output://{filename}",
+            "media_type": "application/json",
+        },
+        "representations": [
+            {
+                "information_layer": "primary_artifact",
+                "artifact": {
+                    "uri": f"output://{filename}",
+                    "media_type": "application/json",
+                },
+            }
+        ],
+    }
+    authored = json.dumps(record, sort_keys=True).encode()
+    context = _context(tmp_path, {filename: authored.decode()})
+    path = tmp_path / filename
+
+    changed = _fix_self_referential_hashes(record, path, pointer_context=context)
+
+    assert changed is True
+    digest = hashlib.sha256(authored).hexdigest()
+    sidecar = tmp_path / f"{filename}.as-authored"
+    assert sidecar.read_bytes() == authored
+    stamped = record["representations"][0]["artifact"]
+    assert stamped["sha256"] == digest
+    assert stamped["uri"] == f"artifact://sha256/{digest}"
+    # The top-level primary_artifact dict is stamped identically.
+    assert record["primary_artifact"] == {
+        "uri": stamped["uri"],
+        "media_type": "application/json",
+        "sha256": digest,
+        "artifact_id": stamped["artifact_id"],
+    }
+
+    service = _service_with_store(tmp_path)
+    service.context = SimpleNamespace(project_id="project.test", run_id="run.test")
+    recorded: list[tuple] = []
+    service.repository = SimpleNamespace(
+        record_artifact=lambda *args: recorded.append(args)
+    )
+    spec = SimpleNamespace(
+        contract_output_id="p1.synthesis_candidate",
+        output_id="output.p1.synthesis_candidate",
+    )
+    service._seal_authored_snapshot(spec, path)
+
+    stored = service.artifacts.read_bytes(digest)
+    assert stored == authored
+    assert hashlib.sha256(stored).hexdigest() == stamped["sha256"]
+    assert recorded and recorded[0][0] == stamped["artifact_id"]
+
+
+def test_seal_authored_snapshot_is_idempotent_without_sidecar(tmp_path: Path) -> None:
+    service = _service_with_store(tmp_path)
+    service.context = SimpleNamespace(project_id="project.test", run_id="run.test")
+    service.repository = SimpleNamespace(
+        record_artifact=lambda *args: (_ for _ in ()).throw(AssertionError("no row"))
+    )
+    spec = SimpleNamespace(
+        contract_output_id="p1.synthesis_candidate",
+        output_id="output.p1.synthesis_candidate",
+    )
+    path = tmp_path / "synthesis-candidate.json"
+    path.write_text("{}")
+    service._seal_authored_snapshot(spec, path)  # no sidecar: no-op

@@ -39,7 +39,9 @@ METHOD = MethodIdentity(
 ARTIFACT = {
     "artifact_id": "artifact.hv6.primary",
     "uri": "artifact://hv6/primary",
-    "sha256": "c" * 64,
+    # Non-degenerate digest: repeated single-character sha256 values are
+    # rejected as synthetic pointers (E-2d, policy 1.11.0).
+    "sha256": "c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2",
 }
 
 HONEST_NEGATIVE_CODES = {

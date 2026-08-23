@@ -17,7 +17,7 @@
       "artifact": {
         "artifact_id": "artifact.preliminary_report",
         "uri": "artifact://artifact.preliminary_report",
-        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sha256": "72e4e4e387c3357d25117b76cce55838e635302f1edf8a48192b40a91afd4d93",
         "media_type": "text/markdown"
       }
     },
@@ -26,7 +26,7 @@
       "artifact": {
         "artifact_id": "artifact.empirical_evidence_index",
         "uri": "generation://empirical_evidence_index/record.empirical_evidence.overlap_stabilized_score/generation.empirical.001",
-        "sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+        "sha256": "c32b619b6f74aaf3f09698b41a6ea708ffb3bb8ac3b08710f2fa5e58e90ff266",
         "media_type": "application/json"
       }
     }
@@ -71,7 +71,7 @@
     "strongest_counterevidence_ids": [],
     "material_disagreement": []
   },
-  "content_sha256": "75492c8085b5766f8f3964d666944c990fc0e57266196e4a9efd79713e18fb24",
+  "content_sha256": "62655490789f79520ffaf830df904647a456f7261df32a706d692fa579799c94",
   "publication_receipt_id": "publication.p4.001",
   "published_at": "2026-08-01T15:10:04Z",
   "created_at": "2026-08-01T15:05:00Z",

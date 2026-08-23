@@ -668,15 +668,77 @@ class _OutputPointerContext:
             Path(spec.relative_path).name: spec for spec in specs
         }
 
-    def resolve(self, filename: str) -> tuple[str, str] | None:
+    def locate(self, filename: str) -> tuple[Any, Path] | None:
+        """Map a declared output filename to its spec and on-disk path."""
         spec = self._by_filename.get(filename)
         if spec is None:
             return None
-        path = self._run_root / spec.relative_path
+        return spec, self._run_root / spec.relative_path
+
+    def resolve(self, filename: str) -> tuple[str, str] | None:
+        located = self.locate(filename)
+        if located is None:
+            return None
+        spec, path = located
         if not path.exists():
             return None
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         return str(spec.contract_output_id), digest
+
+
+def _stamp_output_pointer(
+    artifact: dict,
+    *,
+    pointer_context: _OutputPointerContext,
+    path: Path,
+) -> bool:
+    """Stamp one ``output://<filename>`` pointer with verified bytes (E-2).
+
+    Stamps the real artifact_id, uri, and sha256 of the target output's
+    current on-disk bytes.  When the target IS the file currently being
+    repaired (a primary_artifact self-pointer, E-2d), stamping the digest
+    of those bytes would dangle: the repair pass rewrites the file with
+    the stamped pointer inside, so the sealed bytes differ from the hashed
+    bytes.  For that case the exact hashed bytes are first preserved to a
+    ``<filename>.as-authored`` sidecar in the same directory and the
+    pointer carries the ``<contract_output_id>.as_authored`` artifact
+    identity that output sealing registers for the sidecar, so the stamped
+    pointer resolves to hash-verified artifact-store bytes.
+    """
+    uri = artifact.get("uri")
+    if not (isinstance(uri, str) and uri.startswith("output://")):
+        return False
+    located = pointer_context.locate(uri[len("output://"):])
+    if located is None:
+        return False
+    spec, target_path = located
+    if not target_path.exists():
+        return False
+    payload = target_path.read_bytes()
+    digest = hashlib.sha256(payload).hexdigest()
+    output_id = str(spec.contract_output_id)
+    if target_path == path:
+        sidecar = path.parent / f"{path.name}.as-authored"
+        sidecar.write_bytes(payload)
+        output_id = f"{output_id}.as_authored"
+    stamped_uri = f"artifact://sha256/{digest}"
+    stamped_id = deterministic_id(
+        "artifact",
+        pointer_context.project_id,
+        pointer_context.run_id,
+        output_id,
+        digest,
+    )
+    if (
+        artifact.get("sha256") != digest
+        or artifact.get("uri") != stamped_uri
+        or artifact.get("artifact_id") != stamped_id
+    ):
+        artifact["sha256"] = digest
+        artifact["uri"] = stamped_uri
+        artifact["artifact_id"] = stamped_id
+        return True
+    return False
 
 
 def _fix_self_referential_hashes(
@@ -698,12 +760,14 @@ def _fix_self_referential_hashes(
        this field.
     2. ``handoff_artifact.sha256`` — nested in handoff records.  Hash of the
        handoff document minus the sha256 sub-field.
-    3. ``representations[].artifact`` with a ``output://<filename>`` uri —
-       layer pointers at sibling declared outputs (E-2).  Agents cannot hash
-       their own files, so they declare the pointer target by filename and
-       the harness stamps the real artifact_id, uri, and sha256 from the
-       sibling's repaired bytes.  Unresolvable pointers are left untouched
-       for validation to reject.
+    3. ``representations[].artifact`` / top-level ``primary_artifact`` with
+       a ``output://<filename>`` uri — layer pointers at declared outputs
+       (E-2).  Agents cannot hash their own files, so they declare the
+       pointer target by filename and the harness stamps the real
+       artifact_id, uri, and sha256 from the target's bytes.  A pointer at
+       the record's own output (E-2d) first preserves the exact hashed
+       bytes to a ``<filename>.as-authored`` sidecar.  Unresolvable
+       pointers are left untouched for validation to reject.
     4. Other ``representations[].artifact`` / ``artifacts[].sha256`` pointer
        hashes — NOT self-referential (they point at previously sealed
        artifacts), so they are left alone.
@@ -749,8 +813,12 @@ def _fix_self_referential_hashes(
                     identity["definition_sha256"] = correct
                     touched = True
 
-        # 4. representations[].artifact output:// pointers (E-2) — stamp the
-        # real pointer to the sibling declared output's repaired bytes.
+        # 4. representations[].artifact and top-level primary_artifact
+        # output:// pointers (E-2) — stamp the real pointer to the
+        # declared output's bytes.  A pointer at the record's own output
+        # (primary_artifact self-pointer, E-2d) first preserves the exact
+        # hashed bytes to a <filename>.as-authored sidecar so the stamped
+        # pointer resolves to sealed bytes.
         representations = obj.get("representations")
         if (
             pointer_context is not None
@@ -762,29 +830,16 @@ def _fix_self_referential_hashes(
                 artifact = representation.get("artifact")
                 if not isinstance(artifact, dict):
                     continue
-                uri = artifact.get("uri")
-                if not (isinstance(uri, str) and uri.startswith("output://")):
-                    continue
-                resolved = pointer_context.resolve(uri[len("output://"):])
-                if resolved is None:
-                    continue
-                output_id, digest = resolved
-                stamped_uri = f"artifact://sha256/{digest}"
-                stamped_id = deterministic_id(
-                    "artifact",
-                    pointer_context.project_id,
-                    pointer_context.run_id,
-                    output_id,
-                    digest,
-                )
-                if (
-                    artifact.get("sha256") != digest
-                    or artifact.get("uri") != stamped_uri
-                    or artifact.get("artifact_id") != stamped_id
+                if _stamp_output_pointer(
+                    artifact, pointer_context=pointer_context, path=path
                 ):
-                    artifact["sha256"] = digest
-                    artifact["uri"] = stamped_uri
-                    artifact["artifact_id"] = stamped_id
+                    touched = True
+        if pointer_context is not None:
+            primary = obj.get("primary_artifact")
+            if isinstance(primary, dict):
+                if _stamp_output_pointer(
+                    primary, pointer_context=pointer_context, path=path
+                ):
                     touched = True
 
         return touched
@@ -2507,6 +2562,7 @@ class RoleLifecycleService:
                 "storage_relative_path": stored.relative_path,
             },
         )
+        self._seal_authored_snapshot(spec, path)
         return SealedRoleOutput(
             contract_output_id=spec.contract_output_id,
             output_id=spec.output_id,
@@ -2515,6 +2571,47 @@ class RoleLifecycleService:
             size=stored.size,
             media_type="application/json",
             storage_relative_path=stored.relative_path,
+        )
+
+    def _seal_authored_snapshot(self, spec: OutputSpec, path: Path) -> None:
+        """Seal the ``<filename>.as-authored`` sidecar when present (E-2d).
+
+        The repair pass writes this sidecar when it stamps a primary
+        artifact self-pointer: the pointer digest covers the pre-repair
+        bytes, which differ from the sealed output bytes (the repair
+        rewrites the file with the stamped pointer inside).  Storing the
+        sidecar under the ``<contract_output_id>.as_authored`` identity
+        makes the stamped pointer resolve to hash-verified artifact-store
+        bytes; the artifact_id derivation here must match the stamping
+        side in ``_stamp_output_pointer``.
+        """
+        sidecar = path.parent / f"{path.name}.as-authored"
+        if not sidecar.exists():
+            return
+        payload = sidecar.read_bytes()
+        digest = hashlib.sha256(payload).hexdigest()
+        stored = self.artifacts.put_bytes(payload, expected_sha256=digest)
+        artifact_id = deterministic_id(
+            "artifact",
+            str(self.context.project_id),
+            str(self.context.run_id),
+            f"{spec.contract_output_id}.as_authored",
+            str(stored.sha256),
+        )
+        self.repository.record_artifact(
+            artifact_id,
+            str(self.context.project_id),
+            str(stored.sha256),
+            stored.size,
+            "application/json",
+            f"artifact://sha256/{stored.sha256}",
+            {
+                "kind": "authored_snapshot",
+                "run_id": str(self.context.run_id),
+                "contract_output_id": f"{spec.contract_output_id}.as_authored",
+                "output_id": spec.output_id,
+                "storage_relative_path": stored.relative_path,
+            },
         )
 
     def _load_closure(

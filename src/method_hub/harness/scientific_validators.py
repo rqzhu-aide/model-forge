@@ -134,6 +134,12 @@ def _validate_p1(
         object_id="p1.synthesis_candidate",
         findings=findings,
     )
+    _validate_compact_view_pointers(
+        _mapping_document(outputs, "p1.coverage_candidate"),
+        code_prefix="p1",
+        object_id="p1.coverage_candidate",
+        findings=findings,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -402,6 +408,16 @@ def _validate_p3(
     findings: list[ValidationFinding],
 ) -> None:
     """Check exact method identity and statement-level theory integrity."""
+
+    # Candidate and audit records carry primary self-pointers too (E-2d);
+    # check them independently of the complete-theory record's shape.
+    for candidate_id in ("p3.theory_candidate", "p3.analyst_audit"):
+        _validate_compact_view_pointers(
+            _mapping_document(outputs, candidate_id),
+            code_prefix="p3",
+            object_id=candidate_id,
+            findings=findings,
+        )
 
     theory = _mapping_document(outputs, "p3.complete_theory")
     if theory is None:
@@ -1342,12 +1358,16 @@ def _validate_compact_view_pointers(
     object_id: str,
     findings: list[ValidationFinding],
 ) -> None:
-    """E-2: compact decision view pointers must reference real sealed bytes.
+    """E-2/E-2d: information-layer pointers must reference real sealed bytes.
 
-    Agents declare compact pointers as output://<filename>; the closure
-    stamps the real artifact pointer mechanically. A compact pointer that
-    still shows output:// (unresolvable sibling) or a degenerate synthetic
+    Agents declare layer pointers as output://<filename>; the closure
+    stamps the real artifact pointer mechanically. A pointer that still
+    shows output:// (unresolvable target) or a degenerate synthetic
     sha256 (a single repeated character) can never carry real content.
+    Compact decision view layers report
+    ``<prefix>.compact_view_pointer_invalid``; every other layer
+    (primary_artifact, structured_record) reports
+    ``<prefix>.primary_pointer_invalid``.
     """
     if not isinstance(document, Mapping):
         return
@@ -1356,8 +1376,6 @@ def _validate_compact_view_pointers(
         return
     for offset, representation in enumerate(representations):
         if not isinstance(representation, Mapping):
-            continue
-        if representation.get("information_layer") != "compact_decision_view":
             continue
         artifact = representation.get("artifact")
         uri = artifact.get("uri") if isinstance(artifact, Mapping) else None
@@ -1368,11 +1386,22 @@ def _validate_compact_view_pointers(
             and len(sha) == 64
             and len(set(sha)) == 1
         )
-        if unstamped or synthetic:
+        if not (unstamped or synthetic):
+            continue
+        if representation.get("information_layer") == "compact_decision_view":
             findings.append(
                 _finding(
                     f"{code_prefix}.compact_view_pointer_invalid",
                     "Compact decision view representations must reference the sealed compact output bytes; the closure stamps output:// pointers mechanically.",
+                    object_id,
+                    f"/representations/{offset}/artifact",
+                )
+            )
+        else:
+            findings.append(
+                _finding(
+                    f"{code_prefix}.primary_pointer_invalid",
+                    "Primary artifact layer representations must reference the sealed as-authored record bytes; the closure stamps output:// pointers mechanically.",
                     object_id,
                     f"/representations/{offset}/artifact",
                 )

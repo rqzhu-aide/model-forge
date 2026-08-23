@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
 import type { PhaseId, PhaseView } from "../api/types";
 import { DecisionBrief } from "../components/DecisionBrief";
@@ -26,12 +26,18 @@ export function PhasePage() {
   const { projectId, phaseId: rawPhaseId } = useParams();
   const phaseId = isPhaseId(rawPhaseId) ? rawPhaseId : undefined;
   const [mode, setMode] = useState("");
-  const [selectedMethodId, setSelectedMethodId] = useState("");
+  const [searchParams] = useSearchParams();
+  // Deep link from the P2 catalog: ?method=<stable_id> pre-selects the method.
+  const [selectedMethodId, setSelectedMethodId] = useState(
+    () => searchParams.get("method") ?? "",
+  );
 
   useEffect(() => {
     setMode("");
-    setSelectedMethodId("");
-  }, [phaseId, projectId]);
+    // Reset on phase/project change, but honor the deep-link ?method=
+    // pre-selection from the P2 catalog.
+    setSelectedMethodId(searchParams.get("method") ?? "");
+  }, [phaseId, projectId, searchParams]);
 
   const phaseQuery = useQuery({
     queryKey: ["phase", projectId, phaseId, mode, selectedMethodId],
@@ -220,7 +226,9 @@ export function PhasePage() {
               <Panel title="Research artifacts" eyebrow="Evidence and records">
                 <ul className="artifact-list">
                   {phase.artifacts.map((artifact) => (
-                    <li key={artifact.artifact_id}>
+                    /* The same artifact can appear once per information layer
+                       (primary + compact + structured), so key by both. */
+                    <li key={`${artifact.artifact_id}:${artifact.information_layer}`}>
                       <a href={artifact.href}>{artifact.label}</a>
                       <span>{artifact.information_layer} information{artifact.media_type ? ` · ${artifact.media_type}` : ""}</span>
                     </li>

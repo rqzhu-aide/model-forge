@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import type { ActionDescriptor, MethodRow, PhaseId } from "../api/types";
@@ -7,6 +8,7 @@ import { shortDigest, phaseShortNames } from "../utils/format";
 import { CompactPhaseStatus, StatusPill } from "./Status";
 import { ConfirmActionDialog } from "./ConfirmActionDialog";
 import { ErrorState } from "./Feedback";
+import { MathText } from "./MathText";
 import { MethodDetailsDisclosure } from "./MethodDetails";
 import { MethodScores } from "./MethodScores";
 
@@ -84,7 +86,7 @@ export function MethodTable({ projectId, methods }: { projectId: string; methods
                         className="method-table__name"
                         title={shortMethodName(method.display_name) !== method.display_name ? method.display_name : undefined}
                       >
-                        {shortMethodName(method.display_name)}
+                        <MathText text={shortMethodName(method.display_name)} />
                       </span>
                       <StatusPill>{method.lifecycle_state}</StatusPill>
                       {lifecycleAction ? (
@@ -100,7 +102,7 @@ export function MethodTable({ projectId, methods }: { projectId: string; methods
                         </button>
                       ) : null}
                     </span>
-                    <span className="method-table__summary method-table__summary--clamped">{method.summary}</span>
+                    <span className="method-table__summary method-table__summary--clamped"><MathText text={method.summary} /></span>
                     <code title={method.identity.definition_sha256}>{method.identity.stable_id}, v{method.identity.version}</code>
                     <MethodDetailsDisclosure method={method} />
                   </th>
@@ -110,6 +112,15 @@ export function MethodTable({ projectId, methods }: { projectId: string; methods
                         <span className="method-table__panel-item" key={phase}>
                           <span className="method-table__panel-label">{phaseShortNames[phase]}</span>
                           <CompactPhaseStatus status={method.phase_statuses[phase]} />
+                          {phase === "P3" && method.lifecycle_state === "active" ? (
+                            <Link
+                              className="button button--small button--quiet method-table__run-p3"
+                              to={`/projects/${encodeURIComponent(projectId)}/phases/P3?method=${encodeURIComponent(method.identity.stable_id)}`}
+                              title={`Configure a Phase 3 theory run for ${shortMethodName(method.display_name)}`}
+                            >
+                              Run P3 →
+                            </Link>
+                          ) : null}
                         </span>
                       ))}
                     </span>

@@ -925,16 +925,14 @@ fieldset > legend {
 }
 
 .choice-cards,
-.context-list,
-.method-selector__list {
+.context-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   gap: 0.72rem;
 }
 
 .choice-cards label,
-.context-list label,
-.method-option {
+.context-list label {
   display: flex;
   align-items: flex-start;
   gap: 0.65rem;
@@ -946,8 +944,7 @@ fieldset > legend {
 }
 
 .choice-cards label:hover,
-.context-list label:hover,
-.method-option:hover {
+.context-list label:hover {
   border-color: var(--accent);
 }
 
@@ -1215,16 +1212,14 @@ fieldset > legend {
   opacity: 1;
 }
 
-.choice-cards label[data-selected],
-.method-option[data-selected] {
+.choice-cards label[data-selected] {
   border-color: var(--accent);
   background: var(--accent-soft);
   box-shadow: inset 0 0 0 1px var(--accent);
 }
 
 .choice-cards input,
-.context-list input,
-.method-option input {
+.context-list input {
   width: 1.05rem;
   height: 1.05rem;
   flex: 0 0 auto;
@@ -1254,38 +1249,14 @@ fieldset > legend {
   padding: 0;
 }
 
-.method-option__body {
-  min-width: 0;
-  display: grid;
-  gap: 0.52rem;
-}
-
-.method-option__heading,
-.method-option__identity,
-.method-option__phase-status {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.48rem;
-}
-
-.method-option__summary {
-  color: var(--text-soft);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.method-option__identity {
-  color: var(--muted);
-  font-size: 0.75rem;
-}
-
-.method-option__phase-status > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
+.method-selector__dropdown {
+  width: 100%;
+  min-height: 2.7rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
 }
 
 .selected-method-summary {

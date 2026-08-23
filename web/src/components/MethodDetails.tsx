@@ -1,5 +1,6 @@
 import type { MethodEvaluation, MethodRow } from "../api/types";
 import { formatDate } from "../utils/format";
+import { MathText } from "./MathText";
 
 function ListSection({ title, values }: { title: string; values: string[] | undefined }) {
   if (!values?.length) return null;
@@ -41,7 +42,7 @@ export function MethodDetails({ method }: { method: MethodRow }) {
     <div className="method-details">
       <section className="method-details__section" aria-label="Mathematical definition">
         <strong>Mathematical definition</strong>
-        <p className="preserve-lines">{method.mathematical_summary}</p>
+        <p className="preserve-lines"><MathText text={method.mathematical_summary} /></p>
       </section>
 
       {method.definition_artifact ? (

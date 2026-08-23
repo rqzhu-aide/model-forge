@@ -1,8 +1,10 @@
 import type { MethodRow } from "../api/types";
-import { CompactPhaseStatus, StatusPill } from "./Status";
+import { StatusPill } from "./Status";
 import { shortDigest } from "../utils/format";
+import { MathText } from "./MathText";
 import { MethodDetailsDisclosure } from "./MethodDetails";
 import { MethodScores } from "./MethodScores";
+import { shortMethodName } from "./MethodTable";
 
 export function MethodSelector({
   methods,
@@ -22,46 +24,23 @@ export function MethodSelector({
       {activeMethods.length === 0 ? (
         <p className="field-help">No active method is available from the current Phase 2 catalog.</p>
       ) : (
-        <div className="method-selector__list">
-          {activeMethods.map((method) => {
-            const selected = method.identity.stable_id === selectedMethodId;
-            return (
-              <label
-                className="method-option"
-                data-selected={selected || undefined}
-                key={`${method.identity.stable_id}-${method.identity.version}`}
-              >
-                <input
-                  type="radio"
-                  name="selected-method"
-                  value={method.identity.stable_id}
-                  checked={selected}
-                  onChange={() => onChange(method.identity.stable_id)}
-                />
-                <span className="method-option__body">
-                  <span className="method-option__heading">
-                    <strong>{method.display_name}</strong>
-                    <StatusPill>{`v${method.identity.version}`}</StatusPill>
-                  </span>
-                  <span className="method-option__summary">{method.summary}</span>
-                  <MethodScores evaluation={method.evaluation} />
-                  <span className="method-option__identity">
-                    <code>{method.identity.stable_id}</code>
-                    <span>definition {shortDigest(method.identity.definition_sha256)}</span>
-                  </span>
-                  <span className="method-option__phase-status" aria-label="Current phase alignment">
-                    {(["P3", "P4", "P5"] as const).map((phase) => (
-                      <span key={phase}>
-                        <b>{phase}</b>
-                        <CompactPhaseStatus status={method.phase_statuses[phase]} />
-                      </span>
-                    ))}
-                  </span>
-                </span>
-              </label>
-            );
-          })}
-        </div>
+        <select
+          className="method-selector__dropdown"
+          name="selected-method"
+          value={selectedMethodId}
+          onChange={(event) => onChange(event.target.value)}
+          aria-label={legend}
+        >
+          <option value="">Select a method…</option>
+          {activeMethods.map((method) => (
+            <option
+              key={`${method.identity.stable_id}-${method.identity.version}`}
+              value={method.identity.stable_id}
+            >
+              {shortMethodName(method.display_name)}
+            </option>
+          ))}
+        </select>
       )}
     </fieldset>
   );
@@ -73,8 +52,9 @@ export function SelectedMethodSummary({ method }: { method?: MethodRow }) {
     <div className="selected-method-summary">
       <div>
         <p className="eyebrow">Selected exact method</p>
-        <h3>{method.display_name}</h3>
-        <p>{method.summary}</p>
+        <h3><MathText text={method.display_name} /></h3>
+        <p><MathText text={method.summary} /></p>
+        <MethodScores evaluation={method.evaluation} />
       </div>
       <dl>
         <div><dt>Stable ID</dt><dd><code>{method.identity.stable_id}</code></dd></div>

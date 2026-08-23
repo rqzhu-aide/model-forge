@@ -24,7 +24,8 @@ import { CompactPhaseStatus } from "./Status";
 import { PhaseStatusCard } from "./PhaseStatusCard";
 import { MethodTable, shortMethodName } from "./MethodTable";
 import { MethodScores, scoreTone } from "./MethodScores";
-import { MethodSelector } from "./MethodSelector";
+import { MemoryRouter } from "react-router-dom";
+import { SelectedMethodSummary } from "./MethodSelector";
 
 afterEach(() => {
   cleanup();
@@ -164,18 +165,20 @@ describe("catalog row description (Tez direction)", () => {
 
   it("renders the short title with the full name on hover, plus the clamped summary", () => {
     const { container } = render(
-      <QueryClientProvider client={new QueryClient()}>
-        <MethodTable
-          projectId="project-1"
-          methods={[
-            methodRow({
-              actions: [],
-              display_name: "Example Method — with a long descriptor",
-              summary: "The plain summary paragraph used as the row description.",
-            }),
-          ]}
-        />
-      </QueryClientProvider>,
+      <MemoryRouter>
+        <QueryClientProvider client={new QueryClient()}>
+          <MethodTable
+            projectId="project-1"
+            methods={[
+              methodRow({
+                actions: [],
+                display_name: "Example Method — with a long descriptor",
+                summary: "The plain summary paragraph used as the row description.",
+              }),
+            ]}
+          />
+        </QueryClientProvider>
+      </MemoryRouter>,
     );
     const name = container.querySelector(".method-table__name");
     expect(name?.textContent).toBe("Example Method");
@@ -187,9 +190,11 @@ describe("catalog row description (Tez direction)", () => {
 
   it("omits the hover title when the name has no descriptor", () => {
     const { container } = render(
-      <QueryClientProvider client={new QueryClient()}>
-        <MethodTable projectId="project-1" methods={[methodRow({ actions: [] })]} />
-      </QueryClientProvider>,
+      <MemoryRouter>
+        <QueryClientProvider client={new QueryClient()}>
+          <MethodTable projectId="project-1" methods={[methodRow({ actions: [] })]} />
+        </QueryClientProvider>
+      </MemoryRouter>,
     );
     expect(container.querySelector(".method-table__name")).not.toHaveAttribute("title");
   });
@@ -269,9 +274,11 @@ describe("MethodTable evaluation strip", () => {
   function renderTable(method: MethodRow) {
     const queryClient = new QueryClient();
     return render(
-      <QueryClientProvider client={queryClient}>
-        <MethodTable projectId="project-1" methods={[method]} />
-      </QueryClientProvider>,
+      <MemoryRouter>
+        <QueryClientProvider client={queryClient}>
+          <MethodTable projectId="project-1" methods={[method]} />
+        </QueryClientProvider>
+      </MemoryRouter>,
     );
   }
 
@@ -291,15 +298,35 @@ describe("MethodTable evaluation strip", () => {
   });
 });
 
-describe("MethodSelector evaluation strip", () => {
-  it("renders the score strip inside the option card", () => {
-    render(
-      <MethodSelector
-        methods={[methodRow({ evaluation: evaluation() })]}
-        selectedMethodId="method.example"
-        onChange={() => {}}
-      />,
+describe("MethodTable Run P3 deep link", () => {
+  function renderTable(method: MethodRow) {
+    return render(
+      <MemoryRouter>
+        <QueryClientProvider client={new QueryClient()}>
+          <MethodTable projectId="project-1" methods={[method]} />
+        </QueryClientProvider>
+      </MemoryRouter>,
     );
+  }
+
+  it("offers a Run P3 link on active methods, pre-selecting via ?method=", () => {
+    renderTable(methodRow({ actions: [], lifecycle_state: "active" }));
+    const link = screen.getByRole("link", { name: /Run P3/ });
+    expect(link).toHaveAttribute(
+      "href",
+      "/projects/project-1/phases/P3?method=method.example",
+    );
+  });
+
+  it.each(["proposed", "retired"] as const)("omits the link for %s methods", (state) => {
+    renderTable(methodRow({ actions: [], lifecycle_state: state }));
+    expect(screen.queryByRole("link", { name: /Run P3/ })).toBeNull();
+  });
+});
+
+describe("Selected method card evaluation strip", () => {
+  it("renders the score strip in the selected-method card", () => {
+    render(<SelectedMethodSummary method={methodRow({ evaluation: evaluation() })} />);
     expect(screen.getByText("Validity")).toBeInTheDocument();
     expect(screen.getByText("8/10")).toBeInTheDocument();
     expect(screen.getByText("Novelty")).toBeInTheDocument();
@@ -308,10 +335,8 @@ describe("MethodSelector evaluation strip", () => {
     expect(screen.getByText("4/10")).toBeInTheDocument();
   });
 
-  it("renders the muted chip inside the option card without an evaluation", () => {
-    render(
-      <MethodSelector methods={[methodRow()]} selectedMethodId="method.example" onChange={() => {}} />,
-    );
+  it("renders the muted chip in the selected-method card without an evaluation", () => {
+    render(<SelectedMethodSummary method={methodRow()} />);
     expect(screen.getByText("Not yet evaluated")).toHaveAttribute("data-tone", "muted");
   });
 });

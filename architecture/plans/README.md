@@ -9,8 +9,9 @@ specification or decision record before code relies on such a change.
 
 - [K-1 Remaining Implementation Plan + NA-2](k1-remaining-implementation-plan-2026-08-17.md) -
   COMPLETE (2026-08-20): all packages landed and verified (P1 through P7
-  plus D4/D5). Remaining: the K-5 controlled production re-exercise
-  (unblocked). K-7 stays open by design.
+  plus D4/D5). The K-5 production evidence gate over the E-1/E-2 build is
+  satisfied (2026-08-23, see completion order below). K-7 stays open by
+  design.
 - [K-1 Correction Command Path Design](k1-correction-command-path-design.md) -
   the design basis for the correction lane. D1-D4 are resolved; D5
   (revalidate unreachable for REJECTED runs) is open for the method owner.
@@ -24,7 +25,7 @@ specification or decision record before code relies on such a change.
   acceptance evidence.
 - [Harness Audit 2026-08-16](harness-audit-2026-08-16.md) - missing-component
   and misalignment findings with a fix log. NA-1, K-1 (through P3b), K-3,
-  K-4, and K-6 are resolved; NA-2 (tracked as P7), K-2, K-5, and K-7 remain.
+  K-4, K-5, and K-6 are resolved; NA-2 (tracked as P7), K-2, and K-7 remain.
 
 ## Active issues
 
@@ -53,8 +54,13 @@ the HV program and K-1.
 
 ## Completion order from the current checkpoint
 
-1. K-5 controlled production re-run (the evidence gate; the K-1 plan is
-   COMPLETE - P1 through P7 all landed and verified).
+1. ~~K-5 controlled production re-run~~ - SATISFIED 2026-08-23: the
+   controlled P2 full-catalog run on the E-1/E-2 build (`1f0b240`)
+   published with zero findings on all five closures; E-1 evaluations,
+   E-2b compact materialization, and artifact integrity verified live.
+   One new residual: P2 `canonical_artifact` pointers dangle (same class
+   as the retired E-2c primary-pointer gap; candidate E-2 follow-up).
+   Evidence: `../evidence/k5-production-re-run-2026-08-23.md`.
 2. WP-I (WP2 adapters and five-phase pilot).
 3. Resolve the context-selection issues above; P0-2 (contract presence model)
    gates any further P5 contract work and needs a contract-author decision.

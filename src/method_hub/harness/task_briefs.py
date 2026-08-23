@@ -793,6 +793,12 @@ def render_task_brief(
         "For optional fields: omit the field entirely if you have no value. "
         "Do not write `null` for optional object or array fields."
     )
+    lines.append(
+        "Mathematical notation in any text field must use delimited LaTeX: "
+        "`$...$` for inline math and `$$...$$` for display equations. Never "
+        "write bare LaTeX commands (such as \\exp or \\sigma) outside math "
+        "delimiters; undelimited commands are displayed literally."
+    )
     lines.append("")
     for spec in specs:
         shape = "JSON array" if spec.schema_application == "each_item" else "JSON object"

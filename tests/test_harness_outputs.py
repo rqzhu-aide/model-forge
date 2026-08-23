@@ -135,6 +135,8 @@ def test_task_brief_states_manual_and_parallel_boundaries() -> None:
     assert "common frozen basis" in brief
     assert "Do not start another role, rerun, phase" in brief
     assert "negative, null, contradictory, or inconclusive" in brief
+    # Every record-authoring brief carries the math-format convention.
+    assert "delimited LaTeX" in brief
     assert json.dumps(dict(plan.choice_values), ensure_ascii=False, indent=2) in brief
 
 

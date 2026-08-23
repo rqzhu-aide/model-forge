@@ -225,10 +225,10 @@ export function PhasePage() {
             {phase.artifacts.length ? (
               <Panel title="Research artifacts" eyebrow="Evidence and records">
                 <ul className="artifact-list">
-                  {phase.artifacts.map((artifact) => (
-                    /* The same artifact can appear once per information layer
-                       (primary + compact + structured), so key by both. */
-                    <li key={`${artifact.artifact_id}:${artifact.information_layer}`}>
+                  {phase.artifacts.map((artifact, index) => (
+                    /* The same artifact can repeat per information layer and
+                       across records, so the key needs the list position. */
+                    <li key={`${artifact.artifact_id}:${artifact.information_layer}:${index}`}>
                       <a href={artifact.href}>{artifact.label}</a>
                       <span>{artifact.information_layer} information{artifact.media_type ? ` · ${artifact.media_type}` : ""}</span>
                     </li>

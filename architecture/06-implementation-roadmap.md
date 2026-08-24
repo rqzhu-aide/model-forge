@@ -7,8 +7,10 @@ outward. The development baseline has implemented the local kernel, sequential
 harness, five schema-example phase paths, API, and Web interface. Remaining
 production work is tracked in the
 [Trusted Local Execution Program](plans/trusted-local-execution-program.md);
-the current bounded implementation sequence is the
-[K-1 remaining implementation plan](plans/k1-remaining-implementation-plan-2026-08-17.md).
+the current bounded sequence is the completion order in the
+[plans index](plans/README.md) (the K-1 remaining implementation plan is
+complete and archived under
+[plans/completed](plans/completed/k1-remaining-implementation-plan-2026-08-17.md)).
 
 Do not bind phase behavior or the Web UI directly to folders. The run harness,
 publication authority, and derived-state model remain the governing boundaries.

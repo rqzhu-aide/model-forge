@@ -2,7 +2,7 @@
 
 Controlled re-run of the known-failing P2 `p2.full_catalog` mode through the
 repaired formal lane (ISS-1..7 + K-1 correction lane landed), per the K-5 item
-in `architecture/plans/k1-remaining-implementation-plan-2026-08-17.md` and the
+in `architecture/plans/completed/k1-remaining-implementation-plan-2026-08-17.md` and the
 harness audit 2026-08-16.
 
 ## Setup

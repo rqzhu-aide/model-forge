@@ -3,7 +3,7 @@
 Controlled re-run of the P2 `p2.full_catalog` mode after the K5-1..K5-4
 fix round (ADR-015, ADR-016; commits b334f86, 87427ec, e3470ae, c6183ea,
 4a592bd), per the K-5 execution plan in
-`architecture/plans/k1-remaining-implementation-plan-2026-08-17.md`.
+`architecture/plans/completed/k1-remaining-implementation-plan-2026-08-17.md`.
 Predecessor: `k5-production-re-exercise-2026-08-20.md` (the run that
 exposed K5-1..4).
 

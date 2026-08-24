@@ -6,14 +6,32 @@ phase or production system is complete.
 
 ## Completed work
 
+### K-1 remaining implementation plan + NA-2 (correction lane)
+
+Completed 2026-08-20; archived 2026-08-23. All packages landed and
+verified (P1 through P7 plus D4/D5): the output-correction command path
+(preview, revalidate, normalize, packaging, scientific), Lane A/Lane B
+execution, correction UI controls, and the K5-1..K5-4 production fixes
+(ADR-015 broadcast handoffs, findings propagation, plan-declared scope,
+ADR-016 resume edge). The K-5 production re-exercise closed 2026-08-21
+(controlled re-run published, zero findings) and the evidence gate over
+the E-1/E-2 build was satisfied 2026-08-23. D5 (revalidate unreachable
+for REJECTED runs) stays open for the method owner in the K-1 design
+record; K-7 stays open by design in the harness audit.
+
+Evidence: [K-1 remaining implementation plan](k1-remaining-implementation-plan-2026-08-17.md),
+`../../evidence/k5-production-re-exercise-2026-08-20.md`,
+`../../evidence/k5-production-re-run-2026-08-21.md`, and
+`../../evidence/k5-production-re-run-2026-08-23.md`.
+
 ### Harness validation and output recovery program (HV-0 through HV-7)
 
 Completed 2026-08-15 (commit `63dca62`): raw output preservation, the
 validation policy registry, lifecycle separation with correction states,
 harness envelope construction, bounded user-controlled recovery machinery,
-phase schema calibration, and the pilot measurement harness. The controlled
-production re-exercise that demonstrates the fixes on real agent output
-remains open as K-5 in the active audit.
+phase schema calibration, and the pilot measurement harness. The
+production re-exercise closed as K-5 (2026-08-21; evidence gate re-run
+satisfied 2026-08-23).
 
 Evidence: [parent plan](harness-validation-and-output-recovery-plan.md),
 [implementation index](harness-validation-index.md),

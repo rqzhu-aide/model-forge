@@ -1,9 +1,9 @@
 # K-1 Design: Correction Command Path
 
-Status: Accepted design basis, implementation in progress (2026-08-18).
-D1-D4 resolved; D5 (revalidate unreachable for REJECTED runs) open for the
-method owner - see the remaining plan. Implementation status is tracked in
-[k1-remaining-implementation-plan-2026-08-17.md](k1-remaining-implementation-plan-2026-08-17.md).
+Status: Accepted design basis; implementation COMPLETE (2026-08-20).
+D1-D4 resolved; D5 (revalidate unreachable for REJECTED runs) stays open
+for the method owner. The implementation record is archived at
+[k1-remaining-implementation-plan-2026-08-17.md](completed/k1-remaining-implementation-plan-2026-08-17.md).
 Author: coder profile
 Basis: harness audit 2026-08-16 finding K-1; HV-5 plan
 ([HV-5-bounded-user-controlled-recovery.md](completed/HV-5-bounded-user-controlled-recovery.md))

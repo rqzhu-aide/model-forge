@@ -197,7 +197,7 @@ validator exit 0):
   (`b91fe9e`), and the `POST /projects/{id}/runs/{run_id}/corrections`
   endpoint (`74b243f`). Remaining K-1 work (normalize/preview, Lane B, UI)
   is sequenced as P4-P6 in
-  [k1-remaining-implementation-plan-2026-08-17.md](k1-remaining-implementation-plan-2026-08-17.md).
+  [k1-remaining-implementation-plan-2026-08-17.md](completed/k1-remaining-implementation-plan-2026-08-17.md).
 - **K-3: FIXED** (`c79b02d`): kanban executor `sk-` redaction regex aligned
   with local_hermes; regression test added.
 - **K-4: CLOSED as already-fixed** (`e4a98d9`, live probe 2026-08-17): the

@@ -7,14 +7,23 @@ specification or decision record before code relies on such a change.
 
 ## Active plans
 
-- [K-1 Remaining Implementation Plan + NA-2](k1-remaining-implementation-plan-2026-08-17.md) -
-  COMPLETE (2026-08-20): all packages landed and verified (P1 through P7
-  plus D4/D5). The K-5 production evidence gate over the E-1/E-2 build is
-  satisfied (2026-08-23, see completion order below). K-7 stays open by
-  design.
 - [K-1 Correction Command Path Design](k1-correction-command-path-design.md) -
-  the design basis for the correction lane. D1-D4 are resolved; D5
-  (revalidate unreachable for REJECTED runs) is open for the method owner.
+  the design basis for the correction lane; implementation COMPLETE
+  (2026-08-20). D1-D4 are resolved; D5 (revalidate unreachable for
+  REJECTED runs) stays open for the method owner.
+- [E-1: P2 Structured Lead Evaluation](e1-p2-structured-evaluation-plan-2026-08-21.md) -
+  E-1a through E-1d plus E-1c/E-1f UI and contract polish landed
+  (2026-08-21); the E-1d production exercise published clean. OPEN: E-1e -
+  stage-2 reviewer outputs still validate against the handoff schema, so
+  reviewer structured evaluations are never produced (gap exposed by the
+  E-1d exercise; fix = handoff schema field + instruction templates).
+- [E-2: Information Layers Made Real](e2-information-layers-plan-2026-08-22.md) -
+  E-2a through E-2d landed (pointer stamping, compact views, layer-aware
+  materialization, primary-pointer sidecars; policy 1.11.0).
+- [E-2e: P2 canonical_artifact Pointers](e2e-p2-canonical-artifact-plan-2026-08-23.md) -
+  LANDED 2026-08-23 (`896615a`; suite 1234 green, validator exit 0).
+  OPEN: production probe - one P2 full-catalog run on the E-2e build to
+  verify canonical_artifact pointers resolve to hash-verified bytes.
 - [Trusted Local Execution Program](trusted-local-execution-program.md) -
   the program-level plan for Version 1 execution work (WP-A through WP-I).
   WP-A through WP-H are complete (WP-G: `8edeeb1`; WP-H1: `f494aa0`; WP-H2:
@@ -58,11 +67,15 @@ the HV program and K-1.
    controlled P2 full-catalog run on the E-1/E-2 build (`1f0b240`)
    published with zero findings on all five closures; E-1 evaluations,
    E-2b compact materialization, and artifact integrity verified live.
-   One new residual: P2 `canonical_artifact` pointers dangle (same class
-   as the retired E-2c primary-pointer gap; candidate E-2 follow-up).
    Evidence: `../evidence/k5-production-re-run-2026-08-23.md`.
-2. WP-I (WP2 adapters and five-phase pilot).
-3. Resolve the context-selection issues above; P0-2 (contract presence model)
+2. E-2e production probe - one controlled P2 full-catalog run on the
+   E-2e build (>= `896615a`) verifying canonical_artifact pointers
+   resolve to hash-verified artifact-store bytes (retires the last
+   known information-layer residual).
+3. E-1e reviewer structured evaluations (handoff schema field +
+   instruction templates; the E-1d gap above).
+4. WP-I (WP2 adapters and five-phase pilot).
+5. Resolve the context-selection issues above; P0-2 (contract presence model)
    gates any further P5 contract work and needs a contract-author decision.
 
 ## Completed records
@@ -72,11 +85,16 @@ Completed and narrowly scoped records are indexed in
 that its stated scope is complete. It does not imply that Phase 0, a work
 package, or Model Forge itself is production-ready.
 
-Recently archived (2026-08-18 audit):
+Recently archived:
 
+- K-1 Remaining Implementation Plan + NA-2 (2026-08-23): all packages
+  landed and verified (P1 through P7 plus D4/D5); the K-5 production
+  evidence gate over the E-1/E-2 build is satisfied. K-7 stays open by
+  design (tracked in the harness audit).
 - Harness Validation and Output Recovery program: parent plan,
   implementation index, and HV-0 through HV-7 (delivered in `63dca62`;
-  the production re-exercise remains open as K-5).
+  the production re-exercise closed as K-5 on 2026-08-21, gate re-run
+  satisfied 2026-08-23).
 - Harness Validation coder review (applied as revision 2).
 - Harness Mechanics Audit ISS-1 through ISS-9 (all landed and verified).
 - Stage+Role Instruction Templates for P1, P3, P4, P5 (15 template files

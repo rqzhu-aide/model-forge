@@ -1,6 +1,10 @@
 # F-1 Plan: candidates carry no generation identity (2026-08-23)
 
-Status: PLANNED (Tez approved 2026-08-23 as finding C-4a, fresh-cycle blocker).
+Status: IMPLEMENTED 2026-08-24 (subagent core + planner-direct cascade finish;
+one documented deviation: theory-record.schema.json relaxed too - the pin said
+grep the complete set, and the e2e suite proved it load-bearing: the dev-
+executor theory-record candidate lost generation_id to the strip rule and
+failed structural validation until relaxed). Commit pending final suite.
 Context: the fresh-slate P1 run (`run.p1.p1-literature-update.5b162e18769e4180a70ef76ba76cb41b`,
 2026-08-23) FAILED at `p1.lead_synthesis` with 66 × `schema.required` on
 harness-owned `generation_id` (64 `p1.source_changes` items +

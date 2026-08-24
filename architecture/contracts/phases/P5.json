@@ -1,6 +1,6 @@
 {
-    "phase_id":  "P5",
-    "contract_version":  "2.0.0",
+    "phase_id": "P5",
+     "contract_version": "2.1.0",
     "prose_contract":  "architecture/phases/phase-5.md",
     "name":  "Manuscript assembly and revision",
     "scientific_purpose":  "Maintain one complete, traceable manuscript for one exact method by reconciling the current literature, method, theory, and empirical records.",

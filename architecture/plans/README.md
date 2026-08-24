@@ -24,6 +24,13 @@ specification or decision record before code relies on such a change.
   LANDED 2026-08-23 (`896615a`; suite 1234 green, validator exit 0).
   OPEN: production probe - one P2 full-catalog run on the E-2e build to
   verify canonical_artifact pointers resolve to hash-verified bytes.
+- [F-1: Candidates Carry No Generation Identity](f1-candidate-generation-identity-plan-2026-08-23.md) -
+  LANDED 2026-08-23. The closure schemas no longer require harness-owned
+  `generation_id` of candidates, and the harness strips agent-supplied
+  generation identity before sealing (fabrication channel closed; contracts
+  P1 2.2.0, P2 2.3.0, P3 2.2.0, P4 2.1.0, P5 2.1.0). OPEN: production
+  proof - rerun the fresh-library P1 to publish, then probe the sealed
+  synthesis record (the E-2d retirement probe rides along).
 - [Trusted Local Execution Program](trusted-local-execution-program.md) -
   the program-level plan for Version 1 execution work (WP-A through WP-I).
   WP-A through WP-H are complete (WP-G: `8edeeb1`; WP-H1: `f494aa0`; WP-H2:

@@ -1,6 +1,6 @@
 {
   "phase_id": "P2",
-  "contract_version": "2.2.0",
+  "contract_version": "2.3.0",
   "prose_contract": "architecture/phases/phase-2.md",
   "name": "Method development",
   "scientific_purpose": "Develop and maintain a structured catalog of feasible research methods without selecting a branch for the user.",

@@ -9,10 +9,10 @@
     "artifact": {
       "artifact_id": "artifact.run_manifest.p4.001",
       "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.run_manifest.p4.001",
-      "sha256": "4fa395fa113a0da00df30f6449af8a195d384c846f456b98122b77b2c19c0855",
+      "sha256": "51e95ee975125b48b2e87e35a55d00d5e54ed0af235a065063c5009137495061",
       "media_type": "application/json"
     },
-    "manifest_sha256": "4fa395fa113a0da00df30f6449af8a195d384c846f456b98122b77b2c19c0855"
+    "manifest_sha256": "51e95ee975125b48b2e87e35a55d00d5e54ed0af235a065063c5009137495061"
   },
   "closure_chain": [
     {
@@ -20,7 +20,7 @@
       "stage_id": "p4.analyst",
       "role": "data_analyst",
       "invocation_start_id": "invocation_start.p4.analyst.001",
-      "start_sha256": "8335ec2765ad5c166911990be953332d78f57f5d9957b463490e1b2f928336c0",
+      "start_sha256": "4ede182cd46bf8892a902e43543f26d4202d71d556a6777e4f97d5d05a5ce0e4",
       "invocation_closure_id": "invocation_closure.p4.analyst.001",
       "closure_artifact": {
         "artifact_id": "artifact.invocation_closure.p4.analyst.001",
@@ -28,7 +28,7 @@
         "sha256": "58c85d3613cdeefd0c84bbaed948ef2f4b98fd3bafe2ed9d875fc517674094c6",
         "media_type": "application/json"
       },
-      "closure_sha256": "9db0ebbb5c172a90e00eea519364a07a52e5073a5f112d1406f460562d98648a",
+      "closure_sha256": "27b50c42264d697ae838bcfe5b4500de89180ee32b3afceb01fd14411c8cefda",
       "terminal_status": "succeeded"
     },
     {
@@ -36,7 +36,7 @@
       "stage_id": "p4.theorist",
       "role": "theorist",
       "invocation_start_id": "invocation_start.p4.theorist.001",
-      "start_sha256": "f2cbc7829781bd5f098e822f3022e3ea602ed0165b5a925c81fc390967e59e89",
+      "start_sha256": "c04704372f22f7277a8e8f860b01cb0164753196a9c60bac17d70b684e8d9d4c",
       "invocation_closure_id": "invocation_closure.p4.theorist.001",
       "closure_artifact": {
         "artifact_id": "artifact.invocation_closure.p4.theorist.001",
@@ -73,7 +73,7 @@
       "output_id": "output.protocol",
       "contract_output_id": "p4.protocol",
       "source_invocation_closure_id": "invocation_closure.p4.analyst.001",
-      "source_closure_sha256": "9db0ebbb5c172a90e00eea519364a07a52e5073a5f112d1406f460562d98648a",
+      "source_closure_sha256": "27b50c42264d697ae838bcfe5b4500de89180ee32b3afceb01fd14411c8cefda",
       "artifact": {
         "artifact_id": "artifact.p4.protocol.accepted.001",
         "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.protocol.accepted.001",
@@ -85,7 +85,7 @@
       "output_id": "output.preliminary_evidence",
       "contract_output_id": "p4.evidence",
       "source_invocation_closure_id": "invocation_closure.p4.analyst.001",
-      "source_closure_sha256": "9db0ebbb5c172a90e00eea519364a07a52e5073a5f112d1406f460562d98648a",
+      "source_closure_sha256": "27b50c42264d697ae838bcfe5b4500de89180ee32b3afceb01fd14411c8cefda",
       "artifact": {
         "artifact_id": "artifact.p4.evidence.accepted.001",
         "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.evidence.accepted.001",
@@ -97,7 +97,7 @@
       "output_id": "output.analyst_synthesis",
       "contract_output_id": "p4.analyst_synthesis",
       "source_invocation_closure_id": "invocation_closure.p4.analyst.001",
-      "source_closure_sha256": "9db0ebbb5c172a90e00eea519364a07a52e5073a5f112d1406f460562d98648a",
+      "source_closure_sha256": "27b50c42264d697ae838bcfe5b4500de89180ee32b3afceb01fd14411c8cefda",
       "artifact": {
         "artifact_id": "artifact.p4.analyst_synthesis.accepted.001",
         "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.p4.analyst_synthesis.accepted.001",
@@ -109,7 +109,7 @@
       "output_id": "output.analyst_handoff",
       "contract_output_id": "p4.analyst_handoff",
       "source_invocation_closure_id": "invocation_closure.p4.analyst.001",
-      "source_closure_sha256": "9db0ebbb5c172a90e00eea519364a07a52e5073a5f112d1406f460562d98648a",
+      "source_closure_sha256": "27b50c42264d697ae838bcfe5b4500de89180ee32b3afceb01fd14411c8cefda",
       "artifact": {
         "artifact_id": "artifact.analyst_handoff.accepted.001",
         "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.analyst_handoff.accepted.001",
@@ -203,5 +203,5 @@
     }
   ],
   "submitted_at": "2026-08-01T15:10:00Z",
-  "submission_sha256": "dc718d79e1006554fd39dd523a548a0d1a7f8d49131f69e5d56c602b821dcd20"
+  "submission_sha256": "21299d02c0e4cb589483fad13ea2e6c3d7a1adf99bfb7cd13da681be37c44ab0"
 }

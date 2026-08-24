@@ -1,6 +1,6 @@
 {
   "phase_id": "P3",
-  "contract_version": "2.1.0",
+  "contract_version": "2.2.0",
   "prose_contract": "architecture/phases/phase-3.md",
   "name": "Theory development",
   "scientific_purpose": "Produce the complete current theoretical account for one exact method identity, including assumptions, claims, proofs or proof obligations, limitations, and empirical implications.",

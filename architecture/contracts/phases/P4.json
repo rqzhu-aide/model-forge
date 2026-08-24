@@ -1,6 +1,6 @@
 {
-    "phase_id":  "P4",
-    "contract_version":  "2.0.0",
+    "phase_id": "P4",
+     "contract_version": "2.1.0",
     "prose_contract":  "architecture/phases/phase-4.md",
     "name":  "Empirical development",
     "scientific_purpose":  "Build a reproducible cumulative evidence base and current empirical synthesis for one exact method identity.",

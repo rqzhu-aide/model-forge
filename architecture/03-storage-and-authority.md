@@ -176,6 +176,8 @@ Properties:
 - Carries frozen `authority_at_creation`.
 - Never carries mutable current position, current alignment, current attention, or current evidence eligibility.
 
+Generation identity is assigned at promotion: the publisher derives `generation_id` from digest-bound inputs (project, run, publication binding, current slot, record type, document digest, and artifact identity) over the final sealed bytes. Run-local candidates never carry generation identity. The closure schemas do not require `generation_id` of candidates, and the harness strips any candidate-supplied `generation_id` or `generation_number` before sealing, so an agent cannot fabricate provenance in a harness-owned field.
+
 ### 5.3 Current projections
 
 ```text

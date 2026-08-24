@@ -309,11 +309,16 @@ def populate_harness_fields(
       source_run_id, authority_at_creation, record_type, content_sha256, and
       method identity when a method is selected) are ALWAYS overwritten: the
       harness owns them and agent-written values are not authoritative.
-    - Record-local identity fields (record_id, generation_id, protocol_id,
+    - Record-local identity fields (record_id, protocol_id,
       evidence_id, issue_id, report_id, source_id) are filled only when
       missing: agents legitimately author these to cross-reference within a
       document, and deterministic fill preserves that linkage.  Filled values
       are unique per (run, schema, item_index).
+    - Generation identity (generation_id, generation_number) is assigned by
+      the publisher at promotion, never by the harness at closure and never
+      by an agent.  When the run-facts value is empty, any agent-supplied
+      value is DELETED from the candidate; when non-empty, it is
+      overwritten.
 
     No model call is needed. All values are reproducible from sealed inputs.
     No scientific claim, assumption, result, citation, or provenance
@@ -357,11 +362,20 @@ def populate_harness_fields(
         if "identity" in owned:
             result["identity"] = dict(run_facts.method_identity)
 
-    # Generation identifiers
-    if "generation_id" in owned and run_facts.generation_id:
-        result["generation_id"] = run_facts.generation_id
-    if "generation_number" in owned and run_facts.generation_number:
-        result["generation_number"] = run_facts.generation_number
+    # Generation identifiers: assigned by the publisher at promotion, so a
+    # run-local candidate never carries them.  When the run-facts value is
+    # empty, strip any agent-supplied value (an agent writing one fabricates
+    # generation identity); when non-empty, overwrite as before.
+    if "generation_id" in owned:
+        if run_facts.generation_id:
+            result["generation_id"] = run_facts.generation_id
+        else:
+            result.pop("generation_id", None)
+    if "generation_number" in owned:
+        if run_facts.generation_number:
+            result["generation_number"] = run_facts.generation_number
+        else:
+            result.pop("generation_number", None)
 
     # Record identifiers: fill only when missing, unique per item.
     def _fill_id(field: str, prefix: str = "") -> None:

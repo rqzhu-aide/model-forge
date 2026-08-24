@@ -275,7 +275,9 @@ def test_referenced_contract_requires_explicit_expected_digest(
     registry: DigestContractRegistry,
 ) -> None:
     phase = json.loads((CONTRACTS / "phases" / "P4.json").read_text("utf-8"))
-    expected = "f0ac6e0b4e76cf94e0f3db0d0967640cd15eb7833b0faa30e9f9be9098f4723e"
+    # P4 contract 2.1.0 (F-1: generation_id relaxed from required in
+    # scientific-record candidates) - digest follows the contract bytes.
+    expected = "cfb7cb84d40de89581debebd71e1f0c53f05d23fac0d932b357c76fba91b2fca"
     assert registry.require_match(
         "phase_contract.content", phase, expected=expected
     ) == expected

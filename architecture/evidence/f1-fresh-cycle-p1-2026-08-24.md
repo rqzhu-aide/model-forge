@@ -83,15 +83,43 @@ artifact store, and artifact ids match the pinned derivation exactly
 (`deterministic_id("artifact", project_id, run_id, "<output_id>.as_authored",
 digest)`; verified for `p1.synthesis_candidate`).
 
-## 5. Open follow-ups
+## 5. Fresh-cycle P2 (2026-08-24): member cap honored, E-2e verified, E-2f hardened
+
+First P2 full-catalog attempt (`run.p2.p2-full-catalog.4a71023d...`) failed at
+lead reconciliation: the agent wrote `identity: null` on all 4 method records,
+and the E-2e case-5 stamping discriminator (identity-is-dict) silently skipped
+canonical_artifact stamping, so the agent's CORRECT `input://<filename>`
+declarations reached validation: 20 findings (schema.required identity,
+schema.required artifact_id, schema.pattern uri), all correctly classified
+correctable_contract_error/packaging. Partial seal (2 of the closure's outputs
+sealed before the failure) made the run uncorrectable under the C-2 trap -
+second production hit.
+
+E-2f fix (commit `c6970c6`, planner-direct): the stamping discriminator now
+keys on mathematical_definition.canonical_artifact alone, and the lead
+instruction states explicitly that identity is agent-authored. One regression
+test; suite 1255 green; validator exit 0.
+
+Re-run `run.p2.p2-full-catalog.8fd97448064d4fcf98af8348a496797a` published
+(33 min, zero findings, 5 succeeded closures). Verified on sealed state:
+
+- Member cap honored: 4 methods (ANEL, SCLE theory-sourced; DGEL, RBEL
+  empirically sourced) = exactly 2 per member.
+- E-2e production verification: every method record's canonical_artifact was
+  stamped to `artifact://sha256/<digest>` + a REAL artifact registry row
+  (lookup path fired, no deterministic fallback). The two stamped digests
+  re-hash exactly to the stage-1 sealed proposal bytes (theorist
+  a02a5645..., data_analyst d8157d8c...). The E-2 arc (E-2a..E-2f) is now
+  fully production-verified.
+
+## 6. Open follow-ups
 
 - decision-record.schema.json still requires an agent-authored
   `generation_id` (not harness-owned): the sealed phase-decision candidate
-  on the fresh run carries the invented value `generation.p1.decision.001`
+  on the fresh P1 carries the invented value `generation.p1.decision.001`
   while the envelope carries the real derived id. Same anti-pattern, small;
   recommend an F-2 follow-up (relax + strip) at the next contract window.
-- C-2 correction-scope package (section 2).
-- The fresh cycle continues: P2 full-catalog run
-  `run.p2.p2-full-catalog.4a71023db19d40d8a91b3b8b3a163f6e` launched
-  2026-08-24 17:39 with a per-member proposal cap (at most 2 methods per
-  member) in the instruction, per Tez.
+- C-2 correction-scope package (section 2) - now two production hits; the
+  dominant recovery gap.
+- The fresh cycle continues: P3 theory synthesis on the 4-method catalog
+  (orchestrator choice: research_lead, as before).

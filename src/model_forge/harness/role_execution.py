@@ -135,10 +135,18 @@ def _apply_disclosed_mechanical_repairs(
             from dataclasses import replace as _replace_facts
 
             facts = run_facts
-            if record_type_by_output:
-                record_type = record_type_by_output.get(spec.contract_output_id, "")
-                if record_type:
-                    facts = _replace_facts(run_facts, record_type=record_type)
+            record_type = (record_type_by_output or {}).get(
+                spec.contract_output_id, ""
+            )
+            if not record_type:
+                # F-1b: candidate outputs not named in any publication
+                # binding still carry the harness-owned record_type;
+                # derive it from the schema's const (mechanical, never
+                # agent-authored) - production hole observed on
+                # p3.theory_candidate (run 7af5a339, 2026-08-25).
+                record_type = _schema_record_type_const(spec.schema_file)
+            if record_type:
+                facts = _replace_facts(run_facts, record_type=record_type)
             if isinstance(data, dict):
                 data = populate_harness_fields(data, facts, spec.schema_file)
             elif isinstance(data, list):
@@ -963,6 +971,37 @@ def _fix_self_referential_hashes(
                             if isinstance(sub, dict) and _fix_record(sub):
                                 changed = True
     return changed
+
+
+def _schema_record_type_const(schema_file: str) -> str:
+    """Record-type constant pinned by an output schema, if any (F-1b).
+
+    Outputs not named in a publication binding still carry the
+    harness-owned record_type field; when the schema pins it with a
+    const (e.g. theory-record.schema.json -> "theory_record") the closure
+    derives the value mechanically instead of depending on agent-authored
+    provenance.  Returns "" when the schema has no const (then the
+    publication-binding map or the run facts govern, as before).
+    """
+    try:
+        import json as _json
+
+        from pathlib import Path as _Path
+
+        root = _Path(__file__).resolve().parents[3]
+        schema_path = root / "architecture" / "schemas" / schema_file
+        if not schema_path.exists():
+            return ""
+        schema = _json.loads(schema_path.read_text())
+    except Exception:
+        return ""
+    properties = schema.get("properties")
+    if not isinstance(properties, dict):
+        return ""
+    record_type = properties.get("record_type")
+    if isinstance(record_type, dict) and isinstance(record_type.get("const"), str):
+        return str(record_type["const"])
+    return ""
 
 
 def _schema_info(schema_file: str) -> dict[str, Any]:

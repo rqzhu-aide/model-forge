@@ -59,6 +59,31 @@ def catalog() -> SchemaCatalog:
     return SchemaCatalog.load(SCHEMA_DIRECTORY)
 
 
+class TestRecordTypeConstFallback:
+    """F-1b: candidate outputs not in any publication binding still get the
+    harness-owned record_type, derived from the schema const - never
+    agent-authored.  Production hole: p3.theory_candidate (run 7af5a339,
+    2026-08-25) failed operational because the binding map does not name
+    per-stage candidate outputs."""
+
+    def test_schema_record_type_const_helper(self) -> None:
+        from model_forge.harness.role_execution import _schema_record_type_const
+
+        assert _schema_record_type_const("theory-record.schema.json") == "theory_record"
+        # no const (recordType $ref enum) - binding map or agent governs
+        assert _schema_record_type_const("scientific-record.schema.json") == ""
+        assert _schema_record_type_const("does-not-exist.schema.json") == ""
+
+    def test_harness_record_type_overwrites_agent_value(self) -> None:
+        # once the facts carry a record_type (binding map or const fallback),
+        # any agent-authored value is provenance and never survives
+        facts = _facts(phase="P3", mode="p3.theory_establishment",
+                       role="theorist", record_type="theory_record")
+        doc = {"record_type": "agent.invented", "title": "t"}
+        out = populate_harness_fields(doc, facts, "theory-record.schema.json")
+        assert out["record_type"] == "theory_record"
+
+
 class TestFreshLibraryClosureWithoutGenerationId:
     """(a) Candidates without generation_id pass closure validation."""
 

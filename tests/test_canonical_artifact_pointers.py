@@ -108,6 +108,31 @@ def test_canonical_pointer_lookup_none_falls_back_to_deterministic_id(
     )
 
 
+def test_null_identity_does_not_disable_stamping(tmp_path: Path) -> None:
+    # E-2f regression: an agent identity slip (identity: null, observed in
+    # production on run.p2.p2-full-catalog.4a71023d 2026-08-24) must not
+    # silently disable canonical_artifact stamping; identity problems are
+    # for schema validation to report, not for the stamping discriminator.
+    payload = b'{"proposal": "theory"}'
+    (tmp_path / "inputs").mkdir()
+    (tmp_path / "inputs" / "ef56sourcebytes").write_bytes(payload)
+    record = _method_record("input://ef56sourcebytes")
+    record["identity"] = None
+    context = _context(tmp_path, lookup=lambda digest: "artifact.sealed-source")
+
+    changed = _fix_self_referential_hashes(
+        record, tmp_path / "method-changes.json", pointer_context=context
+    )
+
+    assert changed is True
+    artifact = record["mathematical_definition"]["canonical_artifact"]
+    digest = hashlib.sha256(payload).hexdigest()
+    assert artifact["sha256"] == digest
+    assert artifact["uri"] == f"artifact://sha256/{digest}"
+    assert artifact["artifact_id"] == "artifact.sealed-source"
+    assert record["identity"] is None  # untouched: schema validation's job
+
+
 def test_unresolvable_input_pointer_is_left_for_validation(tmp_path: Path) -> None:
     (tmp_path / "inputs").mkdir()  # no matching file inside
     record = _method_record("input://missing99")

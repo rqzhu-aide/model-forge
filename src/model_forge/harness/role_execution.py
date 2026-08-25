@@ -922,9 +922,11 @@ def _fix_self_referential_hashes(
         # sibling of the output files inside roles/<NN>-<role>/), derived
         # per output as path.parent.  The existing recursion into the
         # method-changes list covers p2.method_changes records.
+        # E-2f: key on mathematical_definition.canonical_artifact alone -
+        # an agent identity slip (null identity) must not silently disable
+        # stamping; identity problems remain for schema validation.
         if (
             pointer_context is not None
-            and isinstance(identity, dict)
             and isinstance(md, dict)
             and isinstance(md.get("canonical_artifact"), dict)
         ):

@@ -121,6 +121,7 @@ def build_prepared_run_recipe(
             "schema_file": spec.schema_file,
             "relative_path": spec.relative_path,
             "required": spec.required,
+            "record_type": spec.record_type,
         }
         for spec in output_plan.specs
     ]

@@ -643,3 +643,89 @@ def test_output_transformation_record_unchanged_when_same_digest() -> None:
         result_sha256="a" * 64,
     )
     assert not record.changed
+
+
+def test_contract_declared_record_type_populated(tmp_path: Path) -> None:
+    """F-1c: an output spec's contract-declared record_type reaches the
+    candidate when no publication binding names it (p3.analyst_audit,
+    p4.analyst_synthesis, p4.theory_audit) - run 01badda9 failed operational
+    on exactly this hole."""
+    from model_forge.harness.role_execution import _apply_disclosed_mechanical_repairs
+    from model_forge.harness.envelope import SealedRunFacts
+    from model_forge.harness.outputs import OutputPlan, OutputSpec
+    from model_forge.contracts import (
+        ResolvedPhasePlan,
+        ResolvedRoleStep,
+        ResolvedStage,
+    )
+    from model_forge.domain import PhaseContractIdentity
+    import json as _json
+
+    output_path = tmp_path / "output.json"
+    output_path.write_text(_json.dumps({"title": "audit", "issues": []}))
+
+    spec = OutputSpec(
+        contract_output_id="p3.analyst_audit",
+        output_id="output.p3.analyst_audit",
+        output_kind="audit",
+        producer="data_analyst",
+        stage_id="p3.analyst",
+        stage_sequence=2,
+        schema_file="scientific-record.schema.json",
+        schema_application="object",
+        relative_path="output.json",
+        required=True,
+        record_type="review_issue_ledger",
+    )
+    plan = ResolvedPhasePlan(
+        identity=PhaseContractIdentity(
+            phase_id="P3",
+            contract_version="2.3.0",
+            phase_contract_sha256="a" * 64,
+        ),
+        mode_id="p3.theory_establishment",
+        choice_values={},
+        context_policy="current_only",
+        stages=(ResolvedStage(
+            sequence=2,
+            stage_id="p3.analyst",
+            execution="serial",
+            objective="test",
+            role_steps=(ResolvedRoleStep(role="data_analyst", input_ids=(), output_ids=("p3.analyst_audit",)),),
+            writes=(),
+            handoff_required=False,
+            isolation_rule=None,
+        ),),
+        output_contracts=(),
+        prepared_contexts=(),
+        validation_rules=(),
+        publication_bindings=(),
+        promotion={},
+    )
+    facts = SealedRunFacts(
+        project_id="proj.test",
+        run_id="run.p3.test.0123456789abcdef0123456789abcdef",
+        phase="P3",
+        mode="p3.theory_establishment",
+        role="data_analyst",
+        method_identity={},
+        generation_id="",
+        generation_number=0,
+        schema_version="1.0.0",
+        manifest_sha256="b" * 64,
+        sealed_basis_digest="c" * 64,
+        produced_at="2026-08-25T00:00:00Z",
+        record_type="",
+    )
+
+    records = _apply_disclosed_mechanical_repairs(
+        run_root=tmp_path,
+        output_plan=OutputPlan(specs=(spec,)),
+        stage=plan.stages[0],
+        role="data_analyst",
+        run_facts=facts,
+    )
+
+    assert records["p3.analyst_audit"].changed
+    repaired = _json.loads(output_path.read_text())
+    assert repaired["record_type"] == "review_issue_ledger"

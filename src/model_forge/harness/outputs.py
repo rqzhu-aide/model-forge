@@ -32,6 +32,7 @@ class OutputSpec:
     schema_file: str
     relative_path: str
     required: bool
+    record_type: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,6 +117,7 @@ def build_output_plan(plan: ResolvedPhasePlan) -> OutputPlan:
                         schema_file=_schema_file(str(contract["schema_uri"])),
                         relative_path=relative_path,
                         required=bool(contract["required"]),
+                        record_type=str(contract.get("record_type", "")),
                     )
                 )
     return OutputPlan(tuple(specs))

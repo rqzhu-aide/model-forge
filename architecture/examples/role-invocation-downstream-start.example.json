@@ -9,10 +9,10 @@
     "artifact": {
       "artifact_id": "artifact.run_manifest.p4.001",
       "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.run_manifest.p4.001",
-      "sha256": "51e95ee975125b48b2e87e35a55d00d5e54ed0af235a065063c5009137495061",
+      "sha256": "13a6de42be768be18d839eea2493c4ecd7e195ba4b2c243c25da76a0e53d40bd",
       "media_type": "application/json"
     },
-    "manifest_sha256": "51e95ee975125b48b2e87e35a55d00d5e54ed0af235a065063c5009137495061"
+    "manifest_sha256": "13a6de42be768be18d839eea2493c4ecd7e195ba4b2c243c25da76a0e53d40bd"
   },
   "role_plan_step": {
     "sequence": 2,
@@ -73,7 +73,7 @@
           "sha256": "58c85d3613cdeefd0c84bbaed948ef2f4b98fd3bafe2ed9d875fc517674094c6",
           "media_type": "application/json"
         },
-        "closure_sha256": "27b50c42264d697ae838bcfe5b4500de89180ee32b3afceb01fd14411c8cefda",
+        "closure_sha256": "f5945b1b7b9dbd2163d2ca9e8f3316933f83bd84d5a14c4601b0c1bed52d5cc6",
         "output_id": "output.protocol"
       }
     },
@@ -95,7 +95,7 @@
           "sha256": "58c85d3613cdeefd0c84bbaed948ef2f4b98fd3bafe2ed9d875fc517674094c6",
           "media_type": "application/json"
         },
-        "closure_sha256": "27b50c42264d697ae838bcfe5b4500de89180ee32b3afceb01fd14411c8cefda",
+        "closure_sha256": "f5945b1b7b9dbd2163d2ca9e8f3316933f83bd84d5a14c4601b0c1bed52d5cc6",
         "output_id": "output.preliminary_evidence"
       }
     },
@@ -117,7 +117,7 @@
           "sha256": "58c85d3613cdeefd0c84bbaed948ef2f4b98fd3bafe2ed9d875fc517674094c6",
           "media_type": "application/json"
         },
-        "closure_sha256": "27b50c42264d697ae838bcfe5b4500de89180ee32b3afceb01fd14411c8cefda",
+        "closure_sha256": "f5945b1b7b9dbd2163d2ca9e8f3316933f83bd84d5a14c4601b0c1bed52d5cc6",
         "output_id": "output.analyst_synthesis"
       }
     },
@@ -139,7 +139,7 @@
           "sha256": "58c85d3613cdeefd0c84bbaed948ef2f4b98fd3bafe2ed9d875fc517674094c6",
           "media_type": "application/json"
         },
-        "closure_sha256": "27b50c42264d697ae838bcfe5b4500de89180ee32b3afceb01fd14411c8cefda",
+        "closure_sha256": "f5945b1b7b9dbd2163d2ca9e8f3316933f83bd84d5a14c4601b0c1bed52d5cc6",
         "output_id": "output.analyst_handoff"
       }
     }
@@ -235,5 +235,5 @@
   },
   "role_write_root": "runs/P4/run.p4.preliminary.20260801t140000z/roles/02-theorist/",
   "started_at": "2026-08-01T14:55:20Z",
-  "start_sha256": "c04704372f22f7277a8e8f860b01cb0164753196a9c60bac17d70b684e8d9d4c"
+  "start_sha256": "87bd889c3065ecd9c49d1b46d512b66a231378709e9273c304aef3fb24406c38"
 }

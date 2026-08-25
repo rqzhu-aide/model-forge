@@ -20,10 +20,10 @@
     "wall_time_limit_seconds": 14400,
     "network_policy": "approved_resources"
   },
-  "content_sha256": "4d5303b6f4400cc3af051a4e3965c69149fc522594462acf6d529c9e6af6cf2c",
+  "content_sha256": "d5ec06dbca59d9c28ba0b36d3237e96faaadc51bedd957572d20122dce48f3ca",
   "requested_at": "2026-08-01T14:00:00Z",
-  "phase_contract_version": "2.1.0",
-  "phase_contract_sha256": "cfb7cb84d40de89581debebd71e1f0c53f05d23fac0d932b357c76fba91b2fca",
+  "phase_contract_version": "2.2.0",
+  "phase_contract_sha256": "b13047fe488b8f52fdca6d6404e17401bcc971b7638d7f2899f0f23016870c47",
   "choice_values": {
     "p4.selected_method": {
       "stable_id": "method.overlap_stabilized_score",

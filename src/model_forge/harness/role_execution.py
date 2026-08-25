@@ -139,6 +139,11 @@ def _apply_disclosed_mechanical_repairs(
                 spec.contract_output_id, ""
             )
             if not record_type:
+                # F-1c: contract-declared record_type on the output spec
+                # (p3.analyst_audit, p4.analyst_synthesis, p4.theory_audit -
+                # scientific-record candidates outside publication bindings).
+                record_type = spec.record_type or ""
+            if not record_type:
                 # F-1b: candidate outputs not named in any publication
                 # binding still carry the harness-owned record_type;
                 # derive it from the schema's const (mechanical, never

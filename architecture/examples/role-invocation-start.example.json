@@ -9,10 +9,10 @@
     "artifact": {
       "artifact_id": "artifact.run_manifest.p4.001",
       "uri": "run://run.p4.preliminary.20260801t140000z/artifact/artifact.run_manifest.p4.001",
-      "sha256": "51e95ee975125b48b2e87e35a55d00d5e54ed0af235a065063c5009137495061",
+      "sha256": "13a6de42be768be18d839eea2493c4ecd7e195ba4b2c243c25da76a0e53d40bd",
       "media_type": "application/json"
     },
-    "manifest_sha256": "51e95ee975125b48b2e87e35a55d00d5e54ed0af235a065063c5009137495061"
+    "manifest_sha256": "13a6de42be768be18d839eea2493c4ecd7e195ba4b2c243c25da76a0e53d40bd"
   },
   "role_plan_step": {
     "sequence": 1,
@@ -243,5 +243,5 @@
   },
   "role_write_root": "runs/P4/run.p4.preliminary.20260801t140000z/roles/01-data_analyst/",
   "started_at": "2026-08-01T14:00:05Z",
-  "start_sha256": "4ede182cd46bf8892a902e43543f26d4202d71d556a6777e4f97d5d05a5ce0e4"
+  "start_sha256": "78e9e8e69f306f77a4ee703a9e091de6c14a5f7f42e0f27df06cb458b6005e1e"
 }

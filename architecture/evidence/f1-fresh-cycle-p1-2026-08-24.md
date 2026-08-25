@@ -112,7 +112,53 @@ Re-run `run.p2.p2-full-catalog.8fd97448064d4fcf98af8348a496797a` published
   a02a5645..., data_analyst d8157d8c...). The E-2 arc (E-2a..E-2f) is now
   fully production-verified.
 
-## 6. Open follow-ups
+## 6. Fresh-cycle P3 (2026-08-25): F-1b/F-1c fixes, theory established on ANEL
+
+First P3 attempt (`run.p3...7af5a339`) failed operational at the theorist
+stage: `p3.theory_candidate` (theory-record schema) requires the
+harness-owned `record_type`, but the per-output population only consulted
+the publication-binding map, which names no per-stage candidate outputs.
+Second attempt (`run.p3...01badda9`) passed the theorist stage and failed
+the same way one stage later on `p3.analyst_audit` (scientific-record
+schema: record_type is an enum ref, no const, no binding). A full
+five-phase sweep found exactly three outputs in this hole class
+(`p3.analyst_audit`, `p4.analyst_synthesis`, `p4.theory_audit`).
+
+Fixes landed planner-direct:
+
+- **F-1b** (`9ef9e7a`): schema-`const` fallback derives record_type
+  mechanically when no binding names the output (theory-record ->
+  "theory_record"). Agent-authored record_type is now always overwritten.
+- **F-1c** (`b960790`): contract-declared record_type on the three
+  scientific-record candidates (values reuse the historically established
+  `review_issue_ledger` / `empirical_synthesis`); population tier order is
+  binding -> contract -> schema const; the phase-contract meta-schema
+  formally admits the optional field. P3 2.3.0, P4 2.2.0; example cascade
+  re-rooted; suite 1258 green; validator exit 0.
+
+Third attempt (`run.p3.p3-theory-establishment.b78248ac...`) **published in
+75 minutes with zero findings across all three stages**:
+
+- `p3.theory_candidate` sealed with `record_type=theory_record` (F-1b tier
+  fired in production).
+- `p3.analyst_audit` sealed with `record_type=review_issue_ledger` (F-1c
+  tier fired in production).
+- No candidate carries generation identity (F-1 strip holds).
+- Two fresh generations (theory record + phase decision) with digest-bound
+  publisher-derived ids.
+
+Scientific outcome: the ANEL theory record carries 21 established
+statements, including `thm.anel.marginal_exactness` (every marginal is
+exactly a ULA chain), `cor.anel.no_mixing_acceleration` (ANEL does not
+accelerate mixing; gains live in estimator variance, not exploration),
+`thm.anel.mirror_lock` (symmetric targets lock antithetic pairs), and
+`thm.anel.quadratic_zero_variance` (zero-variance pair means for linear
+functionals on Gaussian targets), plus 11 empirical implications and 10
+limitations - a clean, falsifiable target for P4.
+
+F-2 watch confirmed in production: the phase-decision candidate carries an
+agent-invented sequential `generation.decision.p3.anel...1` (decision-record
+generation_id is still agent-authored, not harness-owned).
 
 - decision-record.schema.json still requires an agent-authored
   `generation_id` (not harness-owned): the sealed phase-decision candidate

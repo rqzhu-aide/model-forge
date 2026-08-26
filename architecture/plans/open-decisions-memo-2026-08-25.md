@@ -145,6 +145,26 @@ population is harness-side; no contract text changes required if the
 schemas already declare these fields harness-owned - verify per schema
 before implementation.
 
+## D-9. Rejection detail is not persisted; closure-vs-submission validation asymmetry
+
+Observed 2026-08-26 (P5 run d93f5891 rejected, submission.validation_failed):
+
+1. The rejection's terminal message joins only `findings[:4]` with generic
+   text ("A manuscript claim has neither..."), and the persisted
+   validation_report carries only status+summary - the researcher cannot
+   see WHICH claims failed without replaying the validator locally over the
+   artifact store. Recommend: persist the full findings list (codes +
+   output pointers) into the rejection's validation_report, and let the UI
+   render them (the run page already has a validation-report section).
+2. The same `_validate_p5` claim-linkage rule produced 0 findings at role
+   closure but 25 at submission over the same sealed outputs (verified by
+   local replay of the real validator against the sealed artifacts). If
+   closure-time validation skips the scientific layer for P5 (or resolves
+   the outputs mapping differently), claim-level defects surface only at
+   submission - after the full assembly cost. Recommend: run the same
+   scientific validation at the P5 assembly closure, or document why
+   submission is the intended first checkpoint.
+
 ## FP-7 status (frontend small repairs)
 
 Being handled in this sweep as code items where the intent is unambiguous

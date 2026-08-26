@@ -25,6 +25,12 @@
   --on-danger: #ffffff;
   --information: #3d5a73;
   --information-soft: #e8edf1;
+  /* Functional affordance hue: links, hover tints, focus rings, and
+     action-area borders - the single restrained cue that says
+     "interactive" without disturbing the ink/paper base. */
+  --interactive: #31546e;
+  --interactive-dark: #24455c;
+  --interactive-soft: #e8edf1;
   --sidebar: #0c0c0d;
   --sidebar-raised: #171719;
   --sidebar-text: #f4f4f2;
@@ -63,6 +69,9 @@
   --on-danger: #1c0f11;
   --information: #8ba9c4;
   --information-soft: #151d24;
+  --interactive: #9db8d1;
+  --interactive-dark: #b9cddf;
+  --interactive-soft: #1a232c;
   --sidebar: #080809;
   --sidebar-raised: #141416;
   --sidebar-text: #f4f4f2;
@@ -108,17 +117,17 @@ a {
 }
 
 a {
-  color: var(--accent);
+  color: var(--interactive);
   font-weight: 650;
   text-underline-offset: 0.18em;
 }
 
 a:hover {
-  color: var(--accent-dark);
+  color: var(--interactive-dark);
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--interactive);
   outline-offset: 2px;
 }
 
@@ -477,12 +486,12 @@ code {
 }
 
 .launch-panel {
-  border-color: var(--accent);
+  border-color: var(--interactive);
 }
 
 .launch-panel > .panel__header {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  border-color: var(--interactive);
+  background: var(--interactive-soft);
 }
 
 /* ── Phase status card (Tier 1) — verdict-strip layout (2026-08-21) ── */
@@ -537,7 +546,7 @@ code {
   padding: 0;
   border: 0;
   background: none;
-  color: var(--accent);
+  color: var(--interactive);
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
@@ -578,7 +587,7 @@ code {
 
 .literature-gap-banner {
   padding: 0.9rem 1.2rem;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--information);
   border-radius: var(--radius);
   background: var(--accent-soft, color-mix(in srgb, var(--accent, #6366f1) 8%, var(--surface, #fff)));
 }
@@ -718,9 +727,9 @@ code {
 }
 
 .button--quiet:hover:not(:disabled) {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent-dark);
+  border-color: var(--interactive);
+  background: var(--interactive-soft);
+  color: var(--interactive-dark);
 }
 
 .button--danger {
@@ -785,7 +794,7 @@ code {
 }
 
 .project-card h2 a:hover {
-  color: var(--accent);
+  color: var(--interactive-dark);
   text-decoration: underline;
 }
 
@@ -832,7 +841,7 @@ code {
 }
 
 .phase-launcher a > span {
-  color: var(--accent);
+  color: var(--interactive);
   font-size: 0.7rem;
   font-weight: 850;
   letter-spacing: 0.1em;
@@ -902,12 +911,12 @@ fieldset > legend {
 .field input:hover,
 .field select:hover,
 .field textarea:hover {
-  border-color: var(--accent);
+  border-color: var(--interactive);
 }
 
 .field--prominent {
   padding: 1rem;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--interactive);
   border-radius: 10px;
   background: var(--accent-soft);
 }
@@ -952,7 +961,7 @@ fieldset > legend {
 
 .choice-cards label:hover,
 .context-list label:hover {
-  border-color: var(--accent);
+  border-color: var(--interactive);
 }
 
 /* ── Context cards: equal width, hovered card expands ── */
@@ -979,7 +988,7 @@ fieldset > legend {
 .context-card:hover,
 .context-card:focus-within {
   flex-grow: 3;
-  border-color: var(--accent);
+  border-color: var(--interactive);
 }
 
 /* Unavailable card: record doesn't exist — dim but not hidden */
@@ -1013,12 +1022,12 @@ fieldset > legend {
   width: 0.95rem;
   height: 0.95rem;
   flex: 0 0 auto;
-  accent-color: var(--accent);
+  accent-color: var(--interactive);
 }
 
 /* Locked checkbox (required context): visible accent, not dimmed */
 .context-card__check input:disabled {
-  accent-color: var(--accent);
+  accent-color: var(--interactive);
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -1072,7 +1081,7 @@ fieldset > legend {
   padding: 0;
   font-size: 0.72rem;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--interactive);
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 1px;
@@ -1206,7 +1215,7 @@ fieldset > legend {
 .context-feedback__doc-link {
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--interactive);
   text-decoration: none;
 }
 

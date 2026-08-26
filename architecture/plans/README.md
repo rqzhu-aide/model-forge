@@ -60,8 +60,9 @@ specification or decision record before code relies on such a change.
 - [Stage+Role Instruction Changes Review](stage-role-instructions-review.md) -
   review of the stage+role instruction plan and its implementation
   (2026-08-08, two audit rounds). P0-1, P0-2, P1-1, P1-2, P1-3, P2-2, P2-3,
-  P3-1, and P3-2 are addressed. P0-3 and the remaining backend and frontend
-  findings stay open.
+  P3-1, and P3-2 are addressed. P0-3 (silent output rewriting) is covered
+  by the FP-2 satisfaction note above (2026-08-25); the remaining small
+  backend and frontend findings track with FP-6/FP-7.
 - [Instruction, Output-Integrity, and UI Fix Plan](instruction-output-integrity-fix-plan.md) -
   work packages FP-1 through FP-8. FP-2 is SATISFIED (2026-08-25 review):
   the HV program rebuilt the repair lane as disclosed mechanical repairs

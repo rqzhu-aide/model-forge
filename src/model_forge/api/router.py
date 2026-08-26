@@ -455,7 +455,7 @@ def create_api_router() -> APIRouter:
         service: Service,
         after_sequence: Annotated[int, Query(ge=0)] = 0,
     ) -> StreamingResponse:
-        events = await service.stream_run_events(
+        events = service.stream_run_events(
             project_id, run_id, after_sequence=after_sequence
         )
 

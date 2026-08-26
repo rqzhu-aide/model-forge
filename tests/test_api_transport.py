@@ -413,11 +413,15 @@ class RecordingService:
         self.calls.append(("list_run_events", project_id, run_id, after_sequence))
         return [event for event in self.events if event.sequence > after_sequence]
 
-    async def stream_run_events(
+    def stream_run_events(
         self, project_id: str, run_id: str, *, after_sequence: int
     ) -> AsyncIterator[RunEvent]:
+        # Match the REAL service shape: an async generator function -
+        # calling it returns the iterator directly (no await).  The old
+        # stub was a coroutine returning an iterator, which let the
+        # router's `await` pass in tests while it 500'd in production
+        # (SSE endpoint TypeError, 2026-08-25).
         self.calls.append(("stream_run_events", project_id, run_id, after_sequence))
-
         async def selected_events() -> AsyncIterator[RunEvent]:
             for event in self.events:
                 if event.sequence > after_sequence:

@@ -198,9 +198,14 @@ class ModelForgeApplicationService(Protocol):
         self, project_id: str, run_id: str, *, after_sequence: int
     ) -> list[RunEvent]: ...
 
-    async def stream_run_events(
+    def stream_run_events(
         self, project_id: str, run_id: str, *, after_sequence: int
     ) -> AsyncIterator[RunEvent]: ...
+    # Plain (non-async) declaration: the implementation is an async
+    # GENERATOR function - calling it returns the async iterator directly.
+    # Declaring it ``async def`` would type the call as a coroutine, and
+    # awaiting that coroutine raised TypeError in production (the SSE
+    # endpoint 500'd on every run page load, 2026-08-25).
 
     async def cancel_run(
         self,

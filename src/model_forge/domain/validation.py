@@ -295,6 +295,23 @@ def _build_registry() -> dict[str, FindingPolicy]:
         ),
     )
     _register(
+        "p2.review_evaluations_missing",
+        FindingClass.CORRECTABLE_CONTRACT_ERROR,
+        phases=("P2",),
+        correction_class="packaging",
+        deterministic_repair=True,
+        rationale=(
+            "Stage-2 review outputs must carry the contracted structured "
+            "per-method evaluations on the reviewer-owned axis (E-1e); "
+            "without them the lead's sealed scores have no reviewer basis."
+        ),
+        guidance=(
+            "Refresh the review output through the output-correction lane: "
+            "add one method_evaluations entry per catalog method, keyed by "
+            "stable_id, on the reviewer-owned axis."
+        ),
+    )
+    _register(
         "p2.review_axis_violation",
         FindingClass.CORRECTABLE_CONTRACT_ERROR,
         phases=("P2",),

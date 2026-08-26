@@ -182,6 +182,20 @@ def _validate_p2(
         evaluations = review.get("method_evaluations", [])
         if not isinstance(evaluations, list):
             continue
+        if not evaluations:
+            # E-1e: the contracted structured reviewer signal is required on
+            # stage-2 review outputs (they validate against the handoff
+            # schema, so the field must be demanded explicitly here).
+            findings.append(
+                _finding(
+                    "p2.review_evaluations_missing",
+                    "Stage-2 review outputs must carry per-method structured "
+                    "evaluations on the reviewer-owned axis (ADR-017, E-1e).",
+                    output_id,
+                    "/method_evaluations",
+                )
+            )
+            continue
         for index, entry in enumerate(evaluations):
             if not isinstance(entry, Mapping):
                 continue

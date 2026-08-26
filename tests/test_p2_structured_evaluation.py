@@ -219,3 +219,47 @@ def test_view_model_never_fabricates_scores() -> None:
     wrong_type = deepcopy(_evaluation())
     wrong_type["empirical_feasibility"]["score"] = True
     assert _method_evaluation({"evaluation": wrong_type}) is None
+
+
+def test_review_without_method_evaluations_is_blocking() -> None:
+    """E-1e: stage-2 review outputs must carry structured evaluations."""
+    findings = _validate(
+        {
+            "p2.method_changes": [_method_record()],
+            "p2.theory_review": {"unresolved_issues": []},
+        }
+    )
+    assert "p2.review_evaluations_missing" in _codes(findings)
+    policy = get_policy("p2.review_evaluations_missing")
+    assert policy.finding_class is FindingClass.CORRECTABLE_CONTRACT_ERROR
+    assert policy.blocks_publication is True
+
+
+def test_review_with_method_evaluations_passes_e1e() -> None:
+    findings = _validate(
+        {
+            "p2.method_changes": [_method_record()],
+            "p2.theory_review": {
+                "method_evaluations": [
+                    {
+                        "stable_id": "method.example",
+                        "axis": "theoretical_validity",
+                        "assessment": "Sound on the owned axis.",
+                        "issue_refs": [],
+                    }
+                ]
+            },
+            "p2.empirical_review": {
+                "method_evaluations": [
+                    {
+                        "stable_id": "method.example",
+                        "axis": "empirical_feasibility",
+                        "assessment": "Feasible as specified.",
+                        "issue_refs": [],
+                    }
+                ]
+            },
+        }
+    )
+    assert "p2.review_evaluations_missing" not in _codes(findings)
+    assert "p2.review_axis_violation" not in _codes(findings)

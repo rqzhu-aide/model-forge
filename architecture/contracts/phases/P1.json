@@ -1,6 +1,6 @@
 {
   "phase_id": "P1",
-  "contract_version": "2.2.0",
+  "contract_version": "2.3.0",
   "prose_contract": "architecture/phases/phase-1.md",
   "name": "Literature basis",
   "scientific_purpose": "Maintain a cumulative, deduplicated literature corpus and a replaceable synthesis of what is known, disputed, and missing for the project question.",

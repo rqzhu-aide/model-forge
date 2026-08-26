@@ -178,6 +178,10 @@ _HARNESS_OWNED_BY_SCHEMA: dict[str, frozenset[str]] = {
         "source_run_id",
         "generated_by",
         "authority_at_creation",
+        # F-2: generation identity is publisher-derived at promotion;
+        # candidates must not carry it (strip rule applies as for F-1).
+        "generation_id",
+        "generation_number",
     }),
     "attention-item.schema.json": frozenset({
         *_COMMON_HARNESS_FIELDS,

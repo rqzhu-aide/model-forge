@@ -59,6 +59,31 @@ def catalog() -> SchemaCatalog:
     return SchemaCatalog.load(SCHEMA_DIRECTORY)
 
 
+class TestDecisionRecordGenerationIdentity:
+    """F-2: decision-record generation_id is harness-owned (publisher derives
+    the real digest-bound id at promotion); candidates must not carry it.
+    Production evidence: P3 decision candidate carried the agent-invented
+    sequential id generation.decision.p3.anel...1 (run b78248ac)."""
+
+    def test_decision_without_generation_id_validates(self, catalog) -> None:
+        import json as _json
+        doc = _json.loads(
+            (GOLDEN / "decision-record.example.json").read_text("utf-8")
+        )
+        assert "generation_id" in doc  # golden record carries the published id
+        doc.pop("generation_id")
+        errors = list(catalog.validate("decision-record.schema.json", doc))
+        assert errors == [], [str(e) for e in errors]
+
+    def test_agent_generation_id_stripped_from_decision(self) -> None:
+        facts = _facts(phase="P3", mode="p3.theory_establishment")
+        doc = {"generation_id": "generation.decision.p3.invented.1",
+               "generation_number": 1, "headline": "h"}
+        out = populate_harness_fields(doc, facts, "decision-record.schema.json")
+        assert "generation_id" not in out
+        assert "generation_number" not in out
+
+
 class TestRecordTypeConstFallback:
     """F-1b: candidate outputs not in any publication binding still get the
     harness-owned record_type, derived from the schema const - never

@@ -47,7 +47,7 @@
     }
   },
   "occurred_at": "2026-08-02T14:30:00Z",
-  "prior_audit_root_sha256": "1fe2247186b9350a01ed20802caa5e98c4414d41a6986c84d767b82d13767980",
-  "content_sha256": "b9afafd566428f2ba786682365dbdd9e750dfccf29168a66aa4c6658aa808d93",
-  "audit_root_sha256": "a86cba49e1655681d9274d41f1bd6a25aafd6adb59bc1e11d952cc454c6a90ff"
+  "prior_audit_root_sha256": "cfef2f2d878a5ac6c59d56ef3d89bcbb1302df1bf4157ecf7ecd399b380f3e80",
+  "content_sha256": "15d5c32c66156478164fe65fc1336e96a68df2626dafad657bb9997ede371dd7",
+  "audit_root_sha256": "c54bdb42fe3017e0f4f6ec3480dfa3bb9c20b2dd83beadac9bb8535479801a85"
 }

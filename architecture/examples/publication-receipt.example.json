@@ -8,9 +8,9 @@
     "command_id": "command.p4.preliminary.001",
     "run_id": "run.p4.preliminary.20260801t140000z",
     "phase": "P4",
-    "manifest_sha256": "13a6de42be768be18d839eea2493c4ecd7e195ba4b2c243c25da76a0e53d40bd",
+    "manifest_sha256": "03559628a571c3219d0b0a1e73cf82521cddffc1fa6e21be519b12b46c8ab396",
     "submission_id": "submission.p4.001",
-    "submission_sha256": "6ac0f418dd46783c7c5f11e233e5601428008035f2343c70927c554e3bbdce08"
+    "submission_sha256": "55d2fccb707ef130a6c23ed634f3fc1d950f35c40bc695fc610edafa719fa55a"
   },
   "validation_reports": [
     {
@@ -115,7 +115,7 @@
   "alignment_impacts": [],
   "atomic": true,
   "published_at": "2026-08-01T15:10:04Z",
-  "content_sha256": "003b39f6cd51562ca2cc6a11a2006de18d5619861190d892950e4b0f75370ca7",
+  "content_sha256": "5cc9f7c0e69412e2988b1cee4527fcca4cdb99401024eccd09819ea2db2c8550",
   "cumulative_object_changes": [
     {
       "object_id": "evidence.simulation.preliminary.001",

@@ -160,12 +160,42 @@ F-2 watch confirmed in production: the phase-decision candidate carries an
 agent-invented sequential `generation.decision.p3.anel...1` (decision-record
 generation_id is still agent-authored, not harness-owned).
 
-- decision-record.schema.json still requires an agent-authored
-  `generation_id` (not harness-owned): the sealed phase-decision candidate
-  on the fresh P1 carries the invented value `generation.p1.decision.001`
-  while the envelope carries the real derived id. Same anti-pattern, small;
-  recommend an F-2 follow-up (relax + strip) at the next contract window.
-- C-2 correction-scope package (section 2) - now two production hits; the
-  dominant recovery gap.
-- The fresh cycle continues: P3 theory synthesis on the 4-method catalog
-  (orchestrator choice: research_lead, as before).
+## 7. Backlog sweep (2026-08-25): F-2, E-1e, C-2, FP-7
+
+Authorized by Tez as a broader autonomous sweep ("fix all remaining
+issues and unfinished plan"), executed planner-direct with per-package
+gates (suite + validator green before each commit):
+
+- **F-2** (`eacf55c`): decision-record `generation_id`/
+  `generation_number` are harness-owned; relaxed from required; strip
+  rule covers them; all five phase contracts bumped (P1 2.3.0, P2 2.4.0,
+  P3 2.4.0, P4 2.3.0, P5 2.2.0). Motivated by the P3 production
+  observation (`generation.decision.p3.anel...1` agent-invented). The
+  publisher already ignores candidate values (the published decision
+  generation was digest-bound), so no downstream reader changes.
+- **E-1e** (`43433cb`): stage-2 reviewer structured evaluations -
+  optional `method_evaluations` on the handoff schema (axis optional;
+  stage validators own axis enforcement), `stable_id` on unresolved
+  issues, blocking rule `p2.review_evaluations_missing`
+  (correctable/packaging), both cross-review instruction templates
+  require the field, dev-executor example updated.
+- **C-2** (`255fd47`): the partial-seal correction trap closed. The
+  scope gate now admits sealed UNION plan-declared outputs for FAILED
+  closures (succeeded closures keep sealed-only; K5-3 zero-seal path
+  unchanged). The Lane B blast-radius verifier's K5-3 branch already
+  treats wholesale creation of an output without sealed source bytes as
+  the correction itself, so the union is sufficient - no lane changes.
+  Plan doc: `plans/c2-partial-seal-correction-scope-plan-2026-08-25.md`.
+  Note: the gate's `_plan_from_recipe` pins the frozen contract digest,
+  so pre-bump failed runs (e.g. fresh P2 `4a71023d`) stay uncorrectable
+  by design; the fix applies to failures on current contracts.
+- **FP-7** (`d6d2445`): artifact fetches routed through the web API
+  client (`requestText` + `api.getArtifactContent`); items 1-3 verified
+  already resolved in-tree. vitest 157 green, tsc clean.
+
+Registry reconciliation (`25ae525`): E-2e probe, F-1 production proof,
+E-1e, C-2 marked landed; FP-2 marked SATISFIED (HV disclosed repairs +
+K-2 sign-off); NA-2/P7 marked resolved (`894203a`); K-2 resolved; P0-3
+folded into FP-2. Open decision memo for Tez:
+`plans/open-decisions-memo-2026-08-25.md` (P0-2 presence model, K-1 D5,
+user-activation transaction, FP-8 isolation, P1-3 hide-vs-dim, K-7).

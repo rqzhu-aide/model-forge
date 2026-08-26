@@ -113,6 +113,38 @@ start command returns at launch, not at completion) and reuses the
 existing reconciliation. (b)'s reconciliation half is worth doing
 regardless as a safety net.
 
+Addendum (2026-08-26, second exercise on run e32ca610): the request
+returned 200 within seconds while the invocation + closure ran in the
+background - so the handler is NOT purely synchronous; the orphan
+mechanism in attempt 1 needs the Phase-1 replay loop to pin down (per
+the diagnosing-bugs discipline: the disconnect-cancellation causal claim
+remains UNVERIFIED by reproduction). Also confirmed D6 semantics live:
+a failed correction closure with one lane's bound remaining leaves the
+run in `correcting` BY DESIGN (no transition event) - the recovery is
+the other lane or a fresh command, not a wedge. The packaging lane then
+recovered the run.
+
+## D-8. Harness-owned envelope fields are only stamped AT SEAL (F-3)
+
+`content_sha256`, `created_at`, `schema_version` sit in the harness-owned
+set (envelope.py) and are recomputed/overwritten at sealing - but
+validation runs on the raw agent output and still REQUIRES them. The
+agent must therefore author bootstrap values for fields it cannot
+compute correctly by construction (a self-referential digest). F-1b/F-1c
+added the population tier for `record_type` only; the same treatment was
+never extended to the envelope trio. Production cost: the P4 correction
+invocation (run e32ca610) wrote the right scientific content with the
+wrong envelope shape and burned the scientific attempt on
+`schema.required` findings for exactly these fields.
+
+Recommendation: extend the F-1 population machinery so harness-owned
+fields are populated BEFORE validation (compute content_sha256 over the
+agent content, set created_at, const-populate schema_version), making
+validation check science, not plumbing. Schema/contract version impact:
+population is harness-side; no contract text changes required if the
+schemas already declare these fields harness-owned - verify per schema
+before implementation.
+
 ## FP-7 status (frontend small repairs)
 
 Being handled in this sweep as code items where the intent is unambiguous

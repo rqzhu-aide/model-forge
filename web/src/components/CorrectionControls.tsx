@@ -281,6 +281,7 @@ export function CorrectionControls({
           title={CONFIRM_TITLES[confirm]}
           confirmLabel={CONFIRM_LABELS[confirm]}
           busy={mutation.isPending}
+          busyNote="Recording the command and preparing the correction workspace can take up to a minute - keep this dialog open."
           onCancel={() => setConfirm(null)}
           onConfirm={() => mutation.mutate(confirm)}
         />

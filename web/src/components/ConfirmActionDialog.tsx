@@ -13,6 +13,7 @@ export function ConfirmActionDialog({
   title,
   confirmLabel,
   busy,
+  busyNote,
   onCancel,
   onConfirm,
 }: {
@@ -21,6 +22,7 @@ export function ConfirmActionDialog({
   title: string;
   confirmLabel: string;
   busy: boolean;
+  busyNote?: string;
   onCancel: () => void;
   onConfirm: (reason: string) => void;
 }) {
@@ -91,6 +93,11 @@ export function ConfirmActionDialog({
             {busy ? "Submitting..." : confirmLabel}
           </button>
         </div>
+        {busy && busyNote ? (
+          <p className="run-monitor-note" role="status">
+            {busyNote}
+          </p>
+        ) : null}
       </form>
     </dialog>
   );

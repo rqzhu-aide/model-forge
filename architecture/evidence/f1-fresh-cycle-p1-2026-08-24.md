@@ -160,7 +160,71 @@ F-2 watch confirmed in production: the phase-decision candidate carries an
 agent-invented sequential `generation.decision.p3.anel...1` (decision-record
 generation_id is still agent-authored, not harness-owned).
 
-## 7. Backlog sweep (2026-08-25): F-2, E-1e, C-2, FP-7
+## 8. P4 preliminary empirical (2026-08-26): correction-lane recovery arc
+
+Run `run.p4.p4-preliminary.e32ca610c19c44ddaaa8f4722c6efde5`, published
+19:20 UTC (receipt revision 6). Arc: analyst closure FAILED (iteration
+limit hit at the final write step; protocol sealed, three outputs
+unproduced) -> scientific correction (resume-from-prior-work; the agent
+finished in ~4 minutes from its sealed protocol + artifacts) closed
+FAILED on envelope plumbing: evidence.json was written as a bare array
+and all three outputs lacked the harness-owned envelope fields
+(schema_version, created_at, content_sha256) - validation requires them
+but stamping happens only at seal (filed as D-8/F-3) -> packaging
+correction (harness-generated instruction from findings) PASSED in
+~4 minutes -> pipeline resumed (K5-4 edge) -> theorist and lead stages
+clean -> submitted -> published.
+
+Production-first evidence for the correction taxonomy: both Lane B lanes
+exercised on real failures, D6 correcting-state semantics confirmed live,
+HV-5.6 bounded-attempt accounting confirmed (spent lanes stay spent;
+a correction closure that never executed still spends its attempt - see
+D-7 for the orphaned first attempt on the earlier P4 run).
+
+Empirical results (sealed evidence record, 6 entries, all SUPPORTED at
+prespecified thresholds, 200 replicates per arm, exact gradient-cost
+parity B = N x T verified by instrumented counters):
+
+- Marginal exactness: shared-noise trajectory difference 0.0 bitwise;
+  ESS-per-gradient ratios ANEL/ULA in [0.997, 1.008] (95% CIs across
+  four targets) - no mixing/exploration acceleration, as theorized.
+- Asymmetric double well: stationary within-pair correlation
+  rho_* = -0.8820 (CI [-0.8829, -0.8812]); time-averaged pooled
+  variance ratio R_time = 0.1499 (CI [0.1135, 0.1977]).
+- Gaussian targets: pooled linear-functional estimator near-exact
+  zero-variance, R_term ~ 1e-31.
+- Mirror-locked symmetric target: even-functional (x^2) variance ratio
+  R_time = 1.8577 (CI [1.4085, 2.4201] contains the predicted 2).
+- Mirror lock exact: max |pair sum| = 0.0 over all steps, pairs,
+  replicates; within-pair correlation exactly -1.
+- Cost parity exact: 48,000 / 64,000 / 320,000 / 160,000 gradient
+  evaluations per replicate on G1/G2/A1/S1, both arms; wall-clock
+  within +/-4%.
+
+## 9. P5 assembly (2026-08-26): rejection -> correction -> publish
+
+Run `run.p5.p5-assembly.d93f58913040492ba7da9a72f28b4b0c`, published
+19:55 UTC (receipt revision 7). The assembly lead sealed all 8 outputs
+with zero closure findings, but the SUBMISSION gate rejected the run:
+claims in p5.claim_traceability without supporting/counterevidence ids.
+The terminal message displayed only the first four findings as generic
+text (findings[:4] join) and the persisted validation_report carried
+only status+summary (filed as D-9). A local replay of the real
+validator over the sealed artifacts (run-store forensics) identified 25
+unlinked claims: theorems without theory-record links, empirical claims
+without evidence-record links, definitions without the method-record
+link. A scientific correction (scope: claim_traceability +
+manuscript_candidate) re-invoked the assembly lead with a linkage-only
+instruction; the correction passed, the run re-submitted automatically,
+and submission validation passed. First production correction exercised
+on a REJECTED run.
+
+Cycle summary: P1 -> P2 (catalog + selection) -> P3 -> P4 -> P5 all
+published on one continuous authority chain (revisions 1..7), every
+phase mode through the local_hermes path - the five-phase pilot required
+by the trusted-local-execution program (WP-I) is complete.
+
+## 10. Backlog sweep (2026-08-25): F-2, E-1e, C-2, FP-7
 
 Authorized by Tez as a broader autonomous sweep ("fix all remaining
 issues and unfinished plan"), executed planner-direct with per-package

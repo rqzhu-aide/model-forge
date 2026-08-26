@@ -39,8 +39,11 @@ specification or decision record before code relies on such a change.
 - [Trusted Local Execution Program](trusted-local-execution-program.md) -
   the program-level plan for Version 1 execution work (WP-A through WP-I).
   WP-A through WP-H are complete (WP-G: `8edeeb1`; WP-H1: `f494aa0`; WP-H2:
-  `b8f7b37` + `095b421`; WP-F: through `8efcd1c`). WP-I (phase adapters and
-  five-phase pilot) remains.
+  `b8f7b37` + `095b421`; WP-F: through `8efcd1c`). WP-I is CLOSED
+  (2026-08-26, section 7 of the program doc): the single default output
+  adapter carried every phase of the fresh five-phase pilot
+  (P1-P5 published on the entangled-Langevin project, authority
+  revisions 1..7); no phase-specific adapter proved necessary.
 - [Trusted Local Hermes Execution Closure](next-block-local-hermes-execution-closure.md)
   defines the block definitions the program dispatches; WP-I cites its
   acceptance evidence.

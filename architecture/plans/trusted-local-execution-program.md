@@ -392,3 +392,28 @@ Rootless OCI or any security sandbox; provider-only network enforcement;
 malicious-tool protection; multi-user hosting; unattended remote execution;
 Windows support; automatic scientific retries or phase progression;
 autonomous project direction.
+
+## 7. WP-I closure (2026-08-26)
+
+Status: CLOSED. The five-phase pilot required as WP-I's remaining
+acceptance evidence ran on the entangled-Langevin project (fresh store,
+2026-08-24 through 2026-08-26): P1 literature, P2 catalog + selection,
+P3 theory, P4 preliminary empirical, P5 assembly - all published through
+the local_hermes path on one continuous authority chain (receipt
+revisions 1..7). Full record:
+`architecture/evidence/f1-fresh-cycle-p1-2026-08-24.md` sections 1-9.
+
+The "remaining phase-specific WP2 output adapters" item closed without
+new code: the single DefaultOutputAdapter (companion-file linking)
+carried every phase's outputs correctly through the pilot - no
+phase-specific adapter proved necessary, and every sealed output's
+artifact bindings verified at publication. If a future phase contract
+needs adapter behavior the default cannot express, that becomes a new
+planned package against this note.
+
+Incidents during the pilot (all filed in the open-decisions memo):
+C-3/D-7 (correction orphaning), D-8/F-3 (envelope stamping at seal vs
+required at validation), D-9 (rejection findings not persisted;
+closure-vs-submission validation asymmetry). None invalidated the
+pilot's acceptance: every failure was caught by the contract/validation
+gates, and every recovery ran through the designed correction lanes.

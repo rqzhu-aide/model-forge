@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { api } from "../api/client";
 import type { ContextOption } from "../api/types";
 
 interface GroupFeedbackModalProps {
@@ -63,17 +64,9 @@ function RecordSection({
   useEffect(() => {
     if (!artifactId) return;
     setLoading(true);
-    fetch(`/api/v1/projects/${projectId}/artifacts/${artifactId}`)
-      .then(async (res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const contentType = res.headers.get("content-type") ?? "";
-        if (contentType.includes("application/json")) {
-          const data = await res.json();
-          setHighlight(typeof data === "string" ? data : JSON.stringify(data, null, 2));
-        } else {
-          setHighlight(await res.text());
-        }
-      })
+    api
+      .getArtifactContent(projectId, artifactId)
+      .then(setHighlight)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [artifactId, projectId]);

@@ -93,6 +93,24 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
+async function requestText(path: string): Promise<string> {
+  // Artifact content may be JSON or plain text; discriminate by content
+  // type and pretty-print JSON payloads (FP-7.5: route artifact fetches
+  // through the client instead of raw fetch in components).
+  const response = await fetch(`${API_ROOT}${path}`, {
+    headers: { Accept: "application/json, text/plain, */*" },
+  });
+  if (!response.ok) {
+    throw new ApiError(`Request failed (${response.status}).`, response.status);
+  }
+  const contentType = response.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    const data = await response.json();
+    return typeof data === "string" ? data : JSON.stringify(data, null, 2);
+  }
+  return response.text();
+}
+
 function commandRequest<T>(
   path: string,
   method: "POST" | "PATCH",
@@ -176,6 +194,11 @@ export const api = {
   getRun: (projectId: string, runId: string) =>
     request<RunDetail>(
       `/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}`,
+    ),
+
+  getArtifactContent: (projectId: string, artifactId: string) =>
+    requestText(
+      `/projects/${encodeURIComponent(projectId)}/artifacts/${encodeURIComponent(artifactId)}`,
     ),
 
   listRunEvents: (projectId: string, runId: string, afterSequence = 0) =>

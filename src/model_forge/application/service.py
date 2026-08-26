@@ -2685,13 +2685,22 @@ class ModelForgeService:
         outputs; its correctable scope is the failed stage/role's
         plan-declared contract outputs from the frozen recipe.  Closures
         that sealed outputs keep their exact declared set.
+
+        C-2: a FAILED closure that sealed SOME outputs (partial seal)
+        admits the union - sealed outputs plus the failed stage/role's
+        remaining plan-declared contract outputs.  Sealing position is an
+        accident of where validation failed, not a difference in role
+        authority; the Lane B blast-radius verifier already treats
+        wholesale creation of an output without sealed source bytes as
+        the correction itself (K5-3 branch).  SUCCEEDED closures (D5
+        rejected-run path) keep the sealed-only scope.
         """
         declared = {
             str(entry["contract_output_id"])
             for entry in closure_payload.get("outputs", ())
             if type(entry) is dict and "contract_output_id" in entry
         }
-        if declared:
+        if declared and str(closure_payload.get("status")) != "failed":
             return declared
         stage_id = closure_payload.get("stage_id")
         role = closure_payload.get("role")
@@ -2700,7 +2709,7 @@ class ModelForgeService:
         recipe = _recipe_for_run(self.repository, run_id)
         plan = _plan_from_recipe(self.specification, recipe)
         output_plan = build_output_plan(plan)
-        return {
+        return declared | {
             spec.contract_output_id
             for spec in output_plan.for_stage_role(str(stage_id), str(role))
         }

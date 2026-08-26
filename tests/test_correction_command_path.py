@@ -1008,3 +1008,96 @@ def test_preview_output_scope_falls_back_to_plan_declared(
         assert view.output_scope == [_scope(fixture)]
 
     asyncio.run(scenario())
+
+
+def test_correction_scope_partial_seal_admits_plan_declared_union(
+    tmp_path: Path,
+) -> None:
+    """C-2: a FAILED closure that sealed SOME outputs admits the union of
+    sealed and plan-declared outputs for the failed stage/role.
+
+    Production trap: archived P1 run bf5acb79 and fresh P2 run 4a71023d -
+    the failed required output was unsealed, the scope gate admitted only
+    the sealed remainder, and no correction lane could bind the missing
+    output (revalidate exhausted with output.required_missing).
+    """
+    fixture = _Fixture(tmp_path, DeterministicFakeExecutor(_golden_output))
+    stack = _ServiceStack(fixture)
+    # The discovery roles declare a single output each; the lead synthesis
+    # stage declares several - use it so a partial seal is possible.
+    lead_stage = next(
+        stage
+        for stage in fixture.plan.stages
+        if any(
+            len(fixture.output_plan.for_stage_role(stage.stage_id, step.role))
+            >= 2
+            for step in stage.role_steps
+        )
+    )
+    lead_role = next(
+        step.role
+        for step in lead_stage.role_steps
+        if len(fixture.output_plan.for_stage_role(lead_stage.stage_id, step.role))
+        >= 2
+    )
+    specs = fixture.output_plan.for_stage_role(lead_stage.stage_id, lead_role)
+    sealed_spec = specs[0]
+    stored = fixture.artifacts.put_bytes(b"{}")
+    fixture.repository.record_artifact(
+        output_artifact_id(fixture.context, sealed_spec, str(stored.sha256)),
+        PROJECT,
+        str(stored.sha256),
+        stored.size,
+        "application/json",
+        f"artifact://sha256/{stored.sha256}",
+        {
+            "kind": "validated_role_output",
+            "run_id": RUN,
+            "contract_output_id": sealed_spec.contract_output_id,
+            "output_id": sealed_spec.output_id,
+            "storage_relative_path": stored.relative_path,
+        },
+    )
+    payload = {
+        "format": "model-forge.role-invocation-closure",
+        "run_id": RUN,
+        "project_id": PROJECT,
+        "stage_id": lead_stage.stage_id,
+        "role": lead_role,
+        "status": "failed",
+        "failure_code": "output.structural_validation_failed",
+        "outputs": [
+            {
+                "contract_output_id": sealed_spec.contract_output_id,
+                "output_id": sealed_spec.output_id,
+                "sha256": str(stored.sha256),
+            }
+        ],
+        "findings": [],
+    }
+    sealed = {e["contract_output_id"] for e in payload["outputs"]}
+    assert sealed
+
+    plan_ids = {spec.contract_output_id for spec in specs}
+    assert len(plan_ids) >= 2  # the role declares more than it sealed
+
+    scope = stack.service._correction_scope_outputs(RUN, payload)
+    assert sealed <= scope
+    assert plan_ids <= scope  # the unsealed remainder is now admissible
+
+
+def test_correction_scope_succeeded_closure_stays_sealed_only(
+    tmp_path: Path,
+) -> None:
+    """C-2 non-goal: SUCCEEDED closures (D5 rejected-run path) keep the
+    sealed-only scope - the union applies only to failed closures."""
+    fixture = _Fixture(tmp_path, DeterministicFakeExecutor(_golden_output))
+    stack = _ServiceStack(fixture)
+    payload = {
+        "status": "succeeded",
+        "stage_id": fixture.stage.stage_id,
+        "role": "theorist",
+        "outputs": [{"contract_output_id": "p1.discovery_proposal"}],
+    }
+    scope = stack.service._correction_scope_outputs(RUN, payload)
+    assert scope == {"p1.discovery_proposal"}

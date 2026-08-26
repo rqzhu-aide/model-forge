@@ -100,11 +100,15 @@ def _record_failed_packaging_attempt(
 def _still_defective_output(invocation, offset):
     """DeterministicFakeExecutor factory that re-emits the SAME defect.
 
-    The corrected bytes still miss the required ``created_at`` timestamp,
-    so output validation (and therefore the Lane B attempt) fails.
+    The corrected bytes carry a wrong-typed required ``completed_work``
+    field - an agent-owned field that harness-owned envelope population
+    (F-3) cannot repair, so output validation (and therefore the Lane B
+    attempt) fails.  (Missing ``created_at`` or a wrong-typed ``sequence``
+    no longer work as defects: both are harness-owned and populated.)
     """
-
-    return json.loads(_fixable_defect_bytes())
+    document = json.loads(_fixable_defect_bytes())
+    document["completed_work"] = 123
+    return document
 
 
 async def _prepare_failed_run(fixture: _Fixture) -> str:

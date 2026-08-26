@@ -1900,9 +1900,66 @@ class RoleLifecycleService:
         failure_code: str | None = None
         sealed_outputs: tuple[SealedRoleOutput, ...] = ()
         findings: list[dict[str, Any]] = []
+        transformation_summaries: list[dict[str, Any]] = []
         if self.repository.cancellation_requested(run_id):
             status = RoleExecutionStatus.CANCELLED
         elif status is RoleExecutionStatus.SUCCEEDED:
+            # F-3: correction closures run the same disclosed mechanical
+            # repair + harness-owned envelope population stage (HV-4) as
+            # normal closures, restricted to the correction's permitted
+            # output scope so materialized source bytes for out-of-scope
+            # outputs stay byte-identical for blast-radius verification.
+            scoped_plan = replace(
+                output_plan,
+                specs=tuple(
+                    spec
+                    for spec in output_plan.specs
+                    if spec.contract_output_id in output_scope
+                ),
+            )
+
+            # Snapshot the agent's raw in-scope bytes BEFORE the repair pass:
+            # blast-radius verification below judges the agent's own edits.
+            # Comparing post-repair bytes would attribute harness-authored
+            # transformations (HV-4 envelope population, self-referential
+            # hash recomputation) to the agent and fabricate violations.
+            agent_raw_bytes: dict[str, bytes] = {}
+            for scoped_spec in scoped_plan.specs:
+                raw_path = (
+                    self.workspace.for_read(f"runs/{run_id}")
+                    / scoped_spec.relative_path
+                )
+                if raw_path.is_file():
+                    agent_raw_bytes[scoped_spec.contract_output_id] = (
+                        raw_path.read_bytes()
+                    )
+
+            def _canonical_source_lookup(digest: str) -> "str | None":
+                with self.repository.database.connect() as connection:
+                    row = connection.execute(
+                        "SELECT artifact_id FROM artifacts "
+                        "WHERE sha256 = ? AND project_id = ? "
+                        "ORDER BY rowid LIMIT 1",
+                        (digest, str(self.context.project_id)),
+                    ).fetchone()
+                if row is None:
+                    return None
+                return str(row["artifact_id"])
+
+            repair_records = _apply_disclosed_mechanical_repairs(
+                run_root=self.workspace.for_read(f"runs/{run_id}"),
+                output_plan=scoped_plan,
+                stage=stage,
+                role=role,
+                run_id=run_id,
+                project_id=str(self.context.project_id),
+                run_facts=self._sealed_run_facts(stage, role),
+                record_type_by_output=self._record_type_by_output(),
+                canonical_source_lookup=_canonical_source_lookup,
+            )
+            transformation_summaries = [
+                record.to_dict() for record in repair_records.values()
+            ]
             validation = validate_role_outputs(
                 schema_catalog=self.schemas,
                 run_root=self.workspace.for_read(f"runs/{run_id}"),
@@ -1959,8 +2016,8 @@ class RoleLifecycleService:
                     for contract_output_id, data in source_output_bytes.items()
                 }
                 corrected_documents = {
-                    item.spec.contract_output_id: json.loads(item.path.read_bytes())
-                    for item in validation.outputs
+                    contract_output_id: json.loads(data)
+                    for contract_output_id, data in agent_raw_bytes.items()
                 }
                 violations = verify_correction_blast_radius(
                     source_outputs=source_documents,
@@ -2002,7 +2059,7 @@ class RoleLifecycleService:
             "failure_code": failure_code,
             "outputs": [self._output_document(item) for item in sealed_outputs],
             "findings": findings,
-            "output_transformations": [],
+            "output_transformations": transformation_summaries,
             "raw_output_sha256": None,
             "closed_at": closed_at,
         }

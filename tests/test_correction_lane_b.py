@@ -362,6 +362,99 @@ def test_correction_replay_is_idempotent(tmp_path: Path) -> None:
     assert fixture.repository.count_validation_attempts(RUN) == 1
 
 
+# --------------------------------------------------------------------------- #
+# F-3: correction closures populate harness-owned envelope fields (HV-4)
+# --------------------------------------------------------------------------- #
+
+
+def _golden_missing_envelope(invocation, offset: int):
+    """Golden bytes minus every harness-owned envelope field (F-3 shape).
+
+    Production, 2026-08-26: a scientific correction wrote structurally sound
+    content but omitted schema_version/created_at; the correction close path
+    validated the raw bytes directly (unlike the normal close path, which
+    populates HV-4 fields first) and burned the attempt on schema.required
+    plumbing findings.
+    """
+    document = _golden_output(invocation, offset)
+    if isinstance(document, dict) and "handoff_id" in document:
+        document = {
+            key: value
+            for key, value in document.items()
+            if key
+            not in {
+                "schema_version",
+                "created_at",
+                "content_sha256",
+                "run_id",
+                "phase",
+                "sequence",
+                "from_role",
+                "to_role",
+                "handoff_id",
+            }
+        }
+    return document
+
+
+def test_correction_close_populates_harness_owned_fields(tmp_path: Path) -> None:
+    from model_forge.schemas import SchemaCatalog
+    from test_correction_execution import ARCHITECTURE
+
+    fixture = _Fixture(
+        tmp_path, DeterministicFakeExecutor(_golden_missing_envelope)
+    )
+    base_closure_id = _seal_failed_closure_bytes(
+        fixture, "theorist", _fixable_defect_bytes()
+    )
+    # REAL schema catalog: without HV-4 population the stripped output fails
+    # validation exactly as it did in production.
+    context = dataclasses.replace(
+        fixture.context,
+        submission_from_status="correcting",
+        correction_command_id="cmd_f3",
+        correction_type="scientific",
+    )
+    services = HarnessExecutionServices(
+        context=context,
+        repository=fixture.repository,
+        executor=fixture.executor,
+        schemas=SchemaCatalog.load(ARCHITECTURE / "schemas"),
+        artifacts=fixture.artifacts,
+        workspace=fixture.workspace,
+    )
+    outcome = _drive(
+        fixture,
+        services,
+        base_closure_id,
+        "cmd_f3",
+        "scientific",
+        (_scope(fixture),),
+        user_instruction="Re-issue the handoff without envelope fields.",
+    )
+
+    assert outcome.passed is True
+    assert outcome.findings == ()
+
+    row = fixture.repository.get_role_closure(outcome.closure_id)
+    assert row is not None
+    document = loads_json(row["payload_json"], source="correction closure")
+    assert document["status"] == "succeeded"
+    # The population is disclosed on the closure as transformation records.
+    assert document["output_transformations"], (
+        "envelope population must be recorded as output transformations"
+    )
+
+    # The sealed corrected bytes carry the populated envelope fields.
+    sealed = document["outputs"][0]
+    stored = fixture.artifacts.read_bytes(sealed["sha256"])
+    corrected = loads_json(stored, source="sealed correction output")
+    assert corrected["schema_version"]
+    assert corrected["created_at"]
+    assert corrected["run_id"] == RUN
+    assert corrected["from_role"] == "theorist"
+
+
 def test_packaging_wholesale_creation_of_source_absent_output_is_clean() -> None:
     # K5-3: the source closure sealed no bytes for the output (validation
     # failed before sealing); wholesale creation in scope is the

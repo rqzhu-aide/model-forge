@@ -86,6 +86,33 @@ documents the mode's basis.
 Documented as deliberately open; no action proposed. Noted here so the
 audit trail shows it was considered in this sweep.
 
+## D-7. Long synchronous commands orphan on client disconnect (C-3)
+
+Observed 2026-08-26 in production: Lane B corrections run SYNCHRONOUSLY
+inside the HTTP request handler (`await execute_targeted_correction` in
+`request_output_correction`, ~30-60+ min for a role re-invocation). When
+the issuing client disconnects (a 30s client timeout did this), the ASGI
+server cancels the handler mid-invocation: the run is left in
+`correcting` with no live worker, no outcome events, and - because HV-5.6
+bounds count the recorded attempt conservatively (recorded at invocation
+start, pass or fail) - the single scientific attempt is SPENT without
+ever running. The only recovery is a full phase rerun.
+
+Options:
+- (a) Run corrections as detached background tasks: seal the command,
+  return 202 immediately, execute via the launcher; the UI polls state
+  (it already does). The restart-reconciliation machinery then also
+  covers corrections.
+- (b) Keep synchronous execution but document that clients must hold the
+  connection, and add reconciliation for orphaned `correcting` runs
+  (no live invocation + no outcome -> re-open the lane).
+- (c) Both.
+
+Recommendation: (a) - it matches how runs themselves launch (the run
+start command returns at launch, not at completion) and reuses the
+existing reconciliation. (b)'s reconciliation half is worth doing
+regardless as a safety net.
+
 ## FP-7 status (frontend small repairs)
 
 Being handled in this sweep as code items where the intent is unambiguous

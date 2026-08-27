@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 import sqlite3
 import threading
 from contextlib import contextmanager
@@ -315,21 +316,52 @@ class TestProfileAssembly:
                 SKILL_BUNDLE / skill.skill_id
             )
 
-    def test_custom_skills_declared_never_fabricated(
+    def test_bundled_custom_skills_installed_and_digested(
         self, assembler: RunProfileAssembler, catalog: RoleResourceCatalog
     ) -> None:
         resource = catalog.role("theorist")
-        assert resource.custom_skills
+        bundled = [
+            skill
+            for skill in resource.custom_skills
+            if skill.source == "model-forge/bundled"
+        ]
+        assert bundled
         sealed = assembler.seal_invocation(**_seal_kwargs())
         declared = sealed.manifest["role_definition"]["custom_skills"]
         assert {item["skill_id"] for item in declared} == {
             skill.skill_id for skill in resource.custom_skills
         }
-        assert all(item["copied"] is False for item in declared)
-        # No fabricated content: nothing was written for custom skills.
+        # Bundled custom skills are installed exactly like recommended ones.
+        assert all(
+            item["copied"] is (item["source"] == "model-forge/bundled")
+            for item in declared
+        )
         profile_skills = sealed.run_dir / "profile" / "skills"
         installed = {p.name for p in profile_skills.iterdir()}
-        assert not (installed & {skill.skill_id for skill in resource.custom_skills})
+        for skill in bundled:
+            assert skill.skill_id in installed
+            assert (profile_skills / skill.skill_id / "SKILL.md").is_file()
+            assert sealed.manifest["role_definition"]["asset_digests"][
+                f"skills/{skill.skill_id}"
+            ] == directory_sha256(SKILL_BUNDLE / skill.skill_id)
+
+    def test_bundled_custom_skill_missing_content_rejected(
+        self, tmp_path: Path, database: Database, catalog: RoleResourceCatalog
+    ) -> None:
+        bundle = tmp_path / "bundle"
+        bundle.mkdir()
+        for skill in catalog.role("theorist").recommended_skills:
+            shutil.copytree(SKILL_BUNDLE / skill.skill_id, bundle / skill.skill_id)
+        # The custom skill declaration stays, but its bundle content does not.
+        assembler = RunProfileAssembler(
+            data_root=tmp_path / "data",
+            role_resources=catalog,
+            database=database,
+            bundle_root=bundle,
+            hermes_probe=lambda binary: FAKE_HERMES,
+        )
+        with pytest.raises(RunSealError, match="unavailable in the bundle"):
+            assembler.seal_invocation(**_seal_kwargs())
 
     def test_missing_recommended_skill_bundle_rejected(
         self, tmp_path: Path, database: Database, catalog: RoleResourceCatalog

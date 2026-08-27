@@ -1218,9 +1218,10 @@ class RunProfileAssembler:
 
         The run profile is assembled only from the configuration-managed
         role definition (SOUL, base configuration, recommended skills,
-        library guidance).  Custom skills are declarations in the catalog
-        without bundled content, so they are recorded in the manifest and
-        never fabricated here.
+        library guidance).  Custom skills with source
+        ``model-forge/bundled`` are installed from the same bundle as
+        recommended skills; a bundled declaration without bundle content
+        is a catalog defect and fails the seal.
         """
         digests: dict[str, str] = {}
 
@@ -1242,7 +1243,12 @@ class RunProfileAssembler:
 
         skills_root = profile_dir / "skills"
         skills_root.mkdir(parents=True, exist_ok=True)
-        for skill in resource.recommended_skills:
+        installable = list(resource.recommended_skills) + [
+            skill
+            for skill in resource.custom_skills
+            if skill.source == "model-forge/bundled"
+        ]
+        for skill in installable:
             _validate_skill_id(skill.skill_id)
             source = (
                 self._bundle_root / skill.skill_id
@@ -1251,7 +1257,7 @@ class RunProfileAssembler:
             )
             if source is None or not source.is_dir() or source.is_symlink():
                 raise RunSealError(
-                    f"Recommended skill {skill.skill_id!r} for role "
+                    f"Skill {skill.skill_id!r} for role "
                     f"{resource.role_id!r} is unavailable in the bundle."
                 )
             dest = skills_root / skill.skill_id
@@ -1260,7 +1266,7 @@ class RunProfileAssembler:
                 digests[f"skills/{skill.skill_id}"] = directory_sha256(dest)
             except SkillInstallationError as error:
                 raise RunSealError(
-                    f"Skill {skill.skill_id!r} copy failed digest verification."
+                    f"Skill {skill.skill_id} copy failed digest verification."
                 ) from error
 
         for dirname in _WRITABLE_PROFILE_DIRS:
@@ -1397,7 +1403,7 @@ class RunProfileAssembler:
                         "skill_id": skill.skill_id,
                         "name": skill.name,
                         "source": skill.source,
-                        "copied": False,
+                        "copied": skill.source == "model-forge/bundled",
                     }
                     for skill in resource.custom_skills
                 ],

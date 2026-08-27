@@ -167,11 +167,32 @@ def compute_role_resources(
                 "sha256": library_guidance.sha256,
             },
             "custom_skills": [
-                {"skill_id": skill.skill_id, "source": skill.source}
+                _custom_skill_entry(skill, skill_manifest)
                 for skill in resource.custom_skills
             ],
         }
     return profiles, resources
+
+
+def _custom_skill_entry(
+    skill: Any, skill_manifest: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Snapshot one declared custom skill, exactly as bundled.
+
+    A custom skill with source ``model-forge/bundled`` must appear in the
+    bundled skill manifest with its content digest; a declaration without
+    bundled content is a catalog defect, not a snapshot to fabricate.
+    """
+    entry: dict[str, Any] = {"skill_id": skill.skill_id, "source": skill.source}
+    if skill.source != "model-forge/bundled":
+        return entry
+    bundled = skill_manifest["skills"].get(skill.skill_id)
+    if type(bundled) is not dict or not bundled.get("content_sha256"):
+        raise ValueError(
+            f"Bundled custom skill {skill.skill_id!r} is unavailable."
+        )
+    entry["content_sha256"] = str(bundled["content_sha256"])
+    return entry
 
 
 def load_skill_manifest(resource_root: Path) -> dict[str, Any]:

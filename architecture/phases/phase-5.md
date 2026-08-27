@@ -56,8 +56,8 @@ Review-revision mode also freezes:
 - The exact complete manuscript snapshot to be reviewed and its stable method lineage
 - Its prior upstream basis manifest
 - `p5.review_packet`, prepared by the harness from the manuscript snapshot, submitted supplements, cited references available to an external referee, and reviewer-facing user or venue instructions
-- The theorist read set: `p5.review_packet`, `p5.current_manuscript`, `p5.method`, `p5.theory`, and `p5.literature_synthesis`
-- The data analyst read set: `p5.review_packet`, `p5.current_manuscript`, `p5.method`, `p5.empirical_index`, `p5.empirical`, `p5.implementation_record`, and `p5.literature_synthesis`
+- The theorist read set: `p5.review_packet`, `p5.review_target_manuscript`, `p5.method`, `p5.theory`, and `p5.literature_synthesis`
+- The data analyst read set: `p5.review_packet`, `p5.review_target_manuscript`, `p5.method`, `p5.empirical_index`, `p5.empirical`, `p5.implementation_record`, and `p5.literature_synthesis`
 
 The outside reviewer's input allowlist contains only `p5.review_packet`. It excludes specialist audits, internal formal records, internal deliberation, hidden memory, and later role outputs. The sealed RunManifest role plan and prepared-context provenance freeze all three review-role allowlists and make reviewer independence testable.
 
@@ -65,7 +65,7 @@ The outside reviewer's input allowlist contains only `p5.review_packet`. It excl
 
 Assembly mode has one role stage:
 
-1. The research lead assembles or updates the complete manuscript from the frozen P1 through P4 records and produces the claim traceability and user decision records. Before sealing, the lead performs the in-house scientific check: every manuscript claim is linked in the claim traceability to its supporting literature, method, theory, or empirical record, or recorded as a limitation or open question. An unlinked claim is the lead's defect to resolve in-house, never the outside reviewer's discovery.
+1. The research lead assembles or updates the complete manuscript from the frozen P1 through P4 records and produces the claim traceability and user decision records. The run is situation-driven: when no current manuscript exists for the selected stable method lineage (`p5.current_manuscript` resolves to the absent-input marker on a first run), the lead writes the first complete manuscript; when a current draft exists (a rerun, where the input is required), the lead continues that draft, preserving its structure and voice, extending it where the frozen basis now supports more, and narrowing or removing claims the basis no longer supports. Before sealing, the lead performs the in-house scientific check: every manuscript claim is linked in the claim traceability to its supporting literature, method, theory, or empirical record, or recorded as a limitation or open question. An unlinked claim is the lead's defect to resolve in-house, never the outside reviewer's discovery.
 
 Review-revision mode has two stages:
 
@@ -95,7 +95,7 @@ Review-revision mode must additionally produce:
 - A complete issue disposition ledger using fixed, partially fixed, deferred, or rejected with justification
 - A lead revision account linked to changed manuscript locations
 
-The reviewed manuscript remains the frozen `p5.current_manuscript` input. The sealed RunManifest role plan and `p5.review_packet` provenance are the authoritative access manifests. The promoted manuscript package references its source run and manifest rather than duplicating them as role-produced scientific outputs.
+The reviewed manuscript remains the frozen `p5.review_target_manuscript` input. The sealed RunManifest role plan and `p5.review_packet` provenance are the authoritative access manifests. The promoted manuscript package references its source run and manifest rather than duplicating them as role-produced scientific outputs.
 
 All work remains run-local until validation and promotion. No role writes directly into the formal current manuscript location.
 

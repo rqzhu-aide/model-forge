@@ -390,12 +390,12 @@ def test_required_input_modes_must_exist(
     root = _copy_contracts(tmp_path)
 
     def mutation(contract: dict) -> None:
-        current_manuscript = next(
+        review_target = next(
             item
             for item in contract["required_inputs"]
-            if item["input_id"] == "p5.current_manuscript"
+            if item["input_id"] == "p5.review_target_manuscript"
         )
-        current_manuscript["required_in_modes"] = ["p5.does_not_exist"]
+        review_target["required_in_modes"] = ["p5.does_not_exist"]
 
     _mutate_phase_contract(root, "P5", mutation)
     with pytest.raises(PhaseContractError) as captured:

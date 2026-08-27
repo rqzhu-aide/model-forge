@@ -3,9 +3,19 @@ Scope: {{ scope }}
 {% if constraints %}Constraints: {{ constraints | join(", ") }}.
 {% endif %}{% if decision_criteria %}Decision criteria: {{ decision_criteria | join(", ") }}.
 {% endif %}
-Assemble the first complete integrated manuscript from the exact frozen
-Phase 1 through Phase 4 basis. This is assembly mode, not review-revision:
-do not invent reviewer feedback or a response-to-reviewers account.
+Assemble or update the complete integrated manuscript from the exact frozen
+Phase 1 through Phase 4 basis. The p5.current_manuscript slot tells you the
+situation:
+
+- If it holds the absent-input marker, no draft exists for this method
+  lineage: write the first complete manuscript from the frozen basis.
+- If it holds a current draft, this run is a continuation: keep the draft's
+  structure and voice, extend it with anything the frozen basis now
+  supports, and polish the whole. Preserve claims that remain supported;
+  narrow or remove claims the basis no longer supports.
+
+Review findings only exist in review-revision runs: do not invent reviewer
+feedback, dispositions, or a response-to-reviewers account.
 
 Write the complete readable manuscript as a supporting artifact inside the
 role workspace, then point p5.manuscript_candidate.manuscript_artifact to

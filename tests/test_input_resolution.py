@@ -414,7 +414,10 @@ _P5_ALWAYS_SELECTED = [
 
 def test_phase5_review_revision_manuscript_stays_required() -> None:
     """required_in_modes keeps its execution meaning: in review_revision mode
-    the current manuscript is mandatory — deselected or missing both fail."""
+    the review-target manuscript is mandatory — deselected or missing both
+    fail.  (P5 contract 2.4.0: the gate moved from p5.current_manuscript to
+    p5.review_target_manuscript; the current manuscript is now the
+    situation-aware required_on_rerun input.)"""
     _, method, contract = p5_review_contract()
 
     deselected = resolve_run_inputs(
@@ -427,20 +430,26 @@ def test_phase5_review_revision_manuscript_stays_required() -> None:
         project_id="project.demo",
         contract=contract,
         lookup=_p5_lookup(method, with_manuscript=False),
-        selected_context_option_ids=[*_P5_ALWAYS_SELECTED, "p5.current_manuscript"],
+        selected_context_option_ids=[*_P5_ALWAYS_SELECTED, "p5.review_target_manuscript"],
     )
     complete = resolve_run_inputs(
         project_id="project.demo",
         contract=contract,
         lookup=_p5_lookup(method, with_manuscript=True),
-        selected_context_option_ids=[*_P5_ALWAYS_SELECTED, "p5.current_manuscript"],
+        selected_context_option_ids=[
+            *_P5_ALWAYS_SELECTED,
+            "p5.current_manuscript",
+            "p5.review_target_manuscript",
+        ],
     )
 
     assert not deselected.passed
     assert "input.required_context_not_selected" in {
         item.code for item in deselected.findings
     }
-    assert "p5.current_manuscript" in {
+    # With a draft present, both manuscript inputs are required in
+    # review-revision: the situational slot and the review target.
+    assert {"p5.current_manuscript", "p5.review_target_manuscript"} <= {
         item.object_id for item in deselected.findings
     }
     assert not missing.passed
@@ -448,3 +457,54 @@ def test_phase5_review_revision_manuscript_stays_required() -> None:
         item.code for item in missing.findings
     }
     assert complete.passed
+
+
+def test_phase5_assembly_manuscript_is_situation_aware() -> None:
+    """P5 contract 2.4.0: p5.current_manuscript is required_on_rerun — absent
+    on the first assembly run (no draft to continue), mandatory on a rerun
+    (an established draft must be continued, not silently restarted)."""
+    package = SpecificationPackage.load(ARCHITECTURE)
+    method = MethodIdentity("method.demo", 1, "b" * 64)
+    plan = package.resolve_phase(
+        package.phases.identity("P5"),
+        "p5.assembly",
+        {
+            "p5.selected_method": method.to_dict(),
+            "p5.instructions": "Write the manuscript.",
+            "p5.selected_history": [],
+        },
+        "current_only",
+    )
+    contract = resolve_runtime_contract(package.phases, plan)
+
+    first_run = resolve_run_inputs(
+        project_id="project.demo",
+        contract=contract,
+        lookup=_p5_lookup(method, with_manuscript=False),
+        selected_context_option_ids=list(_P5_ALWAYS_SELECTED),
+    )
+    rerun = resolve_run_inputs(
+        project_id="project.demo",
+        contract=contract,
+        lookup=_p5_lookup(method, with_manuscript=True),
+        selected_context_option_ids=list(_P5_ALWAYS_SELECTED),
+    )
+    rerun_selected = resolve_run_inputs(
+        project_id="project.demo",
+        contract=contract,
+        lookup=_p5_lookup(method, with_manuscript=True),
+        selected_context_option_ids=[*_P5_ALWAYS_SELECTED, "p5.current_manuscript"],
+    )
+
+    # First assembly: no draft exists, and none is demanded.
+    assert first_run.passed
+    # Rerun: the established draft is required — deselecting it fails.
+    assert not rerun.passed
+    assert "p5.current_manuscript" in {
+        item.object_id for item in rerun.findings
+    }
+    # Rerun with the draft selected resolves it as an input.
+    assert rerun_selected.passed
+    assert "p5.current_manuscript" in {
+        item.contract_input_id for item in rerun_selected.inputs
+    }

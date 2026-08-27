@@ -3,26 +3,34 @@
 Status: for Tez. Each item needs a decision; none blocks the running fresh
 cycle. Recommendations are the coder's, prepared for audit.
 
-## D-1. P0-2: P5 contract presence model (context-selection issues)
+## D-1. P0-2: P5 contract presence model (context-selection issues) - RESOLVED
 
-The P5 contract cannot express "required in one mode, optional in another":
-`presence: required_in_modes` is the only conditional form and the schema
-forbids combining it with an optional base. Effect: in P5 assembly mode the
-prior manuscript slot is invisible (`p5.current_manuscript` is
-required_in_modes=[p5.review_revision] only), so a first assembly run has
-no manuscript input by design.
+DECIDED by Tez 2026-08-26: the mode boundary is not a schema problem to be
+patched with a third presence value; the phase should be situation-driven
+like a researcher.  Tez's instruction: "given these materials, write the
+draft if it is not established yet, and revise the draft if there is
+already a preliminary version."
 
-Options:
-- (a) Add a presence form `optional_in_modes` / `required_except_modes`
-  (schema change, needs an ADR).
-- (b) Keep the current model; accept that assembly always starts from the
-  P4 outputs (a prior manuscript enters only via review_revision).
-- (c) Split P5 into two modes with separate presence declarations.
+Landed (P5 contract 2.3.0 -> 2.4.0):
+- `p5.current_manuscript` is now `required_on_rerun` (the P3 pattern):
+  absent on the first manuscript run, required on reruns for the same
+  stable method lineage.  Assembly reruns now SEE the established draft
+  instead of an absent stub.
+- New input `p5.review_target_manuscript` (`required_in_modes:
+  [p5.review_revision]`) keeps the review-revision machine gate; the
+  parallel review role_reads and the review packet source it.
+- Assembly mode directive + stage-role assignment rewritten
+  situation-driven: absent marker -> write the first manuscript; current
+  draft -> continue and polish it, preserving supported claims.  Review
+  findings remain review-revision-only.
+- Review-revision stays a separate mode (the independent review panel is
+  a real quality gate); only the input semantics unified.
+- Researcher-supplied seed drafts (a manuscript that never passed through
+  a phase) remain impossible - inputs resolve from published current
+  records only.  That front door is a separate queued item.
 
-Recommendation: (b) for now - the first P5 run is unaffected, and the
-review-revision loop is the only path that needs the prior manuscript.
-Revisit when a second manuscript version is needed. If (a) is preferred,
-this is a small schema + ADR package.
+History: the original D-1 analysis (options a/b/c, recommendation b)
+superseded by Tez's direction.
 
 ## D-2. K-1 D5: revalidate unreachable for REJECTED runs
 

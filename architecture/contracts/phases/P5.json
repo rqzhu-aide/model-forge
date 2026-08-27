@@ -1,6 +1,6 @@
 {
   "phase_id": "P5",
-  "contract_version": "2.3.0",
+  "contract_version": "2.4.0",
   "prose_contract": "architecture/phases/phase-5.md",
   "name": "Manuscript assembly and revision",
   "scientific_purpose": "Maintain one complete, traceable manuscript for one exact method by reconciling the current literature, method, theory, and empirical records.",
@@ -220,8 +220,18 @@
       "publication_required": "formal",
       "position_required": "current",
       "method_match": "same_stable_method",
-      "purpose": "Provide the immutable prior complete paper and review target.",
-      "condition": "Required in review-revision mode and optional in assembly mode. It may use an older version of the selected stable method, but never a different method lineage.",
+      "purpose": "Provide the current draft manuscript when one exists, so assembly continues an established draft instead of starting over.",
+      "condition": "Absent on the first manuscript run for the selected stable method identity and required on reruns. It may use an older version of the selected stable method, but never a different method lineage.",
+      "presence": "required_on_rerun"
+    },
+    {
+      "input_id": "p5.review_target_manuscript",
+      "record_type": "manuscript",
+      "publication_required": "formal",
+      "position_required": "current",
+      "method_match": "same_stable_method",
+      "purpose": "Provide the immutable review target frozen for the parallel reviews and the revision.",
+      "condition": "Required in review-revision mode only; the reviewed manuscript must be a complete formal current record for the selected stable method lineage.",
       "presence": "required_in_modes",
       "required_in_modes": [
         "p5.review_revision"
@@ -246,7 +256,7 @@
       ],
       "constructed_by": "harness_during_preparation",
       "source_input_ids": [
-        "p5.current_manuscript",
+        "p5.review_target_manuscript",
         "p5.literature_library"
       ],
       "source_choice_ids": [
@@ -332,7 +342,7 @@
           "role": "theorist",
           "input_ids": [
             "p5.review_packet",
-            "p5.current_manuscript",
+            "p5.review_target_manuscript",
             "p5.method",
             "p5.theory",
             "p5.implementation_record",
@@ -343,7 +353,7 @@
           "role": "data_analyst",
           "input_ids": [
             "p5.review_packet",
-            "p5.current_manuscript",
+            "p5.review_target_manuscript",
             "p5.method",
             "p5.theory",
             "p5.empirical_index",
@@ -374,7 +384,7 @@
       "reads": [
         "p5.project_brief",
         "p5.literature_library",
-        "p5.current_manuscript",
+        "p5.review_target_manuscript",
         "p5.review_issue_ledger",
         "p5.method_catalog",
         "p5.method",

@@ -2395,11 +2395,25 @@ def validate_contracts(schemas, registry) -> tuple[list[str], dict]:
         errors.append("P5 lead revision must follow the fixed parallel reviews")
 
     p5_review_target = next(
-        (item for item in p5.get("required_inputs", []) if item["input_id"] == "p5.current_manuscript"),
+        (item for item in p5.get("required_inputs", []) if item["input_id"] == "p5.review_target_manuscript"),
         None,
     )
     if not p5_review_target or p5_review_target["method_match"] != "same_stable_method":
         errors.append("P5 review target must belong to the selected stable method lineage")
+    if (
+        p5_review_target
+        and (
+            p5_review_target.get("presence") != "required_in_modes"
+            or p5_review_target.get("required_in_modes") != ["p5.review_revision"]
+        )
+    ):
+        errors.append("P5 review target must be required in review-revision mode only")
+    p5_current_manuscript = next(
+        (item for item in p5.get("required_inputs", []) if item["input_id"] == "p5.current_manuscript"),
+        None,
+    )
+    if not p5_current_manuscript or p5_current_manuscript.get("presence") != "required_on_rerun":
+        errors.append("P5 current manuscript must be situation-aware (required_on_rerun)")
 
     role_reads = {
         item["role"]: item["input_ids"]
@@ -2412,7 +2426,7 @@ def validate_contracts(schemas, registry) -> tuple[list[str], dict]:
     expected_review_reads = {
         "theorist": [
             "p5.review_packet",
-            "p5.current_manuscript",
+            "p5.review_target_manuscript",
             "p5.method",
             "p5.theory",
             "p5.implementation_record",
@@ -2420,7 +2434,7 @@ def validate_contracts(schemas, registry) -> tuple[list[str], dict]:
         ],
         "data_analyst": [
             "p5.review_packet",
-            "p5.current_manuscript",
+            "p5.review_target_manuscript",
             "p5.method",
             "p5.theory",
             "p5.empirical_index",
@@ -2438,7 +2452,7 @@ def validate_contracts(schemas, registry) -> tuple[list[str], dict]:
     )
     if not review_packet or review_packet["applicable_modes"] != ["p5.review_revision"]:
         errors.append("P5 must construct one immutable review packet during review-revision preparation")
-    elif set(review_packet["source_input_ids"]) != {"p5.current_manuscript", "p5.literature_library"}:
+    elif set(review_packet["source_input_ids"]) != {"p5.review_target_manuscript", "p5.literature_library"}:
         errors.append("P5 review packet must derive from the manuscript and reviewer-visible literature")
     elif review_packet["source_choice_ids"] != ["p5.instructions"]:
         errors.append("P5 review packet must freeze the reviewer-facing user and venue instructions")

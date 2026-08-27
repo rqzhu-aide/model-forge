@@ -224,7 +224,12 @@ def test_p5_instructions_keep_modes_distinct_and_route_typed_gaps() -> None:
         stage_id="p5.parallel_reviews",
     )
 
-    assert "assembly mode, not review-revision" in assembly
+    # Assembly is situation-driven (P5 contract 2.4.0): the current
+    # manuscript slot decides write-vs-continue, and review findings belong
+    # to review-revision runs only.
+    assert "p5.current_manuscript slot" in assembly
+    assert "Absent-input marker" in assembly
+    assert "Review findings only exist in review-revision runs" in assembly
     assert "review-revision mode, not initial assembly" in revision
     for instruction in (assembly, revision):
         for prefix in (

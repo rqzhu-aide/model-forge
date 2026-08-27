@@ -2515,7 +2515,13 @@ class RoleLifecycleService:
                 break
         review_basis_generation_id = ""
         for item in self.context.recipe.document.get("frozen_inputs", ()):
-            if str(item.get("contract_input_id")) == "p5.current_manuscript":
+            # P5 contract 2.4.0 renamed the review-revision manuscript gate
+            # to p5.review_target_manuscript; manifests sealed under older
+            # contracts carry p5.current_manuscript in the same role.
+            if str(item.get("contract_input_id")) in {
+                "p5.review_target_manuscript",
+                "p5.current_manuscript",
+            }:
                 review_basis_generation_id = str(item.get("generation_id", ""))
         return SealedRunFacts(
             project_id=str(self.context.project_id),

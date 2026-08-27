@@ -36,6 +36,10 @@ from ..api.models import (
     RoleDefinitionCatalogView,
     RoleDefinitionView,
     RoleHealthReportView,
+    RoleSkillAssignmentsView,
+    PhaseSkillAssignmentView,
+    SkillCatalogEntryView,
+    UpdateSkillAssignmentsRequest,
     ConfigurationHealthView,
     RunDetail,
     RunEvent,
@@ -3287,6 +3291,124 @@ class ModelForgeService:
             self.skill_bundle_root,
             effective,
         )
+
+    async def get_role_skill_assignments(
+        self, role_id: str
+    ) -> RoleSkillAssignmentsView:
+        """Read one role's per-phase skill assignment view (SK-3)."""
+        try:
+            resource = self.role_resources.role(role_id)
+        except ValueError as error:
+            raise _not_found(RepositoryNotFoundError("role", role_id)) from error
+        matrix = self.skill_assignments
+        manifest = load_skill_manifest(self.skill_bundle_root.parent)
+        matrix_path = self.skill_bundle_root.parent / "team" / "skill-assignments.json"
+        matrix_sha256 = (
+            hashlib.sha256(matrix_path.read_bytes()).hexdigest()
+            if matrix_path.exists()
+            else None
+        )
+        return RoleSkillAssignmentsView(
+            role_id=role_id,
+            phases=[
+                PhaseSkillAssignmentView(
+                    phase=phase,
+                    source=(
+                        "assigned"
+                        if matrix.assigned(role_id, phase) is not None
+                        else "default"
+                    ),
+                    skills=list(matrix.effective_skills(resource, phase)),
+                )
+                for phase in resource.applicable_phases
+            ],
+            available_skills=[
+                SkillCatalogEntryView(
+                    skill_id=skill_id,
+                    content_sha256=str(entry["content_sha256"]),
+                    roles=[str(value) for value in entry.get("roles", [])],
+                )
+                for skill_id, entry in sorted(manifest["skills"].items())
+            ],
+            matrix_sha256=matrix_sha256,
+        )
+
+    async def update_role_skill_assignments(
+        self,
+        role_id: str,
+        phase: str,
+        command: UpdateSkillAssignmentsRequest,
+    ) -> RoleSkillAssignmentsView:
+        """Replace or clear one (role, phase) skill assignment (SK-3).
+
+        The matrix file is written atomically and the cached matrix and
+        assembler are refreshed, so the edit takes effect at the next run
+        seal and never touches in-flight runs.
+        """
+        try:
+            resource = self.role_resources.role(role_id)
+        except ValueError as error:
+            raise _not_found(RepositoryNotFoundError("role", role_id)) from error
+        if phase not in resource.applicable_phases:
+            raise CommandRejected(
+                new_command_error(
+                    "COMMAND_SCHEMA_INVALID",
+                    object_refs=[role_id, phase],
+                    researcher_message=(
+                        f"Role {role_id!r} is not applicable to phase {phase!r}."
+                    ),
+                    smallest_correction=(
+                        "Choose one of the role's applicable phases: "
+                        + ", ".join(resource.applicable_phases)
+                    ),
+                )
+            )
+        manifest = load_skill_manifest(self.skill_bundle_root.parent)
+        if command.skills is not None:
+            unknown = [
+                skill_id
+                for skill_id in command.skills
+                if skill_id not in manifest["skills"]
+            ]
+            duplicates = sorted(
+                {skill_id for skill_id in command.skills if command.skills.count(skill_id) > 1}
+            )
+            if unknown or duplicates:
+                raise CommandRejected(
+                    new_command_error(
+                        "COMMAND_SCHEMA_INVALID",
+                        object_refs=[role_id, phase, *unknown, *duplicates],
+                        researcher_message=(
+                            "Skill assignment lists must name bundled skills "
+                            "exactly once. "
+                            + (
+                                f"Unknown: {', '.join(unknown)}. "
+                                if unknown
+                                else ""
+                            )
+                            + (
+                                f"Repeated: {', '.join(duplicates)}."
+                                if duplicates
+                                else ""
+                            )
+                        ),
+                        smallest_correction=(
+                            "Use only skill ids from the bundled catalog, each at "
+                            "most once, or null to restore the role default."
+                        ),
+                    )
+                )
+        matrix = self.skill_assignments.with_assignment(
+            role_id,
+            phase,
+            tuple(command.skills) if command.skills is not None else None,
+        )
+        matrix.save(self.skill_bundle_root.parent / "team")
+        # The saved matrix is already validated; refresh the cache and the
+        # assembler (which holds the old matrix) without a reload.
+        self._skill_assignments = matrix
+        self._run_assembler = None
+        return await self.get_role_skill_assignments(role_id)
 
     async def provision_role(
         self,

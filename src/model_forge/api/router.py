@@ -24,6 +24,8 @@ from .models import (
     ProfileConfigurationView,
     ProvisionResultView,
     ProvisionRoleRequest,
+    RoleSkillAssignmentsView,
+    UpdateSkillAssignmentsRequest,
     PublicationReceiptDocument,
     ProjectBriefView,
     ProjectOverview,
@@ -686,5 +688,36 @@ def create_api_router() -> APIRouter:
             project_id=None,
         )
         return await service.provision_role(role_id, command)
+
+    @router.get(
+        "/configuration/roles/{role_id}/skill-assignments",
+        response_model=RoleSkillAssignmentsView,
+        response_model_exclude_none=True,
+    )
+    async def get_role_skill_assignments(
+        role_id: str, service: Service
+    ) -> RoleSkillAssignmentsView:
+        return await service.get_role_skill_assignments(role_id)
+
+    @router.put(
+        "/configuration/roles/{role_id}/skill-assignments/{phase}",
+        response_model=RoleSkillAssignmentsView,
+        response_model_exclude_none=True,
+        openapi_extra=_body_contract(UpdateSkillAssignmentsRequest),
+    )
+    async def put_role_skill_assignments(
+        role_id: str,
+        phase: str,
+        request: Request,
+        service: Service,
+    ) -> RoleSkillAssignmentsView:
+        command, _ = await _capture_and_parse(
+            request,
+            service,
+            UpdateSkillAssignmentsRequest,
+            command_family="update_skill_assignments",
+            project_id=None,
+        )
+        return await service.update_role_skill_assignments(role_id, phase, command)
 
     return router

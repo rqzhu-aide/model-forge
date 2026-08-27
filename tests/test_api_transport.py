@@ -22,6 +22,7 @@ from model_forge.api.models import (
     InstallSkillRequest,
     MethodRow,
     PhaseId,
+    PhaseSkillAssignmentView,
     PhaseView,
     ProfileConfigurationView,
     PublicationReceiptDocument,
@@ -29,6 +30,7 @@ from model_forge.api.models import (
     ProjectOverview,
     ProjectSummary,
     ReasonedActionRequest,
+    RoleSkillAssignmentsView,
     RunDetail,
     RunEvent,
     RunSummary,
@@ -36,6 +38,7 @@ from model_forge.api.models import (
     StartRunRequest,
     SystemSettingsView,
     UpdateProjectBriefRequest,
+    UpdateSkillAssignmentsRequest,
 )
 
 
@@ -501,6 +504,43 @@ class RecordingService:
         )
         return profile_view()
 
+    async def get_role_skill_assignments(
+        self, role_id: str
+    ) -> RoleSkillAssignmentsView:
+        self.calls.append(("get_role_skill_assignments", role_id))
+        return RoleSkillAssignmentsView(
+            role_id=role_id,
+            phases=[
+                PhaseSkillAssignmentView(
+                    phase="P3", source="default", skills=["stat-paper-writing"]
+                )
+            ],
+            available_skills=[],
+            matrix_sha256="a" * 64,
+        )
+
+    async def update_role_skill_assignments(
+        self,
+        role_id: str,
+        phase: str,
+        command: UpdateSkillAssignmentsRequest,
+    ) -> RoleSkillAssignmentsView:
+        self.calls.append(
+            ("update_role_skill_assignments", role_id, phase, command)
+        )
+        return RoleSkillAssignmentsView(
+            role_id=role_id,
+            phases=[
+                PhaseSkillAssignmentView(
+                    phase=phase,
+                    source="assigned" if command.skills is not None else "default",
+                    skills=list(command.skills or []),
+                )
+            ],
+            available_skills=[],
+            matrix_sha256="b" * 64,
+        )
+
 
 def client_and_service() -> tuple[TestClient, RecordingService]:
     service = RecordingService()
@@ -750,6 +790,25 @@ def test_control_and_configuration_commands_all_preserve_raw_requests() -> None:
         "request_output_correction",
         "save_profile",
         "install_skill",
+    ]
+
+
+def test_skill_assignment_endpoints_preserve_raw_requests() -> None:
+    client, service = client_and_service()
+
+    read = client.get("/api/v1/configuration/roles/theorist/skill-assignments")
+    updated = client.put(
+        "/api/v1/configuration/roles/theorist/skill-assignments/P3",
+        json={"skills": ["stat-paper-writing"]},
+    )
+
+    assert read.status_code == 200
+    assert read.json()["phases"][0]["source"] == "default"
+    assert updated.status_code == 200
+    assert updated.json()["phases"][0]["source"] == "assigned"
+    assert updated.json()["phases"][0]["skills"] == ["stat-paper-writing"]
+    assert [item.command_family for item in service.raw_requests] == [
+        "update_skill_assignments"
     ]
 
 

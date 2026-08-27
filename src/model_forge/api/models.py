@@ -1036,6 +1036,47 @@ class ConflictDetailView(StrictModel):
     ]
 
 
+class SkillCatalogEntryView(StrictModel):
+    """One bundled skill the researcher may assign."""
+
+    skill_id: NonEmptyString
+    content_sha256: Sha256String
+    roles: list[NonEmptyString] = Field(default_factory=list)
+    bundled: bool = True
+
+
+class PhaseSkillAssignmentView(StrictModel):
+    """The effective skill set for one role in one phase."""
+
+    phase: NonEmptyString
+    source: Literal["assigned", "default"]
+    skills: list[NonEmptyString] = Field(default_factory=list)
+
+
+class RoleSkillAssignmentsView(StrictModel):
+    """One role's skill assignment matrix row set plus the skill catalog."""
+
+    role_id: NonEmptyString
+    phases: list[PhaseSkillAssignmentView]
+    available_skills: list[SkillCatalogEntryView]
+    matrix_sha256: Sha256String | None = None
+
+
+class UpdateSkillAssignmentsRequest(StrictModel):
+    """Replace one (role, phase) skill assignment.
+
+    ``skills`` replaces the assignment for the pair (an empty list runs the
+    phase with no skills); ``skills = null`` clears the entry so the pair
+    falls back to the role's catalog default.
+    """
+
+    action_descriptor_id: NonEmptyString | None = None
+    #: Required but nullable: a list replaces the assignment (empty list =
+    #: no skills for the phase); explicit null clears the entry back to the
+    #: catalog default.
+    skills: list[NonEmptyString] | None
+
+
 # Rebuild models that refer to classes declared later in this module.
 MethodRow.model_rebuild()
 ProjectOverview.model_rebuild()

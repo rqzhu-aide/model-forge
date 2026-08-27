@@ -51,6 +51,7 @@ CommandFamily = Literal[
     "provision_role",
     "start_supervised_run",
     "request_output_correction",
+    "update_skill_assignments",
 ]
 
 

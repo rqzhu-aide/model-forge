@@ -420,6 +420,22 @@ class HubRepository:
                 ).fetchall()
             )
 
+    def get_latest_correction_command(self, run_id: str) -> sqlite3.Row | None:
+        """Newest sealed correction command for one run, if any (D-7).
+
+        Used by restart reconciliation to tell a legitimately waiting
+        ``correcting`` run (its newest correction closed, attempt row
+        recorded) from an interrupted one (command sealed, no attempt row).
+        """
+        with self._database.connect() as connection:
+            return connection.execute(
+                "SELECT * FROM sealed_commands "
+                "WHERE command_id LIKE 'correction.%' "
+                "AND json_extract(payload_json, '$.run_id') = ? "
+                "ORDER BY sealed_at DESC, command_id DESC LIMIT 1",
+                (run_id,),
+            ).fetchone()
+
     def compare_and_swap_run(
         self,
         run_id: str,

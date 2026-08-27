@@ -966,7 +966,11 @@ def test_correction_scope_uses_plan_declared_outputs_when_nothing_sealed(
         result = await stack.service.request_output_correction(
             PROJECT, RUN, command, raw_request=receipt
         )
-        await asyncio.sleep(0)  # let the scheduled handoff launcher run
+        # D-7: accepted detached in correcting; wait for the worker, then
+        # re-read the settled state.
+        assert result.state == "correcting"
+        await stack.service.await_correction(RUN)
+        result = await stack.service.get_run(PROJECT, RUN)
         # K5-4: the incomplete chain resumes execution instead of raising.
         assert result.state == "running"
         assert stack.launched == [RUN]

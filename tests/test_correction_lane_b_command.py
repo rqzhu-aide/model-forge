@@ -32,6 +32,7 @@ SAME defective bytes so validation keeps failing.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 from pathlib import Path
 
@@ -173,7 +174,11 @@ async def _packaging_acceptance(tmp_path: Path) -> None:
     result = await stack.service.request_output_correction(
         PROJECT, RUN, command, raw_request=receipt
     )
-    await asyncio.sleep(0)  # let the scheduled handoff launcher run
+    # D-7: Lane B corrections run detached; the accept-time state is
+    # correcting, and the worker settles the run asynchronously.
+    assert result.state == "correcting"
+    await stack.service.await_correction(RUN)
+    result = await stack.service.get_run(PROJECT, RUN)
 
     assert result.state == "submitted"
     assert stack.launched == [RUN]
@@ -233,7 +238,9 @@ async def _scientific_acceptance(tmp_path: Path) -> None:
     result = await stack.service.request_output_correction(
         PROJECT, RUN, command, raw_request=receipt
     )
-    await asyncio.sleep(0)
+    # D-7: detached worker; wait for it, then re-read the settled state.
+    await stack.service.await_correction(RUN)
+    result = await stack.service.get_run(PROJECT, RUN)
 
     assert result.state == "submitted"
     assert stack.launched == [RUN]
@@ -298,7 +305,8 @@ async def _bounds_gate(tmp_path: Path) -> None:
     result = await stack.service.request_output_correction(
         PROJECT, RUN, retry, raw_request=retry_receipt
     )
-    await asyncio.sleep(0)
+    await stack.service.await_correction(RUN)
+    result = await stack.service.get_run(PROJECT, RUN)
     assert result.state == "submitted"
 
 
@@ -330,10 +338,15 @@ async def _d6_retry(tmp_path: Path) -> None:
     result = await stack.service.request_output_correction(
         PROJECT, RUN, command, raw_request=receipt
     )
+    # D-7: accepted at once in correcting; the detached worker then records
+    # the failed attempt.
+    assert result.state == "correcting"
+    await stack.service.await_correction(RUN)
 
     # D6: no transition out of correcting; the failed attempt row is the
     # evidence.  Exactly one packaging attempt, failed.
-    assert result.state == "correcting"
+    detail_after = await stack.service.get_run(PROJECT, RUN)
+    assert detail_after.state == "correcting"
     assert stack.launched == []
     assert fixture.repository.get_submission(RUN) is None
     attempts = fixture.repository.list_validation_attempts(RUN)
@@ -387,7 +400,10 @@ async def _exhaustion(tmp_path: Path) -> None:
     first_result = await stack.service.request_output_correction(
         PROJECT, RUN, first, raw_request=first_receipt
     )
-    assert first_result.state == "correcting"  # D6: bounds remain
+    assert first_result.state == "correcting"  # D-7: accepted detached
+    await stack.service.await_correction(RUN)
+    first_settled = await stack.service.get_run(PROJECT, RUN)
+    assert first_settled.state == "correcting"  # D6: bounds remain
 
     detail = await stack.service.get_run(PROJECT, RUN)
     scientific = _lane_b_action(detail, "revise_scientific_content")
@@ -401,9 +417,12 @@ async def _exhaustion(tmp_path: Path) -> None:
     second_result = await stack.service.request_output_correction(
         PROJECT, RUN, second, raw_request=second_receipt
     )
+    assert second_result.state == "correcting"  # D-7: accepted detached
+    await stack.service.await_correction(RUN)
+    second_settled = await stack.service.get_run(PROJECT, RUN)
 
     # Both bounded attempts are now spent: correcting -> correction_exhausted.
-    assert second_result.state == "correction_exhausted"
+    assert second_settled.state == "correction_exhausted"
     assert "run.correction_exhausted" in _event_types(fixture)
     attempts = fixture.repository.list_validation_attempts(RUN)
     assert [str(row["correction_type"]) for row in attempts] == [
@@ -467,3 +486,120 @@ async def _descriptor_surface(tmp_path: Path) -> None:
         "packaging",
         "scientific",
     ]
+    # D-7: drain the detached worker so no task dangles past the test.
+    await stack.service.await_correction(RUN)
+
+
+# --------------------------------------------------------------------------- #
+# D-7: detached execution — interruption reconciliation + in-flight guard
+# --------------------------------------------------------------------------- #
+
+
+async def _seal_correction_command(stack, command_id: str) -> None:
+    """Seal a Lane B correction command directly (no request path)."""
+    document = {
+        "command_id": command_id,
+        "correction_type": "scientific",
+        "run_id": RUN,
+        "role_closure_id": "closure." + "0" * 64,
+        "permitted_output_scope": ["p1.theory_discovery"],
+        "schema_version": "1.0.0",
+    }
+    body = json.dumps(document, sort_keys=True).encode("utf-8")
+    request_id = "request." + hashlib.sha256(body).hexdigest()
+    stack.fixture.repository.record_raw_command(
+        request_id, PROJECT, hashlib.sha256(body).hexdigest(), document
+    )
+    stack.fixture.repository.seal_command(
+        command_id,
+        PROJECT,
+        request_id,
+        request_id,
+        hashlib.sha256(body).hexdigest(),
+        document,
+    )
+
+
+def test_reconcile_marks_interrupted_correction(tmp_path: Path) -> None:
+    """A correcting run whose newest correction command never closed gets
+    an operational event at startup; the lane bound was never spent."""
+
+    async def scenario() -> None:
+        fixture = _Fixture(tmp_path, DeterministicFakeExecutor(_golden_output))
+        stack = _ServiceStack(fixture)
+        _set_run(fixture, "correcting", _run_payload(fixture, CORRECTABLE))
+        await _seal_correction_command(stack, "correction.interrupted1")
+
+        await stack.service._reconcile_interrupted_corrections()
+
+        detail = await stack.service.get_run(PROJECT, RUN)
+        assert detail.state == "correcting"  # HV-5.8: never auto-advanced
+        assert "run.correction_interrupted" in _event_types(fixture)
+        # No attempt row was fabricated: the lane is genuinely unspent.
+        assert fixture.repository.list_validation_attempts(RUN) == []
+
+    asyncio.run(scenario())
+
+
+def test_reconcile_leaves_legitimately_waiting_correction(tmp_path: Path) -> None:
+    """D6 waiting state (failed attempt recorded) is NOT an interruption."""
+
+    async def scenario() -> None:
+        fixture = _Fixture(tmp_path, DeterministicFakeExecutor(_golden_output))
+        stack = _ServiceStack(fixture)
+        _set_run(fixture, "correcting", _run_payload(fixture, CORRECTABLE))
+        await _seal_correction_command(stack, "correction.closed1")
+        fixture.repository.record_validation_attempt(
+            f"attempt.{RUN}.1",
+            RUN,
+            1,
+            "1.12.0",
+            json.dumps({"passed": False}),
+            "a" * 64,
+            correction_type="scientific",
+            prior_attempt_id=None,
+            correction_command_id="correction.closed1",
+        )
+
+        await stack.service._reconcile_interrupted_corrections()
+
+        assert "run.correction_interrupted" not in _event_types(fixture)
+
+    asyncio.run(scenario())
+
+
+def test_in_flight_correction_blocks_double_fire(tmp_path: Path) -> None:
+    """A repeat request while the worker runs returns state, no re-invoke."""
+
+    async def scenario() -> None:
+        fixture = _Fixture(tmp_path, DeterministicFakeExecutor(_golden_output))
+        stack = _ServiceStack(fixture)
+        _seal_failed_closure_bytes(fixture, "theorist", _fixable_defect_bytes())
+        _set_run(fixture, "correcting", _run_payload(fixture, CORRECTABLE))
+        # Simulate an in-flight detached worker for this run.
+        blocker = asyncio.create_task(asyncio.sleep(60))
+        stack.service._correction_tasks[RUN] = blocker
+        try:
+            detail = await stack.service.get_run(PROJECT, RUN)
+            action = _lane_b_action(detail, "package_run_outputs")
+            command = CorrectionRequest(
+                correction_type="packaging",
+                permitted_output_scope=[_scope(fixture)],
+                action_descriptor_id=action.descriptor_id,
+            )
+            receipt = await _preserve(stack.service, command, "corr-double")
+            result = await stack.service.request_output_correction(
+                PROJECT, RUN, command, raw_request=receipt
+            )
+            assert result.state == "correcting"
+            # The executor was never invoked: no second worker fired.
+            assert len(fixture.executor.invocations) == 0
+        finally:
+            blocker.cancel()
+            try:
+                await blocker
+            except asyncio.CancelledError:
+                pass
+            stack.service._correction_tasks.pop(RUN, None)
+
+    asyncio.run(scenario())

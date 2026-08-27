@@ -284,6 +284,11 @@ class ModelForgeService:
         self._supervised_executor_settings = supervised_executor_settings
         self._supervised_min_free_bytes = supervised_min_free_bytes
         self._background: set[asyncio.Task[None]] = set()
+        #: Detached Lane B correction workers by run id (D-7).  Corrections
+        #: run as background tasks (like run launches): the HTTP request
+        #: returns after the correcting transition, and a client disconnect
+        #: can no longer cancel an invocation mid-flight.
+        self._correction_tasks: dict[str, asyncio.Task[None]] = {}
         #: Explicit cancel requests per invocation (WP-F1b).  Set ONLY by
         #: the user-facing cancel command, consulted by the launch worker
         #: thread at close time so a signal death classifies as
@@ -342,15 +347,79 @@ class ModelForgeService:
     async def resume_incomplete(self) -> None:
         """Reconcile incomplete runs after application startup.
 
-        Two lanes:
+        Three lanes:
         1. Traditional runs — delegated to the RunCoordinator (if wired).
         2. Supervised runs — find launch records still ``running`` from a
            previous server session, reconcile each against the actual
            process state, and close stale records.
+        3. Interrupted corrections (D-7) — mark ``correcting`` runs whose
+           newest correction command never closed.
         """
         if self.recovery_launcher is not None:
             await self.recovery_launcher()
         await self._reconcile_supervised_launches()
+        await self._reconcile_interrupted_corrections()
+
+    async def _reconcile_interrupted_corrections(self) -> None:
+        """Mark corrections interrupted by a server restart (D-7).
+
+        A run in ``correcting`` whose newest sealed correction command has
+        NO validation-attempt row died mid-invocation (attempt rows are
+        written only at closure).  HV-5.8 forbids auto-advancing correction
+        states, and the lane bound was never spent, so this records an
+        operational event only: the retry is the same command re-issued
+        from ``correcting`` (D6).
+        """
+        for row in self.repository.list_incomplete_runs():
+            if str(row["status"]) != "correcting":
+                continue
+            run_id = str(row["run_id"])
+            command = self.repository.get_latest_correction_command(run_id)
+            if command is None:
+                continue
+            command_id = str(command["command_id"])
+            attempts = self.repository.list_validation_attempts(run_id)
+            if any(
+                str(item["correction_command_id"]) == command_id
+                for item in attempts
+            ):
+                # The correction closed normally; the run legitimately
+                # awaits the researcher's next command (D6).
+                continue
+            event = {
+                "event_type": "run.correction_interrupted",
+                "message": (
+                    "The correction invocation was interrupted by a server "
+                    "restart before it closed. No correction attempt was "
+                    "spent; re-issue the correction to continue."
+                ),
+                "occurred_at": isoformat_utc(utc_now()),
+            }
+            fresh = self.repository.get_run(run_id)
+            self.repository.compare_and_swap_run(
+                run_id,
+                "correcting",
+                int(fresh["head_sequence"]),
+                "correcting",
+                row_json(fresh),
+                _event_id(run_id, int(fresh["head_sequence"]) + 1),
+                _content_digest(event),
+                event,
+            )
+            logger.info(
+                "Marked interrupted correction on run %s (command %s).",
+                run_id,
+                command_id,
+            )
+
+    async def await_correction(self, run_id: str) -> None:
+        """Wait for the detached Lane B correction worker on one run (D-7).
+
+        Test and CLI hook: production callers poll run state instead.
+        """
+        task = self._correction_tasks.get(run_id)
+        if task is not None:
+            await task
 
     async def _reconcile_supervised_launches(self) -> None:
         """Close supervised launch records left ``running`` by a crash.
@@ -2323,10 +2392,14 @@ class ModelForgeService:
                 )
             row = result.run
 
-        # 9. Lane B (K-1c, synchronous): re-invoke the target role with a
-        #    correction instruction under blast-radius verification.  The
-        #    correcting transition happens BEFORE the invocation
-        #    (already-correcting D6 retries skip it).
+        # 9. Lane B (K-1c, DETACHED per D-7): re-invoke the target role with
+        #    a correction instruction under blast-radius verification.  The
+        #    correcting transition happens synchronously BEFORE detachment
+        #    (already-correcting D6 retries skip it), so command errors still
+        #    reach the caller; the re-invocation itself runs as a background
+        #    task exactly like a run launch, and the response returns at
+        #    once.  A client disconnect can no longer cancel the invocation
+        #    mid-flight (the C-3 class).
         if command.correction_type in ("packaging", "scientific"):
             if status != "correcting":
                 event = {
@@ -2363,65 +2436,92 @@ class ModelForgeService:
                         )
                     )
                 row = result.run
-            services = self.run_coordinator.correction_services(
-                run_id,
-                correction_command_id=command_id,
-                correction_type=command.correction_type,
-            )
-            outcome = await execute_targeted_correction(
-                services=services,
-                repository=self.repository,
-                specification=self.specification,
-                artifacts=self.artifacts,
-                run_id=run_id,
-                role_closure_id=role_closure_id,
-                correction_command_id=command_id,
-                correction_type=command.correction_type,
-                permitted_output_scope=tuple(command.permitted_output_scope),
-                user_instruction=command.user_instruction,
-            )
-            if outcome.passed:
-                self._complete_correction_pass(
-                    run_id=run_id,
-                    services=services,
-                    command_id=command_id,
-                    correction_type=command.correction_type,
-                )
-            else:
-                # Recount attempts INCLUDING this failed one (HV-5.6): when
-                # both bounded attempts are spent the correction lane is
-                # exhausted.
-                prior_packaging, prior_scientific = (
-                    self._correction_attempt_counts(run_id)
-                )
-                if is_correction_exhausted(
-                    prior_packaging_attempts=prior_packaging,
-                    prior_scientific_attempts=prior_scientific,
-                ):
-                    fresh = self.repository.get_run(run_id)
-                    event = {
-                        "event_type": "run.correction_exhausted",
-                        "message": (
-                            "Both bounded correction attempts (packaging and "
-                            "scientific) were spent without a pass; the "
-                            "correction lane is exhausted."
-                        ),
-                        "occurred_at": isoformat_utc(utc_now()),
-                    }
-                    self.repository.compare_and_swap_run(
+            existing = self._correction_tasks.get(run_id)
+            if existing is not None and not existing.done():
+                # A correction worker is already in flight for this run
+                # (sealed-command replay or a rapid repeat request): the
+                # lane is busy; report current state without double-firing.
+                return await self.get_run(project_id, run_id)
+
+            async def _drive_lane_b() -> None:
+                try:
+                    services = self.run_coordinator.correction_services(
                         run_id,
-                        "correcting",
-                        int(fresh["head_sequence"]),
-                        "correction_exhausted",
-                        row_json(fresh),
-                        _event_id(run_id, int(fresh["head_sequence"]) + 1),
-                        _content_digest(event),
-                        event,
+                        correction_command_id=command_id,
+                        correction_type=command.correction_type,
                     )
-                # D6: with bounds remaining the run STAYS in correcting —
-                # there is no correcting -> correction_authorized edge, the
-                # failed attempt row is the evidence, and the retry is a
-                # new correction command accepted from correcting.
+                    outcome = await execute_targeted_correction(
+                        services=services,
+                        repository=self.repository,
+                        specification=self.specification,
+                        artifacts=self.artifacts,
+                        run_id=run_id,
+                        role_closure_id=role_closure_id,
+                        correction_command_id=command_id,
+                        correction_type=command.correction_type,
+                        permitted_output_scope=tuple(command.permitted_output_scope),
+                        user_instruction=command.user_instruction,
+                    )
+                    if outcome.passed:
+                        self._complete_correction_pass(
+                            run_id=run_id,
+                            services=services,
+                            command_id=command_id,
+                            correction_type=command.correction_type,
+                        )
+                    else:
+                        # Recount attempts INCLUDING this failed one
+                        # (HV-5.6): when both bounded attempts are spent the
+                        # correction lane is exhausted.
+                        prior_packaging, prior_scientific = (
+                            self._correction_attempt_counts(run_id)
+                        )
+                        if is_correction_exhausted(
+                            prior_packaging_attempts=prior_packaging,
+                            prior_scientific_attempts=prior_scientific,
+                        ):
+                            fresh = self.repository.get_run(run_id)
+                            exhausted_event = {
+                                "event_type": "run.correction_exhausted",
+                                "message": (
+                                    "Both bounded correction attempts "
+                                    "(packaging and scientific) were spent "
+                                    "without a pass; the correction lane is "
+                                    "exhausted."
+                                ),
+                                "occurred_at": isoformat_utc(utc_now()),
+                            }
+                            self.repository.compare_and_swap_run(
+                                run_id,
+                                "correcting",
+                                int(fresh["head_sequence"]),
+                                "correction_exhausted",
+                                row_json(fresh),
+                                _event_id(run_id, int(fresh["head_sequence"]) + 1),
+                                _content_digest(exhausted_event),
+                                exhausted_event,
+                            )
+                        # D6: with bounds remaining the run STAYS in
+                        # correcting — there is no correcting ->
+                        # correction_authorized edge, the failed attempt row
+                        # is the evidence, and the retry is a new correction
+                        # command accepted from correcting.
+                except Exception:
+                    logger.exception(
+                        "Detached correction %s on run %s failed unexpectedly; "
+                        "the run stays in correcting and restart "
+                        "reconciliation will mark the interruption.",
+                        command_id,
+                        run_id,
+                    )
+
+            task = asyncio.create_task(_drive_lane_b())
+            self._background.add(task)
+            task.add_done_callback(self._background.discard)
+            self._correction_tasks[run_id] = task
+            task.add_done_callback(
+                lambda _task: self._correction_tasks.pop(run_id, None)
+            )
             return await self.get_run(project_id, run_id)
 
         # 9. Lane A (synchronous): revalidate the sealed closure outputs,

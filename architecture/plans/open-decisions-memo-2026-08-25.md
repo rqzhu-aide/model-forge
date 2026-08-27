@@ -86,9 +86,37 @@ documents the mode's basis.
 Documented as deliberately open; no action proposed. Noted here so the
 audit trail shows it was considered in this sweep.
 
-## D-7. Long synchronous commands orphan on client disconnect (C-3)
+## D-7. Long synchronous commands orphan on client disconnect (C-3) — RESOLVED
 
-Observed 2026-08-26 in production: Lane B corrections run SYNCHRONOUSLY
+DECIDED by Tez 2026-08-26: detached background-task corrections (option a)
+plus reconciliation (option b's safety net).  Landed in this package:
+
+- Lane B corrections now run as detached asyncio tasks (the same pattern
+  as run launches): the command seal + correcting transition stay
+  synchronous (command errors still reach the caller), then the response
+  returns immediately and the worker settles the run asynchronously.
+  A client disconnect can no longer cancel an invocation mid-flight.
+- Repeat requests while a worker is in flight return current state without
+  double-firing (in-flight task registry per run).
+- Startup reconciliation marks runs left in `correcting` whose newest
+  correction command never closed (`run.correction_interrupted` event;
+  HV-5.8 respected — no auto-advance; the lane bound is never spent
+  because attempt rows are written only at closure).
+
+IMPORTANT CORRECTION to the C-3 autopsy below: store forensics on run
+cddfc1fb (2026-08-26 re-examination) show the "orphaned" correction was
+nothing of the kind - it ran 29 minutes and closed FAILED honestly
+(closure + attempt rows both timestamped 03:06:35Z, one finding); the run
+then sat in `correcting` per D6 awaiting the next command, and the
+CORRECTION_EXHAUSTED refusal was the bounded-lane rule working as
+designed.  The disconnect-cancellation causal claim is REFUTED for that
+instance: attempt rows are written at closure, so a true mid-flight kill
+cannot spend a lane.  The detachment above still removes the real residual
+hazards (long-held HTTP connections, illegible in-flight state).
+
+Historical record of the original observation follows.
+
+Observed 2026-08-26 in production: Lane B corrections ran SYNCHRONOUSLY
 inside the HTTP request handler (`await execute_targeted_correction` in
 `request_output_correction`, ~30-60+ min for a role re-invocation). When
 the issuing client disconnects (a 30s client timeout did this), the ASGI

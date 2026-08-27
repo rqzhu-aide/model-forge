@@ -13,7 +13,7 @@ memory and session state, never from a stale or foreign copy.
   snapshot semantics): [ADR-012](../decisions/ADR-012-trusted-local-hermes-execution.md).
 - Closure plan Block 3, fixed rule 3, and acceptance item 2 (a first
   persistent run starts with clean project-role state):
-  [next-block-local-hermes-execution-closure](../plans/next-block-local-hermes-execution-closure.md).
+  [next-block-local-hermes-execution-closure](../../archive/next-block-local-hermes-execution-closure.md).
 - [07-contract-traceability](../07-contract-traceability.md) MF-62
   (first-run state is clean), MF-34 and MF-53 (exact memory and session
   snapshot semantics). Invariant INV-003.

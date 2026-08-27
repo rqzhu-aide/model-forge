@@ -132,7 +132,7 @@ subject, even if the event repeats the complete initial field set.
 
 ### 4.2 Canonical JSON digest contract
 
-Every persisted digest whose preimage is a parsed JSON value follows [the machine-readable digest registry](contracts/digest-contracts.json). Each entry names the object schema, instance boundary, digest location, exact payload subtree or included-field projection, exclusions, and construction. An `ArtifactPointer.sha256` instead hashes the exact referenced artifact bytes and is verified by the storage service without parsing or reserializing them. Implementations must resolve the applicable structured-digest contract before hashing and fail if no supported entry exists.
+Every persisted digest whose preimage is a parsed JSON value follows [the machine-readable digest registry](../contracts/digest-contracts.json). Each entry names the object schema, instance boundary, digest location, exact payload subtree or included-field projection, exclusions, and construction. An `ArtifactPointer.sha256` instead hashes the exact referenced artifact bytes and is verified by the storage service without parsing or reserializing them. Implementations must resolve the applicable structured-digest contract before hashing and fail if no supported entry exists.
 
 RFC 8785 is normative for JSON preimages. Conforming production implementations must support its I-JSON number domain and produce ECMAScript-compatible binary64 number serialization. They must also reject duplicate property names, invalid Unicode scalar values, non-finite numbers, and values that cannot be represented under the contract. The serializer preserves strings as supplied and performs no Unicode normalization.
 

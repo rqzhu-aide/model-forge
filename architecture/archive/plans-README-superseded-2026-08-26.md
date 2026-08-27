@@ -56,7 +56,7 @@ specification or decision record before code relies on such a change.
 
 ## Active issues
 
-- [Context Selection UI Issues](context-selection-issues.md) - audit findings
+- [Context Selection UI Issues](../issues/context-selection-issues.md) - audit findings
   from the cross-phase context-card review (2026-08-07). P0-2 needs a
   contract-author decision (a schema change requires an ADR); P1-3 is a
   product decision for Tez; the remaining confirmed findings are unfixed.
@@ -66,7 +66,7 @@ specification or decision record before code relies on such a change.
   P3-1, and P3-2 are addressed. P0-3 (silent output rewriting) is covered
   by the FP-2 satisfaction note above (2026-08-25); the remaining small
   backend and frontend findings track with FP-6/FP-7.
-- [Instruction, Output-Integrity, and UI Fix Plan](instruction-output-integrity-fix-plan.md) -
+- [Instruction, Output-Integrity, and UI Fix Plan](../plan/instruction-output-integrity-fix-plan.md) -
   work packages FP-1 through FP-8. FP-2 is SATISFIED (2026-08-25 review):
   the HV program rebuilt the repair lane as disclosed mechanical repairs
   with transformation records (no content fabrication remains; verified in
@@ -75,12 +75,12 @@ specification or decision record before code relies on such a change.
   partially complete; FP-7 (small frontend repairs) and FP-8 (design
   decisions) remain open.
 
-[ADR-012](../decisions/ADR-012-trusted-local-hermes-execution.md) defines the
+[ADR-012](../design/decisions/ADR-012-trusted-local-hermes-execution.md) defines the
 boundary: Model Forge is a trusted, single-user local control plane.
-[ADR-013](../decisions/ADR-013-layered-prompts-and-phase-specific-output-contracts.md)
+[ADR-013](../design/decisions/ADR-013-layered-prompts-and-phase-specific-output-contracts.md)
 defines layered prompt composition, phase-mode separation, and the dedicated
 theory, protocol, manuscript, and review output contracts.
-[ADR-014](../decisions/ADR-014-independent-lifecycle-axes-and-validation-policy.md)
+[ADR-014](../design/decisions/ADR-014-independent-lifecycle-axes-and-validation-policy.md)
 defines the validation-policy axes and the correction lane now implemented by
 the HV program and K-1.
 

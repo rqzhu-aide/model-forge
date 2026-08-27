@@ -15,7 +15,7 @@ tree, including descendants, and reach verified quiescence before closure.
 - Closure plan Block 4 and acceptance item 7 (cancellation, timeout, process
   crash, and application restart do not leave unaccounted descendants or
   launch replacements):
-  [next-block-local-hermes-execution-closure](../plans/next-block-local-hermes-execution-closure.md).
+  [next-block-local-hermes-execution-closure](../../archive/next-block-local-hermes-execution-closure.md).
 - [07-contract-traceability](../07-contract-traceability.md) MF-67
   (complete process-tree termination with verified quiescence) and MF-52
   (authenticated idempotent cancellation). Invariants INV-001 and INV-017.

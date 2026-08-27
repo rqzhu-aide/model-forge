@@ -169,10 +169,10 @@ The grounded review additionally established:
 Phase 0 now uses these findings to strengthen the shared executor boundary
 through the one-shot OCI diagnostic path in Section 5.4. It must reuse the
 execution, cancellation, and recovery semantics defined by the
-[run harness](../../02-run-harness.md) and the isolation rules in the
-[role and context contract](../../08-role-context-and-communication.md), while
+[run harness](../../design/02-run-harness.md) and the isolation rules in the
+[role and context contract](../../design/08-role-context-and-communication.md), while
 remaining outside the scientific run, submission, and publication lifecycle.
-Its tests must follow the [validation strategy](../../05-validation-strategy.md).
+Its tests must follow the [validation strategy](../../design/05-validation-strategy.md).
 
 The active [Operational Completion Plan](operational-completion-plan.md)
 continues to define the production sequence. Phase 0 is a non-publishing

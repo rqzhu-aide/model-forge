@@ -11,7 +11,7 @@ project-role lock, and that fencing tokens and leases protect ownership.
 
 - Closure plan fixed rule 8 (one writer owns role state; a stale owner
   cannot promote or release another owner's lock):
-  [next-block-local-hermes-execution-closure](../plans/next-block-local-hermes-execution-closure.md).
+  [next-block-local-hermes-execution-closure](../../archive/next-block-local-hermes-execution-closure.md).
 - ADR-012 item 6 (only a successful, valid run under the current ownership
   token may atomically replace the current project-role state):
   [ADR-012](../decisions/ADR-012-trusted-local-hermes-execution.md).

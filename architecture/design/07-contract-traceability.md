@@ -10,7 +10,7 @@ quietly changing the research process.
 The word `must` identifies a conformance requirement. A feature is not complete
 until every rule it touches has a passing automated test.
 
-The machine-readable [traceability registry](contracts/traceability.json) is the exact inverse index from every `INV` invariant to its `MF` requirements, `IT` test group, acceptance scenarios, phase contracts, and roadmap milestones. Package validation rejects an omitted or unknown identifier. This checks specification coverage, not whether implementation tests have passed.
+The machine-readable [traceability registry](../contracts/traceability.json) is the exact inverse index from every `INV` invariant to its `MF` requirements, `IT` test group, acceptance scenarios, phase contracts, and roadmap milestones. Package validation rejects an omitted or unknown identifier. This checks specification coverage, not whether implementation tests have passed.
 
 ## Global rules
 

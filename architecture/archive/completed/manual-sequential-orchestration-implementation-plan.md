@@ -4,7 +4,7 @@ Status: Development baseline implemented; production completion is tracked in [t
 
 Prepared: 2026-08-02
 
-Decision basis: [ADR-009](../../decisions/ADR-009-sequential-first-orchestration.md)
+Decision basis: [ADR-009](../../design/decisions/ADR-009-sequential-first-orchestration.md)
 
 ## 1. Decision in one sentence
 

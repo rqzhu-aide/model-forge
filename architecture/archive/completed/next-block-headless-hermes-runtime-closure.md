@@ -107,7 +107,7 @@ supplementary working context and must be researcher-visible and
 reconstructible. No assumption, method definition, result, conclusion, or
 user decision may exist only in memory.
 
-[ADR-011](../../decisions/ADR-011-per-project-memory-model.md) accepts the
+[ADR-011](../../design/decisions/ADR-011-per-project-memory-model.md) accepts the
 `persistent`, `read_only`, and `ephemeral` runtime policy for this diagnostic
 lane only. Before implementation relies on it, align the diagnostic schemas,
 examples, digest contracts, and traceability; retain reconstructible before and

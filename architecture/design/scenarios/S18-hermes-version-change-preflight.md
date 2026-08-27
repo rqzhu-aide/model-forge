@@ -16,7 +16,7 @@ update-check noise.
   other available immutable identity): [ADR-012](../decisions/ADR-012-trusted-local-hermes-execution.md).
 - Closure plan Block 4 and acceptance item 11 (changing the locally installed
   Hermes version requires preflight review and appears in the next manifest):
-  [next-block-local-hermes-execution-closure](../plans/next-block-local-hermes-execution-closure.md).
+  [next-block-local-hermes-execution-closure](../../archive/next-block-local-hermes-execution-closure.md).
 - [07-contract-traceability](../07-contract-traceability.md) MF-66 (version
   change surfaces at preflight), MF-03 (frozen basis) and MF-34 (executable
   identity in the run basis). Invariant INV-003.

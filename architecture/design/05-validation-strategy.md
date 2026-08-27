@@ -49,7 +49,7 @@ revisiting this decision.
 ## Normative invariant test catalog
 
 Each test ID names a required implementation test group. The machine-readable
-[traceability registry](contracts/traceability.json) maps every invariant to its
+[traceability registry](../contracts/traceability.json) maps every invariant to its
 research-workflow requirements, test ID, and end-to-end scenarios. Package
 validation checks that the three identifier sets remain complete. It does not
 claim that an implementation test has run.

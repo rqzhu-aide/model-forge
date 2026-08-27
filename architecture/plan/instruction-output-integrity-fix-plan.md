@@ -3,7 +3,7 @@
 Status: Active, partially implemented
 Prepared: 2026-08-08
 Reviewed: 2026-08-11
-Basis: [Stage+role instruction changes review](stage-role-instructions-review.md)
+Basis: [Stage+role instruction changes review](../archive/stage-role-instructions-review.md)
 (rounds 1 and 2). Every finding there carries file:line evidence; this plan
 only sequences the fixes. Each package is sized as one dispatchable unit.
 

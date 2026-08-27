@@ -8,7 +8,7 @@ Baseline: commit `720b307` + Block 4 hardening (in review).
 
 Controlling documents:
 
-- [ADR-012: Trusted local Hermes execution](../decisions/ADR-012-trusted-local-hermes-execution.md)
+- [ADR-012: Trusted local Hermes execution](../design/decisions/ADR-012-trusted-local-hermes-execution.md)
   (+ Amendment 1: OCI code removed)
 - [Trusted Local Hermes Execution Closure](next-block-local-hermes-execution-closure.md)
   (Revision 1) - the block definitions this program dispatches

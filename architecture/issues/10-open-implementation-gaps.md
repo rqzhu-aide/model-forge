@@ -6,7 +6,7 @@ The reviewed-basis gap in this file is CLOSED: WP0 (reviewed-basis closure)
 sealed the accepted command basis, and WP-H1 added the sealed-basis
 acceptance-time completeness gate. The reviewer-memory boundary below remains
 open. The full production sequence is maintained in the
-[Trusted Local Execution Program](plans/trusted-local-execution-program.md).
+[Trusted Local Execution Program](../archive/trusted-local-execution-program.md).
 
 ## Current gap
 
@@ -89,7 +89,7 @@ resource changes or cannot be resolved at the sealing boundary.
 
 Sealing the outside reviewer's packet, profile, and skills does not prove that a
 persistent agent profile has empty memory. As stated in
-[Outside-reviewer closure](08-role-context-and-communication.md#54-outside-reviewer-closure),
+[Outside-reviewer closure](../design/08-role-context-and-communication.md#54-outside-reviewer-closure),
 a profile distinct from all authoring roles is the minimum isolation condition.
 The system may claim full closed-packet review only when execution also attests
 an ephemeral or no-memory session, or a verified memory reset.

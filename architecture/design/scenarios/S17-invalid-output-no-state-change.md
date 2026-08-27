@@ -15,7 +15,7 @@ run changes no current state.
 - Closure plan Block 5, fixed rule 5, and acceptance item 6 (exit-zero with
   missing, malformed, wrong-basis, or undeclared outputs fails validation
   and changes no current state):
-  [next-block-local-hermes-execution-closure](../plans/next-block-local-hermes-execution-closure.md).
+  [next-block-local-hermes-execution-closure](../../archive/next-block-local-hermes-execution-closure.md).
 - [07-contract-traceability](../07-contract-traceability.md) MF-65 (exit
   code zero alone is never sufficient), MF-04 (validation precedes formal
   generation) and MF-12 (invalid work cannot replace current state).

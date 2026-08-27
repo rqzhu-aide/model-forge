@@ -16,7 +16,7 @@ advance only after the complete promotion succeeds.
 - Closure plan Block 5, fixed rule 7, and acceptance items 9 and 10 (failed,
   invalid, stale, cancelled, timed-out, and unresolved runs cannot promote;
   injected promotion failure preserves the last known good state):
-  [next-block-local-hermes-execution-closure](../plans/next-block-local-hermes-execution-closure.md).
+  [next-block-local-hermes-execution-closure](../../archive/next-block-local-hermes-execution-closure.md).
 - [07-contract-traceability](../07-contract-traceability.md) MF-70
   (failed promotion preserves last known good state), MF-05 (commit the
   complete validated change or nothing) and MF-12 (invalid work cannot

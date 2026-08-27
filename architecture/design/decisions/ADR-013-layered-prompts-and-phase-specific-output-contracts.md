@@ -173,10 +173,10 @@ remain valid outputs when recorded honestly within the contract.
 ## Scenario changes
 
 Executable acceptance coverage is provided by
-[`test_instruction_template_inventory.py`](../../tests/test_instruction_template_inventory.py),
-[`test_harness_outputs.py`](../../tests/test_harness_outputs.py),
-[`test_p3_p4_research_contracts.py`](../../tests/test_p3_p4_research_contracts.py),
+[`test_instruction_template_inventory.py`](../../../tests/test_instruction_template_inventory.py),
+[`test_harness_outputs.py`](../../../tests/test_harness_outputs.py),
+[`test_p3_p4_research_contracts.py`](../../../tests/test_p3_p4_research_contracts.py),
 and
-[`test_p5_research_contract.py`](../../tests/test_p5_research_contract.py).
+[`test_p5_research_contract.py`](../../../tests/test_p5_research_contract.py).
 Narrative scenario and generated role/file guide updates remain open in the
-[Instruction, Output-Integrity, and UI Fix Plan](../plans/instruction-output-integrity-fix-plan.md).
+[Instruction, Output-Integrity, and UI Fix Plan](../../plan/instruction-output-integrity-fix-plan.md).

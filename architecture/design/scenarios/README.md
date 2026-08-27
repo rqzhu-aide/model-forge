@@ -20,7 +20,7 @@ Every scenario defines:
 
 ## Scenario index
 
-The exact identifiers, invariant links, test groups, phase suites, and milestones are machine-checked in [`contracts/traceability.json`](../contracts/traceability.json). S11 intentionally belongs to the control-command suite rather than a phase contract, and S13-S24 belong to the trusted-local execution suite (ADR-012) with no phase contract.
+The exact identifiers, invariant links, test groups, phase suites, and milestones are machine-checked in [`contracts/traceability.json`](../../contracts/traceability.json). S11 intentionally belongs to the control-command suite rather than a phase contract, and S13-S24 belong to the trusted-local execution suite (ADR-012) with no phase contract.
 
 | ID | Executable ID | Scenario | Phase contracts | Milestones |
 |---|---|---|---|---|

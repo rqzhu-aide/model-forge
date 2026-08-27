@@ -9,10 +9,10 @@ scientific validation, run status, recovery, and researcher-facing diagnostics.
 
 Related architecture:
 
-- [ADR-012: Trusted local Hermes execution](../../decisions/ADR-012-trusted-local-hermes-execution.md)
-- [ADR-013: Layered prompts and phase-specific output contracts](../../decisions/ADR-013-layered-prompts-and-phase-specific-output-contracts.md)
-- [S05: Failed or cancelled run preserves current state](../../scenarios/S05-failed-run.md)
-- [Instruction, output-integrity, and UI fix plan](../instruction-output-integrity-fix-plan.md)
+- [ADR-012: Trusted local Hermes execution](../../design/decisions/ADR-012-trusted-local-hermes-execution.md)
+- [ADR-013: Layered prompts and phase-specific output contracts](../../design/decisions/ADR-013-layered-prompts-and-phase-specific-output-contracts.md)
+- [S05: Failed or cancelled run preserves current state](../../design/scenarios/S05-failed-run.md)
+- [Instruction, output-integrity, and UI fix plan](../../plan/instruction-output-integrity-fix-plan.md)
 
 ## 1. Goal
 

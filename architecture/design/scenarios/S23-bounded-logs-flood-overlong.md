@@ -15,7 +15,7 @@ can block process completion or grow memory without bound.
 - Closure plan Block 4 (stream stdout and stderr continuously into bounded
   logs and a capped live tail; a long line or output flood cannot block
   process completion or grow memory without bound):
-  [next-block-local-hermes-execution-closure](../plans/next-block-local-hermes-execution-closure.md).
+  [next-block-local-hermes-execution-closure](../../archive/next-block-local-hermes-execution-closure.md).
 - [07-contract-traceability](../07-contract-traceability.md) MF-71 (bounded
   logs) and MF-59 (mandatory append-only operational audit). Invariant
   INV-017.

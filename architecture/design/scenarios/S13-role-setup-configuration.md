@@ -14,7 +14,7 @@ provisioning is atomic with rollback.
 - ADR-012 items 3 and 4 (role assets and project state are separate; every
   invocation gets a private runtime profile): [ADR-012](../decisions/ADR-012-trusted-local-hermes-execution.md).
 - Closure plan Block 2 and fixed rule 1 (configuration controls role
-  identity): [next-block-local-hermes-execution-closure](../plans/next-block-local-hermes-execution-closure.md).
+  identity): [next-block-local-hermes-execution-closure](../../archive/next-block-local-hermes-execution-closure.md).
 - [07-contract-traceability](../07-contract-traceability.md) MF-61
   (configuration-managed role setup), MF-34 (exact role-profile freezing),
   MF-35 (missing assets block preparation), MF-38 (role definition and

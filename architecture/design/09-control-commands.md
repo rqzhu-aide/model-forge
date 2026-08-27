@@ -385,7 +385,7 @@ digest cycle and does not place cancellation in the scientific authority journal
 `OutputCorrectionCommand` is an authenticated, idempotent control command that
 authorizes bounded correction of a run whose outputs failed validation with at
 least one correctable contract error (ADR-014). Its schema is
-[output-correction-command.schema.json](schemas/output-correction-command.schema.json).
+[output-correction-command.schema.json](../schemas/output-correction-command.schema.json).
 The command binds the exact run, the target role closure, the validation
 attempt being answered, the expected lifecycle head, the correction type
 (`revalidate`, `normalize`, `packaging`, or `scientific`), and the permitted

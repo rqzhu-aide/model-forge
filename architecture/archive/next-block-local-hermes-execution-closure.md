@@ -8,11 +8,11 @@ at the end of this document.
 
 Architecture decision:
 
-- [ADR-012: Trusted local Hermes execution for Version 1](../decisions/ADR-012-trusted-local-hermes-execution.md)
+- [ADR-012: Trusted local Hermes execution for Version 1](../design/decisions/ADR-012-trusted-local-hermes-execution.md)
 
 Related records:
 
-- [ADR-011: Per-project Hermes memory and session model](../decisions/ADR-011-per-project-memory-model.md)
+- [ADR-011: Per-project Hermes memory and session model](../design/decisions/ADR-011-per-project-memory-model.md)
 - [Operational completion plan](completed/operational-completion-plan.md)
 - [WP0 reviewed-basis closure](completed/wp0-reviewed-basis-closure.md)
 

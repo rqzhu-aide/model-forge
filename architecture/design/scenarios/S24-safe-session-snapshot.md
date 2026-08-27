@@ -16,7 +16,7 @@ digest, and a fail-fast refusal when the source is busy.
   live database file): [ADR-012](../decisions/ADR-012-trusted-local-hermes-execution.md).
 - Closure plan Block 3 (treat Hermes session storage as opaque; never copy a
   live `state.db`) and acceptance item 3:
-  [next-block-local-hermes-execution-closure](../plans/next-block-local-hermes-execution-closure.md).
+  [next-block-local-hermes-execution-closure](../../archive/next-block-local-hermes-execution-closure.md).
 - [07-contract-traceability](../07-contract-traceability.md) MF-72 (safe
   session snapshot) and MF-53 (exact snapshot semantics, silent truncation
   prohibited). Invariant INV-003.

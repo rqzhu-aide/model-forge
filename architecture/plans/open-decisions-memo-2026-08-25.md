@@ -86,7 +86,7 @@ documents the mode's basis.
 Documented as deliberately open; no action proposed. Noted here so the
 audit trail shows it was considered in this sweep.
 
-## D-7. Long synchronous commands orphan on client disconnect (C-3) — RESOLVED
+## D-7. Long synchronous commands orphan on client disconnect (C-3) - RESOLVED
 
 DECIDED by Tez 2026-08-26: detached background-task corrections (option a)
 plus reconciliation (option b's safety net).  Landed in this package:
@@ -100,7 +100,7 @@ plus reconciliation (option b's safety net).  Landed in this package:
   double-firing (in-flight task registry per run).
 - Startup reconciliation marks runs left in `correcting` whose newest
   correction command never closed (`run.correction_interrupted` event;
-  HV-5.8 respected — no auto-advance; the lane bound is never spent
+  HV-5.8 respected - no auto-advance; the lane bound is never spent
   because attempt rows are written only at closure).
 
 IMPORTANT CORRECTION to the C-3 autopsy below: store forensics on run

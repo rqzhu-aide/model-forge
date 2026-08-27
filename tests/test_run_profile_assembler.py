@@ -53,6 +53,7 @@ from model_forge.configuration.resources import (
     SkillRecommendation,
 )
 from model_forge.configuration.skill_installer import directory_sha256
+from model_forge.configuration.skill_assignments import SkillAssignmentMatrix
 from model_forge.digests.jcs import canonicalize
 from model_forge.profiles.project_profiles import (
     MemoryPolicy,
@@ -375,6 +376,93 @@ class TestProfileAssembly:
         )
         with pytest.raises(RunSealError):
             assembler.seal_invocation(**_seal_kwargs())
+
+
+# --------------------------------------------------------------------------- #
+# SK-2: per-phase skill assignment resolution at seal                          #
+# --------------------------------------------------------------------------- #
+
+
+class TestSkillAssignmentResolution:
+    def _assembler_with_matrix(
+        self,
+        tmp_path: Path,
+        database: Database,
+        catalog: RoleResourceCatalog,
+        matrix: SkillAssignmentMatrix,
+    ) -> RunProfileAssembler:
+        return RunProfileAssembler(
+            data_root=tmp_path / "data",
+            role_resources=catalog,
+            database=database,
+            bundle_root=SKILL_BUNDLE,
+            hermes_probe=lambda binary: FAKE_HERMES,
+            skill_assignments=matrix,
+        )
+
+    def test_assigned_set_installed_and_recorded(
+        self, tmp_path: Path, database: Database, catalog: RoleResourceCatalog
+    ) -> None:
+        matrix = SkillAssignmentMatrix.empty().with_assignment(
+            "theorist", "P3", ("mf-reproducibility-checklist",)
+        )
+        assembler = self._assembler_with_matrix(tmp_path, database, catalog, matrix)
+        sealed = assembler.seal_invocation(**_seal_kwargs())
+
+        installed = {
+            p.name for p in (sealed.run_dir / "profile" / "skills").iterdir()
+        }
+        assert installed == {"mf-reproducibility-checklist"}
+        assignment = sealed.manifest["role_definition"]["skill_assignment"]
+        assert assignment["source"] == "assigned"
+        assert assignment["phase"] == "P3"
+        assert assignment["skills"] == [
+            {"skill_id": "mf-reproducibility-checklist", "origin": "assigned"}
+        ]
+        assert sealed.manifest["role_definition"]["asset_digests"][
+            "skills/mf-reproducibility-checklist"
+        ] == directory_sha256(SKILL_BUNDLE / "mf-reproducibility-checklist")
+
+    def test_default_set_recorded_with_default_origin(
+        self, assembler: RunProfileAssembler
+    ) -> None:
+        sealed = assembler.seal_invocation(**_seal_kwargs())
+        assignment = sealed.manifest["role_definition"]["skill_assignment"]
+        assert assignment["source"] == "default"
+        assert assignment["skills"] == [
+            {"skill_id": "stat-paper-writing", "origin": "default"},
+            {"skill_id": "mf-proof-dependency", "origin": "default"},
+        ]
+
+    def test_empty_assignment_installs_no_skills(
+        self, tmp_path: Path, database: Database, catalog: RoleResourceCatalog
+    ) -> None:
+        matrix = SkillAssignmentMatrix.empty().with_assignment("theorist", "P3", ())
+        assembler = self._assembler_with_matrix(tmp_path, database, catalog, matrix)
+        sealed = assembler.seal_invocation(**_seal_kwargs())
+
+        installed = list((sealed.run_dir / "profile" / "skills").iterdir())
+        assert installed == []
+        assignment = sealed.manifest["role_definition"]["skill_assignment"]
+        assert assignment["source"] == "assigned"
+        assert assignment["skills"] == []
+
+    def test_assignment_applies_only_to_its_phase(
+        self, tmp_path: Path, database: Database, catalog: RoleResourceCatalog
+    ) -> None:
+        matrix = SkillAssignmentMatrix.empty().with_assignment(
+            "theorist", "P3", ("mf-reproducibility-checklist",)
+        )
+        assembler = self._assembler_with_matrix(tmp_path, database, catalog, matrix)
+        sealed = assembler.seal_invocation(**_seal_kwargs(phase="P4"))
+
+        installed = {
+            p.name for p in (sealed.run_dir / "profile" / "skills").iterdir()
+        }
+        assert installed == {"stat-paper-writing", "mf-proof-dependency"}
+        assert sealed.manifest["role_definition"]["skill_assignment"][
+            "source"
+        ] == "default"
 
 
 # --------------------------------------------------------------------------- #
@@ -1072,7 +1160,7 @@ class TestSkillIdValidation:
         profile_dir.mkdir()
         with pytest.raises(RunSealError, match="Skill ID"):
             assembler._assemble_profile(  # type: ignore[attr-defined]
-                resource, profile_dir
+                resource, profile_dir, "P3"
             )
         # Nothing escaped the profile directory.
         assert not (tmp_path / "escape").exists()
@@ -1106,7 +1194,7 @@ class TestSkillIdValidation:
         profile_dir = assembler.run_dir_for("inv-skills") / "profile"
         profile_dir.mkdir(parents=True)
         digests = assembler._assemble_profile(  # type: ignore[attr-defined]
-            resource, profile_dir
+            resource, profile_dir, "P3"
         )
         assert (profile_dir / "skills" / "stat-paper-writing").is_dir()
         assert "skills/stat-paper-writing" in digests

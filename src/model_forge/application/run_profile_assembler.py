@@ -65,6 +65,7 @@ from typing import Any, Callable, Iterator, Mapping, Sequence
 
 from ..configuration.profiles import PROFILE_ROLES
 from ..configuration.resources import RoleResource, RoleResourceCatalog
+from ..configuration.skill_assignments import SkillAssignmentMatrix
 from ..configuration.skill_installer import SkillInstallationError, directory_sha256
 from ..digests.jcs import canonicalize
 from ..domain.runs import isoformat_utc, thaw_json, utc_now
@@ -990,6 +991,7 @@ class RunProfileAssembler:
         hermes_binary: str = "hermes",
         hermes_probe: Callable[[str], HermesProbe] | None = None,
         seal_lease_seconds: int = 14_400,
+        skill_assignments: SkillAssignmentMatrix | None = None,
     ) -> None:
         self._data_root = data_root.resolve()
         self._runs_root = self._data_root / "runs"
@@ -1000,6 +1002,7 @@ class RunProfileAssembler:
         self._hermes_binary = hermes_binary
         self._hermes_probe = hermes_probe or _default_hermes_probe
         self._lease_seconds = seal_lease_seconds
+        self._skill_assignments = skill_assignments or SkillAssignmentMatrix.empty()
 
     # -- properties ------------------------------------------------------
 
@@ -1119,7 +1122,7 @@ class RunProfileAssembler:
                 dir_created = True
                 self._create_layout(run_dir)
                 profile_dir = run_dir / "profile"
-                asset_digests = self._assemble_profile(resource, profile_dir)
+                asset_digests = self._assemble_profile(resource, profile_dir, phase)
                 memory_snapshot = self._snapshot_memory(project_id, role, profile_dir, policy)
                 session_snapshot = self._snapshot_session(
                     project_id, role, profile_dir, policy
@@ -1128,6 +1131,22 @@ class RunProfileAssembler:
 
                 seal_id = uuid.uuid4().hex
                 sealed_at = isoformat_utc(utc_now())
+                assigned = self._skill_assignments.assigned(role, phase)
+                skill_assignment = {
+                    "phase": phase,
+                    "source": "assigned" if assigned is not None else "default",
+                    "skills": [
+                        {
+                            "skill_id": skill_id,
+                            "origin": (
+                                "assigned" if assigned is not None else "default"
+                            ),
+                        }
+                        for skill_id in self._skill_assignments.effective_skills(
+                            resource, phase
+                        )
+                    ],
+                }
                 document = self._build_manifest(
                     seal_id=seal_id,
                     invocation_id=invocation_id,
@@ -1140,6 +1159,7 @@ class RunProfileAssembler:
                     expected_outputs=expected_outputs,
                     resource=resource,
                     asset_digests=asset_digests,
+                    skill_assignment=skill_assignment,
                     memory_snapshot=memory_snapshot,
                     session_snapshot=session_snapshot,
                     run_dir=run_dir,
@@ -1213,15 +1233,17 @@ class RunProfileAssembler:
         self,
         resource: RoleResource,
         profile_dir: Path,
+        phase: str,
     ) -> dict[str, str]:
         """Copy the role definition exactly; record per-asset digests.
 
         The run profile is assembled only from the configuration-managed
-        role definition (SOUL, base configuration, recommended skills,
-        library guidance).  Custom skills with source
-        ``model-forge/bundled`` are installed from the same bundle as
-        recommended skills; a bundled declaration without bundle content
-        is a catalog defect and fails the seal.
+        role definition (SOUL, base configuration, skills, library
+        guidance).  The installed skill set is the EFFECTIVE set for
+        (role, phase): the assignment-matrix entry when one exists, else
+        the role's catalog default (recommended plus bundled custom).
+        Every installed skill must exist in the bundle; a missing bundle
+        directory is a catalog defect and fails the seal.
         """
         digests: dict[str, str] = {}
 
@@ -1243,30 +1265,25 @@ class RunProfileAssembler:
 
         skills_root = profile_dir / "skills"
         skills_root.mkdir(parents=True, exist_ok=True)
-        installable = list(resource.recommended_skills) + [
-            skill
-            for skill in resource.custom_skills
-            if skill.source == "model-forge/bundled"
-        ]
-        for skill in installable:
-            _validate_skill_id(skill.skill_id)
+        for skill_id in self._skill_assignments.effective_skills(resource, phase):
+            _validate_skill_id(skill_id)
             source = (
-                self._bundle_root / skill.skill_id
+                self._bundle_root / skill_id
                 if self._bundle_root is not None
                 else None
             )
             if source is None or not source.is_dir() or source.is_symlink():
                 raise RunSealError(
-                    f"Skill {skill.skill_id!r} for role "
+                    f"Skill {skill_id!r} for role "
                     f"{resource.role_id!r} is unavailable in the bundle."
                 )
-            dest = skills_root / skill.skill_id
+            dest = skills_root / skill_id
             _copy_tree_excluding(source, dest)
             try:
-                digests[f"skills/{skill.skill_id}"] = directory_sha256(dest)
+                digests[f"skills/{skill_id}"] = directory_sha256(dest)
             except SkillInstallationError as error:
                 raise RunSealError(
-                    f"Skill {skill.skill_id} copy failed digest verification."
+                    f"Skill {skill_id} copy failed digest verification."
                 ) from error
 
         for dirname in _WRITABLE_PROFILE_DIRS:
@@ -1361,6 +1378,7 @@ class RunProfileAssembler:
         expected_outputs: Sequence[Mapping[str, Any]],
         resource: RoleResource,
         asset_digests: Mapping[str, str],
+        skill_assignment: Mapping[str, Any],
         memory_snapshot: Mapping[str, Any],
         session_snapshot: Mapping[str, Any],
         run_dir: Path,
@@ -1407,6 +1425,7 @@ class RunProfileAssembler:
                     }
                     for skill in resource.custom_skills
                 ],
+                "skill_assignment": dict(skill_assignment),
             },
             "memory_snapshot": dict(memory_snapshot),
             "session_snapshot": dict(session_snapshot),

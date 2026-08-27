@@ -72,6 +72,7 @@ from ..configuration.role_provisioner import (
     hermes_available,
     provision_role_definition,
 )
+from ..configuration.skill_assignments import SkillAssignmentMatrix
 from ..configuration.skill_installer import (
     SkillConflictError,
     SkillInstallationError,
@@ -281,6 +282,7 @@ class ModelForgeService:
         self._run_seal_store: RunSealStore | None = None
         self._run_seal_database: Database | None = None
         self._run_assembler: RunProfileAssembler | None = None
+        self._skill_assignments: SkillAssignmentMatrix | None = None
         self._supervised_executor_settings = supervised_executor_settings
         self._supervised_min_free_bytes = supervised_min_free_bytes
         self._background: set[asyncio.Task[None]] = set()
@@ -322,6 +324,28 @@ class ModelForgeService:
         return self._run_seal_store
 
     @property
+    def skill_assignments(self) -> SkillAssignmentMatrix:
+        """Lazily load the per-phase skill assignment matrix (SK-1).
+
+        The matrix lives in the team resources root and is validated
+        against the role catalog and the bundled skill manifest at load;
+        a malformed matrix fails loudly here rather than at run seal.
+        """
+        if self._skill_assignments is None:
+            team_root = self.skill_bundle_root.parent / "team"
+            manifest = load_skill_manifest(self.skill_bundle_root.parent)
+            self._skill_assignments = SkillAssignmentMatrix.load(
+                team_root, self.role_resources, manifest
+            )
+        return self._skill_assignments
+
+    def reload_skill_assignments(self) -> SkillAssignmentMatrix:
+        """Drop the cached matrix (and assembler) so a saved edit applies."""
+        self._skill_assignments = None
+        self._run_assembler = None
+        return self.skill_assignments
+
+    @property
     def run_profile_assembler(self) -> RunProfileAssembler:
         """Lazily build the run-profile assembler (WP-D1) over the seal store.
 
@@ -341,6 +365,7 @@ class ModelForgeService:
                 bundle_root=self.skill_bundle_root,
                 hermes_root=self.settings.resolved_hermes_root(),
                 hermes_binary=self.settings.hermes_executable,
+                skill_assignments=self.skill_assignments,
             )
         return self._run_assembler
 

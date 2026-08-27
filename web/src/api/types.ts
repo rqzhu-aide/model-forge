@@ -442,10 +442,19 @@ export type FindingClass =
   | "scientific_attention"
   | "information";
 
+export interface FindingItem {
+  code: string;
+  message: string;
+  object_id: string | null;
+  json_pointer: string | null;
+  blocks_publication: boolean;
+}
+
 export interface FindingGroup {
   finding_class: FindingClass;
   count: number;
   sample_codes: string[];
+  items: FindingItem[];
 }
 
 // ---------------------------------------------------------------------------

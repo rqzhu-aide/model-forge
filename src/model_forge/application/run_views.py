@@ -10,6 +10,7 @@ from typing import Any
 from ..api.models import (
     ActionDescriptor,
     FindingGroupView,
+    FindingItemView,
     MethodIdentity,
     PublicationReceiptView,
     RunContract,
@@ -355,16 +356,34 @@ def _classify_findings(
             if fc in ("correctable_contract_error", "scientific_claim_blocker"):
                 correctable += 1
         if fc not in by_class:
-            by_class[fc] = {"count": 0, "codes": []}
+            by_class[fc] = {"count": 0, "codes": [], "items": []}
         by_class[fc]["count"] += 1
         if len(by_class[fc]["codes"]) < 3:
             by_class[fc]["codes"].append(code)
+        # D-9: carry each persisted finding into the API (capped; count
+        # above stays the true total) so the UI can show exactly which
+        # claims or outputs failed, not only grouped counts.
+        if len(by_class[fc]["items"]) < 100:
+            by_class[fc]["items"].append(
+                FindingItemView(
+                    code=code,
+                    message=str(f.get("message", "")),
+                    object_id=(
+                        str(f["object_id"]) if f.get("object_id") else None
+                    ),
+                    json_pointer=(
+                        str(f["json_pointer"]) if f.get("json_pointer") else None
+                    ),
+                    blocks_publication=bool(blocks),
+                )
+            )
 
     groups = [
         FindingGroupView(
             finding_class=fc,  # type: ignore[arg-type]
             count=data["count"],
             sample_codes=data["codes"],
+            items=data["items"],
         )
         for fc, data in sorted(by_class.items())
     ]

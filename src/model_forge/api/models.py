@@ -452,6 +452,21 @@ class ValidationReportView(StrictModel):
     href: NonEmptyString | None = None
 
 
+class FindingItemView(StrictModel):
+    """One persisted finding: what failed, on which output, at which pointer.
+
+    D-9: rejection/failure detail is persisted as ``closure_findings``; this
+    view carries each finding into the API so the UI can show the researcher
+    exactly which claims or outputs failed, not only grouped counts.
+    """
+
+    code: NonEmptyString
+    message: str
+    object_id: str | None = None
+    json_pointer: str | None = None
+    blocks_publication: bool = True
+
+
 class FindingGroupView(StrictModel):
     """A group of findings sharing the same finding class."""
 
@@ -465,6 +480,8 @@ class FindingGroupView(StrictModel):
     ]
     count: int = Field(ge=0)
     sample_codes: list[NonEmptyString] = Field(default_factory=list)
+    # Per-finding detail, capped server-side (count remains the true total).
+    items: list[FindingItemView] = Field(default_factory=list)
 
 
 class RunLifecycleProjection(StrictModel):

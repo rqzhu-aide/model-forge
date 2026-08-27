@@ -149,13 +149,14 @@ before implementation.
 
 Observed 2026-08-26 (P5 run d93f5891 rejected, submission.validation_failed):
 
-1. The rejection's terminal message joins only `findings[:4]` with generic
-   text ("A manuscript claim has neither..."), and the persisted
-   validation_report carries only status+summary - the researcher cannot
-   see WHICH claims failed without replaying the validator locally over the
-   artifact store. Recommend: persist the full findings list (codes +
-   output pointers) into the rejection's validation_report, and let the UI
-   render them (the run page already has a validation-report section).
+1. CORRECTED after store verification (2026-08-26): the full findings ARE
+   persisted - `_reject` writes `closure_findings` (all 25 claim-linkage
+   findings with pointers) into the run payload, and `run_views.py:391`
+   already surfaces them through the run-detail API.  What is lost is only
+   the terminal message (`"; ".join(findings[:4])`, `run_coordinator.py:347`),
+   which shows four identical generic lines; and the UI does not render
+   `closure_findings` anywhere.  Remaining work: render the persisted
+   findings in the UI rejection banner.
 2. The same `_validate_p5` claim-linkage rule produced 0 findings at role
    closure but 25 at submission over the same sealed outputs (verified by
    local replay of the real validator against the sealed artifacts). If

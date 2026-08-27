@@ -260,6 +260,21 @@ export function RunPage() {
                 {group.sample_codes.length > 0 ? (
                   <code className="finding-group__codes">{group.sample_codes.join(", ")}</code>
                 ) : null}
+                {group.items && group.items.length > 0 ? (
+                  <details className="finding-group__details">
+                    <summary>Show the {group.items.length === group.count ? group.count : `${group.items.length} of ${group.count}`} finding{group.count === 1 ? "" : "s"}</summary>
+                    <ul className="finding-group__items">
+                      {group.items.map((item, index) => (
+                        <li key={`${item.code}-${index}`} className="finding-group__item">
+                          <code>{item.code}</code>
+                          {item.object_id ? <span className="finding-group__target">{item.object_id}</span> : null}
+                          {item.json_pointer ? <span className="finding-group__target">{item.json_pointer}</span> : null}
+                          <span className="finding-group__message">{item.message}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                ) : null}
               </li>
             ))}
           </ul>

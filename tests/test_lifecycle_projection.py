@@ -103,6 +103,40 @@ def test_recovery_summary_failed_output_correction() -> None:
     assert proj.conformance_state == "correction_required"
 
 
+def test_finding_groups_carry_per_finding_items() -> None:
+    """D-9: persisted closure_findings surface per-finding detail in the API.
+
+    Production (P5 run d93f5891): 25 claim-linkage findings were persisted
+    but the researcher saw only grouped counts plus four generic terminal
+    lines - the items view carries code/message/object/pointer per finding.
+    """
+    findings = [
+        {
+            "code": "p5.claim_without_evidence",
+            "message": "A manuscript claim has neither supporting evidence.",
+            "finding_class": "scientific_claim_blocker",
+            "blocks_publication": True,
+            "object_id": "p5.claim_traceability",
+            "json_pointer": f"/{index}",
+        }
+        for index in range(3)
+    ]
+    proj = _compute_projection(
+        "rejected",
+        _payload(code="submission.validation_failed", closure_findings=findings),
+    )
+    group = next(
+        g for g in proj.finding_groups if g.finding_class == "scientific_claim_blocker"
+    )
+    assert group.count == 3
+    assert len(group.items) == 3
+    assert group.items[0].code == "p5.claim_without_evidence"
+    assert group.items[0].object_id == "p5.claim_traceability"
+    assert group.items[1].json_pointer == "/1"
+    assert group.items[2].message.endswith("supporting evidence.")
+    assert group.items[0].blocks_publication is True
+
+
 def test_recovery_summary_rejected_correction() -> None:
     """Submission rejection with correctable findings → needs_output_correction."""
     proj = _compute_projection(

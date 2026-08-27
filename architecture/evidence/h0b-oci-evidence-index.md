@@ -100,7 +100,7 @@ reinterpret them. They may be cited for the narrow observations above, but they
 must not be used to label H0-B, Phase 0, or WP1 complete.
 
 The optional OCI follow-on work is
-[End-to-End OCI Diagnostic Closure](../plans/completed/next-block-end-to-end-oci-diagnostic-closure.md).
+[End-to-End OCI Diagnostic Closure](../archive/completed/next-block-end-to-end-oci-diagnostic-closure.md).
 H0-B can be relabeled `PASSED` only after the complete required matrix passes
 without skips through the public diagnostic service and production OCI
 executor, with a machine-readable evidence bundle tied to exact source and

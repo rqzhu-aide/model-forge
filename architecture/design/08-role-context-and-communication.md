@@ -373,7 +373,7 @@ catalog default. The assignment resolves at run seal, is installed into the
 role's private runtime profile with per-asset digests, and is recorded in
 the run manifest with its origin (assigned vs default). The selector UI and
 resolution machinery are specified in
-[Skill Selector and Role Skill Configuration](../plan/skill-selector-and-role-skill-configuration-2026-08-26.md).
+[Skill Selector and Role Skill Configuration](../archive/skill-selector-and-role-skill-configuration-2026-08-26.md).
 
 Knowledge resources may include literature indexes, mathematical libraries such
 as Mathlib, benchmark collections, optimization problem libraries, biological

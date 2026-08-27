@@ -29,6 +29,10 @@ itself is finished.
   F-1/F-2 landed; F-3 landed 2026-08-26 (`896f55c`).
 - [c2-partial-seal-correction-scope-plan-2026-08-25.md](c2-partial-seal-correction-scope-plan-2026-08-25.md) -
   landed 2026-08-25 (`255fd47`).
+- [skill-selector-and-role-skill-configuration-2026-08-26.md](skill-selector-and-role-skill-configuration-2026-08-26.md) -
+  SK-1 through SK-5 landed 2026-08-27 (`c76bf1e` through `325d434`); the
+  per-phase skill matrix, seal-time resolution, configuration API, and
+  member-page selector UI are in production.
 
 ## Superseded reviews and audits
 

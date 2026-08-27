@@ -234,7 +234,7 @@ design decision.
 DECIDED by Tez: team members carry configurable skill sets at phase
 granularity at minimum, with a skill selector UI on each member
 configuration page.  Folded into the active plan
-[skill-selector-and-role-skill-configuration-2026-08-26.md](../plan/skill-selector-and-role-skill-configuration-2026-08-26.md)
+[skill-selector-and-role-skill-configuration-2026-08-26.md](../archive/skill-selector-and-role-skill-configuration-2026-08-26.md)
 (packages SK-1 through SK-5).  Per-stage and per-run overrides are
 deferred and recorded in that plan.  Related landed groundwork: custom
 skills made real (9831988); the lead in-house scientific check (926aa53);

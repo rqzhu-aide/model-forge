@@ -1,9 +1,36 @@
 # Skill Selector and Role Skill Configuration
 
-Status: Active - approved direction, not yet implemented
+Status: Implemented 2026-08-27 (SK-1 `c76bf1e`, SK-2 `1ca4e32`, SK-3
+`72e789a`, SK-4 `325d434`); retired to archive on completion
 Prepared: 2026-08-26, at Tez's direction
 Supersedes: the deferred skill items from the 2026-08-26 evaluation
 (per-run overrides and phase-scoped mapping are folded into SK-4/SK-5)
+
+## Implementation record (2026-08-27)
+
+- SK-1: `resources/team/skill-assignments.json` (empty matrix = zero-config
+  default) + `configuration/skill_assignments.py` loader/validator +
+  13 tests.
+- SK-2: seal-time resolution in `run_profile_assembler`; the run manifest's
+  role definition records `skill_assignment` (phase, source, per-skill
+  origin); the service loads the matrix lazily and passes it to the
+  assembler; 4 tests; suite 1290.
+- SK-3: `GET/PUT /api/v1/configuration/roles/{role}/skill-assignments[/{phase}]`
+  (shipped under the configuration path prefix rather than the sketched
+  `/roles/` prefix); null clears to default, empty list is legal; new
+  command family `update_skill_assignments`; atomic matrix write; 8
+  service tests + 1 transport test; suite 1299.
+- SK-4: skill-by-phase matrix panel on each member configuration page
+  (assigned/default pills, per-phase Reset, matrix digest, next-seal
+  notice); 6 vitest cases; vitest 163, tsc clean, dist rebuilt.
+- SK-5: 04 section 3.7 endpoint facts, 08 section 8 (already landed with
+  the reorganization), S13 matrix note, plan retired to archive.
+- Open question 2 (next-run notice) resolved as recommended: the panel
+  always states that edits take effect at the next run seal.
+- Open question 1 (outside-reviewer skill warning) remains OPEN for Tez:
+  the reviewer's set is configurable like any other member's, with no
+  additional UI warning.
+
 
 ## Direction (Tez, verbatim intent)
 

@@ -9,6 +9,12 @@ Verify that every role is defined exactly by configuration-managed assets
 that an update never silently overwrites a customization, and that
 provisioning is atomic with rollback.
 
+The per-phase skill assignment matrix (`resources/team/skill-assignments.json`)
+is likewise configuration-managed: it is edited only through the role
+configuration API, every write is atomic, and a seal pins the resolved set
+into the run manifest with per-skill origin (assigned vs default), so an
+edit can never reach an in-flight run.
+
 ## Contract under test
 
 - ADR-012 items 3 and 4 (role assets and project state are separate; every

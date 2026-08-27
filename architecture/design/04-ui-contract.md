@@ -141,8 +141,15 @@ the researcher decides which skills a member carries into which phase;
 assignments write through the role configuration API and take effect at the
 next run seal, never on in-flight runs. Every view reports versions and
 digests, and a write never silently overwrites a researcher customization
-(scenario S13). The per-phase skill selector is specified in
-[Skill Selector and Role Skill Configuration](../plan/skill-selector-and-role-skill-configuration-2026-08-26.md).
+(scenario S13). The assignment API is
+`GET /api/v1/configuration/roles/{role}/skill-assignments` (effective set
+per phase with assigned-vs-default origin, the bundled catalog with content
+digests, and the matrix file digest) and
+`PUT /api/v1/configuration/roles/{role}/skill-assignments/{phase}`
+(a skill list replaces the assignment; an empty list runs the phase with no
+skills; explicit null clears back to the catalog default). The per-phase
+skill selector is specified in
+[Skill Selector and Role Skill Configuration](../archive/skill-selector-and-role-skill-configuration-2026-08-26.md).
 
 ## 4. Common phase-page structure
 

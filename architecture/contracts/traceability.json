@@ -453,7 +453,7 @@
         {
             "scenario_id":  "s01.first_project",
             "scenario_code":  "S01",
-            "document":  "architecture/scenarios/S01-first-project.md",
+            "document":  "architecture/design/scenarios/S01-first-project.md",
             "phase_contracts":  [
                 "P1",
                 "P2"
@@ -498,7 +498,7 @@
         {
             "scenario_id":  "s02.phase2_scopes",
             "scenario_code":  "S02",
-            "document":  "architecture/scenarios/S02-phase2-scopes.md",
+            "document":  "architecture/design/scenarios/S02-phase2-scopes.md",
             "phase_contracts":  [
                 "P2"
             ],
@@ -532,7 +532,7 @@
         {
             "scenario_id":  "s03.phase4_before_phase3",
             "scenario_code":  "S03",
-            "document":  "architecture/scenarios/S03-phase4-before-phase3.md",
+            "document":  "architecture/design/scenarios/S03-phase4-before-phase3.md",
             "phase_contracts":  [
                 "P3",
                 "P4"
@@ -580,7 +580,7 @@
         {
             "scenario_id":  "s04.method_definition_change",
             "scenario_code":  "S04",
-            "document":  "architecture/scenarios/S04-method-definition-change.md",
+            "document":  "architecture/design/scenarios/S04-method-definition-change.md",
             "phase_contracts":  [
                 "P2",
                 "P3",
@@ -618,7 +618,7 @@
         {
             "scenario_id":  "s05.failed_run",
             "scenario_code":  "S05",
-            "document":  "architecture/scenarios/S05-failed-run.md",
+            "document":  "architecture/design/scenarios/S05-failed-run.md",
             "phase_contracts":  [
                 "P3"
             ],
@@ -654,7 +654,7 @@
         {
             "scenario_id":  "s06.optional_history",
             "scenario_code":  "S06",
-            "document":  "architecture/scenarios/S06-optional-history.md",
+            "document":  "architecture/design/scenarios/S06-optional-history.md",
             "phase_contracts":  [
                 "P1",
                 "P3"
@@ -684,7 +684,7 @@
         {
             "scenario_id":  "s07.evidence_revalidation",
             "scenario_code":  "S07",
-            "document":  "architecture/scenarios/S07-evidence-revalidation.md",
+            "document":  "architecture/design/scenarios/S07-evidence-revalidation.md",
             "phase_contracts":  [
                 "P4"
             ],
@@ -715,7 +715,7 @@
         {
             "scenario_id":  "s08.phase5_workflow",
             "scenario_code":  "S08",
-            "document":  "architecture/scenarios/S08-phase5-workflow.md",
+            "document":  "architecture/design/scenarios/S08-phase5-workflow.md",
             "phase_contracts":  [
                 "P5"
             ],
@@ -765,7 +765,7 @@
         {
             "scenario_id":  "s09.interrupted_promotion",
             "scenario_code":  "S09",
-            "document":  "architecture/scenarios/S09-interrupted-promotion.md",
+            "document":  "architecture/design/scenarios/S09-interrupted-promotion.md",
             "phase_contracts":  [
                 "P1",
                 "P2",
@@ -815,7 +815,7 @@
         {
             "scenario_id":  "s10.negative_result",
             "scenario_code":  "S10",
-            "document":  "architecture/scenarios/S10-negative-result.md",
+            "document":  "architecture/design/scenarios/S10-negative-result.md",
             "phase_contracts":  [
                 "P3",
                 "P4",
@@ -848,7 +848,7 @@
         {
             "scenario_id":  "s11.control_commands",
             "scenario_code":  "S11",
-            "document":  "architecture/scenarios/S11-control-commands.md",
+            "document":  "architecture/design/scenarios/S11-control-commands.md",
             "phase_contracts":  [],
             "milestones":  [
                 "M2",
@@ -882,7 +882,7 @@
         {
             "scenario_id":  "s12.disjoint_concurrent_publication",
             "scenario_code":  "S12",
-            "document":  "architecture/scenarios/S12-disjoint-concurrent-publication.md",
+            "document":  "architecture/design/scenarios/S12-disjoint-concurrent-publication.md",
             "phase_contracts":  [
                 "P3"
             ],
@@ -922,7 +922,7 @@
         {
             "scenario_id":  "s13.role_setup_configuration",
             "scenario_code":  "S13",
-            "document":  "architecture/scenarios/S13-role-setup-configuration.md",
+            "document":  "architecture/design/scenarios/S13-role-setup-configuration.md",
             "phase_contracts":  [],
             "milestones":  [
                 "M3"
@@ -945,7 +945,7 @@
         {
             "scenario_id":  "s14.first_run_clean_state",
             "scenario_code":  "S14",
-            "document":  "architecture/scenarios/S14-first-run-clean-state.md",
+            "document":  "architecture/design/scenarios/S14-first-run-clean-state.md",
             "phase_contracts":  [],
             "milestones":  [
                 "M3"
@@ -965,7 +965,7 @@
         {
             "scenario_id":  "s15.continuation_latest_promoted_state",
             "scenario_code":  "S15",
-            "document":  "architecture/scenarios/S15-continuation-latest-promoted-state.md",
+            "document":  "architecture/design/scenarios/S15-continuation-latest-promoted-state.md",
             "phase_contracts":  [],
             "milestones":  [
                 "M3"
@@ -985,7 +985,7 @@
         {
             "scenario_id":  "s16.fresh_reviewer_state",
             "scenario_code":  "S16",
-            "document":  "architecture/scenarios/S16-fresh-reviewer-state.md",
+            "document":  "architecture/design/scenarios/S16-fresh-reviewer-state.md",
             "phase_contracts":  [],
             "milestones":  [
                 "M3"
@@ -1004,7 +1004,7 @@
         {
             "scenario_id":  "s17.invalid_output_no_state_change",
             "scenario_code":  "S17",
-            "document":  "architecture/scenarios/S17-invalid-output-no-state-change.md",
+            "document":  "architecture/design/scenarios/S17-invalid-output-no-state-change.md",
             "phase_contracts":  [],
             "milestones":  [
                 "M3"
@@ -1026,7 +1026,7 @@
         {
             "scenario_id":  "s18.hermes_version_change_preflight",
             "scenario_code":  "S18",
-            "document":  "architecture/scenarios/S18-hermes-version-change-preflight.md",
+            "document":  "architecture/design/scenarios/S18-hermes-version-change-preflight.md",
             "phase_contracts":  [],
             "milestones":  [
                 "M3"
@@ -1046,7 +1046,7 @@
         {
             "scenario_id":  "s19.cancellation_timeout_process_tree",
             "scenario_code":  "S19",
-            "document":  "architecture/scenarios/S19-cancellation-timeout-process-tree.md",
+            "document":  "architecture/design/scenarios/S19-cancellation-timeout-process-tree.md",
             "phase_contracts":  [],
             "milestones":  [
                 "M3"
@@ -1067,7 +1067,7 @@
         {
             "scenario_id":  "s20.restart_reconciliation_no_relaunch",
             "scenario_code":  "S20",
-            "document":  "architecture/scenarios/S20-restart-reconciliation-no-relaunch.md",
+            "document":  "architecture/design/scenarios/S20-restart-reconciliation-no-relaunch.md",
             "phase_contracts":  [],
             "milestones":  [
                 "M9"
@@ -1087,7 +1087,7 @@
         {
             "scenario_id":  "s21.stale_lock_ownership",
             "scenario_code":  "S21",
-            "document":  "architecture/scenarios/S21-stale-lock-ownership.md",
+            "document":  "architecture/design/scenarios/S21-stale-lock-ownership.md",
             "phase_contracts":  [],
             "milestones":  [
                 "M9"
@@ -1106,7 +1106,7 @@
         {
             "scenario_id":  "s22.failed_promotion_preserves_last_known_good",
             "scenario_code":  "S22",
-            "document":  "architecture/scenarios/S22-failed-promotion-preserves-last-known-good.md",
+            "document":  "architecture/design/scenarios/S22-failed-promotion-preserves-last-known-good.md",
             "phase_contracts":  [],
             "milestones":  [
                 "M3"
@@ -1128,7 +1128,7 @@
         {
             "scenario_id":  "s23.bounded_logs_flood_overlong",
             "scenario_code":  "S23",
-            "document":  "architecture/scenarios/S23-bounded-logs-flood-overlong.md",
+            "document":  "architecture/design/scenarios/S23-bounded-logs-flood-overlong.md",
             "phase_contracts":  [],
             "milestones":  [
                 "M3",
@@ -1148,7 +1148,7 @@
         {
             "scenario_id":  "s24.safe_session_snapshot",
             "scenario_code":  "S24",
-            "document":  "architecture/scenarios/S24-safe-session-snapshot.md",
+            "document":  "architecture/design/scenarios/S24-safe-session-snapshot.md",
             "phase_contracts":  [],
             "milestones":  [
                 "M9"
@@ -1167,7 +1167,7 @@
         {
             "scenario_id":  "s25.deterministic_normalization",
             "scenario_code":  "S25",
-            "document":  "architecture/scenarios/S25-deterministic-normalization.md",
+            "document":  "architecture/design/scenarios/S25-deterministic-normalization.md",
             "phase_contracts":  [],
             "milestones":  [
                 "M3"
@@ -1193,7 +1193,7 @@
         {
             "scenario_id":  "s26.output_correction",
             "scenario_code":  "S26",
-            "document":  "architecture/scenarios/S26-output-correction.md",
+            "document":  "architecture/design/scenarios/S26-output-correction.md",
             "phase_contracts":  [],
             "milestones":  [
                 "M3"
@@ -1224,7 +1224,7 @@
         {
             "scenario_id":  "s27.revalidation",
             "scenario_code":  "S27",
-            "document":  "architecture/scenarios/S27-revalidation.md",
+            "document":  "architecture/design/scenarios/S27-revalidation.md",
             "phase_contracts":  [],
             "milestones":  [
                 "M3"
@@ -1255,7 +1255,7 @@
         {
             "scenario_id":  "s28.integrity_rejection",
             "scenario_code":  "S28",
-            "document":  "architecture/scenarios/S28-integrity-rejection.md",
+            "document":  "architecture/design/scenarios/S28-integrity-rejection.md",
             "phase_contracts":  [],
             "milestones":  [
                 "M3"
@@ -1291,7 +1291,7 @@
         {
             "scenario_id":  "s29.warning_only_publication",
             "scenario_code":  "S29",
-            "document":  "architecture/scenarios/S29-warning-only-publication.md",
+            "document":  "architecture/design/scenarios/S29-warning-only-publication.md",
             "phase_contracts":  [],
             "milestones":  [
                 "M6",
@@ -1322,7 +1322,7 @@
         {
             "scenario_id":  "s30.broadcast_handoff_multi_role",
             "scenario_code":  "S30",
-            "document":  "architecture/scenarios/S30-broadcast-handoff-multi-role.md",
+            "document":  "architecture/design/scenarios/S30-broadcast-handoff-multi-role.md",
             "phase_contracts":  [],
             "milestones":  [
                 "M3"

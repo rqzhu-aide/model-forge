@@ -132,6 +132,18 @@ Every view response identifies the current-index generation, authority-event roo
 
 An empty state identifies the authoritative query and projection revision that found no current slot. It must not treat an absent folder or cache as evidence that research has never run.
 
+### 3.7 Team configuration views
+
+Each team member (role) exposes a configuration view: identity assets (SOUL,
+base configuration, library guidance) and the skill assignment surface. The
+skill surface presents the bundled skill catalog against phases P1-P5, so
+the researcher decides which skills a member carries into which phase;
+assignments write through the role configuration API and take effect at the
+next run seal, never on in-flight runs. Every view reports versions and
+digests, and a write never silently overwrites a researcher customization
+(scenario S13). The per-phase skill selector is specified in
+[Skill Selector and Role Skill Configuration](../plan/skill-selector-and-role-skill-configuration-2026-08-26.md).
+
 ## 4. Common phase-page structure
 
 Every phase page uses the same conceptual arrangement.

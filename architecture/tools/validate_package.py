@@ -1379,7 +1379,7 @@ def validate_command_attempt_audit(schemas, registry) -> list[str]:
         if not list(error_validator.iter_errors(wrong_policy)):
             errors.append(f"command-error schema accepted a wrong policy for {code}")
 
-    control_text = (ARCHITECTURE / "09-control-commands.md").read_text(encoding="utf-8")
+    control_text = (ARCHITECTURE / "design" / "09-control-commands.md").read_text(encoding="utf-8")
     catalog_rows = re.findall(
         r"^\| `([A-Z_]+)` \| `([a-z]+)` \| ([0-9]+) \| (yes|no) \| `([^`]+)` \|$",
         control_text,
@@ -2864,7 +2864,7 @@ def validate_contracts(schemas, registry) -> tuple[list[str], dict]:
             if not target.is_file():
                 errors.append(f"{phase_id} references missing project file: {value}")
 
-        scenario_prefixes = {path.stem.split("-")[0].lower() for path in (ARCHITECTURE / "scenarios").glob("S*.md")}
+        scenario_prefixes = {path.stem.split("-")[0].lower() for path in (ARCHITECTURE / "design" / "scenarios").glob("S*.md")}
         for scenario_id in contract["acceptance_scenarios"]:
             if scenario_id.split(".")[0] not in scenario_prefixes:
                 errors.append(f"{phase_id} references unknown scenario: {scenario_id}")
@@ -2930,16 +2930,16 @@ def validate_traceability_registry(schemas, registry, complete: dict) -> list[st
             f"{path.relative_to(REPOSITORY)} at {pointer(error)}: {error.message}"
         )
 
-    principles_text = (ARCHITECTURE / "00-system-principles.md").read_text(
+    principles_text = (ARCHITECTURE / "design" / "00-system-principles.md").read_text(
         encoding="utf-8"
     )
-    test_text = (ARCHITECTURE / "05-validation-strategy.md").read_text(
+    test_text = (ARCHITECTURE / "design" / "05-validation-strategy.md").read_text(
         encoding="utf-8"
     )
-    requirement_text = (ARCHITECTURE / "07-contract-traceability.md").read_text(
+    requirement_text = (ARCHITECTURE / "design" / "07-contract-traceability.md").read_text(
         encoding="utf-8"
     )
-    roadmap_text = (ARCHITECTURE / "06-implementation-roadmap.md").read_text(
+    roadmap_text = (ARCHITECTURE / "design" / "06-implementation-roadmap.md").read_text(
         encoding="utf-8"
     )
     principle_ids = re.findall(r"^### (INV-[0-9]{3}):", principles_text, re.MULTILINE)
@@ -3000,8 +3000,8 @@ def validate_traceability_registry(schemas, registry, complete: dict) -> list[st
     scenario_by_id = {item["scenario_id"]: item for item in registered_scenarios}
     registered_documents = {item["document"] for item in registered_scenarios}
     actual_documents = {
-        (Path("architecture") / "scenarios" / item.name).as_posix()
-        for item in (ARCHITECTURE / "scenarios").glob("S*.md")
+        (Path("architecture") / "design" / "scenarios" / item.name).as_posix()
+        for item in (ARCHITECTURE / "design" / "scenarios").glob("S*.md")
     }
     if registered_documents != actual_documents:
         errors.append(
@@ -3015,7 +3015,7 @@ def validate_traceability_registry(schemas, registry, complete: dict) -> list[st
         scenario_id = scenario["scenario_id"]
         document = (REPOSITORY / scenario["document"]).resolve()
         try:
-            document.relative_to((ARCHITECTURE / "scenarios").resolve())
+            document.relative_to((ARCHITECTURE / "design" / "scenarios").resolve())
         except ValueError:
             errors.append(f"traceability scenario {scenario_id} points outside scenarios")
             continue
@@ -3161,7 +3161,7 @@ def validate_package_indexes(schemas: dict[str, dict]) -> list[str]:
     for name in sorted(indexed_schema_set - schema_set):
         errors.append(f"schemas/README.md inventories unknown schema {name}")
 
-    decisions = ARCHITECTURE / "decisions"
+    decisions = ARCHITECTURE / "design" / "decisions"
     decision_files = {
         path.name
         for path in decisions.glob("ADR-*.md")

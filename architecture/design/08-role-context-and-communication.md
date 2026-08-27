@@ -366,6 +366,15 @@ manifest names each required skill by stable package identity, version, and
 digest. Preparation fails with a precise message when a required skill is
 missing. Optional skills are exposed to the user and recorded when selected.
 
+Skill attachment is configurable per role and phase. A configuration-managed
+assignment matrix (role x phase -> skill set) defines the effective set a
+role carries into each phase; pairs without an entry fall back to the role's
+catalog default. The assignment resolves at run seal, is installed into the
+role's private runtime profile with per-asset digests, and is recorded in
+the run manifest with its origin (assigned vs default). The selector UI and
+resolution machinery are specified in
+[Skill Selector and Role Skill Configuration](../plan/skill-selector-and-role-skill-configuration-2026-08-26.md).
+
 Knowledge resources may include literature indexes, mathematical libraries such
 as Mathlib, benchmark collections, optimization problem libraries, biological
 ontologies, or approved data catalogs. Each adapter records:

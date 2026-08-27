@@ -65,12 +65,12 @@ The outside reviewer's input allowlist contains only `p5.review_packet`. It excl
 
 Assembly mode has one role stage:
 
-1. The research lead assembles or updates the complete manuscript from the frozen P1 through P4 records and produces the claim traceability and user decision records.
+1. The research lead assembles or updates the complete manuscript from the frozen P1 through P4 records and produces the claim traceability and user decision records. Before sealing, the lead performs the in-house scientific check: every manuscript claim is linked in the claim traceability to its supporting literature, method, theory, or empirical record, or recorded as a limitation or open question. An unlinked claim is the lead's defect to resolve in-house, never the outside reviewer's discovery.
 
 Review-revision mode has two stages:
 
 1. The theorist, data analyst, and outside reviewer work in parallel on the same frozen manuscript snapshot. The theorist uses only its frozen mathematical read set to audit mathematical fidelity and proof reporting. The data analyst uses only its frozen empirical read set to audit implementation, empirical reporting, reproducibility, and statistical interpretation. The outside reviewer uses only `p5.review_packet` for an independent first-time-reader review.
-2. After all three assessments are fixed, the research lead receives them together with the frozen upstream basis and revises the complete manuscript. The lead records a disposition for every review issue and produces the final decision summary.
+2. After all three assessments are fixed, the research lead receives them together with the frozen upstream basis and revises the complete manuscript. The lead records a disposition for every review issue and produces the final decision summary. The lead re-verifies claim-evidence linkage across the revised manuscript before sealing, with the same in-house scientific check as assembly.
 
 The outside reviewer never sees the specialist audits during that run. Specialist roles do not edit the manuscript directly in review-revision mode. Unresolved issues remain explicit for the user rather than causing an automatic review cycle.
 
@@ -122,7 +122,7 @@ Machine validation confirms identity, completeness, access separation, traceabil
 
 ## 8. Scientific assessment boundary
 
-In assembly mode, the research lead owns the manuscript argument, scientific interpretation, contribution statement, limitation framing, and faithful integration of upstream outcomes.
+In assembly mode, the research lead owns the manuscript argument, scientific interpretation, contribution statement, limitation framing, and faithful integration of upstream outcomes. The lead also owns the in-house scientific check: claim-evidence linkage is verified before sealing, so the outside reviewer's independent audit never discovers an unlinked claim first.
 
 In review-revision mode, the theorist owns the mathematical audit, the data analyst owns the empirical and reproducibility audit, and the outside reviewer owns an independent assessment of novelty, significance, validity, clarity, and likely reader concerns. The research lead owns the final revision and must justify every issue disposition.
 

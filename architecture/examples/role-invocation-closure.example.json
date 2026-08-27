@@ -17,7 +17,7 @@
       "sha256": "754adfedcb93337a98a5051644514dae0ddcd846d96726e1cd310cba083e86f1",
       "media_type": "application/json"
     },
-    "start_sha256": "a026de0ef331bf397c6fbc063b07464c867946ee273f1f8df31a4d39e841dd9b"
+    "start_sha256": "4e1b2762511f81a5b32ed635a41015a186f37a85764c897b064a395ce1b230c5"
   },
   "terminal_status": "succeeded",
   "context_snapshot_binding": {
@@ -154,5 +154,5 @@
     }
   ],
   "closed_at": "2026-08-01T14:55:12Z",
-  "closure_sha256": "deacd02ffee1c6cbb9e8ca6f3d4b5d0e3235883259af0e9b2fcef639e8501140"
+  "closure_sha256": "42fbea720ad69c8c04dde84fcba59fc2f516253409b4715accf54c9a6e9196f0"
 }

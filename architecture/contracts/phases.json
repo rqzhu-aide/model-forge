@@ -1644,7 +1644,7 @@
     },
     {
       "phase_id": "P4",
-      "contract_version": "2.3.0",
+      "contract_version": "2.4.0",
       "prose_contract": "architecture/phases/phase-4.md",
       "name": "Empirical development",
       "scientific_purpose": "Build a reproducible cumulative evidence base and current empirical synthesis for one exact method identity.",
@@ -1903,7 +1903,7 @@
           "roles": [
             "research_lead"
           ],
-          "objective": "Integrate evidence and fidelity findings without creating unaudited results, retain only applicable evidence, preserve protocol deviations and unresolved disagreement, and state a scope-calibrated scientific outcome and user-relevant changes.",
+          "objective": "Integrate evidence and fidelity findings without creating unaudited results, retain only applicable evidence, preserve protocol deviations and unresolved disagreement, and state a scope-calibrated scientific outcome and user-relevant changes. Before sealing, the lead performs the in-house scientific check: every claim in the empirical record and handoff must be linked to its supporting evidence or theory record, or recorded as a limitation or open question. An unlinked or unsupported claim is the lead's defect to resolve in-house, never the outside reviewer's discovery.",
           "reads": [
             "p4.project_brief",
             "p4.literature_synthesis",
@@ -2300,7 +2300,7 @@
     },
     {
       "phase_id": "P5",
-      "contract_version": "2.2.0",
+      "contract_version": "2.3.0",
       "prose_contract": "architecture/phases/phase-5.md",
       "name": "Manuscript assembly and revision",
       "scientific_purpose": "Maintain one complete, traceable manuscript for one exact method by reconciling the current literature, method, theory, and empirical records.",
@@ -2580,7 +2580,7 @@
           "roles": [
             "research_lead"
           ],
-          "objective": "Assemble or update the complete manuscript, claim traceability, limitations, and decision record from the exact frozen basis.",
+          "objective": "Assemble or update the complete manuscript, claim traceability, limitations, and decision record from the exact frozen basis. Before sealing, the lead performs the in-house scientific check: every manuscript claim must be linked in the claim traceability to its supporting literature, method, theory, or empirical record, or recorded as a limitation or open question. An unlinked claim is the lead's defect to resolve in-house, never the outside reviewer's discovery.",
           "reads": [
             "p5.project_brief",
             "p5.literature_library",
@@ -2670,7 +2670,7 @@
           "roles": [
             "research_lead"
           ],
-          "objective": "Receive all fixed parallel review outputs together, convert every open finding into a dispositioned issue, and revise the complete manuscript artifact against the exact current basis.",
+          "objective": "Receive all fixed parallel review outputs together, convert every open finding into a dispositioned issue, and revise the complete manuscript artifact against the exact current basis. The lead re-verifies claim-evidence linkage across the revised manuscript before sealing, with the same in-house scientific check as assembly.",
           "reads": [
             "p5.project_brief",
             "p5.literature_library",

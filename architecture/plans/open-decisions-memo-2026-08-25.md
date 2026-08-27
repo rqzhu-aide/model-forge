@@ -195,6 +195,18 @@ Observed 2026-08-26 (P5 run d93f5891 rejected, submission.validation_failed):
    final stage closes (catches claim-level defects before submission, at
    the cost of one validator pass per phase), or keep submission as the
    first scientific checkpoint by design.
+
+   DECIDED by Tez 2026-08-26: NO closure-time validator.  Instead the lead
+   role performs the scientific check as part of its review - the system
+   should behave like a research team, where the team lead verifies
+   claim-evidence linkage before anything leaves the team, and the outside
+   reviewer (submission gate; ideally a different model provider) stays a
+   REAL independent audit, not the first checkpoint.  Landed: P4 contract
+   2.3.0 -> 2.4.0 and P5 2.2.0 -> 2.3.0 (lead stage objectives now carry
+   the in-house scientific check), matching prose in phase-4.md/phase-5.md,
+   the research_lead soul states the duty, and the example digest cascade
+   (command/manifest/role starts/closures/submission/journal/receipt/audit
+   chain) re-rooted.
 3. ADJACENT FIX LANDED 2026-08-26: the legacy launch-path phase-consistency
    check silently `_skip`ped when declared+parsed outputs could not bind to
    sealed inventory entries (`output_validation.py:824`); it now fails

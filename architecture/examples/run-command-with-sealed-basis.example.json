@@ -20,10 +20,10 @@
     "wall_time_limit_seconds": 14400,
     "network_policy": "approved_resources"
   },
-  "content_sha256": "f69064f5b72cafcc64a5fa6035cfb6c294ef97ce9e524ea73c19c56025c0083a",
+  "content_sha256": "8fd30a1bb8f6fcd1ecf769e854bd4fe80f1bf901013451035477c18ecc6eb303",
   "requested_at": "2026-08-01T14:00:00Z",
-  "phase_contract_version": "2.3.0",
-  "phase_contract_sha256": "bbb5421f2f89f320e95748ca12a62cad8626c53a52bab605bf43d0bd5960b42f",
+  "phase_contract_version": "2.4.0",
+  "phase_contract_sha256": "c91e1c3cd97d6e0cef7fea6de183e10b43b64fd8dd728fca78bac8c143032278",
   "choice_values": {
     "p4.selected_method": {
       "stable_id": "method.overlap_stabilized_score",
@@ -38,8 +38,8 @@
     "action_type": "start_run",
     "phase": "P4",
     "mode": "p4.preliminary",
-    "phase_contract_version": "2.3.0",
-    "phase_contract_sha256": "bbb5421f2f89f320e95748ca12a62cad8626c53a52bab605bf43d0bd5960b42f",
+    "phase_contract_version": "2.4.0",
+    "phase_contract_sha256": "c91e1c3cd97d6e0cef7fea6de183e10b43b64fd8dd728fca78bac8c143032278",
     "method_identity": {
       "stable_id": "method.overlap_stabilized_score",
       "version": 1,

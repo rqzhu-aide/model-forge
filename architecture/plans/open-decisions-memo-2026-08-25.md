@@ -149,22 +149,30 @@ before implementation.
 
 Observed 2026-08-26 (P5 run d93f5891 rejected, submission.validation_failed):
 
-1. CORRECTED after store verification (2026-08-26): the full findings ARE
-   persisted - `_reject` writes `closure_findings` (all 25 claim-linkage
-   findings with pointers) into the run payload, and `run_views.py:391`
-   already surfaces them through the run-detail API.  What is lost is only
-   the terminal message (`"; ".join(findings[:4])`, `run_coordinator.py:347`),
-   which shows four identical generic lines; and the UI does not render
-   `closure_findings` anywhere.  Remaining work: render the persisted
-   findings in the UI rejection banner.
+1. RESOLVED 2026-08-26 (commit f9c3e69): the full findings were persisted
+   all along (`_reject` writes `closure_findings`; `run_views.py:391`
+   surfaces them); the gap was per-finding detail in the API projection and
+   any UI rendering.  `FindingGroupView.items` now carries each finding
+   (code, message, object_id, json_pointer; capped 100/group) and the run
+   page renders an expandable per-finding list.
 2. The same `_validate_p5` claim-linkage rule produced 0 findings at role
    closure but 25 at submission over the same sealed outputs (verified by
-   local replay of the real validator against the sealed artifacts). If
-   closure-time validation skips the scientific layer for P5 (or resolves
-   the outputs mapping differently), claim-level defects surface only at
-   submission - after the full assembly cost. Recommend: run the same
-   scientific validation at the P5 assembly closure, or document why
-   submission is the intended first checkpoint.
+   local replay of the real validator against the sealed artifacts).
+   MECHANISM VERIFIED 2026-08-26: role closures run structural validation
+   only (`validate_role_outputs`); `validate_phase_scientific` is called
+   exactly twice - at submission (`submission_validation.py:198`) and in
+   the legacy launch path (`output_validation.py:830`).  No skip bug at
+   closure: scientific validation simply never runs there.  DESIGN
+   QUESTION for Tez: run phase-level scientific validation when a phase's
+   final stage closes (catches claim-level defects before submission, at
+   the cost of one validator pass per phase), or keep submission as the
+   first scientific checkpoint by design.
+3. ADJACENT FIX LANDED 2026-08-26: the legacy launch-path phase-consistency
+   check silently `_skip`ped when declared+parsed outputs could not bind to
+   sealed inventory entries (`output_validation.py:824`); it now fails
+   loud, since that condition means the seal or inventory is structurally
+   suspect.  Legitimate skips (no validator for the phase; no phase-prefixed
+   outputs at all) remain skips.
 
 ## FP-7 status (frontend small repairs)
 

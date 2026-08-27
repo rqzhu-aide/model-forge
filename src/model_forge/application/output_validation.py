@@ -822,9 +822,15 @@ def _check_phase_consistency(
             ),
         )
     if not outputs_map:
-        return _skip(
+        # Fail loud, never silently skip: phase-prefixed outputs were
+        # declared AND parsed, yet none could be bound to a sealed inventory
+        # entry with a digest.  That is a structural defect in the seal or
+        # inventory, and skipping here would mask it (D-9 audit, 2026-08-26).
+        return _fail(
             "phase_consistency",
-            f"phase validator inputs could not be constructed for {phase}",
+            f"declared {phase} outputs were parsed but none could be bound "
+            f"to a sealed inventory entry; the phase validator cannot run "
+            f"and the seal/inventory is suspect",
         )
     findings: list[Any] = []
     validate_phase_scientific(

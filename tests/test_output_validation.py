@@ -590,6 +590,39 @@ class TestPhaseConsistency:
         assert "cannot bind" in check.detail
         assert report.passed is True
 
+    def test_unbound_inventory_fails_loud(self, tmp_path: Path) -> None:
+        """D-9: declared+parsed phase outputs with no inventory binding FAIL.
+
+        The previous silent skip would mask a broken seal/inventory; the
+        check now fails with a detail that says the validator could not run.
+        """
+        from model_forge.application.output_validation import (
+            _check_phase_consistency,
+            _DeclaredOutput,
+        )
+
+        manifest = {"phase": "P3"}
+        outputs_dir = tmp_path / "outputs"
+        outputs_dir.mkdir()
+        declared = (
+            _DeclaredOutput(
+                index=0,
+                output_id="p3.complete_theory",
+                path_value="p3/complete_theory.json",
+                required=True,
+                is_json=True,
+                required_fields=(),
+                companions=(),
+            ),
+        )
+        documents = {"p3.complete_theory": dict(_GOOD_THEORY)}
+        # Inventory is empty: the parsed output has no sealed digest entry.
+        check = _check_phase_consistency(
+            manifest, outputs_dir, outputs_dir.resolve(), declared, documents, ()
+        )
+        assert check.status == "fail"
+        assert "none could be bound" in check.detail
+
     def test_phase_validator_findings_fail_the_check(
         self, assembler: RunProfileAssembler
     ) -> None:

@@ -690,6 +690,31 @@ export interface ProvisionRoleRequest {
   force_overwrite_skills: boolean;
 }
 
+export interface SkillCatalogEntry {
+  skill_id: string;
+  content_sha256: string;
+  roles: string[];
+  bundled: boolean;
+}
+
+export interface PhaseSkillAssignment {
+  phase: string;
+  source: "assigned" | "default";
+  skills: string[];
+}
+
+export interface RoleSkillAssignmentsView {
+  role_id: string;
+  phases: PhaseSkillAssignment[];
+  available_skills: SkillCatalogEntry[];
+  matrix_sha256?: string;
+}
+
+export interface UpdateSkillAssignmentsRequest {
+  /** A list replaces the assignment (empty = no skills); null restores default. */
+  skills: string[] | null;
+}
+
 export interface ProvisionResultView {
   role_id: string;
   profile_name: string;

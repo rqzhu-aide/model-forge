@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -9,6 +10,7 @@ import type {
   AssetStatusView,
   RoleDefinitionView,
   RoleHealthReportView,
+  RoleSkillAssignmentsView,
 } from "../api/types";
 import {
   conflictingAsset,
@@ -25,6 +27,8 @@ vi.mock("../api/client", async (importOriginal) => {
       ...actual.api,
       getRoleDefinition: vi.fn(),
       getRoleHealth: vi.fn(),
+      getRoleSkillAssignments: vi.fn(),
+      updateRoleSkillAssignments: vi.fn(),
       provisionRole: vi.fn(),
     },
   };
@@ -111,6 +115,41 @@ function healthReport(overrides: Partial<RoleHealthReportView> = {}): RoleHealth
   };
 }
 
+function assignmentsView(
+  overrides: Partial<RoleSkillAssignmentsView> = {},
+): RoleSkillAssignmentsView {
+  return {
+    role_id: "research_lead",
+    phases: ["P1", "P2", "P3", "P4", "P5"].map((phase) => ({
+      phase,
+      source: phase === "P5" ? ("assigned" as const) : ("default" as const),
+      skills: ["stat-paper-writing", "mf-contribution-boundary"],
+    })),
+    available_skills: [
+      {
+        skill_id: "stat-paper-writing",
+        content_sha256: "1".repeat(64),
+        roles: ["research_lead"],
+        bundled: true,
+      },
+      {
+        skill_id: "mf-contribution-boundary",
+        content_sha256: "2".repeat(64),
+        roles: ["research_lead"],
+        bundled: true,
+      },
+      {
+        skill_id: "stat-paper-reviewer",
+        content_sha256: "3".repeat(64),
+        roles: ["outside_reviewer"],
+        bundled: true,
+      },
+    ],
+    matrix_sha256: "4".repeat(64),
+    ...overrides,
+  };
+}
+
 function renderPage(queryClient: QueryClient, roleId = "research_lead") {
   return render(
     <QueryClientProvider client={queryClient}>
@@ -126,6 +165,8 @@ function renderPage(queryClient: QueryClient, roleId = "research_lead") {
 describe("RoleConfigurationPage", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(api.getRoleSkillAssignments).mockResolvedValue(assignmentsView());
+    vi.mocked(api.updateRoleSkillAssignments).mockResolvedValue(assignmentsView());
   });
 
   afterEach(() => {
@@ -278,5 +319,107 @@ describe("provision conflict helpers", () => {
     );
     expect(overwriteProvisionRequest(undefined, skillAssetConflict))
       .toEqual({ install_skills: true, force_overwrite_assets: true, force_overwrite_skills: true });
+  });
+});
+
+describe("SkillAssignmentsPanel", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(api.getRoleDefinition).mockResolvedValue(definition());
+    vi.mocked(api.getRoleHealth).mockResolvedValue(healthReport());
+    vi.mocked(api.getRoleSkillAssignments).mockResolvedValue(assignmentsView());
+    vi.mocked(api.updateRoleSkillAssignments).mockResolvedValue(assignmentsView());
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("renders the skill-by-phase matrix with sources and the matrix digest", async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    renderPage(queryClient);
+
+    expect(await screen.findByText("Skills per phase")).toBeInTheDocument();
+    // Phase columns with source pills (first phase awaited so the query has resolved)
+    expect(await screen.findByText("P1")).toBeInTheDocument();
+    for (const phase of ["P2", "P3", "P4", "P5"]) {
+      expect(screen.getByText(phase)).toBeInTheDocument();
+    }
+    expect(screen.getAllByText("default")).toHaveLength(4);
+    expect(screen.getByText("assigned")).toBeInTheDocument();
+    // Skill rows with digest previews
+    expect(screen.getByText("stat-paper-writing")).toBeInTheDocument();
+    expect(screen.getByText("mf-contribution-boundary")).toBeInTheDocument();
+    expect(screen.getByText("stat-paper-reviewer")).toBeInTheDocument();
+    expect(screen.getByText("1".repeat(12))).toBeInTheDocument();
+    // Matrix digest + seal note
+    expect(screen.getByText("Assignment matrix digest")).toBeInTheDocument();
+    expect(screen.getByText("4".repeat(64))).toBeInTheDocument();
+    expect(screen.getByText(/next run seal/)).toBeInTheDocument();
+    // Checked state follows the effective lists
+    const reviewerInP1 = screen.getByRole("checkbox", { name: "stat-paper-reviewer in P1" });
+    expect(reviewerInP1).not.toBeChecked();
+    const writingInP3 = screen.getByRole("checkbox", { name: "stat-paper-writing in P3" });
+    expect(writingInP3).toBeChecked();
+  });
+
+  it("toggling a cell saves the recomputed phase skill list", async () => {
+    const user = userEvent.setup();
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    renderPage(queryClient);
+
+    const cell = await screen.findByRole("checkbox", { name: "stat-paper-reviewer in P1" });
+    await user.click(cell);
+
+    expect(api.updateRoleSkillAssignments).toHaveBeenCalledWith("research_lead", "P1", {
+      skills: ["stat-paper-writing", "mf-contribution-boundary", "stat-paper-reviewer"],
+    });
+  });
+
+  it("unchecking a cell removes only that skill", async () => {
+    const user = userEvent.setup();
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    renderPage(queryClient);
+
+    const cell = await screen.findByRole("checkbox", { name: "mf-contribution-boundary in P2" });
+    await user.click(cell);
+
+    expect(api.updateRoleSkillAssignments).toHaveBeenCalledWith("research_lead", "P2", {
+      skills: ["stat-paper-writing"],
+    });
+  });
+
+  it("reset restores the catalog default for an assigned phase", async () => {
+    const user = userEvent.setup();
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    renderPage(queryClient);
+
+    // Only the assigned column (P5) shows a Reset button
+    const reset = await screen.findByRole("button", { name: "Reset" });
+    await user.click(reset);
+
+    expect(api.updateRoleSkillAssignments).toHaveBeenCalledWith("research_lead", "P5", {
+      skills: null,
+    });
+  });
+
+  it("surfaces a save failure without crashing the page", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.updateRoleSkillAssignments).mockRejectedValue(new Error("network down"));
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    renderPage(queryClient);
+
+    const cell = await screen.findByRole("checkbox", { name: "stat-paper-reviewer in P1" });
+    await user.click(cell);
+
+    expect(await screen.findByText(/The assignment was not saved/)).toBeInTheDocument();
+  });
+
+  it("shows an inline error when the assignments query fails", async () => {
+    vi.mocked(api.getRoleSkillAssignments).mockRejectedValue(new Error("offline"));
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    renderPage(queryClient);
+
+    expect(await screen.findByText(/Skill assignments are unavailable/)).toBeInTheDocument();
   });
 });

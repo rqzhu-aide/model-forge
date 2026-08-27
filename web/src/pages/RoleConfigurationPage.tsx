@@ -234,6 +234,113 @@ function RecommendedSkillRow({
   );
 }
 
+export function SkillAssignmentsPanel({ roleId }: { roleId: string }) {
+  const queryClient = useQueryClient();
+  const assignmentsQuery = useQuery({
+    queryKey: ["role-skill-assignments", roleId],
+    queryFn: () => api.getRoleSkillAssignments(roleId),
+  });
+  const mutation = useMutation({
+    mutationFn: (input: { phase: string; skills: string[] | null }) =>
+      api.updateRoleSkillAssignments(roleId, input.phase, { skills: input.skills }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["role-skill-assignments", roleId] });
+    },
+  });
+
+  const busy = mutation.isPending;
+
+  const toggle = (phase: string, skillId: string, currentlyEffective: string[]) => {
+    const next = currentlyEffective.includes(skillId)
+      ? currentlyEffective.filter((id) => id !== skillId)
+      : [...currentlyEffective, skillId];
+    mutation.mutate({ phase, skills: next });
+  };
+
+  return (
+    <Panel
+      eyebrow="Skill assignments"
+      title="Skills per phase"
+      description="Which skills this member carries into each phase. Edits take effect at the next run seal; in-flight runs are untouched."
+    >
+      {assignmentsQuery.isLoading ? <p className="muted-text">Loading skill assignments...</p> : null}
+      {assignmentsQuery.error ? (
+        <p className="muted-text" role="alert">
+          Skill assignments are unavailable: {String(assignmentsQuery.error)}
+        </p>
+      ) : null}
+      {assignmentsQuery.data ? (
+        <>
+          <table className="skill-matrix">
+            <thead>
+              <tr>
+                <th scope="col">Skill</th>
+                {assignmentsQuery.data.phases.map((entry) => (
+                  <th scope="col" key={entry.phase}>
+                    <div className="skill-matrix__phase">
+                      <span>{entry.phase}</span>
+                      <StatusPill tone={entry.source === "assigned" ? "information" : "neutral"}>
+                        {entry.source}
+                      </StatusPill>
+                      {entry.source === "assigned" ? (
+                        <button
+                          type="button"
+                          className="button button--quiet button--small"
+                          disabled={busy}
+                          onClick={() => mutation.mutate({ phase: entry.phase, skills: null })}
+                        >
+                          Reset
+                        </button>
+                      ) : null}
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {assignmentsQuery.data.available_skills.map((skill) => (
+                <tr key={skill.skill_id}>
+                  <th scope="row">
+                    <code>{skill.skill_id}</code>
+                    <span className="skill-matrix__digest">{skill.content_sha256.slice(0, 12)}</span>
+                  </th>
+                  {assignmentsQuery.data.phases.map((entry) => {
+                    const checked = entry.skills.includes(skill.skill_id);
+                    return (
+                      <td key={entry.phase}>
+                        <input
+                          type="checkbox"
+                          aria-label={`${skill.skill_id} in ${entry.phase}`}
+                          checked={checked}
+                          disabled={busy}
+                          onChange={() => toggle(entry.phase, skill.skill_id, entry.skills)}
+                        />
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {mutation.error ? (
+            <p className="muted-text" role="alert">
+              The assignment was not saved: {String(mutation.error)}
+            </p>
+          ) : null}
+          <dl className="record-metadata">
+            {assignmentsQuery.data.matrix_sha256 ? (
+              <div>
+                <dt>Assignment matrix digest</dt>
+                <dd><code>{assignmentsQuery.data.matrix_sha256}</code></dd>
+              </div>
+            ) : null}
+          </dl>
+        </>
+      ) : null}
+    </Panel>
+  );
+}
+
 export function RoleConfigurationPage() {
   const { roleId } = useParams();
   const queryClient = useQueryClient();
@@ -397,6 +504,8 @@ export function RoleConfigurationPage() {
           </>
         ) : null}
       </Panel>
+
+      <SkillAssignmentsPanel roleId={roleId} />
 
       <Panel
         eyebrow="Library guidance"

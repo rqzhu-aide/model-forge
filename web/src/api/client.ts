@@ -16,6 +16,8 @@ import type {
   RoleDefinitionCatalogView,
   RoleDefinitionView,
   RoleHealthReportView,
+  RoleSkillAssignmentsView,
+  UpdateSkillAssignmentsRequest,
   RunDetail,
   RunEvent,
   RunSummary,
@@ -113,7 +115,7 @@ async function requestText(path: string): Promise<string> {
 
 function commandRequest<T>(
   path: string,
-  method: "POST" | "PATCH",
+  method: "POST" | "PATCH" | "PUT",
   body: unknown,
 ): Promise<T> {
   // The key is created once for this command invocation. A transport retry must
@@ -281,6 +283,22 @@ export const api = {
     commandRequest<ProvisionResultView>(
       `/configuration/roles/${encodeURIComponent(roleId)}/provision`,
       "POST",
+      input,
+    ),
+
+  getRoleSkillAssignments: (roleId: string) =>
+    request<RoleSkillAssignmentsView>(
+      `/configuration/roles/${encodeURIComponent(roleId)}/skill-assignments`,
+    ),
+
+  updateRoleSkillAssignments: (
+    roleId: string,
+    phase: string,
+    input: UpdateSkillAssignmentsRequest,
+  ) =>
+    commandRequest<RoleSkillAssignmentsView>(
+      `/configuration/roles/${encodeURIComponent(roleId)}/skill-assignments/${encodeURIComponent(phase)}`,
+      "PUT",
       input,
     ),
 

@@ -21,6 +21,7 @@ vi.mock("../api/client", async (importOriginal) => {
       ...actual.api,
       getRoleDefinition: vi.fn(),
       getRoleHealth: vi.fn(),
+      getRoleSkillAssignments: vi.fn(),
       provisionRole: vi.fn(),
     },
   };
@@ -122,6 +123,14 @@ function renderPage() {
 beforeEach(() => {
   vi.resetAllMocks();
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  // The page also renders the skill-assignment matrix panel; provision tests
+  // do not exercise it, so resolve it with an empty catalog.
+  vi.mocked(api.getRoleSkillAssignments).mockResolvedValue({
+    role_id: "research_lead",
+    phases: [],
+    available_skills: [],
+    matrix_sha256: "0".repeat(64),
+  });
 });
 
 afterEach(() => {

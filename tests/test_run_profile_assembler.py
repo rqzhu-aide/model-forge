@@ -431,6 +431,7 @@ class TestSkillAssignmentResolution:
         assert assignment["source"] == "default"
         assert assignment["skills"] == [
             {"skill_id": "stat-paper-writing", "origin": "default"},
+            {"skill_id": "stat-method-design", "origin": "default"},
             {"skill_id": "mf-proof-dependency", "origin": "default"},
         ]
 
@@ -459,7 +460,7 @@ class TestSkillAssignmentResolution:
         installed = {
             p.name for p in (sealed.run_dir / "profile" / "skills").iterdir()
         }
-        assert installed == {"stat-paper-writing", "mf-proof-dependency"}
+        assert installed == {"stat-paper-writing", "stat-method-design", "mf-proof-dependency"}
         assert sealed.manifest["role_definition"]["skill_assignment"][
             "source"
         ] == "default"

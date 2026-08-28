@@ -69,11 +69,14 @@ class TestGetRoleSkillAssignments:
             "P5",
         ]
         assert all(entry.source == "default" for entry in view.phases)
-        assert view.phases[2].skills == ["stat-paper-writing", "mf-proof-dependency"]
+        assert view.phases[2].skills == ["stat-paper-writing", "stat-method-design", "mf-proof-dependency"]
         catalog_ids = {entry.skill_id for entry in view.available_skills}
         assert catalog_ids == {
             "stat-paper-writing",
             "stat-paper-reviewer",
+            "stat-literature-synthesis",
+            "stat-method-design",
+            "stat-simulation-design",
             "mf-contribution-boundary",
             "mf-proof-dependency",
             "mf-reproducibility-checklist",
@@ -144,7 +147,7 @@ class TestUpdateRoleSkillAssignments:
         )
         p3 = next(entry for entry in view.phases if entry.phase == "P3")
         assert p3.source == "default"
-        assert p3.skills == ["stat-paper-writing", "mf-proof-dependency"]
+        assert p3.skills == ["stat-paper-writing", "stat-method-design", "mf-proof-dependency"]
 
     def test_unknown_skill_rejected(self, tmp_path: Path) -> None:
         service = _make_service(tmp_path)

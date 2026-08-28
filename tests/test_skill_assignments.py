@@ -40,10 +40,11 @@ class TestLoad:
     ) -> None:
         matrix = SkillAssignmentMatrix.load(TEAM_ROOT, catalog, manifest)
         assert matrix.assignments == ()
-        # Defaults everywhere: the historical per-role sets.
+        # Defaults everywhere: the catalog's per-role union.
         resource = catalog.role("theorist")
         assert matrix.effective_skills(resource, "P3") == (
             "stat-paper-writing",
+            "stat-method-design",
             "mf-proof-dependency",
         )
 
@@ -76,6 +77,8 @@ class TestLoad:
         # Other pairs keep the default.
         assert matrix.effective_skills(resource, "P4") == (
             "stat-paper-writing",
+            "stat-literature-synthesis",
+            "stat-method-design",
             "mf-contribution-boundary",
         )
 

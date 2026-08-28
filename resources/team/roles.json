@@ -14,8 +14,18 @@
       "library_guidance": {
         "file": "guidance/research_lead.md"
       },
-      "applicable_phases": ["P1", "P2", "P3", "P4", "P5"],
-      "recommended_skills": ["stat-paper-writing"],
+      "applicable_phases": [
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P5"
+      ],
+      "recommended_skills": [
+        "stat-paper-writing",
+        "stat-literature-synthesis",
+        "stat-method-design"
+      ],
       "custom_skills": [
         {
           "skill_id": "mf-contribution-boundary",
@@ -38,8 +48,17 @@
       "library_guidance": {
         "file": "guidance/theorist.md"
       },
-      "applicable_phases": ["P1", "P2", "P3", "P4", "P5"],
-      "recommended_skills": ["stat-paper-writing"],
+      "applicable_phases": [
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P5"
+      ],
+      "recommended_skills": [
+        "stat-paper-writing",
+        "stat-method-design"
+      ],
       "custom_skills": [
         {
           "skill_id": "mf-proof-dependency",
@@ -62,8 +81,17 @@
       "library_guidance": {
         "file": "guidance/data_analyst.md"
       },
-      "applicable_phases": ["P1", "P2", "P3", "P4", "P5"],
-      "recommended_skills": ["stat-paper-writing"],
+      "applicable_phases": [
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P5"
+      ],
+      "recommended_skills": [
+        "stat-paper-writing",
+        "stat-simulation-design"
+      ],
       "custom_skills": [
         {
           "skill_id": "mf-reproducibility-checklist",
@@ -86,8 +114,12 @@
       "library_guidance": {
         "file": "guidance/outside_reviewer.md"
       },
-      "applicable_phases": ["P5"],
-      "recommended_skills": ["stat-paper-reviewer"],
+      "applicable_phases": [
+        "P5"
+      ],
+      "recommended_skills": [
+        "stat-paper-reviewer"
+      ],
       "custom_skills": [
         {
           "skill_id": "mf-review-calibration",
@@ -112,6 +144,27 @@
       "description": "Independent statistical and machine-learning manuscript review.",
       "source": "https://github.com/rqzhu-aide/stat-paper-skills/tree/main/stat-paper-reviewer",
       "recommended_version": "main"
+    },
+    {
+      "skill_id": "stat-literature-synthesis",
+      "name": "Statistical literature synthesis",
+      "description": "Clustered claim synthesis, coverage matrices, and falsifiable gap statements.",
+      "source": "model-forge/bundled",
+      "recommended_version": "bundled"
+    },
+    {
+      "skill_id": "stat-method-design",
+      "name": "Statistical method design",
+      "description": "Desiderata-driven method construction with explicit mechanism and falsifiable predictions.",
+      "source": "model-forge/bundled",
+      "recommended_version": "bundled"
+    },
+    {
+      "skill_id": "stat-simulation-design",
+      "name": "Statistical simulation design",
+      "description": "Equal-cost simulation studies with pinned seeds, budgets, and honest variance reporting.",
+      "source": "model-forge/bundled",
+      "recommended_version": "bundled"
     }
   ]
 }

@@ -368,11 +368,21 @@ missing. Optional skills are exposed to the user and recorded when selected.
 
 Skill attachment is configurable per role and phase. A configuration-managed
 assignment matrix (role x phase -> skill set) defines the effective set a
-role carries into each phase; pairs without an entry fall back to the role's
-catalog default. The assignment resolves at run seal, is installed into the
-role's private runtime profile with per-asset digests, and is recorded in
-the run manifest with its origin (assigned vs default). The selector UI and
-resolution machinery are specified in
+role carries into each phase. Resolution order: a matrix entry wins; absent
+that, the curated per-phase default set in `resources/team/skill-defaults.json`
+applies; absent both, the role's catalog union (recommended plus bundled
+custom skills) applies. The assignment resolves at run seal on every
+execution path: the supervised-run profile assembler installs the effective
+set into the role's private runtime profile with per-asset digests, and the
+research-run freeze records the effective digest-pinned set plus a
+skill_assignment block (phase, assigned vs default) in the run manifest.
+
+Provisioning keeps the shared role profile aligned with the catalog: it
+installs exactly the curated union and prunes any unmanaged skill
+directory, so no member loads skills outside its curated set. The pruned
+set is recorded in the provision result and covered by the rollback backup.
+
+The selector UI and resolution machinery are specified in
 [Skill Selector and Role Skill Configuration](../archive/skill-selector-and-role-skill-configuration-2026-08-26.md).
 
 Knowledge resources may include literature indexes, mathematical libraries such

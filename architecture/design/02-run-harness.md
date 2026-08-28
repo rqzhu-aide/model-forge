@@ -179,6 +179,8 @@ During `preparing`, the harness:
 
 Preparation fails if a required current record is absent, incompatible, withdrawn, or not eligible under the phase contract. The error response must identify the missing scientific prerequisite and the user actions that could resolve it.
 
+A run command may carry researcher seed inputs (ADR-018, scenario S31): inline content mapped to declared contract input ids. Each seed is content-addressed into the artifact store at preparation, wrapped in a synthetic record reference carrying the run's selected method identity, and treated as present for rerun detection. The frozen manifest marks seeded inputs `origin: "researcher_seed"`; all other inputs keep `origin: "current_record"`. Seeds for undeclared inputs fail preparation with `input.unknown_seed`, and the stale-basis generation guard exempts seeded inputs because the command itself declares the override.
+
 ### 4.3 Input materialization
 
 The run manifest is the authoritative run recipe. Its `role_plan` seals stage order, assignments, declared input and output IDs, profiles, and write roots before execution. It does not claim future prepared-context, handoff, produced-artifact, access-ledger, start-time, or closure digests.

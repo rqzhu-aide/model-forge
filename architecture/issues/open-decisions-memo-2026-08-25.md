@@ -26,8 +26,10 @@ Landed (P5 contract 2.3.0 -> 2.4.0):
 - Review-revision stays a separate mode (the independent review panel is
   a real quality gate); only the input semantics unified.
 - Researcher-supplied seed drafts (a manuscript that never passed through
-  a phase) remain impossible - inputs resolve from published current
-  records only.  That front door is a separate queued item.
+  a phase) enter through the seed channel (ADR-018, scenario S31,
+  shipped 2026-08-28): the run command carries `seed_inputs`, the seed
+  freezes with researcher_seed provenance, and continuation semantics
+  apply.
 
 History: the original D-1 analysis (options a/b/c, recommendation b)
 superseded by Tez's direction.

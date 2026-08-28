@@ -53,3 +53,5 @@ The exact identifiers, invariant links, test groups, phase suites, and milestone
 | S27 | `s27.revalidation` | Revalidation after validator policy change with unchanged digest | Validation suite | M3 |
 | S28 | `s28.integrity_rejection` | Wrong identity, basis, or digest strictly rejected | Validation suite | M3 |
 | S29 | `s29.warning_only_publication` | Honest negative or inconclusive result publishes with advisory findings | Validation suite | M6, M7 |
+| S30 | `s30.broadcast_handoff_multi_role` | Broadcast handoff into a multi-role stage | Trusted-local suite | M3 |
+| S31 | `s31.researcher_seed_input` | Researcher seed input freezes with researcher_seed provenance | Validation suite | M7 |

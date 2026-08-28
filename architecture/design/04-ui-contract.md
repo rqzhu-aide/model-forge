@@ -144,10 +144,14 @@ digests, and a write never silently overwrites a researcher customization
 (scenario S13). The assignment API is
 `GET /api/v1/configuration/roles/{role}/skill-assignments` (effective set
 per phase with assigned-vs-default origin, the bundled catalog with content
-digests, and the matrix file digest) and
+digests plus each skill's name and description for tooltip display, and
+the matrix file digest) and
 `PUT /api/v1/configuration/roles/{role}/skill-assignments/{phase}`
 (a skill list replaces the assignment; an empty list runs the phase with no
-skills; explicit null clears back to the catalog default). The per-phase
+skills; explicit null clears back to the catalog default). "Default" means
+the curated per-phase set in `resources/team/skill-defaults.json` first,
+then the role's catalog union; the matrix presents the curated picks as
+checked by default and the researcher edits from there. The per-phase
 skill selector is specified in
 [Skill Selector and Role Skill Configuration](../archive/skill-selector-and-role-skill-configuration-2026-08-26.md).
 
@@ -170,6 +174,10 @@ Provides progressive access from compact decision view to structured record to p
 ### 4.4 Run or rerun panel
 
 Selects one declared run mode and collects its exact phase-specific choices, including instructions, method when applicable, Phase 1 search scope, and context. The UI submits one contract-bound `choice_values` map and does not duplicate the same decision in a second scope field. It shows resolved current inputs and the formal object that a successful run will update.
+
+Context selection is per record: group cards toggle a whole group for convenience, and the group detail view exposes an "include in run context" choice per record, feeding `selected_context_option_ids`. Required records stay selected and locked.
+
+The run command also accepts the researcher seed channel (ADR-018): a `seed_inputs` map from contract input id to inline content. Seeded inputs freeze with researcher_seed provenance; the channel is API-level until a phase-page affordance is designed.
 
 ### 4.5 History panel
 

@@ -64,3 +64,4 @@ Create a decision record for at least:
 - [ADR-015: Broadcast Handoff Addressing and Harness-Owned-Field Finding Routing](ADR-015-broadcast-handoff-and-harness-owned-findings.md)
 - [ADR-016: Correction Resume-Execution Edge for Mid-Pipeline Failures](ADR-016-correction-resume-execution-edge.md)
 - [ADR-017: P2 Structured Lead Evaluation - Three-Axis Method Scores](ADR-017-p2-structured-lead-evaluation.md)
+- [ADR-018: Researcher Seed Channel for Run Inputs](ADR-018-researcher-seed-channel.md)

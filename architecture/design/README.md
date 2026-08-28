@@ -35,7 +35,7 @@ specification change (validator must stay green).
 - [decisions/](decisions/) - architecture decision records (ADR-001 through
   ADR-017 plus the template). Accepted decisions bind; changing one is a new
   ADR.
-- [scenarios/](scenarios/) - the behavioral scenario catalog (S01-S30) the
+- [scenarios/](scenarios/) - the behavioral scenario catalog (S01-S31) the
   system is tested against.
 
 ## Related

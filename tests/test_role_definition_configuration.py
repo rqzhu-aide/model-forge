@@ -1331,3 +1331,25 @@ def test_second_provision_prunes_nothing_new(tmp_path: Path) -> None:
     assert first.skills_pruned == ("old-skill",)
     assert second.skills_pruned == ()
     assert second.skills_installed == ()
+
+
+def test_provision_tolerates_socket_files_in_live_profile(tmp_path: Path) -> None:
+    """A live profile's gateway.sock must not break the rollback backup."""
+    import socket
+
+    catalog = RoleResourceCatalog.load(RESOURCE_ROOT)
+    bundle = ROOT / "resources" / "skills"
+    hermes_root = tmp_path / "hermes"
+    profiles = _make_profile_dirs(hermes_root)
+    resource = catalog.role("theorist")
+    profile_home = profiles["theorist"]
+
+    sock = socket.socket(socket.AF_UNIX)
+    sock.bind(str(profile_home / "gateway.sock"))
+    try:
+        result = provision_role_definition(resource, profile_home, bundle)
+    finally:
+        sock.close()
+
+    assert result.rolled_back is False
+    assert "SOUL.md" in result.assets_written

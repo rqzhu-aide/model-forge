@@ -422,10 +422,27 @@ def _health_detail(overall: str, statuses: list[AssetStatus]) -> str:
     return "One or more assets or the profile directory is unavailable."
 
 
+def _backup_ignore(directory: str, names: list[str]) -> list[str]:
+    """Skip entries copytree cannot duplicate (sockets, devices, fifos).
+
+    Live profiles can contain runtime artifacts such as ``gateway.sock``;
+    they are not profile state and must not block the rollback backup.
+    """
+    skipped: list[str] = []
+    for name in names:
+        try:
+            mode = (Path(directory) / name).lstat().st_mode
+        except OSError:
+            continue
+        if not (stat.S_ISREG(mode) or stat.S_ISDIR(mode) or stat.S_ISLNK(mode)):
+            skipped.append(name)
+    return skipped
+
+
 def _backup_profile(profile_home: Path) -> Path:
     """Create a temporary backup of the entire profile directory for rollback."""
     backup = profile_home.parent / f".{profile_home.name}.backup-{uuid.uuid4().hex}"
-    shutil.copytree(profile_home, backup)
+    shutil.copytree(profile_home, backup, ignore=_backup_ignore)
     return backup
 
 

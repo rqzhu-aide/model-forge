@@ -131,6 +131,8 @@ function assignmentsView(
         content_sha256: "1".repeat(64),
         roles: ["research_lead"],
         bundled: true,
+        name: "Statistical paper writing",
+        description: "Author-side statistical paper development.",
       },
       {
         skill_id: "mf-contribution-boundary",
@@ -352,6 +354,9 @@ describe("SkillAssignmentsPanel", () => {
     expect(screen.getByText("mf-contribution-boundary")).toBeInTheDocument();
     expect(screen.getByText("stat-paper-reviewer")).toBeInTheDocument();
     expect(screen.getByText("1".repeat(12))).toBeInTheDocument();
+    // Tooltip: the row header exposes the skill description on hover
+    expect(screen.getByText("Statistical paper writing")).toBeInTheDocument();
+    expect(screen.getByTitle("Author-side statistical paper development.")).toBeInTheDocument();
     // Matrix digest + seal note
     expect(screen.getByText("Assignment matrix digest")).toBeInTheDocument();
     expect(screen.getByText("4".repeat(64))).toBeInTheDocument();

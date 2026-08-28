@@ -300,8 +300,11 @@ export function SkillAssignmentsPanel({ roleId }: { roleId: string }) {
             <tbody>
               {assignmentsQuery.data.available_skills.map((skill) => (
                 <tr key={skill.skill_id}>
-                  <th scope="row">
+                  <th scope="row" title={skill.description ?? skill.skill_id}>
                     <code>{skill.skill_id}</code>
+                    {skill.name ? (
+                      <span className="skill-matrix__name">{skill.name}</span>
+                    ) : null}
                     <span className="skill-matrix__digest">{skill.content_sha256.slice(0, 12)}</span>
                   </th>
                   {assignmentsQuery.data.phases.map((entry) => {

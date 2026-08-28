@@ -695,6 +695,8 @@ export interface SkillCatalogEntry {
   content_sha256: string;
   roles: string[];
   bundled: boolean;
+  name?: string;
+  description?: string;
 }
 
 export interface PhaseSkillAssignment {

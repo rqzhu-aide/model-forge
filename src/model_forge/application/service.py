@@ -3342,6 +3342,10 @@ class ModelForgeService:
                     skill_id=skill_id,
                     content_sha256=str(entry["content_sha256"]),
                     roles=[str(value) for value in entry.get("roles", [])],
+                    name=_skill_frontmatter(self.skill_bundle_root, skill_id).get("name"),
+                    description=_skill_frontmatter(self.skill_bundle_root, skill_id).get(
+                        "description"
+                    ),
                 )
                 for skill_id, entry in sorted(manifest["skills"].items())
             ],
@@ -3837,6 +3841,34 @@ def _no_correctable_findings_error(
             smallest_correction=correction,
         )
     )
+
+
+def _skill_frontmatter(bundle_root: Path, skill_id: str) -> dict[str, str]:
+    """Read name and description from a bundled skill's SKILL.md frontmatter.
+
+    The frontmatter is the ``---``-delimited header block; only the
+    top-level ``name:`` and ``description:`` scalars are read. A missing
+    file or field yields an empty mapping so the view degrades to the
+    skill id rather than failing the read.
+    """
+    path = bundle_root / skill_id / "SKILL.md"
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return {}
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return {}
+    result: dict[str, str] = {}
+    for line in lines[1:]:
+        if line.strip() == "---":
+            break
+        for key in ("name", "description"):
+            if line.startswith(f"{key}:") and key not in result:
+                value = line.split(":", 1)[1].strip()
+                if value:
+                    result[key] = value
+    return result
 
 
 def _not_found(error: RepositoryNotFoundError) -> CommandRejected:

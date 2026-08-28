@@ -3763,3 +3763,15 @@ p.run-monitor-note {
   outline: 2px solid var(--interactive);
   outline-offset: 2px;
 }
+
+.skill-matrix th[scope="row"] .skill-matrix__name {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--text-soft);
+  margin-top: 0.1rem;
+}
+
+.skill-matrix th[scope="row"][title] {
+  cursor: help;
+}

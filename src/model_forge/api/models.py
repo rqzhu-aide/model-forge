@@ -1047,6 +1047,10 @@ class SkillCatalogEntryView(StrictModel):
     content_sha256: Sha256String
     roles: list[NonEmptyString] = Field(default_factory=list)
     bundled: bool = True
+    #: Display name and one-line description from the skill's SKILL.md
+    #: frontmatter, for the configuration UI's tooltips.
+    name: NonEmptyString | None = None
+    description: NonEmptyString | None = None
 
 
 class PhaseSkillAssignmentView(StrictModel):

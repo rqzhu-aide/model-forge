@@ -1669,12 +1669,117 @@ class HubRepository:
         connection: sqlite3.Connection, execution_id: str
     ) -> sqlite3.Row:
         row = connection.execute(
-            "SELECT * FROM role_execution_intents WHERE execution_id = ?",
-            (execution_id,),
+            "SELECT * FROM role_execution_intents WHERE execution_id = ?", (execution_id,)
         ).fetchone()
         if row is None:
             raise _not_found("role execution", execution_id)
         return row
+
+    # ------------------------------------------------------------------ #
+    # ADR-019: project researcher-material shelf (informal, mutable)
+    # ------------------------------------------------------------------ #
+
+    def add_researcher_material(
+        self,
+        *,
+        material_id: str,
+        project_id: str,
+        name: str,
+        kind: str,
+        media_type: str,
+        artifact_sha256: str | None,
+        external_url: str | None,
+        size_bytes: int,
+        created_at: str | datetime | None = None,
+    ) -> sqlite3.Row:
+        material_id = _text(material_id, "material_id")
+        project_id = _text(project_id, "project_id")
+        name = _text(name, "name")
+        kind = _text(kind, "kind")
+        media_type = _text(media_type, "media_type")
+        if kind not in {"copy", "link"}:
+            raise RepositoryValidationError(
+                "repository.invalid_material_kind",
+                f"Material kind {kind!r} is not one of copy/link.",
+            )
+        if kind == "copy":
+            artifact_sha256 = _digest(artifact_sha256 or "", "artifact_sha256")
+            external_url = None
+        else:
+            external_url = _text(external_url or "", "external_url")
+            artifact_sha256 = None
+        at = _time(created_at)
+        with self._database.immediate_transaction() as connection:
+            self._require_project(connection, project_id)
+            connection.execute(
+                """
+                INSERT INTO researcher_materials(
+                    material_id, project_id, name, kind, media_type,
+                    artifact_sha256, external_url, size_bytes, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    material_id,
+                    project_id,
+                    name,
+                    kind,
+                    media_type,
+                    artifact_sha256,
+                    external_url,
+                    int(size_bytes),
+                    at,
+                ),
+            )
+            row = connection.execute(
+                "SELECT * FROM researcher_materials WHERE material_id = ?",
+                (material_id,),
+            ).fetchone()
+            assert row is not None
+            return row
+
+    def list_researcher_materials(self, project_id: str) -> tuple[sqlite3.Row, ...]:
+        project_id = _text(project_id, "project_id")
+        with self._database.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT * FROM researcher_materials
+                WHERE project_id = ? ORDER BY created_at, material_id
+                """,
+                (project_id,),
+            ).fetchall()
+        return tuple(rows)
+
+    def get_researcher_material(
+        self, project_id: str, material_id: str
+    ) -> sqlite3.Row:
+        project_id = _text(project_id, "project_id")
+        material_id = _text(material_id, "material_id")
+        with self._database.connect() as connection:
+            row = connection.execute(
+                """
+                SELECT * FROM researcher_materials
+                WHERE project_id = ? AND material_id = ?
+                """,
+                (project_id, material_id),
+            ).fetchone()
+        if row is None:
+            raise _not_found("researcher material", material_id)
+        return row
+
+    def delete_researcher_material(self, project_id: str, material_id: str) -> None:
+        project_id = _text(project_id, "project_id")
+        material_id = _text(material_id, "material_id")
+        with self._database.immediate_transaction() as connection:
+            cursor = connection.execute(
+                """
+                DELETE FROM researcher_materials
+                WHERE project_id = ? AND material_id = ?
+                """,
+                (project_id, material_id),
+            )
+        if cursor.rowcount != 1:
+            raise _not_found("researcher material", material_id)
+
 
 
 @dataclass(frozen=True, slots=True)

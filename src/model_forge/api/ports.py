@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from .models import (
+    AttachResearcherMaterialRequest,
     ConfigurationHealthView,
     CorrectionPreviewRequest,
     CorrectionPreviewView,
@@ -24,6 +25,8 @@ from .models import (
     ProjectOverview,
     ProjectSummary,
     ReasonedActionRequest,
+    ResearcherMaterialContentView,
+    ResearcherMaterialView,
     RoleDefinitionCatalogView,
     RoleDefinitionView,
     RoleHealthReportView,
@@ -52,6 +55,8 @@ CommandFamily = Literal[
     "start_supervised_run",
     "request_output_correction",
     "update_skill_assignments",
+    "attach_researcher_material",
+    "delete_researcher_material",
 ]
 
 
@@ -132,6 +137,26 @@ class ModelForgeApplicationService(Protocol):
     async def get_system_settings(self) -> SystemSettingsView: ...
 
     async def get_project_overview(self, project_id: str) -> ProjectOverview: ...
+
+    async def list_researcher_materials(
+        self, project_id: str
+    ) -> list[ResearcherMaterialView]: ...
+
+    async def attach_researcher_material(
+        self,
+        project_id: str,
+        command: AttachResearcherMaterialRequest,
+        *,
+        raw_request: RawRequestReceipt,
+    ) -> ResearcherMaterialView: ...
+
+    async def get_researcher_material_content(
+        self, project_id: str, material_id: str
+    ) -> ResearcherMaterialContentView: ...
+
+    async def delete_researcher_material(
+        self, project_id: str, material_id: str
+    ) -> None: ...
 
     async def get_phase_view(
         self,

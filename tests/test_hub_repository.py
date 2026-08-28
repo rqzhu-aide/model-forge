@@ -20,7 +20,7 @@ def _digest(character: str) -> str:
 @pytest.fixture
 def repository(tmp_path: Path) -> HubRepository:
     result = HubRepository(tmp_path / "hub.sqlite3")
-    assert result.initialize() == 13
+    assert result.initialize() == 14
     result.create_project("prj_repo", {"name": "Repository test"})
     return result
 

@@ -192,7 +192,7 @@ def test_correction_preview_request_defaults_to_no_transformations() -> None:
 @pytest.fixture
 def repository(tmp_path: Path) -> HubRepository:
     result = HubRepository(tmp_path / "hub.sqlite3")
-    assert result.initialize() == 13
+    assert result.initialize() == 14
     result.create_project("prj_correction", {"name": "Correction foundation"})
     return result
 

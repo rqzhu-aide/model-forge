@@ -12,6 +12,7 @@ from pydantic import ValidationError
 
 from .errors import CommandRejected, command_schema_error
 from .models import (
+    AttachResearcherMaterialRequest,
     ConfigurationHealthView,
     CorrectionPreviewRequest,
     CorrectionPreviewView,
@@ -31,6 +32,8 @@ from .models import (
     ProjectOverview,
     ProjectSummary,
     ReasonedActionRequest,
+    ResearcherMaterialContentView,
+    ResearcherMaterialView,
     RoleDefinitionCatalogView,
     RoleDefinitionView,
     RoleHealthReportView,
@@ -218,6 +221,59 @@ def create_api_router() -> APIRouter:
         project_id: str, service: Service
     ) -> ProjectOverview:
         return await service.get_project_overview(project_id)
+
+    # ADR-019: project researcher-material shelf (informal state).
+    @router.get(
+        "/projects/{project_id}/materials",
+        response_model=list[ResearcherMaterialView],
+        response_model_exclude_none=True,
+    )
+    async def list_researcher_materials(
+        project_id: str, service: Service
+    ) -> list[ResearcherMaterialView]:
+        return await service.list_researcher_materials(project_id)
+
+    @router.post(
+        "/projects/{project_id}/materials",
+        response_model=ResearcherMaterialView,
+        response_model_exclude_none=True,
+        openapi_extra=_body_contract(AttachResearcherMaterialRequest),
+    )
+    async def attach_researcher_material(
+        project_id: str,
+        request: Request,
+        service: Service,
+    ) -> ResearcherMaterialView:
+        command, raw_request = await _capture_and_parse(
+            request,
+            service,
+            AttachResearcherMaterialRequest,
+            command_family="attach_researcher_material",
+            project_id=project_id,
+        )
+        return await service.attach_researcher_material(
+            project_id, command, raw_request=raw_request
+        )
+
+    @router.get(
+        "/projects/{project_id}/materials/{material_id}/content",
+        response_model=ResearcherMaterialContentView,
+        response_model_exclude_none=True,
+    )
+    async def get_researcher_material_content(
+        project_id: str, material_id: str, service: Service
+    ) -> ResearcherMaterialContentView:
+        return await service.get_researcher_material_content(project_id, material_id)
+
+    @router.delete(
+        "/projects/{project_id}/materials/{material_id}",
+        status_code=204,
+    )
+    async def delete_researcher_material(
+        project_id: str, material_id: str, service: Service
+    ) -> Response:
+        await service.delete_researcher_material(project_id, material_id)
+        return Response(status_code=204)
 
     @router.get(
         "/projects/{project_id}/phases/{phase_id}",

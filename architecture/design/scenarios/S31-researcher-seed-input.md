@@ -68,8 +68,12 @@ the supplementary input id mapped to inline content and a media type.
   external-link seeds seal as text/uri-list, a seed targeting a required
   input stops the run safely with the rejection as its terminal reason).
 - UI: `web/src/components/RunFormSupplementary.test.tsx` (attach, review,
-  submit payload, invalid-link gate) and
+  submit payload, invalid-link gate, shelf pick) and
   `web/src/components/RunTimeline.test.tsx` (provenance badge).
+- Project shelf: `tests/test_researcher_materials.py` (copy stores bytes
+  and returns exact content, links seal as text/uri-list, 1 MB copy cap
+  with link guidance, removal keeps content-addressed bytes) and
+  `web/src/components/MaterialShelf.test.tsx` (attach, list, remove).
 - Superseded semantics: run
   `run.p5.p5-assembly.ba0dd8a366b44d2bb17ce049b5f4a30e` (2026-08-28)
   froze a seeded `p5.current_manuscript` under ADR-018 and was cancelled

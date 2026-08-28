@@ -59,10 +59,14 @@ that lands a finished foreign manuscript in P5.
   ADR-018 production run (`run.p5.p5-assembly.ba0dd8a366b44d2bb17ce049b5f4a30e`,
   cancelled before execution) remains historical evidence of the
   superseded semantics only.
-- The UI exposes the seed channel as the run form's "Supplementary
-  material" section (copy-in for small material, external link for
-  large), and the run page marks seeded basis entries with a researcher
-  material provenance badge.
+- The UI exposes the seed channel through a project-level
+  "Supplementary material" shelf on the overview page (attach once,
+  copied into the artifact store or kept as an external link) plus the
+  run form's section (shelf pick, copy-in, or link). The shelf is
+  informal, mutable state; sealing a shelf item fetches its exact stored
+  payload into the sealed command, so run reproducibility is unchanged.
+  The run page marks seeded basis entries with a researcher material
+  provenance badge.
 - A seed remains authoritative for its run only and never becomes a
   current record by itself; publication still flows through the normal
   gates.

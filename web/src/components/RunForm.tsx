@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
@@ -133,11 +133,17 @@ export function RunForm({
   const [selectedContext, setSelectedContext] = useState<Set<string>>(new Set());
   const [reviewing, setReviewing] = useState(false);
   const [methodSpec, setMethodSpec] = useState("");
-  const [suppMode, setSuppMode] = useState<"none" | "copy" | "link">("none");
+  const [suppMode, setSuppMode] = useState<"none" | "copy" | "link" | "shelf">("none");
   const [suppText, setSuppText] = useState("");
   const [suppFileName, setSuppFileName] = useState<string | null>(null);
   const [suppMediaType, setSuppMediaType] = useState("text/markdown");
   const [suppLink, setSuppLink] = useState("");
+  const [suppShelfId, setSuppShelfId] = useState("");
+  const materialsQuery = useQuery({
+    queryKey: ["materials", projectId],
+    queryFn: () => api.listMaterials(projectId),
+  });
+  const shelfMaterials = materialsQuery.data ?? [];
 
   useEffect(() => {
     setSelectedContext(
@@ -160,6 +166,7 @@ export function RunForm({
   const localMissing: string[] = [];
   if (requiresMethod && !selectedMethod) localMissing.push("Select an active method.");
   if (suppLinkInvalid) localMissing.push("The external material link must be a valid http(s) URL.");
+  if (suppMode === "shelf" && !suppShelfId) localMissing.push("Choose a material from the project shelf.");
 
   const mutation = useMutation({
     mutationFn: (input: StartRunRequest) => api.startRun(projectId, input),
@@ -211,7 +218,7 @@ export function RunForm({
     return next;
   });
 
-  const submit = () => {
+  const submit = async () => {
     if (!action || !canReview) return;
     let seedInputs: StartRunRequest["seed_inputs"];
     if (supplementarySlot && suppMode === "copy" && suppText.trim().length > 0) {
@@ -225,6 +232,16 @@ export function RunForm({
       // everything derived from it is generated inside the workspace.
       seedInputs = {
         [supplementarySlot.input_id]: { content: suppLinkTrimmed, media_type: "text/uri-list" },
+      };
+    } else if (supplementarySlot && suppMode === "shelf" && suppShelfId) {
+      // Shelf item: fetch the exact stored payload and seal it inline, so
+      // the command pins the precise bytes (or link) being handed over.
+      const stored = await api.getMaterialContent(projectId, suppShelfId);
+      seedInputs = {
+        [supplementarySlot.input_id]: {
+          content: stored.content,
+          media_type: stored.media_type,
+        },
       };
     }
     mutation.mutate({
@@ -362,6 +379,9 @@ export function RunForm({
           <div className="choice-cards">
             {([
               { value: "none", label: "None", description: "This run uses published project records only." },
+              ...(shelfMaterials.length > 0
+                ? [{ value: "shelf" as const, label: "From the project shelf", description: "Seal a material you attached on the project overview into this run." }]
+                : []),
               { value: "copy", label: "Copy into the project record", description: "Paste text or attach a small file. The content is copied into the project's artifact store and sealed with the run." },
               { value: "link", label: "External link", description: "Reference large data or material by URL. The link is sealed with the run; the material itself stays external." },
             ] as const).map((option) => (
@@ -380,6 +400,26 @@ export function RunForm({
               </label>
             ))}
           </div>
+          {suppMode === "shelf" ? (
+            <label className="field field--prominent">
+              <span>Shelf material</span>
+              <select
+                value={suppShelfId}
+                onChange={(event) => {
+                  setReviewing(false);
+                  setSuppShelfId(event.target.value);
+                }}
+              >
+                <option value="">Choose material...</option>
+                {shelfMaterials.map((item) => (
+                  <option key={item.material_id} value={item.material_id}>
+                    {item.name} ({item.kind === "copy" ? "copied in" : "external link"})
+                  </option>
+                ))}
+              </select>
+              <small>The exact stored content (or link) is sealed into this run's command.</small>
+            </label>
+          ) : null}
           {suppMode === "copy" ? (
             <label className="field field--prominent">
               <span>Material content</span>
@@ -524,7 +564,9 @@ export function RunForm({
                   ? `${suppFileName ?? "Pasted text"}, ${new Blob([suppText]).size} bytes, ${suppMediaType} - copied into the project record`
                   : supplementarySlot && suppMode === "link" && suppLinkTrimmed.length > 0
                     ? `${suppLinkTrimmed} - external link, referenced not copied`
-                    : "None"}
+                    : supplementarySlot && suppMode === "shelf" && suppShelfId
+                      ? `${shelfMaterials.find((item) => item.material_id === suppShelfId)?.name ?? "Shelf item"} - from the project shelf`
+                      : "None"}
               </dd>
             </div>
             <div>

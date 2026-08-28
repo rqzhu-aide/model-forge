@@ -9,10 +9,16 @@ import type { ActionDescriptor, PhaseView, StartRunRequest } from "../api/types"
 import { RunForm } from "./RunForm";
 
 const startRunMock = vi.fn<(projectId: string, input: StartRunRequest) => Promise<unknown>>();
+const listMaterialsMock = vi.fn<(projectId: string) => Promise<unknown>>();
+const getMaterialContentMock =
+  vi.fn<(projectId: string, materialId: string) => Promise<unknown>>();
 
 vi.mock("../api/client", () => ({
   api: {
     startRun: (projectId: string, input: StartRunRequest) => startRunMock(projectId, input),
+    listMaterials: (projectId: string) => listMaterialsMock(projectId),
+    getMaterialContent: (projectId: string, materialId: string) =>
+      getMaterialContentMock(projectId, materialId),
   },
 }));
 
@@ -91,6 +97,9 @@ describe("RunForm supplementary material (ADR-019)", () => {
   beforeEach(() => {
     startRunMock.mockReset();
     startRunMock.mockResolvedValue({ run_id: "run.1" });
+    listMaterialsMock.mockReset();
+    listMaterialsMock.mockResolvedValue([]);
+    getMaterialContentMock.mockReset();
     window.localStorage.clear();
   });
   afterEach(cleanup);
@@ -162,5 +171,44 @@ describe("RunForm supplementary material (ADR-019)", () => {
     await user.type(screen.getByPlaceholderText("https://..."), "not-a-url");
     expect(screen.getByRole("button", { name: "Review this run" })).toBeDisabled();
     expect(screen.getByText("This does not look like a valid http(s) URL.")).toBeInTheDocument();
+  });
+
+  it("offers shelf material and seals the stored payload", async () => {
+    listMaterialsMock.mockResolvedValue([
+      {
+        material_id: "material.abc",
+        name: "partial_fit.py",
+        kind: "copy",
+        media_type: "text/plain",
+        size_bytes: 30,
+        created_at: "2026-08-28T10:00:00Z",
+      },
+    ]);
+    getMaterialContentMock.mockResolvedValue({
+      material_id: "material.abc",
+      content: "def partial_fit(x): return x",
+      media_type: "text/plain",
+    });
+    const user = userEvent.setup();
+    renderForm();
+    await user.click(
+      await screen.findByRole("radio", { name: /From the project shelf/ }),
+    );
+    // Launch is blocked until a shelf item is chosen.
+    expect(screen.getByRole("button", { name: "Review this run" })).toBeDisabled();
+    await user.selectOptions(screen.getByRole("combobox"), "material.abc");
+    const payload = await launch(user);
+    expect(getMaterialContentMock).toHaveBeenCalledWith("project-1", "material.abc");
+    expect(payload.seed_inputs).toEqual({
+      "p1.researcher_material": {
+        content: "def partial_fit(x): return x",
+        media_type: "text/plain",
+      },
+    });
+  });
+
+  it("hides the shelf option when the shelf is empty", () => {
+    renderForm();
+    expect(screen.queryByRole("radio", { name: /From the project shelf/ })).not.toBeInTheDocument();
   });
 });

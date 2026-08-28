@@ -12,6 +12,7 @@ import type {
   ScientificStatus,
 } from "../api/types";
 import { EmptyState, ErrorState, LoadingState } from "../components/Feedback";
+import { MaterialShelf } from "../components/MaterialShelf";
 import { Panel } from "../components/Panel";
 import { getPhaseWorkspaceStatus } from "../components/ProjectWorkspaceTabs";
 import { StatusPill } from "../components/Status";
@@ -446,6 +447,9 @@ export function ProjectOverviewPage() {
           </EmptyState>
         ) : null}
       </Panel>
+
+      {/* Panel 2b: researcher-supplied supplementary material shelf (ADR-019) */}
+      <MaterialShelf projectId={projectId} />
 
       {/* Panel 3: Run timeline (full width) */}
       {runsQuery.isLoading ? (

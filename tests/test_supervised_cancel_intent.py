@@ -47,7 +47,7 @@ EXTERNAL_ID = "local:pid:4242:st:1:mk:x:bi:y"
 
 def _fresh_database(tmp_path: Path) -> Database:
     database = Database(tmp_path / "hub.sqlite3", migrations=HUB_MIGRATIONS)
-    assert database.initialize() == 13
+    assert database.initialize() == 14
     return database
 
 

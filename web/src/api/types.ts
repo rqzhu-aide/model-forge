@@ -854,6 +854,31 @@ export interface SeedInput {
   media_type: string;
 }
 
+export interface AttachResearcherMaterialRequest {
+  name: string;
+  kind: "copy" | "link";
+  media_type?: string;
+  content?: string;
+  external_url?: string;
+}
+
+export interface ResearcherMaterialView {
+  material_id: string;
+  name: string;
+  kind: "copy" | "link";
+  media_type: string;
+  size_bytes: number;
+  external_url?: string;
+  content_sha256?: string;
+  created_at: string;
+}
+
+export interface ResearcherMaterialContentView {
+  material_id: string;
+  content: string;
+  media_type: string;
+}
+
 export interface StartRunRequest {
   action_descriptor_id: string;
   phase: PhaseId;

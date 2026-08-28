@@ -17,6 +17,7 @@ from typing import Any
 from .. import __version__
 from ..api.errors import CommandRejected, new_command_error
 from ..api.models import (
+    AttachResearcherMaterialRequest,
     CreateProjectRequest,
     CorrectionPreviewRequest,
     CorrectionPreviewView,
@@ -33,6 +34,8 @@ from ..api.models import (
     ProjectOverview,
     ProjectSummary,
     ReasonedActionRequest,
+    ResearcherMaterialContentView,
+    ResearcherMaterialView,
     RoleDefinitionCatalogView,
     RoleDefinitionView,
     RoleHealthReportView,
@@ -704,6 +707,106 @@ class ModelForgeService:
             request_artifact_id=request_id,
             content_sha256=str(stored.sha256),
         )
+
+    # ------------------------------------------------------------------ #
+    # ADR-019: project researcher-material shelf (informal state)
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def _material_view(row: Any) -> ResearcherMaterialView:
+        return ResearcherMaterialView(
+            material_id=str(row["material_id"]),
+            name=str(row["name"]),
+            kind="copy" if str(row["kind"]) == "copy" else "link",
+            media_type=str(row["media_type"]),
+            size_bytes=int(row["size_bytes"]),
+            external_url=(
+                str(row["external_url"]) if row["external_url"] is not None else None
+            ),
+            content_sha256=(
+                str(row["artifact_sha256"])
+                if row["artifact_sha256"] is not None
+                else None
+            ),
+            created_at=str(row["created_at"]),
+        )
+
+    async def list_researcher_materials(
+        self, project_id: str
+    ) -> list[ResearcherMaterialView]:
+        return [
+            self._material_view(row)
+            for row in self.repository.list_researcher_materials(project_id)
+        ]
+
+    async def attach_researcher_material(
+        self,
+        project_id: str,
+        command: AttachResearcherMaterialRequest,
+        *,
+        raw_request: RawRequestReceipt,
+    ) -> ResearcherMaterialView:
+        self._attach_raw_request(project_id, raw_request)
+        artifact_sha256: str | None = None
+        external_url: str | None = None
+        if command.kind == "copy":
+            content = (command.content or "").encode("utf-8")
+            if len(content) > 1_000_000:
+                raise CommandRejected(
+                    new_command_error(
+                        "COMMAND_SCHEMA_INVALID",
+                        object_refs=[project_id],
+                        researcher_message=(
+                            "Copied material is limited to 1 MB. Attach larger "
+                            "material as an external link instead."
+                        ),
+                        smallest_correction=(
+                            "Switch the material to an external link."
+                        ),
+                    )
+                )
+            artifact_sha256 = str(self.artifacts.put_bytes(content).sha256)
+            size_bytes = len(content)
+        else:
+            external_url = str(command.external_url)
+            size_bytes = len(external_url.encode("utf-8"))
+        row = self.repository.add_researcher_material(
+            material_id="material." + uuid.uuid4().hex,
+            project_id=project_id,
+            name=command.name.strip(),
+            kind=command.kind,
+            media_type=command.media_type,
+            artifact_sha256=artifact_sha256,
+            external_url=external_url,
+            size_bytes=size_bytes,
+            created_at=utc_now(),
+        )
+        return self._material_view(row)
+
+    async def get_researcher_material_content(
+        self, project_id: str, material_id: str
+    ) -> ResearcherMaterialContentView:
+        """Return the exact payload a run command will seal for this item."""
+        row = self.repository.get_researcher_material(project_id, material_id)
+        if str(row["kind"]) == "link":
+            return ResearcherMaterialContentView(
+                material_id=material_id,
+                content=str(row["external_url"]),
+                media_type="text/uri-list",
+            )
+        content = self.artifacts.read_bytes(str(row["artifact_sha256"]))
+        return ResearcherMaterialContentView(
+            material_id=material_id,
+            content=content.decode("utf-8"),
+            media_type=str(row["media_type"]),
+        )
+
+    async def delete_researcher_material(
+        self, project_id: str, material_id: str
+    ) -> None:
+        # The artifact-store bytes stay content-addressed (runs may have
+        # sealed them); only the shelf entry is removed.
+        self.repository.delete_researcher_material(project_id, material_id)
 
     async def list_projects(self) -> list[ProjectSummary]:
         results = []

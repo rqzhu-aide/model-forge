@@ -1,5 +1,6 @@
 import type {
   ActionDescriptor,
+  AttachResearcherMaterialRequest,
   ConfigurationHealthView,
   CorrectionCommandInput,
   CorrectionPreview,
@@ -13,6 +14,8 @@ import type {
   ProjectSummary,
   ProvisionResultView,
   ProvisionRoleRequest,
+  ResearcherMaterialContentView,
+  ResearcherMaterialView,
   RoleDefinitionCatalogView,
   RoleDefinitionView,
   RoleHealthReportView,
@@ -201,6 +204,29 @@ export const api = {
   getArtifactContent: (projectId: string, artifactId: string) =>
     requestText(
       `/projects/${encodeURIComponent(projectId)}/artifacts/${encodeURIComponent(artifactId)}`,
+    ),
+
+  listMaterials: (projectId: string) =>
+    request<ResearcherMaterialView[]>(
+      `/projects/${encodeURIComponent(projectId)}/materials`,
+    ),
+
+  attachMaterial: (projectId: string, input: AttachResearcherMaterialRequest) =>
+    commandRequest<ResearcherMaterialView>(
+      `/projects/${encodeURIComponent(projectId)}/materials`,
+      "POST",
+      input,
+    ),
+
+  getMaterialContent: (projectId: string, materialId: string) =>
+    request<ResearcherMaterialContentView>(
+      `/projects/${encodeURIComponent(projectId)}/materials/${encodeURIComponent(materialId)}/content`,
+    ),
+
+  deleteMaterial: (projectId: string, materialId: string) =>
+    request<void>(
+      `/projects/${encodeURIComponent(projectId)}/materials/${encodeURIComponent(materialId)}`,
+      { method: "DELETE" },
     ),
 
   listRunEvents: (projectId: string, runId: string, afterSequence = 0) =>

@@ -645,6 +645,33 @@ _VALIDATION_ATTEMPTS_SCHEMA = (
 ) + _immutable_triggers("run_validation_attempts")
 
 
+_RESEARCHER_MATERIAL_SCHEMA = (
+    """
+    CREATE TABLE researcher_materials (
+        material_id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES projects(project_id) ON DELETE RESTRICT,
+        name TEXT NOT NULL CHECK (length(name) > 0),
+        kind TEXT NOT NULL CHECK (kind IN ('copy', 'link')),
+        media_type TEXT NOT NULL,
+        artifact_sha256 TEXT CHECK (
+            artifact_sha256 IS NULL OR length(artifact_sha256) = 64
+        ),
+        external_url TEXT,
+        size_bytes INTEGER NOT NULL CHECK (size_bytes >= 0),
+        created_at TEXT NOT NULL,
+        CHECK (
+            (kind = 'copy' AND artifact_sha256 IS NOT NULL AND external_url IS NULL)
+            OR (kind = 'link' AND external_url IS NOT NULL AND artifact_sha256 IS NULL)
+        )
+    )
+    """,
+    """
+    CREATE INDEX researcher_materials_project_time
+        ON researcher_materials(project_id, created_at)
+    """,
+)
+
+
 HUB_MIGRATIONS = (
     Migration(1, _CONTROL_SCHEMA, name="control and run storage"),
     Migration(2, _EXECUTION_SCHEMA, name="role execution and submission storage"),
@@ -694,6 +721,11 @@ HUB_MIGRATIONS = (
         13,
         ("ALTER TABLE run_launch_records ADD COLUMN cancel_requested_at TEXT",),
         name="NA-2 persisted cancel intent on supervised launch records",
+    ),
+    Migration(
+        14,
+        _RESEARCHER_MATERIAL_SCHEMA,
+        name="ADR-019 project researcher-material shelf (informal, mutable)",
     ),
 )
 

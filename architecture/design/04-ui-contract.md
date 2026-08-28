@@ -179,7 +179,9 @@ Context selection is per record: group cards toggle a whole group for convenienc
 
 The run command also accepts the researcher seed channel (ADR-019): a `seed_inputs` map from a declared supplementary input id (`pN.researcher_material`) to inline content. Seeds are additive supplementary material only - they can never replace a required published input - and freeze with researcher_seed provenance.
 
-The run form exposes the channel as a "Supplementary material" section with three choices: none, copy into the project record (paste text or attach a small file; the bytes are content-addressed into the project artifact store and sealed with the run), or external link (for large data or material; the URL itself is sealed as `text/uri-list`, the material stays external, and anything derived from it is generated inside the project workspace). The final command review lists the attached material with its size and media type. On the run page, frozen basis entries seeded this way carry a "researcher material" provenance badge; published inputs stay unmarked.
+The project overview carries a "Supplementary material" shelf panel: material is attached once per project - copied in (paste text or attach a small file up to 1 MB; the bytes are content-addressed into the project artifact store) or kept external as a link (the URL itself is kept; anything derived from it is generated inside the project workspace). The shelf is informal, mutable project state: entries can be removed, but the content-addressed bytes survive removal because runs may have sealed them.
+
+The run form exposes the channel as a "Supplementary material" section with up to four choices: none, from the project shelf (seal a shelf item; the exact stored bytes or link are fetched at launch and pinned inside the sealed command), copy into the project record (attach new small material inline), or external link (sealed as `text/uri-list`). The final command review lists the attached material with its size and media type. On the run page, frozen basis entries seeded this way carry a "researcher material" provenance badge; published inputs stay unmarked.
 
 ### 4.5 History panel
 

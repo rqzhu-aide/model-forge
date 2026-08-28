@@ -359,6 +359,49 @@ class SupplementaryInputView(StrictModel):
     purpose: str
 
 
+class AttachResearcherMaterialRequest(StrictModel):
+    """Attach informal researcher material to the project shelf (ADR-019).
+
+    ``copy`` carries inline content whose bytes are stored in the project
+    artifact store; ``link`` carries an external URL reference for large
+    material that stays outside the workspace.
+    """
+
+    name: NonEmptyString
+    kind: Literal["copy", "link"]
+    media_type: NonEmptyString = "text/markdown"
+    content: str | None = None
+    external_url: NonEmptyString | None = None
+
+    @model_validator(mode="after")
+    def content_matches_kind(self) -> "AttachResearcherMaterialRequest":
+        if self.kind == "copy":
+            if not self.content or not self.content.strip():
+                raise ValueError("copy material requires non-empty content")
+        elif self.external_url is None:
+            raise ValueError("link material requires an external_url")
+        return self
+
+
+class ResearcherMaterialView(StrictModel):
+    material_id: NonEmptyString
+    name: NonEmptyString
+    kind: Literal["copy", "link"]
+    media_type: NonEmptyString
+    size_bytes: int = Field(ge=0)
+    external_url: NonEmptyString | None = None
+    content_sha256: Sha256String | None = None
+    created_at: NonEmptyString
+
+
+class ResearcherMaterialContentView(StrictModel):
+    """The sealed payload for one shelf item, fetched at run launch."""
+
+    material_id: NonEmptyString
+    content: str
+    media_type: NonEmptyString
+
+
 class RunConfigurationView(StrictModel):
     modes: list[RunModeOption]
     default_mode: NonEmptyString

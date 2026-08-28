@@ -151,6 +151,14 @@ def build_phase_configuration(
         "instruction_placeholder": _instruction_placeholder(phase_id),
         "current_inputs": [dict(item) for item in current_inputs],
         "history_options": [dict(item) for item in history_options],
+        "supplementary_inputs": [
+            {
+                "input_id": str(item["input_id"]),
+                "label": "Supplementary material",
+                "purpose": str(item["purpose"]),
+            }
+            for item in document.get("supplementary_inputs", ())
+        ],
         "stage_plan": stages,
         "actions": [action],
         "_descriptor_basis": descriptor_basis,

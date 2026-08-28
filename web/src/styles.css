@@ -1322,6 +1322,21 @@ dt {
   text-transform: uppercase;
 }
 
+.basis-origin {
+  display: inline-block;
+  margin-left: 0.45rem;
+  padding: 0.08rem 0.45rem;
+  border: 1px solid var(--interactive, var(--line));
+  border-radius: 999px;
+  color: var(--interactive, var(--muted));
+  font-size: 0.62rem;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
 dd {
   margin: 0.18rem 0 0;
   color: var(--text);

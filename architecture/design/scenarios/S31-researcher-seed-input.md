@@ -63,6 +63,13 @@ the supplementary input id mapped to inline content and a media type.
   rejected at seal).
 - Stale-basis interaction:
   `tests/test_sealed_basis.py::test_sealed_basis_ignores_additive_seeded_inputs`.
+- End to end through the service: `tests/test_seed_channel_e2e.py`
+  (seeded supplementary material freezes with researcher_seed provenance,
+  external-link seeds seal as text/uri-list, a seed targeting a required
+  input stops the run safely with the rejection as its terminal reason).
+- UI: `web/src/components/RunFormSupplementary.test.tsx` (attach, review,
+  submit payload, invalid-link gate) and
+  `web/src/components/RunTimeline.test.tsx` (provenance badge).
 - Superseded semantics: run
   `run.p5.p5-assembly.ba0dd8a366b44d2bb17ce049b5f4a30e` (2026-08-28)
   froze a seeded `p5.current_manuscript` under ADR-018 and was cancelled

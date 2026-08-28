@@ -272,6 +272,7 @@ class RunCoordinator:
                 "label": str(item["record_type"]).replace("_", " ").title(),
                 "identity": str(item["generation_id"]),
                 "digest": str(item["artifact"]["sha256"]),
+                "origin": str(item.get("origin", "current_record")),
             }
             for item in recipe.document.get("frozen_inputs", ())
         ]

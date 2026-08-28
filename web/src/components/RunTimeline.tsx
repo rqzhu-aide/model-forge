@@ -145,7 +145,12 @@ export function FrozenBasis({ run }: { run: RunDetail }) {
       </div>
       {run.frozen_basis.map((basis) => (
         <div key={`${basis.label}-${basis.identity}`}>
-          <dt>{basis.label}</dt>
+          <dt>
+            {basis.label}
+            {basis.origin === "researcher_seed" ? (
+              <em className="basis-origin">researcher material</em>
+            ) : null}
+          </dt>
           <dd>{basis.identity}<br /><code title={basis.digest}>{shortDigest(basis.digest)}</code></dd>
         </div>
       ))}

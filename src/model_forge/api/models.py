@@ -350,6 +350,15 @@ class StagePlanItem(StrictModel):
     execution: Literal["serial", "parallel"]
 
 
+class SupplementaryInputView(StrictModel):
+    """A declared supplementary seed slot (ADR-019): additive researcher
+    material, never a substitute for a required published input."""
+
+    input_id: NonEmptyString
+    label: NonEmptyString
+    purpose: str
+
+
 class RunConfigurationView(StrictModel):
     modes: list[RunModeOption]
     default_mode: NonEmptyString
@@ -358,6 +367,7 @@ class RunConfigurationView(StrictModel):
     instruction_placeholder: str | None = None
     current_inputs: list[ContextOption]
     history_options: list[ContextOption]
+    supplementary_inputs: list[SupplementaryInputView] = []
     stage_plan: list[StagePlanItem]
 
 
@@ -438,6 +448,9 @@ class FrozenBasisItem(StrictModel):
     label: NonEmptyString
     identity: NonEmptyString
     digest: Sha256String
+    #: ``current_record`` for published-state resolution; ``researcher_seed``
+    #: for additive researcher-supplied supplementary material (ADR-019).
+    origin: str = "current_record"
 
 
 class TerminalReason(StrictModel):

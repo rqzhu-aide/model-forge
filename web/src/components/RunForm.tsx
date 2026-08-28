@@ -133,6 +133,11 @@ export function RunForm({
   const [selectedContext, setSelectedContext] = useState<Set<string>>(new Set());
   const [reviewing, setReviewing] = useState(false);
   const [methodSpec, setMethodSpec] = useState("");
+  const [suppMode, setSuppMode] = useState<"none" | "copy" | "link">("none");
+  const [suppText, setSuppText] = useState("");
+  const [suppFileName, setSuppFileName] = useState<string | null>(null);
+  const [suppMediaType, setSuppMediaType] = useState("text/markdown");
+  const [suppLink, setSuppLink] = useState("");
 
   useEffect(() => {
     setSelectedContext(
@@ -148,8 +153,13 @@ export function RunForm({
   const selectedMethod = methods.find((method) => method.identity.stable_id === selectedMethodId);
   const action = actionForSelection(phaseView.actions, mode, selectedMethod);
   const requiresMethod = phaseNeedsMethod(phaseView.phase_id, mode);
+  const supplementarySlot = phaseView.run_configuration.supplementary_inputs?.[0];
+  const suppLinkTrimmed = suppLink.trim();
+  const suppLinkInvalid =
+    suppMode === "link" && suppLinkTrimmed.length > 0 && !/^https?:\/\/\S+$/.test(suppLinkTrimmed);
   const localMissing: string[] = [];
   if (requiresMethod && !selectedMethod) localMissing.push("Select an active method.");
+  if (suppLinkInvalid) localMissing.push("The external material link must be a valid http(s) URL.");
 
   const mutation = useMutation({
     mutationFn: (input: StartRunRequest) => api.startRun(projectId, input),
@@ -203,6 +213,20 @@ export function RunForm({
 
   const submit = () => {
     if (!action || !canReview) return;
+    let seedInputs: StartRunRequest["seed_inputs"];
+    if (supplementarySlot && suppMode === "copy" && suppText.trim().length > 0) {
+      // Small material is copied in: the bytes are content-addressed into
+      // the artifact store and kept as the project's own record.
+      seedInputs = {
+        [supplementarySlot.input_id]: { content: suppText, media_type: suppMediaType },
+      };
+    } else if (supplementarySlot && suppMode === "link" && !suppLinkInvalid && suppLinkTrimmed.length > 0) {
+      // Large material stays external: the command seals the link itself;
+      // everything derived from it is generated inside the workspace.
+      seedInputs = {
+        [supplementarySlot.input_id]: { content: suppLinkTrimmed, media_type: "text/uri-list" },
+      };
+    }
     mutation.mutate({
       action_descriptor_id: action.descriptor_id,
       phase: phaseView.phase_id,
@@ -210,6 +234,7 @@ export function RunForm({
       choice_values: choiceValues,
       context_policy: historyPointers.length ? "current_plus_selected_history" : "current_only",
       selected_context_option_ids: [...selectedContext],
+      ...(seedInputs ? { seed_inputs: seedInputs } : {}),
     });
   };
 
@@ -330,6 +355,92 @@ export function RunForm({
         </small>
       </label>
 
+      {supplementarySlot ? (
+        <fieldset>
+          <legend>Supplementary material</legend>
+          <p className="field-help">{supplementarySlot.purpose}</p>
+          <div className="choice-cards">
+            {([
+              { value: "none", label: "None", description: "This run uses published project records only." },
+              { value: "copy", label: "Copy into the project record", description: "Paste text or attach a small file. The content is copied into the project's artifact store and sealed with the run." },
+              { value: "link", label: "External link", description: "Reference large data or material by URL. The link is sealed with the run; the material itself stays external." },
+            ] as const).map((option) => (
+              <label key={option.value} data-selected={suppMode === option.value || undefined}>
+                <input
+                  type="radio"
+                  name="supplementary-mode"
+                  value={option.value}
+                  checked={suppMode === option.value}
+                  onChange={() => {
+                    setReviewing(false);
+                    setSuppMode(option.value);
+                  }}
+                />
+                <span><strong>{option.label}</strong><small>{option.description}</small></span>
+              </label>
+            ))}
+          </div>
+          {suppMode === "copy" ? (
+            <label className="field field--prominent">
+              <span>Material content</span>
+              <textarea
+                value={suppText}
+                onChange={(event) => {
+                  setReviewing(false);
+                  setSuppText(event.target.value);
+                  setSuppFileName(null);
+                  setSuppMediaType("text/markdown");
+                }}
+                rows={6}
+                placeholder="Paste the material here - partial code, notes, a derivation, a draft excerpt."
+              />
+              <input
+                type="file"
+                accept=".md,.markdown,.txt,.r,.py,.json,.csv,.tex,.ts,.js"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    setReviewing(false);
+                    setSuppText(String(reader.result ?? ""));
+                    setSuppFileName(file.name);
+                    setSuppMediaType(
+                      /\.(md|markdown|tex)$/i.test(file.name) ? "text/markdown" : "text/plain",
+                    );
+                  };
+                  reader.readAsText(file);
+                }}
+              />
+              <small>
+                {suppFileName
+                  ? `Attached ${suppFileName} (${new Blob([suppText]).size} bytes, ${suppMediaType}). Editing the text above detaches the file name.`
+                  : "Pasted content is sealed as text/markdown by default."}
+              </small>
+            </label>
+          ) : null}
+          {suppMode === "link" ? (
+            <label className="field field--prominent">
+              <span>External material URL</span>
+              <input
+                type="url"
+                value={suppLink}
+                onChange={(event) => {
+                  setReviewing(false);
+                  setSuppLink(event.target.value);
+                }}
+                placeholder="https://..."
+              />
+              <small>
+                {suppLinkInvalid
+                  ? "This does not look like a valid http(s) URL."
+                  : "Only the link is sealed into the run command. Anything the team derives from it is generated and kept inside the project workspace."}
+              </small>
+            </label>
+          ) : null}
+        </fieldset>
+      ) : null}
+
       <fieldset>
         <legend>Current context for this run</legend>
         <p className="field-help">Required inputs cannot be removed. Select \"more\" on a card to read the record summary and highlight.</p>
@@ -406,6 +517,16 @@ export function RunForm({
             <div><dt>Method</dt><dd>{selectedMethod ? `${selectedMethod.display_name}, v${selectedMethod.identity.version}` : "Not method-bound"}</dd></div>
             <div><dt>Selected current inputs</dt><dd>{contextList(currentReviewItems, "None")}</dd></div>
             <div><dt>Selected historical inputs</dt><dd>{contextList(historyReviewItems, "None")}</dd></div>
+            <div>
+              <dt>Supplementary material</dt>
+              <dd>
+                {supplementarySlot && suppMode === "copy" && suppText.trim().length > 0
+                  ? `${suppFileName ?? "Pasted text"}, ${new Blob([suppText]).size} bytes, ${suppMediaType} - copied into the project record`
+                  : supplementarySlot && suppMode === "link" && suppLinkTrimmed.length > 0
+                    ? `${suppLinkTrimmed} - external link, referenced not copied`
+                    : "None"}
+              </dd>
+            </div>
             <div>
               <dt>Contract</dt>
               <dd>{action.command_contract?.phase_contract_version ?? "Not recorded"}, <code>{shortDigest(action.command_contract?.phase_contract_sha256)}</code></dd>

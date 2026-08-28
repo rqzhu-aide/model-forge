@@ -339,6 +339,12 @@ export interface StagePlanItem {
   execution: "serial" | "parallel";
 }
 
+export interface SupplementaryInputView {
+  input_id: string;
+  label: string;
+  purpose: string;
+}
+
 export interface RunConfigurationView {
   modes: RunModeOption[];
   default_mode: string;
@@ -347,6 +353,7 @@ export interface RunConfigurationView {
   instruction_placeholder?: string;
   current_inputs: ContextOption[];
   history_options: ContextOption[];
+  supplementary_inputs?: SupplementaryInputView[];
   stage_plan: StagePlanItem[];
 }
 
@@ -515,7 +522,7 @@ export interface RunDetail extends RunSummary {
     phase_contract_version: string;
     phase_contract_sha256: string;
   };
-  frozen_basis: Array<{ label: string; identity: string; digest: string }>;
+  frozen_basis: Array<{ label: string; identity: string; digest: string; origin?: string }>;
   stage_plan: RunStage[];
   last_event_sequence: number;
   last_event_at?: string;
@@ -842,6 +849,11 @@ export interface SupervisedRunLogs {
   run_dir_available: boolean;
 }
 
+export interface SeedInput {
+  content: string;
+  media_type: string;
+}
+
 export interface StartRunRequest {
   action_descriptor_id: string;
   phase: PhaseId;
@@ -849,6 +861,7 @@ export interface StartRunRequest {
   choice_values: Record<string, unknown>;
   context_policy: "current_only" | "current_plus_selected_history";
   selected_context_option_ids: string[];
+  seed_inputs?: Record<string, SeedInput>;
 }
 
 export interface CreateProjectRequest {

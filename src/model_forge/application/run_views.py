@@ -271,6 +271,7 @@ def run_detail_view(
                 "label": str(item["label"]),
                 "identity": str(item["identity"]),
                 "digest": str(item["digest"]),
+                "origin": str(item.get("origin", "current_record")),
             }
             for item in payload.get("frozen_basis", [])
         ],

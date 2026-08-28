@@ -112,3 +112,28 @@ def test_run_action_identity_covers_input_digest_and_authority_head() -> None:
     baseline_id = baseline["actions"][0]["descriptor_id"]
     assert changed_input["actions"][0]["descriptor_id"] != baseline_id
     assert changed_head["actions"][0]["descriptor_id"] != baseline_id
+
+
+def test_every_phase_exposes_its_supplementary_seed_slot() -> None:
+    """ADR-019: the run form is contract-driven - each phase view advertises
+    its declared supplementary material slot so the UI can render the
+    additive seed widget."""
+    specification = SpecificationPackage.load(ARCHITECTURE)
+    method = MethodIdentity(
+        stable_id="method.example",
+        version=2,
+        definition_sha256="a" * 64,
+    )
+    for phase_id in ("P1", "P2", "P3", "P4", "P5"):
+        view = build_phase_configuration(
+            repository=specification.phases,
+            project_id="project.example",
+            phase_id=phase_id,
+            selected_method=method,
+        )
+        slots = view["supplementary_inputs"]
+        assert [slot["input_id"] for slot in slots] == [
+            f"{phase_id.lower()}.researcher_material"
+        ]
+        assert slots[0]["label"] == "Supplementary material"
+        assert slots[0]["purpose"]

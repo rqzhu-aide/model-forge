@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
 import type { RunDetail } from "../api/types";
-import { formatElapsedTime, runElapsedMilliseconds, runIsStale } from "./RunTimeline";
+import { formatElapsedTime, FrozenBasis, runElapsedMilliseconds, runIsStale } from "./RunTimeline";
 
 function run(overrides: Partial<RunDetail> = {}): RunDetail {
   return {
@@ -40,5 +41,31 @@ describe("run monitoring helpers", () => {
   it("marks only active runs beyond their recorded signal interval as stale", () => {
     expect(runIsStale(run(), Date.parse("2026-08-02T12:00:51Z"))).toBe(true);
     expect(runIsStale(run({ state: "failed" }), Date.parse("2026-08-02T12:00:51Z"))).toBe(false);
+  });
+});
+
+describe("frozen basis provenance (ADR-019)", () => {
+  it("marks researcher-seeded supplementary material and leaves published inputs unmarked", () => {
+    const seeded = run({
+      frozen_basis: [
+        { label: "Project Brief", identity: "gen-1", digest: "a".repeat(64) },
+        {
+          label: "Researcher Material",
+          identity: "seed",
+          digest: "b".repeat(64),
+          origin: "researcher_seed",
+        },
+      ],
+    });
+    const markup = renderToStaticMarkup(<FrozenBasis run={seeded} />);
+    expect(markup).toContain("researcher material");
+    expect(markup.match(/basis-origin/g)).toHaveLength(1);
+  });
+
+  it("renders no provenance badge for published-only bases", () => {
+    const plain = run({
+      frozen_basis: [{ label: "Project Brief", identity: "gen-1", digest: "a".repeat(64) }],
+    });
+    expect(renderToStaticMarkup(<FrozenBasis run={plain} />)).not.toContain("basis-origin");
   });
 });

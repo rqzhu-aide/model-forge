@@ -6,6 +6,8 @@ interface GroupFeedbackModalProps {
   group: { key: string; options: ContextOption[] };
   label: string;
   projectId: string;
+  selectedIds: ReadonlySet<string>;
+  onToggle: (optionId: string, checked: boolean) => void;
   onClose: () => void;
 }
 
@@ -13,6 +15,8 @@ export function GroupFeedbackModal({
   group,
   label,
   projectId,
+  selectedIds,
+  onToggle,
   onClose,
 }: GroupFeedbackModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -40,7 +44,13 @@ export function GroupFeedbackModal({
         </div>
         <div className="modal-body">
           {group.options.map((option) => (
-            <RecordSection key={option.option_id} option={option} projectId={projectId} />
+            <RecordSection
+              key={option.option_id}
+              option={option}
+              projectId={projectId}
+              selected={selectedIds.has(option.option_id)}
+              onToggle={onToggle}
+            />
           ))}
         </div>
       </div>
@@ -51,9 +61,13 @@ export function GroupFeedbackModal({
 function RecordSection({
   option,
   projectId,
+  selected,
+  onToggle,
 }: {
   option: ContextOption;
   projectId: string;
+  selected: boolean;
+  onToggle: (optionId: string, checked: boolean) => void;
 }) {
   const [highlight, setHighlight] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -79,6 +93,18 @@ function RecordSection({
   // Only show a sub-header when there are multiple records in the group
   return (
     <section className="context-feedback__section">
+      <label className="context-feedback__select">
+        <input
+          type="checkbox"
+          checked={selected}
+          disabled={option.required || option.disabled}
+          onChange={(e) => onToggle(option.option_id, e.target.checked)}
+        />
+        <span>
+          Include in run context
+          {option.required ? " (required)" : ""}
+        </span>
+      </label>
       {option.feedback ? (
         <>
           <p className="context-feedback__text">{option.feedback}</p>

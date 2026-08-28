@@ -3775,3 +3775,16 @@ p.run-monitor-note {
 .skill-matrix th[scope="row"][title] {
   cursor: help;
 }
+
+.context-feedback__select {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.82rem;
+  color: var(--text-soft);
+  margin-bottom: 0.35rem;
+}
+
+.context-feedback__select input {
+  accent-color: var(--interactive);
+}

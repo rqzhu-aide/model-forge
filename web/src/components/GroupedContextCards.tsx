@@ -56,6 +56,7 @@ export function GroupedContextCards({
           group={group}
           projectId={projectId}
           selectedIds={selectedIds}
+          onToggle={onToggle}
           onToggleGroup={(checked) => toggleGroup(group, checked)}
         />
       ))}
@@ -72,11 +73,13 @@ function GroupCard({
   group,
   projectId,
   selectedIds,
+  onToggle,
   onToggleGroup,
 }: {
   group: ContextGroup;
   projectId: string;
   selectedIds: ReadonlySet<string>;
+  onToggle: (optionId: string, checked: boolean) => void;
   onToggleGroup: (checked: boolean) => void;
 }) {
   const [modalOpen, setModalOpen] = useState(false);
@@ -153,6 +156,8 @@ function GroupCard({
           group={group}
           label={label}
           projectId={projectId}
+          selectedIds={selectedIds}
+          onToggle={onToggle}
           onClose={() => setModalOpen(false)}
         />
       ) : null}

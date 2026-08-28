@@ -66,7 +66,7 @@ specification or decision record before code relies on such a change.
   P3-1, and P3-2 are addressed. P0-3 (silent output rewriting) is covered
   by the FP-2 satisfaction note above (2026-08-25); the remaining small
   backend and frontend findings track with FP-6/FP-7.
-- [Instruction, Output-Integrity, and UI Fix Plan](../plan/instruction-output-integrity-fix-plan.md) -
+- [Instruction, Output-Integrity, and UI Fix Plan](instruction-output-integrity-fix-plan.md) -
   work packages FP-1 through FP-8. FP-2 is SATISFIED (2026-08-25 review):
   the HV program rebuilt the repair lane as disclosed mechanical repairs
   with transformation records (no content fabrication remains; verified in

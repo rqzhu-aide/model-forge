@@ -6,12 +6,7 @@ specification or decision record before code relies on such a change.
 
 ## Active plans
 
-- [Instruction, Output-Integrity, and UI Fix Plan](instruction-output-integrity-fix-plan.md) -
-  packages FP-1 through FP-8. FP-2 SATISFIED (2026-08-25); FP-3 and FP-4
-  complete; FP-1, FP-5, FP-6 partially complete; FP-7 (small frontend
-  repairs) and FP-8 (design decisions) remain open. Predates the WP
-  program; a closure review against the current build is due before any
-  further package is dispatched from it.
+No active plans. New work starts as a plan document in this directory.
 
 ## Supporting documents
 

@@ -1,8 +1,10 @@
 # Fix Plan: Instruction, Output-Integrity, and UI Findings
 
-Status: Active, partially implemented
+Status: Closed 2026-08-28 (FP-7.4 implemented `fac1b2c`; FP-8 decisions
+recorded below); retired to archive on completion.
 Prepared: 2026-08-08
 Reviewed: 2026-08-11
+Closed: 2026-08-28
 Basis: [Stage+role instruction changes review](../archive/stage-role-instructions-review.md)
 (rounds 1 and 2). Every finding there carries file:line evidence; this plan
 only sequences the fixes. Each package is sized as one dispatchable unit.
@@ -154,9 +156,37 @@ remains open.
 2. Context-card granularity (round 1 finding P2-4) overlaps FP-7.4;
    decide the intended selection model first.
 
-## Suggested order
+## Closure record (2026-08-28)
 
-FP-2 remains the P0 publication-integrity gate. Close the remaining FP-1 and
-FP-4 acceptance checks next. FP-3 is complete. The remaining FP-5 scenario
-and role/file guide work can proceed with the open FP-6 and FP-7 items. FP-8
-still needs Tez's decision.
+FP-7 verification against the current tree:
+
+1. "Open validation report" link: present (`RunPage.tsx`, renders when the
+   run view carries a validation report href).
+2. `ProjectBriefPanel` and `ScientificStatusGrid`: both already deleted;
+   no references remain.
+3. Size badge: suppressed for empty/unavailable groups
+   (`GroupedContextCards.tsx` renders the badge only when the group size
+   is positive).
+4. Per-option deselection: implemented (`fac1b2c`). The group "more"
+   modal now exposes an "Include in run context" checkbox per record,
+   wired to the existing per-option toggle that feeds
+   `selected_context_option_ids`. Required records stay checked and
+   locked.
+5. `GroupFeedbackModal` artifact fetches route through the API client
+   (`api.getArtifactContent`); no raw `fetch` remains.
+
+FP-8 decisions:
+
+1. Parallel-stage isolation: deferred by design. Each stage already
+   receives only its frozen, contract-declared input set, so the
+   correctness basis does not depend on agent self-restraint. The
+   residual concern (an agent browsing sibling stage files in the shared
+   role workspace) is a supervision/audit matter, not a validity gate;
+   harness-enforced read scoping would be a contract plus harness change
+   and gets its own plan if it ever becomes load-bearing. Recorded as
+   designed-deferred.
+2. Context-card granularity: resolved by FP-7.4 - the selection model is
+   per-option with group-level convenience toggles.
+
+All packages are complete or superseded (FP-2 by the K-2 two-lane
+decision); the plan retires to `archive/`.

@@ -33,6 +33,11 @@ itself is finished.
   SK-1 through SK-5 landed 2026-08-27 (`c76bf1e` through `325d434`); the
   per-phase skill matrix, seal-time resolution, configuration API, and
   member-page selector UI are in production.
+- [instruction-output-integrity-fix-plan.md](instruction-output-integrity-fix-plan.md) -
+  FP program closed 2026-08-28: FP-7.1/7.2/7.3/7.5 verified complete in
+  the tree, FP-7.4 implemented (`fac1b2c`), FP-8 decisions recorded
+  (parallel-stage isolation designed-deferred; context granularity
+  resolved per-option); FP-2 superseded by the K-2 two-lane decision.
 
 ## Superseded reviews and audits
 

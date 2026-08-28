@@ -3549,6 +3549,7 @@ class ModelForgeService:
             rolled_back=result.rolled_back,
             backups_created=list(result.backups_created),
             kept_custom=list(result.kept_custom),
+            skills_pruned=list(result.skills_pruned),
         )
 
     def _attach_raw_request(

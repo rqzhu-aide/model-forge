@@ -1252,3 +1252,82 @@ def test_skip_assets_unknown_name_rejected(tmp_path: Path) -> None:
             bundle,
             skip_assets=("NOT_A_FILE.md",),
         )
+
+
+# --------------------------------------------------------------------------- #
+# SK-8: provision installs the curated union and prunes unmanaged skills
+# --------------------------------------------------------------------------- #
+
+
+def test_provision_installs_bundled_custom_skills(tmp_path: Path) -> None:
+    catalog = RoleResourceCatalog.load(RESOURCE_ROOT)
+    bundle = ROOT / "resources" / "skills"
+    hermes_root = tmp_path / "hermes"
+    profiles = _make_profile_dirs(hermes_root)
+    resource = catalog.role("theorist")
+    profile_home = profiles["theorist"]
+
+    result = provision_role_definition(resource, profile_home, bundle)
+
+    installed_ids = {item.skill_id for item in result.skills_installed}
+    assert installed_ids == {
+        "stat-paper-writing",
+        "stat-method-design",
+        "mf-proof-dependency",
+    }
+    assert (profile_home / "skills" / "mf-proof-dependency" / "SKILL.md").is_file()
+
+
+def test_provision_prunes_unmanaged_skills_and_reports_them(
+    tmp_path: Path,
+) -> None:
+    catalog = RoleResourceCatalog.load(RESOURCE_ROOT)
+    bundle = ROOT / "resources" / "skills"
+    hermes_root = tmp_path / "hermes"
+    profiles = _make_profile_dirs(hermes_root)
+    resource = catalog.role("theorist")
+    profile_home = profiles["theorist"]
+
+    # Simulate the default Hermes bundle copied at profile creation, plus
+    # a stray file, plus dot-prefixed installer metadata.
+    skills_dir = profile_home / "skills"
+    for stray in ("arxiv", "comfyui", "youtube-content"):
+        (skills_dir / stray).mkdir(parents=True)
+        (skills_dir / stray / "SKILL.md").write_text("stray", encoding="utf-8")
+    (skills_dir / "stray-note.txt").write_text("stray", encoding="utf-8")
+    (skills_dir / ".bundled_manifest").write_text("meta", encoding="utf-8")
+    (skills_dir / ".hub").mkdir(exist_ok=True)
+
+    result = provision_role_definition(resource, profile_home, bundle)
+
+    remaining = {p.name for p in skills_dir.iterdir()}
+    assert remaining == {
+        "stat-paper-writing",
+        "stat-method-design",
+        "mf-proof-dependency",
+        ".bundled_manifest",
+        ".hub",
+    }
+    assert set(result.skills_pruned) == {
+        "arxiv",
+        "comfyui",
+        "youtube-content",
+        "stray-note.txt",
+    }
+
+
+def test_second_provision_prunes_nothing_new(tmp_path: Path) -> None:
+    catalog = RoleResourceCatalog.load(RESOURCE_ROOT)
+    bundle = ROOT / "resources" / "skills"
+    hermes_root = tmp_path / "hermes"
+    profiles = _make_profile_dirs(hermes_root)
+    resource = catalog.role("data_analyst")
+    profile_home = profiles["data_analyst"]
+
+    (profile_home / "skills" / "old-skill").mkdir(parents=True)
+    first = provision_role_definition(resource, profile_home, bundle)
+    second = provision_role_definition(resource, profile_home, bundle)
+
+    assert first.skills_pruned == ("old-skill",)
+    assert second.skills_pruned == ()
+    assert second.skills_installed == ()

@@ -102,6 +102,7 @@ class RoleProvisionResult:
     rolled_back: bool
     backups_created: tuple[str, ...] = ()
     kept_custom: tuple[str, ...] = ()
+    skills_pruned: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -602,6 +603,7 @@ def provision_role_definition(
     rolled_back = False
     backups_created: list[str] = []
     kept_custom: list[str] = []
+    skills_pruned: list[str] = []
 
     # Validate skip entries against the asset file names this role owns.
     known_assets = {
@@ -662,32 +664,56 @@ def provision_role_definition(
         ):
             assets_written.append(resource.library_guidance.file_name)
 
-        # Install recommended skills
+        # Install the curated skill union: recommended skills plus bundled
+        # custom skills. The role's profile carries exactly this set.
         if install_skills and bundle_root is not None:
-            for skill in resource.recommended_skills:
+            install_set = [skill.skill_id for skill in resource.recommended_skills]
+            install_set += [
+                skill.skill_id
+                for skill in resource.custom_skills
+                if skill.source == "model-forge/bundled"
+            ]
+            for skill_id in install_set:
                 if pre_skill_hook is not None:
-                    pre_skill_hook(skill.skill_id)
+                    pre_skill_hook(skill_id)
                 try:
                     result = install_bundled_skill(
                         bundle_root=bundle_root,
                         profile_home=profile_home,
-                        skill_id=skill.skill_id,
+                        skill_id=skill_id,
                     )
                     if result.created:
                         skills_installed.append(result)
                 except SkillConflictError:
                     if force_overwrite_skills:
-                        dest = profile_home / "skills" / skill.skill_id
+                        dest = profile_home / "skills" / skill_id
                         shutil.rmtree(dest)
                         result = install_bundled_skill(
                             bundle_root=bundle_root,
                             profile_home=profile_home,
-                            skill_id=skill.skill_id,
+                            skill_id=skill_id,
                         )
                         if result.created:
                             skills_installed.append(result)
                     else:
                         raise
+            # Prune unmanaged skills: a provisioned role profile carries
+            # exactly the curated union, so members never load skills that
+            # are not theirs (the default Hermes bundle copied at profile
+            # creation is the common case). Pruned ids are reported; the
+            # profile backup taken above covers rollback on failure.
+            skills_dir = profile_home / "skills"
+            if skills_dir.is_dir():
+                managed = set(install_set)
+                for entry in sorted(skills_dir.iterdir()):
+                    if entry.name.startswith(".") or entry.name in managed:
+                        continue
+                    if entry.is_dir() and not entry.is_symlink():
+                        shutil.rmtree(entry)
+                        skills_pruned.append(entry.name)
+                    elif entry.is_file():
+                        entry.unlink()
+                        skills_pruned.append(entry.name)
 
     except Exception:
         # Rollback: restore the profile to its pre-provisioning state.
@@ -705,6 +731,7 @@ def provision_role_definition(
         rolled_back=rolled_back,
         backups_created=tuple(backups_created),
         kept_custom=tuple(kept_custom),
+        skills_pruned=tuple(skills_pruned),
     )
 
 

@@ -1019,6 +1019,10 @@ class ProvisionResultView(StrictModel):
     backups_created: list[NonEmptyString] = Field(default_factory=list)
     #: Asset file names left untouched because of ``skip_assets``.
     kept_custom: list[NonEmptyString] = Field(default_factory=list)
+    #: Skill directories removed so the profile carries exactly the
+    #: curated union (the default Hermes bundle copied at profile
+    #: creation is the common case).
+    skills_pruned: list[NonEmptyString] = Field(default_factory=list)
 
 
 class ConflictDetailView(StrictModel):

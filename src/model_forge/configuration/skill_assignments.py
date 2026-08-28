@@ -26,6 +26,7 @@ from .profiles import PROFILE_ROLES
 from .resources import RoleResource, RoleResourceCatalog
 
 _FILE_NAME = "skill-assignments.json"
+_DEFAULTS_FILE_NAME = "skill-defaults.json"
 _SCHEMA_VERSION = "1.0.0"
 _PHASE_RE = re.compile(r"^P[1-5]$")
 
@@ -35,6 +36,69 @@ class SkillAssignment:
     role: str
     phase: str
     skills: tuple[str, ...]
+
+
+def _load_entries(
+    document: Any,
+    *,
+    key: str,
+    catalog: RoleResourceCatalog,
+    manifest: Mapping[str, Any],
+    label: str,
+) -> tuple[SkillAssignment, ...]:
+    """Validate one phase-map document into assignment entries.
+
+    Shared by the assignment matrix and the curated defaults: both map
+    (role, phase) -> skill ids and both must name only bundled skills.
+    """
+    if type(document) is not dict:
+        raise ValueError(f"{label} must be a JSON object.")
+    if str(document.get("schema_version")) != _SCHEMA_VERSION:
+        raise ValueError(
+            f"{label} schema_version must be {_SCHEMA_VERSION!r}."
+        )
+    raw = document.get(key)
+    if type(raw) is not list:
+        raise ValueError(f"{label} requires a {key} array.")
+    bundled = manifest.get("skills")
+    if type(bundled) is not dict:
+        raise ValueError("Bundled skill manifest is invalid.")
+    assignments: list[SkillAssignment] = []
+    seen: set[tuple[str, str]] = set()
+    for entry in raw:
+        if type(entry) is not dict:
+            raise ValueError(f"Each {label} entry must be an object.")
+        role = str(entry.get("role"))
+        phase = str(entry.get("phase"))
+        if role not in PROFILE_ROLES:
+            raise ValueError(f"{label} names unknown role {role!r}.")
+        if not _PHASE_RE.fullmatch(phase):
+            raise ValueError(f"{label} names unknown phase {phase!r}.")
+        if phase not in catalog.role(role).applicable_phases:
+            raise ValueError(f"Role {role!r} is not applicable to phase {phase!r}.")
+        pair = (role, phase)
+        if pair in seen:
+            raise ValueError(f"Duplicate {label} entry for {role!r} in {phase!r}.")
+        seen.add(pair)
+        raw_skills = entry.get("skills")
+        if type(raw_skills) is not list:
+            raise ValueError(
+                f"{label} entry for {role!r} in {phase!r} requires a skills array."
+            )
+        skills: list[str] = []
+        for value in raw_skills:
+            skill_id = str(value)
+            if type(bundled.get(skill_id)) is not dict:
+                raise ValueError(f"{label} names unknown bundled skill {skill_id!r}.")
+            if skill_id in skills:
+                raise ValueError(
+                    f"{label} entry for {role!r} in {phase!r} repeats {skill_id!r}."
+                )
+            skills.append(skill_id)
+        assignments.append(
+            SkillAssignment(role=role, phase=phase, skills=tuple(skills))
+        )
+    return tuple(assignments)
 
 
 class SkillAssignmentMatrix:
@@ -66,60 +130,15 @@ class SkillAssignmentMatrix:
         if not path.exists():
             return cls.empty()
         document = load_json(path)
-        if type(document) is not dict:
-            raise ValueError("Skill assignment matrix must be a JSON object.")
-        if str(document.get("schema_version")) != _SCHEMA_VERSION:
-            raise ValueError(
-                f"Skill assignment matrix schema_version must be {_SCHEMA_VERSION!r}."
+        return cls(
+            _load_entries(
+                document,
+                key="assignments",
+                catalog=catalog,
+                manifest=manifest,
+                label="Skill assignment matrix",
             )
-        raw = document.get("assignments")
-        if type(raw) is not list:
-            raise ValueError("Skill assignment matrix requires an assignments array.")
-        bundled = manifest.get("skills")
-        if type(bundled) is not dict:
-            raise ValueError("Bundled skill manifest is invalid.")
-        assignments: list[SkillAssignment] = []
-        seen: set[tuple[str, str]] = set()
-        for entry in raw:
-            if type(entry) is not dict:
-                raise ValueError("Each skill assignment must be an object.")
-            role = str(entry.get("role"))
-            phase = str(entry.get("phase"))
-            if role not in PROFILE_ROLES:
-                raise ValueError(f"Skill assignment names unknown role {role!r}.")
-            if not _PHASE_RE.fullmatch(phase):
-                raise ValueError(f"Skill assignment names unknown phase {phase!r}.")
-            if phase not in catalog.role(role).applicable_phases:
-                raise ValueError(
-                    f"Role {role!r} is not applicable to phase {phase!r}."
-                )
-            pair = (role, phase)
-            if pair in seen:
-                raise ValueError(
-                    f"Duplicate skill assignment for {role!r} in {phase!r}."
-                )
-            seen.add(pair)
-            raw_skills = entry.get("skills")
-            if type(raw_skills) is not list:
-                raise ValueError(
-                    f"Skill assignment for {role!r} in {phase!r} requires a skills array."
-                )
-            skills: list[str] = []
-            for value in raw_skills:
-                skill_id = str(value)
-                if type(bundled.get(skill_id)) is not dict:
-                    raise ValueError(
-                        f"Skill assignment names unknown bundled skill {skill_id!r}."
-                    )
-                if skill_id in skills:
-                    raise ValueError(
-                        f"Skill assignment for {role!r} in {phase!r} repeats {skill_id!r}."
-                    )
-                skills.append(skill_id)
-            assignments.append(
-                SkillAssignment(role=role, phase=phase, skills=tuple(skills))
-            )
-        return cls(tuple(assignments))
+        )
 
     @property
     def assignments(self) -> tuple[SkillAssignment, ...]:
@@ -140,11 +159,25 @@ class SkillAssignmentMatrix:
             if skill.source == "model-forge/bundled"
         )
 
-    def effective_skills(self, resource: RoleResource, phase: str) -> tuple[str, ...]:
-        """Resolve the skill ids the role carries into the phase."""
+    def effective_skills(
+        self,
+        resource: RoleResource,
+        phase: str,
+        defaults: "SkillDefaults | None" = None,
+    ) -> tuple[str, ...]:
+        """Resolve the skill ids the role carries into the phase.
+
+        Precedence: a matrix assignment wins; otherwise the curated
+        per-phase default when one exists; otherwise the role's catalog
+        union (recommended plus bundled custom).
+        """
         assigned = self.assigned(resource.role_id, phase)
         if assigned is not None:
             return assigned
+        if defaults is not None:
+            curated = defaults.default_for(resource.role_id, phase)
+            if curated is not None:
+                return curated
         return self.default_skills(resource)
 
     def with_assignment(
@@ -184,4 +217,56 @@ class SkillAssignmentMatrix:
         return hashlib.sha256(payload).hexdigest()
 
 
-__all__ = ["SkillAssignment", "SkillAssignmentMatrix"]
+class SkillDefaults:
+    """Curated per-phase default skill sets (``skill-defaults.json``).
+
+    The curated defaults are the middle layer of the effective-set
+    precedence: a matrix assignment beats a curated default, and a pair
+    without either falls back to the role's catalog union.  The file is
+    configuration-managed like the matrix but is edited by catalog
+    curation, not by the member configuration UI.
+    """
+
+    def __init__(self, entries: tuple[SkillAssignment, ...]) -> None:
+        self._by_pair: dict[tuple[str, str], tuple[str, ...]] = {
+            (item.role, item.phase): item.skills for item in entries
+        }
+
+    @classmethod
+    def empty(cls) -> "SkillDefaults":
+        return cls(())
+
+    @classmethod
+    def load(
+        cls,
+        team_root: str | Path,
+        catalog: RoleResourceCatalog,
+        manifest: Mapping[str, Any],
+    ) -> "SkillDefaults":
+        path = Path(team_root).resolve() / _DEFAULTS_FILE_NAME
+        if not path.exists():
+            return cls.empty()
+        document = load_json(path)
+        return cls(
+            _load_entries(
+                document,
+                key="defaults",
+                catalog=catalog,
+                manifest=manifest,
+                label="Skill defaults",
+            )
+        )
+
+    def default_for(self, role: str, phase: str) -> tuple[str, ...] | None:
+        """The curated default for the pair, or None when uncurated."""
+        return self._by_pair.get((role, phase))
+
+    @property
+    def entries(self) -> tuple[SkillAssignment, ...]:
+        return tuple(
+            SkillAssignment(role=role, phase=phase, skills=skills)
+            for (role, phase), skills in sorted(self._by_pair.items())
+        )
+
+
+__all__ = ["SkillAssignment", "SkillAssignmentMatrix", "SkillDefaults"]

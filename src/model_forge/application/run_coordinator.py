@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from ..configuration.resources import RoleResourceCatalog
+from ..configuration.skill_assignments import SkillAssignmentMatrix, SkillDefaults
 from ..contracts.runtime import RuntimePhaseContract, resolve_runtime_contract
 from ..domain.identities import MethodIdentity
 from ..domain.runs import RunStatus, isoformat_utc, utc_now
@@ -87,6 +88,13 @@ class RunCoordinator:
         self._tasks: set[asyncio.Task[None]] = set()
         resource_root = Path(__file__).resolve().parents[3] / "resources"
         self._skill_manifest = load_json(resource_root / "skills" / "manifest.json")
+        team_root = resource_root / "team"
+        self._skill_assignments = SkillAssignmentMatrix.load(
+            team_root, role_resources, self._skill_manifest
+        )
+        self._skill_defaults = SkillDefaults.load(
+            team_root, role_resources, self._skill_manifest
+        )
 
     async def run(self, run_id: str) -> None:
         """Advance the selected run until terminal or externally pending."""
@@ -660,6 +668,8 @@ class RunCoordinator:
             project_id=project_id,
             contract_document=contract_document,
             mode=mode,
+            skill_assignments=self._skill_assignments,
+            skill_defaults=self._skill_defaults,
         )
 
     def _verify_frozen_inputs(self, recipe: PreparedRunRecipe) -> None:

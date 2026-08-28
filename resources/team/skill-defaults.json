@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0.0",
+  "comment": "Curated per-phase default skill preload sets. A (role, phase) pair without an entry falls back to the role's catalog recommended skills. The assignment matrix (skill-assignments.json) overrides these defaults; these defaults override nothing - they ARE the default layer.",
+  "defaults": [
+    {"role": "research_lead", "phase": "P1", "skills": ["stat-literature-synthesis", "mf-contribution-boundary"]},
+    {"role": "research_lead", "phase": "P2", "skills": ["stat-method-design", "mf-contribution-boundary"]},
+    {"role": "research_lead", "phase": "P3", "skills": ["mf-contribution-boundary"]},
+    {"role": "research_lead", "phase": "P4", "skills": ["mf-contribution-boundary"]},
+    {"role": "research_lead", "phase": "P5", "skills": ["stat-paper-writing", "mf-contribution-boundary"]},
+    {"role": "theorist", "phase": "P1", "skills": ["mf-proof-dependency"]},
+    {"role": "theorist", "phase": "P2", "skills": ["stat-method-design", "mf-proof-dependency"]},
+    {"role": "theorist", "phase": "P3", "skills": ["stat-paper-writing", "mf-proof-dependency"]},
+    {"role": "theorist", "phase": "P4", "skills": ["mf-proof-dependency"]},
+    {"role": "theorist", "phase": "P5", "skills": ["mf-proof-dependency"]},
+    {"role": "data_analyst", "phase": "P1", "skills": ["mf-reproducibility-checklist"]},
+    {"role": "data_analyst", "phase": "P2", "skills": ["mf-reproducibility-checklist"]},
+    {"role": "data_analyst", "phase": "P3", "skills": ["mf-reproducibility-checklist"]},
+    {"role": "data_analyst", "phase": "P4", "skills": ["stat-simulation-design", "mf-reproducibility-checklist"]},
+    {"role": "data_analyst", "phase": "P5", "skills": ["mf-reproducibility-checklist"]},
+    {"role": "outside_reviewer", "phase": "P5", "skills": ["stat-paper-reviewer", "mf-review-calibration"]}
+  ]
+}

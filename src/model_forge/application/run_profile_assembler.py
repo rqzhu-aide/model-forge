@@ -65,7 +65,7 @@ from typing import Any, Callable, Iterator, Mapping, Sequence
 
 from ..configuration.profiles import PROFILE_ROLES
 from ..configuration.resources import RoleResource, RoleResourceCatalog
-from ..configuration.skill_assignments import SkillAssignmentMatrix
+from ..configuration.skill_assignments import SkillAssignmentMatrix, SkillDefaults
 from ..configuration.skill_installer import SkillInstallationError, directory_sha256
 from ..digests.jcs import canonicalize
 from ..domain.runs import isoformat_utc, thaw_json, utc_now
@@ -992,6 +992,7 @@ class RunProfileAssembler:
         hermes_probe: Callable[[str], HermesProbe] | None = None,
         seal_lease_seconds: int = 14_400,
         skill_assignments: SkillAssignmentMatrix | None = None,
+        skill_defaults: SkillDefaults | None = None,
     ) -> None:
         self._data_root = data_root.resolve()
         self._runs_root = self._data_root / "runs"
@@ -1003,6 +1004,7 @@ class RunProfileAssembler:
         self._hermes_probe = hermes_probe or _default_hermes_probe
         self._lease_seconds = seal_lease_seconds
         self._skill_assignments = skill_assignments or SkillAssignmentMatrix.empty()
+        self._skill_defaults = skill_defaults or SkillDefaults.empty()
 
     # -- properties ------------------------------------------------------
 
@@ -1143,7 +1145,7 @@ class RunProfileAssembler:
                             ),
                         }
                         for skill_id in self._skill_assignments.effective_skills(
-                            resource, phase
+                            resource, phase, self._skill_defaults
                         )
                     ],
                 }
@@ -1265,7 +1267,9 @@ class RunProfileAssembler:
 
         skills_root = profile_dir / "skills"
         skills_root.mkdir(parents=True, exist_ok=True)
-        for skill_id in self._skill_assignments.effective_skills(resource, phase):
+        for skill_id in self._skill_assignments.effective_skills(
+            resource, phase, self._skill_defaults
+        ):
             _validate_skill_id(skill_id)
             source = (
                 self._bundle_root / skill_id

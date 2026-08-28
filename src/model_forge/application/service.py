@@ -76,7 +76,7 @@ from ..configuration.role_provisioner import (
     hermes_available,
     provision_role_definition,
 )
-from ..configuration.skill_assignments import SkillAssignmentMatrix
+from ..configuration.skill_assignments import SkillAssignmentMatrix, SkillDefaults
 from ..configuration.skill_installer import (
     SkillConflictError,
     SkillInstallationError,
@@ -287,6 +287,7 @@ class ModelForgeService:
         self._run_seal_database: Database | None = None
         self._run_assembler: RunProfileAssembler | None = None
         self._skill_assignments: SkillAssignmentMatrix | None = None
+        self._skill_defaults: SkillDefaults | None = None
         self._supervised_executor_settings = supervised_executor_settings
         self._supervised_min_free_bytes = supervised_min_free_bytes
         self._background: set[asyncio.Task[None]] = set()
@@ -343,6 +344,17 @@ class ModelForgeService:
             )
         return self._skill_assignments
 
+    @property
+    def skill_defaults(self) -> SkillDefaults:
+        """Lazily load the curated per-phase skill defaults (SK-7)."""
+        if self._skill_defaults is None:
+            team_root = self.skill_bundle_root.parent / "team"
+            manifest = load_skill_manifest(self.skill_bundle_root.parent)
+            self._skill_defaults = SkillDefaults.load(
+                team_root, self.role_resources, manifest
+            )
+        return self._skill_defaults
+
     def reload_skill_assignments(self) -> SkillAssignmentMatrix:
         """Drop the cached matrix (and assembler) so a saved edit applies."""
         self._skill_assignments = None
@@ -370,6 +382,7 @@ class ModelForgeService:
                 hermes_root=self.settings.resolved_hermes_root(),
                 hermes_binary=self.settings.hermes_executable,
                 skill_assignments=self.skill_assignments,
+                skill_defaults=self.skill_defaults,
             )
         return self._run_assembler
 
@@ -961,6 +974,8 @@ class ModelForgeService:
                 project_id=project_id,
                 contract_document=document,
                 mode=mode,
+                skill_assignments=self.skill_assignments,
+                skill_defaults=self.skill_defaults,
             )
         except Exception:
             return None
@@ -3318,7 +3333,7 @@ class ModelForgeService:
                         if matrix.assigned(role_id, phase) is not None
                         else "default"
                     ),
-                    skills=list(matrix.effective_skills(resource, phase)),
+                    skills=list(matrix.effective_skills(resource, phase, self.skill_defaults)),
                 )
                 for phase in resource.applicable_phases
             ],

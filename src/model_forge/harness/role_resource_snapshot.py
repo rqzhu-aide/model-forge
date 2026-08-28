@@ -93,6 +93,8 @@ def compute_role_resources(
     project_id: str,
     contract_document: Mapping[str, Any] | None = None,
     mode: str | None = None,
+    skill_assignments: Any = None,
+    skill_defaults: Any = None,
 ) -> tuple[dict[str, str], dict[str, dict[str, Any]]]:
     """Compute the role-resource snapshot for the given roles.
 
@@ -105,6 +107,13 @@ def compute_role_resources(
     custom skills, and explicit nulls for model/provider/tools and the
     per-role phase instruction (all undeclared by the current WP-C definition
     and phase contracts).
+
+    When ``skill_assignments`` is given together with a contract document,
+    the frozen ``skills`` list is the effective per-phase set (matrix
+    assignment, else curated default, else the catalog union) with each
+    entry carrying its ``origin`` (``assigned`` vs ``default``), and a
+    ``skill_assignment`` block records the resolution. Without it the
+    historical shape (recommended skills only) is preserved.
     """
     effective_values = {
         role: settings.profile_for(role) for role in PROFILE_ROLES
@@ -125,21 +134,52 @@ def compute_role_resources(
         resource = role_resources.role(role)
         profile = effective_mapping.for_role(role)
         profiles[role] = profile
-        skill_items = []
-        for recommendation in resource.recommended_skills:
-            bundled = skill_manifest["skills"].get(recommendation.skill_id)
-            if type(bundled) is not dict:
-                raise ValueError(
-                    f"Bundled skill {recommendation.skill_id!r} is unavailable."
-                )
-            skill_items.append(
-                {
-                    "skill_id": recommendation.skill_id,
-                    "source": recommendation.source,
-                    "source_revision": str(source.get("revision", "unknown")),
-                    "bundle_sha256": str(bundled["content_sha256"]),
-                }
+        skill_assignment_block: dict[str, Any] | None = None
+        if skill_assignments is not None and contract_document is not None:
+            phase = str(contract_document["phase_id"])
+            assigned = skill_assignments.assigned(role, phase)
+            origin = "assigned" if assigned is not None else "default"
+            effective_ids = skill_assignments.effective_skills(
+                resource, phase, skill_defaults
             )
+            recommended_sources = {
+                item.skill_id: item.source for item in resource.recommended_skills
+            }
+            skill_items = []
+            for skill_id in effective_ids:
+                bundled = skill_manifest["skills"].get(skill_id)
+                if type(bundled) is not dict:
+                    raise ValueError(
+                        f"Bundled skill {skill_id!r} is unavailable."
+                    )
+                skill_items.append(
+                    {
+                        "skill_id": skill_id,
+                        "source": recommended_sources.get(
+                            skill_id, "model-forge/bundled"
+                        ),
+                        "source_revision": str(source.get("revision", "unknown")),
+                        "bundle_sha256": str(bundled["content_sha256"]),
+                        "origin": origin,
+                    }
+                )
+            skill_assignment_block = {"phase": phase, "source": origin}
+        else:
+            skill_items = []
+            for recommendation in resource.recommended_skills:
+                bundled = skill_manifest["skills"].get(recommendation.skill_id)
+                if type(bundled) is not dict:
+                    raise ValueError(
+                        f"Bundled skill {recommendation.skill_id!r} is unavailable."
+                    )
+                skill_items.append(
+                    {
+                        "skill_id": recommendation.skill_id,
+                        "source": recommendation.source,
+                        "source_revision": str(source.get("revision", "unknown")),
+                        "bundle_sha256": str(bundled["content_sha256"]),
+                    }
+                )
         base_configuration = resource.base_configuration
         library_guidance = resource.library_guidance
         resources[role] = {
@@ -171,6 +211,8 @@ def compute_role_resources(
                 for skill in resource.custom_skills
             ],
         }
+        if skill_assignment_block is not None:
+            resources[role]["skill_assignment"] = skill_assignment_block
     return profiles, resources
 
 

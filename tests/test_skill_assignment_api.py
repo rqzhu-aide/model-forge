@@ -13,6 +13,14 @@ from model_forge.api.models import UpdateSkillAssignmentsRequest
 from model_forge.application.service import ModelForgeService
 from model_forge.application.settings import ApplicationSettings
 from model_forge.configuration.resources import RoleResourceCatalog
+from model_forge.configuration.skill_assignments import (
+    SkillAssignmentMatrix,
+    SkillDefaults,
+)
+from model_forge.harness.role_resource_snapshot import (
+    compute_role_resources,
+    load_skill_manifest,
+)
 from model_forge.specification import SpecificationPackage
 from model_forge.storage.artifacts import ArtifactStore
 from model_forge.storage.paths import WorkspacePaths
@@ -37,6 +45,10 @@ def _make_service(tmp_path: Path) -> ModelForgeService:
     shutil.copy(
         RESOURCE_ROOT / "team" / "skill-assignments.json",
         team / "skill-assignments.json",
+    )
+    shutil.copy(
+        RESOURCE_ROOT / "team" / "skill-defaults.json",
+        team / "skill-defaults.json",
     )
     workspace = WorkspacePaths(tmp_path / "data", create=True)
     repository = HubRepository(workspace.root / "hub.sqlite3")
@@ -69,7 +81,8 @@ class TestGetRoleSkillAssignments:
             "P5",
         ]
         assert all(entry.source == "default" for entry in view.phases)
-        assert view.phases[2].skills == ["stat-paper-writing", "stat-method-design", "mf-proof-dependency"]
+        # The curated per-phase default for the theorist in P3.
+        assert view.phases[2].skills == ["stat-paper-writing", "mf-proof-dependency"]
         catalog_ids = {entry.skill_id for entry in view.available_skills}
         assert catalog_ids == {
             "stat-paper-writing",
@@ -147,7 +160,8 @@ class TestUpdateRoleSkillAssignments:
         )
         p3 = next(entry for entry in view.phases if entry.phase == "P3")
         assert p3.source == "default"
-        assert p3.skills == ["stat-paper-writing", "stat-method-design", "mf-proof-dependency"]
+        # The curated per-phase default, not the full catalog union.
+        assert p3.skills == ["stat-paper-writing", "mf-proof-dependency"]
 
     def test_unknown_skill_rejected(self, tmp_path: Path) -> None:
         service = _make_service(tmp_path)
@@ -187,3 +201,96 @@ class TestUpdateRoleSkillAssignments:
                 )
             )
         assert captured.value.error.code == "COMMAND_SCHEMA_INVALID"
+
+
+class TestFreezePathSkillResolution:
+    """SK-7: the research-run freeze resolves the effective per-phase set."""
+
+    def _freeze(self, tmp_path: Path, phase: str, matrix=None):
+        service = _make_service(tmp_path)
+        manifest = load_skill_manifest(service.skill_bundle_root.parent)
+        defaults = SkillDefaults.load(
+            service.skill_bundle_root.parent / "team",
+            service.role_resources,
+            manifest,
+        )
+        document = service.specification.phases.contract_document(phase)
+        _, resources = compute_role_resources(
+            repository=service.repository,
+            settings=service.settings,
+            role_resources=service.role_resources,
+            skill_manifest=manifest,
+            roles={"research_lead"},
+            project_id="project.test",
+            contract_document=document,
+            mode=None,
+            skill_assignments=matrix or service.skill_assignments,
+            skill_defaults=defaults,
+        )
+        return resources["research_lead"]
+
+    def test_curated_default_frozen_with_origin(self, tmp_path: Path) -> None:
+        frozen = self._freeze(tmp_path, "P1")
+        assert [item["skill_id"] for item in frozen["skills"]] == [
+            "stat-literature-synthesis",
+            "mf-contribution-boundary",
+        ]
+        assert all(item["origin"] == "default" for item in frozen["skills"])
+        assert all(
+            len(item["bundle_sha256"]) == 64 for item in frozen["skills"]
+        )
+        assert frozen["skill_assignment"] == {"phase": "P1", "source": "default"}
+
+    def test_assignment_overrides_curated_default_in_freeze(
+        self, tmp_path: Path
+    ) -> None:
+        catalog = RoleResourceCatalog.load(RESOURCE_ROOT / "team")
+        manifest = load_skill_manifest(RESOURCE_ROOT)
+        matrix = SkillAssignmentMatrix.empty().with_assignment(
+            "research_lead", "P1", ("stat-paper-writing",)
+        )
+        frozen = self._freeze(tmp_path, "P1", matrix=matrix)
+        assert [item["skill_id"] for item in frozen["skills"]] == [
+            "stat-paper-writing"
+        ]
+        assert frozen["skills"][0]["origin"] == "assigned"
+        assert frozen["skill_assignment"] == {
+            "phase": "P1",
+            "source": "assigned",
+        }
+
+    def test_phase_scoped_defaults_differ_across_phases(
+        self, tmp_path: Path
+    ) -> None:
+        p1 = self._freeze(tmp_path / "a", "P1")
+        p5 = self._freeze(tmp_path / "b", "P5")
+        assert [i["skill_id"] for i in p1["skills"]] == [
+            "stat-literature-synthesis",
+            "mf-contribution-boundary",
+        ]
+        assert [i["skill_id"] for i in p5["skills"]] == [
+            "stat-paper-writing",
+            "mf-contribution-boundary",
+        ]
+
+    def test_legacy_shape_without_skill_params(self, tmp_path: Path) -> None:
+        service = _make_service(tmp_path)
+        manifest = load_skill_manifest(service.skill_bundle_root.parent)
+        document = service.specification.phases.contract_document("P3")
+        _, resources = compute_role_resources(
+            repository=service.repository,
+            settings=service.settings,
+            role_resources=service.role_resources,
+            skill_manifest=manifest,
+            roles={"theorist"},
+            project_id="project.test",
+            contract_document=document,
+            mode=None,
+        )
+        frozen = resources["theorist"]
+        assert [item["skill_id"] for item in frozen["skills"]] == [
+            "stat-paper-writing",
+            "stat-method-design",
+        ]
+        assert "origin" not in frozen["skills"][0]
+        assert "skill_assignment" not in frozen

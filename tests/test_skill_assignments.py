@@ -8,7 +8,10 @@ from pathlib import Path
 import pytest
 
 from model_forge.configuration.resources import RoleResourceCatalog
-from model_forge.configuration.skill_assignments import SkillAssignmentMatrix
+from model_forge.configuration.skill_assignments import (
+    SkillAssignmentMatrix,
+    SkillDefaults,
+)
 from model_forge.harness.role_resource_snapshot import load_skill_manifest
 
 TEAM_ROOT = Path(__file__).resolve().parents[1] / "resources" / "team"
@@ -32,6 +35,66 @@ def _write_matrix(tmp_path: Path, document: dict) -> Path:
         json.dumps(document), encoding="utf-8"
     )
     return root
+
+
+class TestSkillDefaults:
+    def test_bundled_defaults_cover_every_role_phase_pair(
+        self, catalog: RoleResourceCatalog, manifest: dict
+    ) -> None:
+        defaults = SkillDefaults.load(TEAM_ROOT, catalog, manifest)
+        pairs = {(entry.role, entry.phase) for entry in defaults.entries}
+        for role in ("research_lead", "theorist", "data_analyst"):
+            for phase in ("P1", "P2", "P3", "P4", "P5"):
+                assert (role, phase) in pairs
+        assert ("outside_reviewer", "P5") in pairs
+        # The curated lead default for P1 is the literature pick.
+        assert defaults.default_for("research_lead", "P1") == (
+            "stat-literature-synthesis",
+            "mf-contribution-boundary",
+        )
+
+    def test_curated_default_beats_catalog_union(
+        self, catalog: RoleResourceCatalog, manifest: dict
+    ) -> None:
+        matrix = SkillAssignmentMatrix.empty()
+        defaults = SkillDefaults.load(TEAM_ROOT, catalog, manifest)
+        resource = catalog.role("research_lead")
+        assert matrix.effective_skills(resource, "P1", defaults) == (
+            "stat-literature-synthesis",
+            "mf-contribution-boundary",
+        )
+        # Without the defaults layer the union applies.
+        assert "stat-paper-writing" in matrix.effective_skills(resource, "P1")
+
+    def test_assignment_beats_curated_default(
+        self, catalog: RoleResourceCatalog, manifest: dict
+    ) -> None:
+        matrix = SkillAssignmentMatrix.empty().with_assignment(
+            "research_lead", "P1", ("stat-paper-writing",)
+        )
+        defaults = SkillDefaults.load(TEAM_ROOT, catalog, manifest)
+        resource = catalog.role("research_lead")
+        assert matrix.effective_skills(resource, "P1", defaults) == (
+            "stat-paper-writing",
+        )
+
+    def test_invalid_defaults_rejected(
+        self, tmp_path: Path, catalog: RoleResourceCatalog, manifest: dict
+    ) -> None:
+        tmp_path.mkdir(exist_ok=True)
+        (tmp_path / "skill-defaults.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": "1.0.0",
+                    "defaults": [
+                        {"role": "theorist", "phase": "P3", "skills": ["ghost"]}
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        with pytest.raises(ValueError, match="unknown bundled skill"):
+            SkillDefaults.load(tmp_path, catalog, manifest)
 
 
 class TestLoad:
@@ -167,7 +230,7 @@ class TestValidation:
                 ],
             },
         )
-        with pytest.raises(ValueError, match="Duplicate skill assignment"):
+        with pytest.raises(ValueError, match="Duplicate Skill assignment matrix"):
             SkillAssignmentMatrix.load(root, catalog, manifest)
 
     def test_wrong_schema_version_rejected(

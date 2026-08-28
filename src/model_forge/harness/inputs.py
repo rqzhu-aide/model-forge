@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -31,6 +31,9 @@ class ResolvedRunInput:
     record: CurrentRecordReference
     purpose: str
     selected_by: str = "phase_contract"
+    #: ``current_record`` for published-state resolution; ``researcher_seed``
+    #: when the content came from the run command's seed channel.
+    origin: str = "current_record"
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,8 +74,15 @@ def resolve_run_inputs(
     contract: RuntimePhaseContract,
     lookup: CurrentRecordLookup,
     selected_context_option_ids: Sequence[str] | None = None,
+    seed_records: Mapping[str, CurrentRecordReference] | None = None,
 ) -> InputResolutionResult:
-    """Resolve the exact user-selected current basis without hidden history."""
+    """Resolve the exact user-selected current basis without hidden history.
+
+    ``seed_records`` carries researcher-supplied content (already stored and
+    content-addressed by the caller) keyed by contract input id.  A seed
+    replaces current-record resolution for that input, counts as present
+    for rerun detection, and is marked with ``researcher_seed`` provenance.
+    """
 
     method = _method_from_choices(contract)
     selected = (
@@ -88,6 +98,23 @@ def resolve_run_inputs(
             and contract.plan.mode_id not in item.get("required_in_modes", ())
         )
     }
+    seeds = dict(seed_records or {})
+    unknown_seeds = sorted(set(seeds) - declared_ids)
+    if unknown_seeds:
+        return InputResolutionResult(
+            (),
+            (),
+            tuple(
+                make_finding(
+                    code="input.unknown_seed",
+                    message=(
+                        f"Seed input {input_id!r} is not declared for this run."
+                    ),
+                    object_id=input_id,
+                )
+                for input_id in unknown_seeds
+            ),
+        )
     if selected is not None:
         unknown = sorted(selected - declared_ids)
         if unknown:
@@ -117,6 +144,11 @@ def resolve_run_inputs(
     current_records: dict[str, CurrentRecordReference | None] = {}
     for input_contract in applicable_inputs:
         input_id = str(input_contract["input_id"])
+        if input_id in seeds:
+            # A researcher seed stands in for the current record: it is
+            # present for rerun detection and skips the store lookup.
+            current_records[input_id] = seeds[input_id]
+            continue
         match_policy = str(input_contract["method_match"])
         query_method = (
             method if match_policy in {"exact", "same_stable_method"} else None
@@ -206,6 +238,11 @@ def resolve_run_inputs(
                 contract_input_id=str(input_contract["input_id"]),
                 record=record,
                 purpose=str(input_contract["purpose"]),
+                origin=(
+                    "researcher_seed"
+                    if str(input_contract["input_id"]) in seeds
+                    else "current_record"
+                ),
             )
         )
 

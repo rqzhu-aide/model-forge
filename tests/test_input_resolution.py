@@ -508,3 +508,110 @@ def test_phase5_assembly_manuscript_is_situation_aware() -> None:
     assert "p5.current_manuscript" in {
         item.contract_input_id for item in rerun_selected.inputs
     }
+
+
+# --------------------------------------------------------------------------- #
+# SD-1: researcher seed channel
+# --------------------------------------------------------------------------- #
+
+
+def _seed_reference(method: MethodIdentity) -> CurrentRecordReference:
+    return CurrentRecordReference(
+        record_id="seed.p5.current_manuscript.abc123",
+        generation_id="seed",
+        generation_number=0,
+        record_type="manuscript",
+        artifact=pointer("seed-manuscript"),
+        method_identity=method,
+        size_bytes=1234,
+    )
+
+
+def p5_contract():
+    package = SpecificationPackage.load(ARCHITECTURE)
+    method = MethodIdentity("method.demo", 1, "b" * 64)
+    plan = package.resolve_phase(
+        package.phases.identity("P5"),
+        "p5.assembly",
+        {
+            "p5.selected_method": method.to_dict(),
+            "p5.instructions": "Write the manuscript.",
+            "p5.selected_history": [],
+        },
+        "current_only",
+    )
+    return package, method, resolve_runtime_contract(package.phases, plan)
+
+
+def test_seed_fills_absent_rerun_slot_with_provenance() -> None:
+    """A seeded draft turns a first assembly into a continuation run: the
+    manuscript input resolves with researcher_seed provenance even though no
+    published manuscript record exists."""
+    _, method, contract = p5_contract()
+    result = resolve_run_inputs(
+        project_id="project.demo",
+        contract=contract,
+        lookup=_p5_lookup(method, with_manuscript=False),
+        selected_context_option_ids=[*_P5_ALWAYS_SELECTED, "p5.current_manuscript"],
+        seed_records={"p5.current_manuscript": _seed_reference(method)},
+    )
+    assert result.passed
+    seeded = next(
+        item
+        for item in result.inputs
+        if item.contract_input_id == "p5.current_manuscript"
+    )
+    assert seeded.origin == "researcher_seed"
+    assert seeded.record.record_id.startswith("seed.")
+    # Every other input keeps the published-state provenance.
+    assert all(
+        item.origin == "current_record"
+        for item in result.inputs
+        if item.contract_input_id != "p5.current_manuscript"
+    )
+
+
+def test_seed_overrides_published_record_for_the_run() -> None:
+    _, method, contract = p5_contract()
+    result = resolve_run_inputs(
+        project_id="project.demo",
+        contract=contract,
+        lookup=_p5_lookup(method, with_manuscript=True),
+        selected_context_option_ids=[*_P5_ALWAYS_SELECTED, "p5.current_manuscript"],
+        seed_records={"p5.current_manuscript": _seed_reference(method)},
+    )
+    assert result.passed
+    seeded = next(
+        item
+        for item in result.inputs
+        if item.contract_input_id == "p5.current_manuscript"
+    )
+    assert seeded.origin == "researcher_seed"
+    assert seeded.record.generation_id == "seed"
+
+
+def test_unknown_seed_input_rejected() -> None:
+    _, method, contract = p5_contract()
+    result = resolve_run_inputs(
+        project_id="project.demo",
+        contract=contract,
+        lookup=_p5_lookup(method, with_manuscript=False),
+        selected_context_option_ids=list(_P5_ALWAYS_SELECTED),
+        seed_records={"p5.not_an_input": _seed_reference(method)},
+    )
+    assert not result.passed
+    assert {item.code for item in result.findings} == {"input.unknown_seed"}
+
+
+def test_required_seed_must_stay_selected() -> None:
+    """A seed makes the rerun slot required; deselecting it still fails."""
+    _, method, contract = p5_contract()
+    result = resolve_run_inputs(
+        project_id="project.demo",
+        contract=contract,
+        lookup=_p5_lookup(method, with_manuscript=False),
+        selected_context_option_ids=list(_P5_ALWAYS_SELECTED),
+        seed_records={"p5.current_manuscript": _seed_reference(method)},
+    )
+    assert not result.passed
+    assert "p5.current_manuscript" in {item.object_id for item in result.findings}

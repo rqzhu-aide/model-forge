@@ -772,6 +772,13 @@ class ProfileConfigurationView(StrictModel):
     projection: ProjectionStamp
 
 
+class SeedInput(StrictModel):
+    """Researcher-supplied seed content for one declared contract input."""
+
+    content: NonEmptyString
+    media_type: NonEmptyString = "text/markdown"
+
+
 class StartRunRequest(StrictModel):
     action_descriptor_id: NonEmptyString
     phase: PhaseId
@@ -779,6 +786,10 @@ class StartRunRequest(StrictModel):
     choice_values: dict[str, Any]
     context_policy: Literal["current_only", "current_plus_selected_history"]
     selected_context_option_ids: list[NonEmptyString]
+    #: Optional seed channel: hand a never-published draft to the run.
+    #: Keys are contract input ids; each seed is content-addressed at
+    #: preparation and frozen with researcher_seed provenance.
+    seed_inputs: dict[NonEmptyString, SeedInput] | None = None
 
     @model_validator(mode="after")
     def selected_current_inputs_are_unique(self) -> "StartRunRequest":

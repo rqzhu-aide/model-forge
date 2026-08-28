@@ -106,6 +106,7 @@ def build_prepared_run_recipe(
             "artifact": item.record.artifact.to_dict(),
             "purpose": item.purpose,
             "selected_by": item.selected_by,
+            "origin": item.origin,
         }
         for item in inputs.inputs
     ]

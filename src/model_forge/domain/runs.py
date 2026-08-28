@@ -156,6 +156,11 @@ class RunRequest:
     selected_current_input_ids: tuple[str, ...] = ()
     wall_time_limit_seconds: int = 14_400
     network_policy: str = "approved_resources"
+    #: Researcher-supplied seed content for declared contract inputs:
+    #: ``{contract_input_id: {"content": str, "media_type": str}}``.  Each
+    #: seed is content-addressed at preparation and frozen with
+    #: ``researcher_seed`` provenance.
+    seed_inputs: Mapping[str, Mapping[str, str]] | None = None
 
     def __post_init__(self) -> None:
         if type(self.project_id) is str:

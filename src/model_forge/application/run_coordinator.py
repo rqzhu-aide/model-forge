@@ -14,13 +14,13 @@ from typing import Any, Sequence
 from ..configuration.resources import RoleResourceCatalog
 from ..configuration.skill_assignments import SkillAssignmentMatrix, SkillDefaults
 from ..contracts.runtime import RuntimePhaseContract, resolve_runtime_contract
-from ..domain.identities import MethodIdentity
+from ..domain.identities import ArtifactPointer, MethodIdentity, Sha256Digest, StableId
 from ..domain.runs import RunStatus, isoformat_utc, utc_now
 from ..domain.validation import ValidationFinding, finding_from_dict
 from ..executors import RoleExecutor
 from ..harness.execution_context import RunExecutionContext
 from ..harness.index_reducers import prepare_index_transforms
-from ..harness.inputs import resolve_run_inputs
+from ..harness.inputs import CurrentRecordReference, resolve_run_inputs
 from ..harness.outputs import build_output_plan
 from ..harness.preparation import PreparedRunRecipe, build_prepared_run_recipe
 from ..harness.publication import ContractPublicationService, PublicationError
@@ -212,6 +212,10 @@ class RunCoordinator:
         )
         runtime = resolve_runtime_contract(self.specification.phases, plan)
         selected = command.get("selected_current_input_ids")
+        seed_records = self._prepare_seed_records(
+            command=command,
+            contract=runtime,
+        )
         inputs = resolve_run_inputs(
             project_id=str(run["project_id"]),
             contract=runtime,
@@ -221,6 +225,7 @@ class RunCoordinator:
                 if type(selected) is list
                 else None
             ),
+            seed_records=seed_records,
         )
         if not inputs.passed:
             message = "; ".join(item.message for item in inputs.findings)
@@ -648,6 +653,50 @@ class RunCoordinator:
             dict(request["choice_values"]),
             str(request["context_policy"]),
         )
+
+    def _prepare_seed_records(
+        self,
+        *,
+        command: Mapping[str, Any],
+        contract: RuntimePhaseContract,
+    ) -> dict[str, CurrentRecordReference]:
+        """Content-address the run command's seed inputs (SD-1).
+
+        Each seed's bytes are stored immutably and wrapped in a synthetic
+        record reference: the seed replaces current-record resolution for
+        that input and is frozen with ``researcher_seed`` provenance.  The
+        run's selected method identity attaches so method-scoped inputs
+        keep their lineage checks.  Unknown input ids are passed through;
+        ``resolve_run_inputs`` rejects them with a precise finding.
+        """
+        raw = command.get("seed_inputs")
+        if type(raw) is not dict or not raw:
+            return {}
+        record_types = {
+            str(item["input_id"]): str(item["record_type"])
+            for item in contract.required_inputs
+        }
+        method = _selected_method(contract.plan.choice_values)
+        records: dict[str, CurrentRecordReference] = {}
+        for input_id, seed in raw.items():
+            content = str(seed.get("content", "")).encode("utf-8")
+            stored = self.artifacts.put_bytes(content)
+            sha = str(stored.sha256)
+            records[str(input_id)] = CurrentRecordReference(
+                record_id=f"seed.{input_id}.{sha[:12]}",
+                generation_id="seed",
+                generation_number=0,
+                record_type=record_types.get(str(input_id), "unknown"),
+                artifact=ArtifactPointer(
+                    artifact_id=StableId(f"artifact.{sha}"),
+                    uri=f"artifact://sha256/{sha}",
+                    sha256=Sha256Digest(sha),
+                    media_type=str(seed.get("media_type", "text/markdown")),
+                ),
+                method_identity=method,
+                size_bytes=len(content),
+            )
+        return records
 
     def _freeze_role_resources(
         self,

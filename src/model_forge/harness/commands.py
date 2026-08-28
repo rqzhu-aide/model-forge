@@ -210,6 +210,14 @@ def build_run_command(
     }
     if sealed_basis is not None:
         document["sealed_basis"] = sealed_basis
+    if request.seed_inputs:
+        document["seed_inputs"] = {
+            str(input_id): {
+                "content": str(seed["content"]),
+                "media_type": str(seed["media_type"]),
+            }
+            for input_id, seed in request.seed_inputs.items()
+        }
     document["content_sha256"] = specification.digests.compute(
         "run_command.content", document
     )

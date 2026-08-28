@@ -1346,6 +1346,17 @@ class ModelForgeService:
             user_id=self.settings.user_id,
             idempotency_key=request_id,
             selected_current_input_ids=tuple(command.selected_context_option_ids),
+            seed_inputs=(
+                {
+                    input_id: {
+                        "content": seed.content,
+                        "media_type": seed.media_type,
+                    }
+                    for input_id, seed in command.seed_inputs.items()
+                }
+                if command.seed_inputs
+                else None
+            ),
         )
         sealed = build_run_command(
             request,

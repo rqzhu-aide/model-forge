@@ -815,6 +815,12 @@ class RunCoordinator:
                 continue
             for item in frozen:
                 if str(item.get("contract_input_id", "")) == str(option_id):
+                    # A researcher seed (SD-1) intentionally replaces the
+                    # published record for this input: the command itself
+                    # declares the override, so the reviewed generation is
+                    # not expected to match the frozen one.
+                    if item.get("origin") == "researcher_seed":
+                        break
                     if str(item["generation_id"]) != str(sealed_gen):
                         raise RepositoryConflictError(
                             "stale_basis.input_generation_drifted",

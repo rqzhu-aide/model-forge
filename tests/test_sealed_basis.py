@@ -784,3 +784,101 @@ def test_gate_rejects_zero_role_resources() -> None:
             required_input_ids=set(),
             selected_input_ids=set(),
         )
+
+
+def test_sealed_basis_skips_generation_check_for_seeded_inputs(tmp_path: Path) -> None:
+    """SD-1: a researcher seed intentionally replaces the published record,
+    so the frozen input carries the seed's synthetic generation.  The
+    stale-basis guard must not read that as drift; real drift on any
+    non-seeded input must still be caught."""
+    from model_forge.application.service import ModelForgeService
+
+    async def _run() -> None:
+        service = build_service(
+            ApplicationSettings(
+                data_root=tmp_path / "data",
+                architecture_root=ARCHITECTURE,
+                executor_kind="fake",
+                development_mode=True,
+                frontend_dist=tmp_path / "missing-web",
+            )
+        )
+        create = CreateProjectRequest(
+            name="Seed drift test",
+            research_question="Do seeds bypass the generation guard only for seeded inputs?",
+            domains=["statistics"],
+            intended_use="Test seed and stale-basis interaction.",
+        )
+        create_bytes = json.dumps(create.model_dump()).encode("utf-8")
+        create_receipt = await service.preserve_raw_request(
+            _raw(create_bytes, family="create_project", key="create-seed-drift-test")
+        )
+        project = await service.create_project(create, raw_request=create_receipt)
+        phase = await service.get_phase_view(
+            project.project_id,
+            "P1",
+            mode="p1.literature_update",
+            method_id=None,
+        )
+        assert phase.descriptor_basis is not None
+
+        coordinator = RunCoordinator(
+            settings=service.settings,
+            specification=service.specification,
+            repository=service.repository,
+            artifacts=service.artifacts,
+            role_resources=service.role_resources,
+            executor=DeterministicFakeExecutor(),
+        )
+        reviewed = [
+            item
+            for item in phase.descriptor_basis["reviewed_current_inputs"]
+            if item.get("generation_id")
+        ]
+        assert reviewed, "P1 must review at least one current input"
+        target = reviewed[0]
+
+        def recipe_with(origin: str) -> PreparedRunRecipe:
+            head = phase.descriptor_basis["authority_head"]
+            doc = {
+                "project_id": str(project.project_id),
+                "frozen_inputs": [
+                    {
+                        "contract_input_id": target["option_id"],
+                        "generation_id": "seed",
+                        "origin": origin,
+                    }
+                ],
+                # Mirror the reviewed role snapshot so section 4 of the
+                # verifier passes; this test targets the input-generation
+                # section only.
+                "role_resources": dict(
+                    phase.descriptor_basis.get("role_resources", {})
+                ),
+                "publication_basis": {
+                    "authority_sequence": head["authority_sequence"],
+                    "authority_root_sha256": head["authority_root_sha256"],
+                    "current_revision": head["current_revision"],
+                },
+            }
+            return PreparedRunRecipe(sha256="0" * 64, document=doc)
+
+        command = {
+            "project_id": str(project.project_id),
+            "sealed_basis": dict(phase.descriptor_basis),
+        }
+        runtime = _p1_runtime(service.specification)
+
+        # Seeded input: generation mismatch is intentional — no conflict.
+        coordinator._verify_sealed_basis(command, recipe_with("researcher_seed"), runtime=runtime)
+
+        # Same mismatch without the seed provenance: drift must fire.
+        raised = False
+        try:
+            coordinator._verify_sealed_basis(command, recipe_with("current_record"), runtime=runtime)
+        except RepositoryConflictError as e:
+            assert e.code == "stale_basis.input_generation_drifted"
+            raised = True
+        assert raised, "Non-seeded generation drift must still be rejected"
+
+    asyncio.run(_run())

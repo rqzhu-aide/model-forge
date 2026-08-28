@@ -1,6 +1,6 @@
 {
   "phase_id": "P5",
-  "contract_version": "2.4.0",
+  "contract_version": "2.5.0",
   "prose_contract": "architecture/phases/phase-5.md",
   "name": "Manuscript assembly and revision",
   "scientific_purpose": "Maintain one complete, traceable manuscript for one exact method by reconciling the current literature, method, theory, and empirical records.",
@@ -246,6 +246,13 @@
       "purpose": "Preserve stable review issue and issue-version lineage during review-revision.",
       "condition": "Included in review-revision when a current ledger exists for the selected stable method lineage.",
       "presence": "if_exists"
+    }
+  ],
+  "supplementary_inputs": [
+    {
+      "input_id": "p5.researcher_material",
+      "record_type": "researcher_material",
+      "purpose": "Accept researcher-supplied material (for example figures or supplementary text) as additional context for manuscript assembly. It is additive only and never substitutes for published records; the manuscript itself always comes from the published pipeline state."
     }
   ],
   "prepared_contexts": [

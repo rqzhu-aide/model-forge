@@ -49,6 +49,7 @@ The run basis freezes:
 - Current cross-phase dependencies, alignment states, research-attention items, and unresolved issues
 - User-selected mode, instructions, optional context, and venue requirements
 - Exact historical records selected by the user
+- Researcher-supplied supplementary material seeded with the run command (for example figures or supplementary text), frozen with researcher_seed provenance; additive only and never a substitute for published records - the manuscript itself always comes from the published pipeline state
 - Role instruction, knowledge, skill, and tool manifests
 
 Review-revision mode also freezes:

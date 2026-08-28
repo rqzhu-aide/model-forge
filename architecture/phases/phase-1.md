@@ -34,6 +34,7 @@ The run basis freezes:
 - User instructions and search boundaries
 - Optional current project context selected by the user
 - Exact historical records selected by the user
+- Researcher-supplied supplementary material seeded with the run command (for example the researcher's own paper), frozen with researcher_seed provenance; additive only and never a substitute for published records
 - Role instruction, knowledge, skill, and tool manifests used for the run
 
 The run basis records which inputs were absent because this is the first run. Later changes to the project or literature registry do not alter an active run.

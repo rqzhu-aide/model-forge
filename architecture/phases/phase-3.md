@@ -41,6 +41,7 @@ The run basis freezes:
 - Current cross-phase alignment, dependency, and unresolved-issue records
 - User instructions and optional current context
 - Exact historical records selected by the user
+- Researcher-supplied supplementary material seeded with the run command (for example the researcher's own derivations or notes), frozen with researcher_seed provenance; additive only and never a substitute for published records
 - Role instruction, knowledge, skill, and tool manifests
 
 The run records absent sibling or prior records explicitly. Current records for a different method version are not loaded as current context and may appear only as selected history.

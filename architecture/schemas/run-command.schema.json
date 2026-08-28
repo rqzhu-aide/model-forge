@@ -253,7 +253,7 @@
     },
     "seed_inputs": {
       "type": "object",
-      "description": "Researcher-supplied seed content for declared contract inputs, keyed by contract input id. Each seed is content-addressed at preparation and frozen with researcher_seed provenance; it replaces current-record resolution for that input for this run.",
+      "description": "Researcher-supplied supplementary material, keyed by a declared supplementary contract input id (ADR-019). Seeds are additive only: each seed is content-addressed at preparation and frozen with researcher_seed provenance. A seed can never replace a required published input; required inputs always resolve from current records.",
       "additionalProperties": {
         "type": "object",
         "properties": {

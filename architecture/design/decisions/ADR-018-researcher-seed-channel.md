@@ -1,7 +1,9 @@
 # ADR-018: Researcher Seed Channel for Run Inputs
 
-Status: Accepted (2026-08-28, SD-1 package; Tez directive 2026-08-27)
-References: S31 (researcher seed input)
+Status: Superseded (2026-08-28) by ADR-019 - seeds are additive
+supplementary material only; a seed can never replace a required
+published input.
+References: S31 (researcher supplementary material)
 
 ## Context
 

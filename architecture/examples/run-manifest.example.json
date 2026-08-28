@@ -3,11 +3,11 @@
   "run_id": "run.p4.preliminary.20260801t140000z",
   "project_id": "project.demo",
   "command_id": "command.p4.preliminary.001",
-  "command_sha256": "d45e72b689e6d7d548ee0069b706cf984bc4e460df5372693b0359531a8e7d83",
+  "command_sha256": "35e2cb11917c65400edef65fd85e3c27b889ec15889099566da57da163669240",
   "command_idempotency_key": "demo-p4-preliminary-20260801",
   "phase": "P4",
-  "phase_contract_version": "2.4.0",
-  "phase_contract_sha256": "c91e1c3cd97d6e0cef7fea6de183e10b43b64fd8dd728fca78bac8c143032278",
+  "phase_contract_version": "2.5.0",
+  "phase_contract_sha256": "e6b157a5e5629e87814d42489122a0bff7deb7c198161ebd668663c0f802dc1d",
   "mode": "p4.preliminary",
   "initiated_by": {
     "user_id": "researcher.demo",
@@ -513,5 +513,5 @@
     "wall_time_limit_seconds": 14400
   },
   "prepared_at": "2026-08-01T14:00:02Z",
-  "manifest_sha256": "f289b6b3099d4626f4669f0055f15e54505a5363c5ac7035ab74148a72b1f7f2"
+  "manifest_sha256": "c01cca36e0e05f5e24bb1968b957e877e699743958d74492ee03b857c459069c"
 }

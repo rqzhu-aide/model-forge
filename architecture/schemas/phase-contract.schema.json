@@ -195,6 +195,13 @@
             "$ref": "#/$defs/requiredInput"
           }
         },
+        "supplementary_inputs": {
+          "type": "array",
+          "description": "Optional researcher-seeded material slots (ADR-019). Supplementary inputs are additive only: they resolve exclusively from the run command's seed channel, never from published records, and never satisfy a required input.",
+          "items": {
+            "$ref": "#/$defs/supplementaryInput"
+          }
+        },
         "prepared_contexts": {
           "type": "array",
           "items": {
@@ -526,6 +533,27 @@
           }
         }
       ]
+    },
+    "supplementaryInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input_id",
+        "record_type",
+        "purpose"
+      ],
+      "properties": {
+        "input_id": {
+          "$ref": "common-definitions.schema.json#/$defs/stableId"
+        },
+        "record_type": {
+          "const": "researcher_material"
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "preparedContext": {
       "type": "object",

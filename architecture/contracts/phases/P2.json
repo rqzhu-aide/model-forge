@@ -1,6 +1,6 @@
 {
   "phase_id": "P2",
-  "contract_version": "2.4.0",
+  "contract_version": "2.5.0",
   "prose_contract": "architecture/phases/phase-2.md",
   "name": "Method development",
   "scientific_purpose": "Develop and maintain a structured catalog of feasible research methods without selecting a branch for the user.",
@@ -194,6 +194,13 @@
       "condition": "Optional in focused_method mode when manuscript results exist for the selected method.",
       "publication_required": "formal",
       "position_required": "current"
+    }
+  ],
+  "supplementary_inputs": [
+    {
+      "input_id": "p2.researcher_material",
+      "record_type": "researcher_material",
+      "purpose": "Accept researcher-supplied material (for example external method notes or prior drafts) as additional context for method development. It is additive only and never substitutes for published records."
     }
   ],
   "prepared_contexts": [],

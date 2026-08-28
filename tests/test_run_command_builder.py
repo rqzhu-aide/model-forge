@@ -48,8 +48,8 @@ def test_build_run_command_is_schema_valid_and_digest_bound() -> None:
 
 
 def test_seeded_run_command_seals_and_validates() -> None:
-    """SD-1: a run command carrying seed_inputs seals with the seeds inside
-    the content digest, and validates against the extended schema."""
+    """SD-1/ADR-019: a run command carrying seed_inputs seals with the seeds
+    inside the content digest, and validates against the extended schema."""
     package = SpecificationPackage.load(ARCHITECTURE)
     request = RunRequest(
         project_id="project.demo",
@@ -64,8 +64,8 @@ def test_seeded_run_command_seals_and_validates() -> None:
         user_id="researcher.demo",
         idempotency_key="request-command-builder-seed-001",
         seed_inputs={
-            "p1.literature_library": {
-                "content": "# Seeded library\n",
+            "p1.researcher_material": {
+                "content": "# Researcher's own paper\n",
                 "media_type": "text/markdown",
             }
         },
@@ -77,8 +77,8 @@ def test_seeded_run_command_seals_and_validates() -> None:
         command_id="command.p1.demo.seed.001",
     )
     package.schemas.require_valid("run-command.schema.json", command)
-    assert command["seed_inputs"]["p1.literature_library"]["content"] == (
-        "# Seeded library\n"
+    assert command["seed_inputs"]["p1.researcher_material"]["content"] == (
+        "# Researcher's own paper\n"
     )
     # The seed is inside the sealed content: removing it changes the digest.
     assert package.digests.require_match("run_command.content", command) == command[
@@ -109,7 +109,7 @@ def test_seed_inputs_reject_malformed_entries() -> None:
                 user_id="researcher.demo",
                 idempotency_key="request-command-builder-seed-002",
                 seed_inputs={
-                    "p1.literature_library": {
+                    "p1.researcher_material": {
                         "content": "",
                         "media_type": "text/markdown",
                     }

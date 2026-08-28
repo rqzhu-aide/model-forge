@@ -25,11 +25,15 @@ Landed (P5 contract 2.3.0 -> 2.4.0):
   findings remain review-revision-only.
 - Review-revision stays a separate mode (the independent review panel is
   a real quality gate); only the input semantics unified.
-- Researcher-supplied seed drafts (a manuscript that never passed through
-  a phase) enter through the seed channel (ADR-018, scenario S31,
-  shipped 2026-08-28): the run command carries `seed_inputs`, the seed
-  freezes with researcher_seed provenance, and continuation semantics
-  apply.
+- Researcher-supplied material enters through the seed channel, revised
+  2026-08-28 (ADR-019 superseding ADR-018, scenario S31): the run command
+  carries `seed_inputs` mapped to declared supplementary slots
+  (`pN.researcher_material`), the seed freezes with researcher_seed
+  provenance, and seeds are additive only - a seed can never replace a
+  required published input, so a finished foreign manuscript cannot enter
+  at P5.  A researcher's own paper enters at P1 as supplementary material
+  and the pipeline builds around it; pure paper-auditing of an external
+  draft is out of scope.
 
 History: the original D-1 analysis (options a/b/c, recommendation b)
 superseded by Tez's direction.

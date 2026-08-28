@@ -45,6 +45,7 @@ The run basis freezes:
 - The selected stable method ID in focused mode
 - User instructions and optional current context
 - Exact historical records selected by the user
+- Researcher-supplied supplementary material seeded with the run command (for example external method notes or prior drafts), frozen with researcher_seed provenance; additive only and never a substitute for published records
 - Role instruction, knowledge, skill, and tool manifests
 
 The system computes and records the input digests before work starts. Later Phase 1 or catalog changes do not alter the active run.

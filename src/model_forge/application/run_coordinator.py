@@ -660,14 +660,16 @@ class RunCoordinator:
         command: Mapping[str, Any],
         contract: RuntimePhaseContract,
     ) -> dict[str, CurrentRecordReference]:
-        """Content-address the run command's seed inputs (SD-1).
+        """Content-address the run command's seed inputs (SD-1, ADR-019).
 
         Each seed's bytes are stored immutably and wrapped in a synthetic
-        record reference: the seed replaces current-record resolution for
-        that input and is frozen with ``researcher_seed`` provenance.  The
-        run's selected method identity attaches so method-scoped inputs
-        keep their lineage checks.  Unknown input ids are passed through;
-        ``resolve_run_inputs`` rejects them with a precise finding.
+        record reference frozen with ``researcher_seed`` provenance.  Seeds
+        are additive only: they fill the contract's declared supplementary
+        material slots and can never replace a required published input.
+        The run's selected method identity attaches so method-scoped inputs
+        keep their lineage checks.  Unknown or disallowed input ids are
+        passed through; ``resolve_run_inputs`` rejects them with precise
+        findings.
         """
         raw = command.get("seed_inputs")
         if type(raw) is not dict or not raw:
@@ -676,6 +678,12 @@ class RunCoordinator:
             str(item["input_id"]): str(item["record_type"])
             for item in contract.required_inputs
         }
+        record_types.update(
+            {
+                str(item["input_id"]): str(item["record_type"])
+                for item in contract.supplementary_inputs
+            }
+        )
         method = _selected_method(contract.plan.choice_values)
         records: dict[str, CurrentRecordReference] = {}
         for input_id, seed in raw.items():
@@ -815,12 +823,6 @@ class RunCoordinator:
                 continue
             for item in frozen:
                 if str(item.get("contract_input_id", "")) == str(option_id):
-                    # A researcher seed (SD-1) intentionally replaces the
-                    # published record for this input: the command itself
-                    # declares the override, so the reviewed generation is
-                    # not expected to match the frozen one.
-                    if item.get("origin") == "researcher_seed":
-                        break
                     if str(item["generation_id"]) != str(sealed_gen):
                         raise RepositoryConflictError(
                             "stale_basis.input_generation_drifted",

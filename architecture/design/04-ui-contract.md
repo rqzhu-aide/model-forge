@@ -177,7 +177,7 @@ Selects one declared run mode and collects its exact phase-specific choices, inc
 
 Context selection is per record: group cards toggle a whole group for convenience, and the group detail view exposes an "include in run context" choice per record, feeding `selected_context_option_ids`. Required records stay selected and locked.
 
-The run command also accepts the researcher seed channel (ADR-018): a `seed_inputs` map from contract input id to inline content. Seeded inputs freeze with researcher_seed provenance; the channel is API-level until a phase-page affordance is designed.
+The run command also accepts the researcher seed channel (ADR-019): a `seed_inputs` map from a declared supplementary input id (`pN.researcher_material`) to inline content. Seeds are additive supplementary material only - they can never replace a required published input - and freeze with researcher_seed provenance; the channel is API-level until a phase-page affordance is designed.
 
 ### 4.5 History panel
 

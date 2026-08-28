@@ -786,11 +786,11 @@ def test_gate_rejects_zero_role_resources() -> None:
         )
 
 
-def test_sealed_basis_skips_generation_check_for_seeded_inputs(tmp_path: Path) -> None:
-    """SD-1: a researcher seed intentionally replaces the published record,
-    so the frozen input carries the seed's synthetic generation.  The
-    stale-basis guard must not read that as drift; real drift on any
-    non-seeded input must still be caught."""
+def test_sealed_basis_ignores_additive_seeded_inputs(tmp_path: Path) -> None:
+    """SD-1 / ADR-019: a researcher seed is additive supplementary material;
+    it never occupies a reviewed required input, so the stale-basis guard
+    simply does not compare its synthetic generation.  Real drift on any
+    published input must still be caught."""
     from model_forge.application.service import ModelForgeService
 
     async def _run() -> None:
@@ -838,17 +838,31 @@ def test_sealed_basis_skips_generation_check_for_seeded_inputs(tmp_path: Path) -
         assert reviewed, "P1 must review at least one current input"
         target = reviewed[0]
 
-        def recipe_with(origin: str) -> PreparedRunRecipe:
+        def recipe_with(*, drifted: bool, seeded: bool) -> PreparedRunRecipe:
             head = phase.descriptor_basis["authority_head"]
+            frozen = [
+                {
+                    "contract_input_id": target["option_id"],
+                    "generation_id": (
+                        "republished-generation" if drifted else target["generation_id"]
+                    ),
+                    "origin": "current_record",
+                }
+            ]
+            if seeded:
+                # ADR-019: supplementary material is additive - it sits
+                # alongside the reviewed basis and is never compared
+                # against a reviewed generation.
+                frozen.append(
+                    {
+                        "contract_input_id": "p1.researcher_material",
+                        "generation_id": "seed",
+                        "origin": "researcher_seed",
+                    }
+                )
             doc = {
                 "project_id": str(project.project_id),
-                "frozen_inputs": [
-                    {
-                        "contract_input_id": target["option_id"],
-                        "generation_id": "seed",
-                        "origin": origin,
-                    }
-                ],
+                "frozen_inputs": frozen,
                 # Mirror the reviewed role snapshot so section 4 of the
                 # verifier passes; this test targets the input-generation
                 # section only.
@@ -869,16 +883,20 @@ def test_sealed_basis_skips_generation_check_for_seeded_inputs(tmp_path: Path) -
         }
         runtime = _p1_runtime(service.specification)
 
-        # Seeded input: generation mismatch is intentional — no conflict.
-        coordinator._verify_sealed_basis(command, recipe_with("researcher_seed"), runtime=runtime)
+        # Seeded supplementary input: additive only — no conflict.
+        coordinator._verify_sealed_basis(
+            command, recipe_with(drifted=False, seeded=True), runtime=runtime
+        )
 
-        # Same mismatch without the seed provenance: drift must fire.
+        # Same basis with real drift on the published input: must fire.
         raised = False
         try:
-            coordinator._verify_sealed_basis(command, recipe_with("current_record"), runtime=runtime)
+            coordinator._verify_sealed_basis(
+                command, recipe_with(drifted=True, seeded=True), runtime=runtime
+            )
         except RepositoryConflictError as e:
             assert e.code == "stale_basis.input_generation_drifted"
             raised = True
-        assert raised, "Non-seeded generation drift must still be rejected"
+        assert raised, "Generation drift on a published input must still be rejected"
 
     asyncio.run(_run())

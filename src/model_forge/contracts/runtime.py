@@ -21,6 +21,7 @@ class RuntimePhaseContract:
     scientific_purpose: str
     prerequisites: tuple[Mapping[str, Any], ...]
     required_inputs: tuple[Mapping[str, Any], ...]
+    supplementary_inputs: tuple[Mapping[str, Any], ...]
     downstream_effects: tuple[Mapping[str, Any], ...]
     ui_projection: Mapping[str, Any]
 
@@ -43,6 +44,11 @@ def resolve_runtime_contract(
         required_inputs=tuple(
             copy.deepcopy(item)
             for item in document["required_inputs"]
+            if _applies_to_mode(item, plan.mode_id)
+        ),
+        supplementary_inputs=tuple(
+            copy.deepcopy(item)
+            for item in document.get("supplementary_inputs", ())
             if _applies_to_mode(item, plan.mode_id)
         ),
         downstream_effects=tuple(copy.deepcopy(document["downstream_effects"])),

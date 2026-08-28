@@ -1,6 +1,6 @@
 {
   "phase_id": "P4",
-  "contract_version": "2.4.0",
+  "contract_version": "2.5.0",
   "prose_contract": "architecture/phases/phase-4.md",
   "name": "Empirical development",
   "scientific_purpose": "Build a reproducible cumulative evidence base and current empirical synthesis for one exact method identity.",
@@ -181,6 +181,13 @@
       "purpose": "Expose assumptions, empirical implications, and boundary cases.",
       "condition": "Included when an exactly aligned Phase 3 record exists; Phase 3 is not a prerequisite.",
       "presence": "if_exists"
+    }
+  ],
+  "supplementary_inputs": [
+    {
+      "input_id": "p4.researcher_material",
+      "record_type": "researcher_material",
+      "purpose": "Accept researcher-supplied material (for example the researcher's own partial code) as additional context for empirical development, to be utilized or revised so the implementation is easier. It is additive only and never substitutes for published records."
     }
   ],
   "prepared_contexts": [],

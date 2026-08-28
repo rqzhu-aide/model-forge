@@ -44,6 +44,7 @@ The run basis freezes:
 - Preliminary or comprehensive run scope
 - User instructions and optional current context
 - Exact historical records selected by the user
+- Researcher-supplied supplementary material seeded with the run command (for example the researcher's own partial code, to be utilized or revised so the implementation is easier), frozen with researcher_seed provenance; additive only and never a substitute for published records
 - Role instruction, knowledge, skill, tool, data-access, and execution-environment manifests
 
 Current records for another method version are excluded from current context and may appear only as selected history.

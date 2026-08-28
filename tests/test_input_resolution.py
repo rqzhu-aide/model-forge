@@ -511,17 +511,17 @@ def test_phase5_assembly_manuscript_is_situation_aware() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# SD-1: researcher seed channel
+# SD-1 / ADR-019: researcher seed channel (additive supplementary material)
 # --------------------------------------------------------------------------- #
 
 
 def _seed_reference(method: MethodIdentity) -> CurrentRecordReference:
     return CurrentRecordReference(
-        record_id="seed.p5.current_manuscript.abc123",
+        record_id="seed.p5.researcher_material.abc123",
         generation_id="seed",
         generation_number=0,
-        record_type="manuscript",
-        artifact=pointer("seed-manuscript"),
+        record_type="researcher_material",
+        artifact=pointer("seed-material"),
         method_identity=method,
         size_bytes=1234,
     )
@@ -543,23 +543,23 @@ def p5_contract():
     return package, method, resolve_runtime_contract(package.phases, plan)
 
 
-def test_seed_fills_absent_rerun_slot_with_provenance() -> None:
-    """A seeded draft turns a first assembly into a continuation run: the
-    manuscript input resolves with researcher_seed provenance even though no
-    published manuscript record exists."""
+def test_seed_supplementary_material_is_additive() -> None:
+    """A seed fills the declared supplementary slot with researcher_seed
+    provenance; every required input still resolves from published records
+    with current_record provenance."""
     _, method, contract = p5_contract()
     result = resolve_run_inputs(
         project_id="project.demo",
         contract=contract,
         lookup=_p5_lookup(method, with_manuscript=False),
-        selected_context_option_ids=[*_P5_ALWAYS_SELECTED, "p5.current_manuscript"],
-        seed_records={"p5.current_manuscript": _seed_reference(method)},
+        selected_context_option_ids=list(_P5_ALWAYS_SELECTED),
+        seed_records={"p5.researcher_material": _seed_reference(method)},
     )
     assert result.passed
     seeded = next(
         item
         for item in result.inputs
-        if item.contract_input_id == "p5.current_manuscript"
+        if item.contract_input_id == "p5.researcher_material"
     )
     assert seeded.origin == "researcher_seed"
     assert seeded.record.record_id.startswith("seed.")
@@ -567,11 +567,32 @@ def test_seed_fills_absent_rerun_slot_with_provenance() -> None:
     assert all(
         item.origin == "current_record"
         for item in result.inputs
-        if item.contract_input_id != "p5.current_manuscript"
+        if item.contract_input_id != "p5.researcher_material"
     )
 
 
-def test_seed_overrides_published_record_for_the_run() -> None:
+def test_seed_does_not_trigger_rerun_detection() -> None:
+    """A seeded supplementary slot is not a published record: with no
+    manuscript in the store, the run stays a first assembly - the seed does
+    not turn it into a continuation."""
+    _, method, contract = p5_contract()
+    result = resolve_run_inputs(
+        project_id="project.demo",
+        contract=contract,
+        lookup=_p5_lookup(method, with_manuscript=False),
+        selected_context_option_ids=list(_P5_ALWAYS_SELECTED),
+        seed_records={"p5.researcher_material": _seed_reference(method)},
+    )
+    assert result.passed
+    # First-assembly semantics: no manuscript input is demanded or resolved.
+    assert "p5.current_manuscript" not in {
+        item.contract_input_id for item in result.inputs
+    }
+
+
+def test_seed_targeting_required_input_rejected() -> None:
+    """ADR-019: a seed can never replace a required published input - the
+    foreign-draft-into-P5 case fails preparation with a precise finding."""
     _, method, contract = p5_contract()
     result = resolve_run_inputs(
         project_id="project.demo",
@@ -580,14 +601,11 @@ def test_seed_overrides_published_record_for_the_run() -> None:
         selected_context_option_ids=[*_P5_ALWAYS_SELECTED, "p5.current_manuscript"],
         seed_records={"p5.current_manuscript": _seed_reference(method)},
     )
-    assert result.passed
-    seeded = next(
-        item
-        for item in result.inputs
-        if item.contract_input_id == "p5.current_manuscript"
-    )
-    assert seeded.origin == "researcher_seed"
-    assert seeded.record.generation_id == "seed"
+    assert not result.passed
+    assert {item.code for item in result.findings} == {
+        "input.seed_replaces_published_input"
+    }
+    assert "p5.current_manuscript" in {item.object_id for item in result.findings}
 
 
 def test_unknown_seed_input_rejected() -> None:
@@ -603,15 +621,20 @@ def test_unknown_seed_input_rejected() -> None:
     assert {item.code for item in result.findings} == {"input.unknown_seed"}
 
 
-def test_required_seed_must_stay_selected() -> None:
-    """A seed makes the rerun slot required; deselecting it still fails."""
+def test_seed_rejection_lists_disallowed_and_unknown_together() -> None:
     _, method, contract = p5_contract()
     result = resolve_run_inputs(
         project_id="project.demo",
         contract=contract,
         lookup=_p5_lookup(method, with_manuscript=False),
         selected_context_option_ids=list(_P5_ALWAYS_SELECTED),
-        seed_records={"p5.current_manuscript": _seed_reference(method)},
+        seed_records={
+            "p5.current_manuscript": _seed_reference(method),
+            "p5.not_an_input": _seed_reference(method),
+        },
     )
     assert not result.passed
-    assert "p5.current_manuscript" in {item.object_id for item in result.findings}
+    assert {item.code for item in result.findings} == {
+        "input.seed_replaces_published_input",
+        "input.unknown_seed",
+    }

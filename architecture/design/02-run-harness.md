@@ -179,7 +179,7 @@ During `preparing`, the harness:
 
 Preparation fails if a required current record is absent, incompatible, withdrawn, or not eligible under the phase contract. The error response must identify the missing scientific prerequisite and the user actions that could resolve it.
 
-A run command may carry researcher seed inputs (ADR-018, scenario S31): inline content mapped to declared contract input ids. Each seed is content-addressed into the artifact store at preparation, wrapped in a synthetic record reference carrying the run's selected method identity, and treated as present for rerun detection. The frozen manifest marks seeded inputs `origin: "researcher_seed"`; all other inputs keep `origin: "current_record"`. Seeds for undeclared inputs fail preparation with `input.unknown_seed`, and the stale-basis generation guard exempts seeded inputs because the command itself declares the override.
+A run command may carry researcher seed inputs (ADR-019, scenario S31): inline content mapped to declared supplementary contract input ids (`pN.researcher_material`). Each seed is content-addressed into the artifact store at preparation, wrapped in a synthetic record reference carrying the run's selected method identity, and frozen with `origin: "researcher_seed"`; all required inputs keep `origin: "current_record"` and always resolve from published current records. Seeds are additive only: they never satisfy a required input and never count for rerun detection. A seed naming a required input fails preparation with `input.seed_replaces_published_input`; a seed naming an undeclared input fails with `input.unknown_seed`. The stale-basis generation guard compares published inputs only, so no seed exemption exists.
 
 ### 4.3 Input materialization
 

@@ -1,6 +1,6 @@
 {
   "phase_id": "P1",
-  "contract_version": "2.3.0",
+  "contract_version": "2.4.0",
   "prose_contract": "architecture/phases/phase-1.md",
   "name": "Literature basis",
   "scientific_purpose": "Maintain a cumulative, deduplicated literature corpus and a replaceable synthesis of what is known, disputed, and missing for the project question.",
@@ -110,6 +110,13 @@
       "purpose": "Identify covered questions, stated exclusions, and unresolved search gaps.",
       "condition": "Required on reruns and absent on the first run.",
       "presence": "required_on_rerun"
+    }
+  ],
+  "supplementary_inputs": [
+    {
+      "input_id": "p1.researcher_material",
+      "record_type": "researcher_material",
+      "purpose": "Accept researcher-supplied material (for example the researcher's own paper) as additional context for building the literature basis. It is additive only and never substitutes for published literature records; a researcher paper enters the pipeline here, at Phase 1."
     }
   ],
   "prepared_contexts": [],

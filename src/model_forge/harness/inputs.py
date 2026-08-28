@@ -78,10 +78,14 @@ def resolve_run_inputs(
 ) -> InputResolutionResult:
     """Resolve the exact user-selected current basis without hidden history.
 
-    ``seed_records`` carries researcher-supplied content (already stored and
-    content-addressed by the caller) keyed by contract input id.  A seed
-    replaces current-record resolution for that input, counts as present
-    for rerun detection, and is marked with ``researcher_seed`` provenance.
+    ``seed_records`` carries researcher-supplied supplementary material
+    (already stored and content-addressed by the caller) keyed by
+    supplementary contract input id.  Seeds are additive only (ADR-019):
+    they resolve exclusively into the contract's declared supplementary
+    slots with ``researcher_seed`` provenance.  A seed naming a required
+    input is rejected - required inputs always resolve from published
+    current records - and a seed naming nothing declared fails with
+    ``input.unknown_seed``.
     """
 
     method = _method_from_choices(contract)
@@ -98,23 +102,37 @@ def resolve_run_inputs(
             and contract.plan.mode_id not in item.get("required_in_modes", ())
         )
     }
+    supplementary = {
+        str(item["input_id"]): item for item in contract.supplementary_inputs
+    }
     seeds = dict(seed_records or {})
-    unknown_seeds = sorted(set(seeds) - declared_ids)
-    if unknown_seeds:
-        return InputResolutionResult(
-            (),
-            (),
-            tuple(
-                make_finding(
-                    code="input.unknown_seed",
-                    message=(
-                        f"Seed input {input_id!r} is not declared for this run."
-                    ),
-                    object_id=input_id,
-                )
-                for input_id in unknown_seeds
-            ),
+    disallowed = sorted(set(seeds) & declared_ids)
+    unknown_seeds = sorted(set(seeds) - declared_ids - set(supplementary))
+    if disallowed or unknown_seeds:
+        findings = [
+            make_finding(
+                code="input.seed_replaces_published_input",
+                message=(
+                    f"Seed input {input_id!r} targets a required published "
+                    "input. Seeds may only supply declared supplementary "
+                    "material; required inputs always resolve from current "
+                    "records."
+                ),
+                object_id=input_id,
+            )
+            for input_id in disallowed
+        ]
+        findings.extend(
+            make_finding(
+                code="input.unknown_seed",
+                message=(
+                    f"Seed input {input_id!r} is not declared for this run."
+                ),
+                object_id=input_id,
+            )
+            for input_id in unknown_seeds
         )
+        return InputResolutionResult((), (), tuple(findings))
     if selected is not None:
         unknown = sorted(selected - declared_ids)
         if unknown:
@@ -144,11 +162,6 @@ def resolve_run_inputs(
     current_records: dict[str, CurrentRecordReference | None] = {}
     for input_contract in applicable_inputs:
         input_id = str(input_contract["input_id"])
-        if input_id in seeds:
-            # A researcher seed stands in for the current record: it is
-            # present for rerun detection and skips the store lookup.
-            current_records[input_id] = seeds[input_id]
-            continue
         match_policy = str(input_contract["method_match"])
         query_method = (
             method if match_policy in {"exact", "same_stable_method"} else None
@@ -238,11 +251,20 @@ def resolve_run_inputs(
                 contract_input_id=str(input_contract["input_id"]),
                 record=record,
                 purpose=str(input_contract["purpose"]),
-                origin=(
-                    "researcher_seed"
-                    if str(input_contract["input_id"]) in seeds
-                    else "current_record"
-                ),
+                origin="current_record",
+            )
+        )
+
+    # Supplementary slots (ADR-019): additive researcher material only.
+    # They never resolve from the store, are never required, and never
+    # participate in rerun detection; a slot appears exactly when seeded.
+    for input_id in sorted(set(supplementary) & set(seeds)):
+        resolved.append(
+            ResolvedRunInput(
+                contract_input_id=input_id,
+                record=seeds[input_id],
+                purpose=str(supplementary[input_id]["purpose"]),
+                origin="researcher_seed",
             )
         )
 

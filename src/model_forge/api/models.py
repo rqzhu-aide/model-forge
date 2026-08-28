@@ -786,9 +786,11 @@ class StartRunRequest(StrictModel):
     choice_values: dict[str, Any]
     context_policy: Literal["current_only", "current_plus_selected_history"]
     selected_context_option_ids: list[NonEmptyString]
-    #: Optional seed channel: hand a never-published draft to the run.
-    #: Keys are contract input ids; each seed is content-addressed at
-    #: preparation and frozen with researcher_seed provenance.
+    #: Optional seed channel: hand supplementary material to the run.
+    #: Keys are declared supplementary contract input ids; each seed is
+    #: content-addressed at preparation and frozen with researcher_seed
+    #: provenance. Seeds are additive only and can never replace a
+    #: required published input.
     seed_inputs: dict[NonEmptyString, SeedInput] | None = None
 
     @model_validator(mode="after")

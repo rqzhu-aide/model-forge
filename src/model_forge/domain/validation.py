@@ -243,6 +243,7 @@ def _build_registry() -> dict[str, FindingPolicy]:
         "input.required_current_record_missing",
         "input.unknown_context_selection",
         "input.unknown_seed",
+        "input.seed_replaces_published_input",
         "json.decode_error",
         "json.duplicate_key",
         "json.invalid_input_type",

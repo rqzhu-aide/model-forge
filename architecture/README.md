@@ -45,7 +45,7 @@ validator resolve them by fixed relative paths:
 - `examples/` - golden and invalid example documents the validator folds and
   cross-checks.
 
-For the machine-readable inventory: `schemas/` contains 47 machine-validatable schemas, while `examples/` contains 65 valid examples and 16 focused invalid fixtures.
+For the machine-readable inventory: `schemas/` contains 46 machine-validatable schemas, while `examples/` contains 62 valid examples and 13 focused invalid fixtures.
 - `evidence/` - the living audit trail: production verification records for
   completed gates. Individual records retire to `archive/` when superseded.
 - `tools/` - the package validator and the contract registry builder.

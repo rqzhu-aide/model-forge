@@ -1254,9 +1254,17 @@ class ModelForgeService:
         self, project_id: str, *, phase: PhaseId | None
     ) -> list[RunSummary]:
         try:
+            rows = self.queries.list_runs(project_id, phase=phase)
             return [
-                run_summary_view(row)
-                for row in self.queries.list_runs(project_id, phase=phase)
+                run_summary_view(
+                    row,
+                    correction_attempts=(
+                        self._correction_attempt_counts(str(row["run_id"]))
+                        if str(row["status"]) in ("correction_authorized", "correcting")
+                        else None
+                    ),
+                )
+                for row in rows
             ]
         except RepositoryNotFoundError as error:
             raise _not_found(error) from error

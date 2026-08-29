@@ -32,7 +32,6 @@ export type ActionType =
   | "retire_method"
   | "reactivate_method"
   | "activate_method"
-  | "withdraw_formal_generation"
   | "save_profile"
   | "install_skill"
   | "update_project_brief"
@@ -171,7 +170,7 @@ export interface ProjectStorageView {
 }
 
 export interface ScientificStatus {
-  publication_state?: "run_local" | "submitted" | "validated" | "formal" | "withdrawn" | "invalid";
+  publication_state?: "run_local" | "submitted" | "validated" | "formal" | "invalid";
   record_position?: "current" | "historical" | "none";
   alignment?: "exact" | "compatible" | "unassessed" | "outdated" | "not_applicable";
   attention?: "none" | "monitor" | "reassessment_required" | "blocking";
@@ -516,6 +515,13 @@ export interface RunEvent {
   occurred_at: string;
 }
 
+export interface RerunPrefill {
+  phase: PhaseId;
+  mode: string;
+  choice_values: Record<string, unknown>;
+  context_policy: string;
+}
+
 export interface RunDetail extends RunSummary {
   requested_by: string;
   instructions: string;
@@ -544,6 +550,7 @@ export interface RunDetail extends RunSummary {
     href?: string;
   };
   lifecycle_projection?: RunLifecycleProjection;
+  rerun_prefill?: RerunPrefill;
 }
 
 export interface SkillStatus {

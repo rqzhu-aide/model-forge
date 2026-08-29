@@ -52,6 +52,22 @@ export function PhasePage() {
     enabled: Boolean(projectId && phaseId),
   });
 
+  // One-click rerun: ?rerun=<run_id> pre-fills the form with the frozen
+  // basis of a finished run (WP-UX).
+  const rerunRunId = searchParams.get("rerun") ?? "";
+  const rerunQuery = useQuery({
+    queryKey: ["run", projectId, rerunRunId],
+    queryFn: () => api.getRun(projectId as string, rerunRunId),
+    enabled: Boolean(projectId && rerunRunId),
+  });
+  const rerunPrefill = rerunQuery.data?.rerun_prefill;
+
+  useEffect(() => {
+    if (rerunPrefill && rerunPrefill.phase === phaseId && !mode) {
+      setMode(rerunPrefill.mode);
+    }
+  }, [rerunPrefill, phaseId, mode]);
+
   const needsMethods = phaseId === "P2" || phaseId === "P3" || phaseId === "P4" || phaseId === "P5";
   const methodsQuery = useQuery({
     queryKey: ["methods", projectId],
@@ -166,6 +182,7 @@ export function PhasePage() {
             selectedMethodId={selectedMethodId}
             onMethodChange={setSelectedMethodId}
             mode={mode}
+            rerunPrefill={rerunPrefill}
             onModeChange={(nextMode) => {
               setMode(nextMode);
               if (phaseId === "P2" && nextMode !== "p2.focused_method") setSelectedMethodId("");

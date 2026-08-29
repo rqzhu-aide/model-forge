@@ -43,7 +43,6 @@ ActionType = Literal[
     "retire_method",
     "reactivate_method",
     "activate_method",
-    "withdraw_formal_generation",
     "update_project_brief",
     "save_profile",
     "install_skill",
@@ -137,7 +136,7 @@ class LiteratureGapSummary(StrictModel):
 
 class ScientificStatus(StrictModel):
     publication_state: Literal[
-        "run_local", "submitted", "validated", "formal", "withdrawn", "invalid"
+        "run_local", "submitted", "validated", "formal", "invalid"
     ] | None = None
     record_position: Literal["current", "historical", "none"] | None = None
     alignment: Literal[
@@ -612,6 +611,22 @@ class PublicationReceiptDocument(StrictModel):
         return self
 
 
+class RerunPrefill(StrictModel):
+    """Frozen basis of a finished run, for a one-click rerun (WP-UX).
+
+    Carries exactly what the run form needs to reproduce the run's sealed
+    choices: phase, mode, choice values, and context policy. Presented only
+    for states where a fresh run is the designed next step (failed, rejected,
+    cancelled, correction_exhausted, or a correcting run whose bounded
+    correction lanes are both spent).
+    """
+
+    phase: PhaseId
+    mode: NonEmptyString
+    choice_values: dict[str, Any] = Field(default_factory=dict)
+    context_policy: NonEmptyString
+
+
 class RunDetail(RunSummary):
     requested_by: NonEmptyString
     instructions: str
@@ -624,6 +639,7 @@ class RunDetail(RunSummary):
     terminal_reason: TerminalReason | None = None
     validation_report: ValidationReportView | None = None
     publication_receipt: PublicationReceiptView | None = None
+    rerun_prefill: RerunPrefill | None = None
 
 
 class ExpectedOutput(StrictModel):

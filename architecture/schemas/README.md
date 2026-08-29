@@ -24,7 +24,6 @@ The current inventory contains 46 schemas.
 | `run-cancellation-command.schema.json` | Authenticated idempotent request to close one run's submission gate before immutable submission |
 | `control-command.schema.json` | Strict union of non-run control commands |
 | `method-lifecycle-command.schema.json` | User authorization to retire or reactivate one exact method |
-| `formal-generation-withdrawal-command.schema.json` | User authorization to withdraw one exact formal generation |
 | `delegation-grant.schema.json` | User-issued remote-operator authority bounded by project, action, target, and time |
 | `delegation-revocation.schema.json` | Append-only revocation of one exact delegation grant and handle |
 | `action-descriptor.schema.json` | Typed backend eligibility and command-construction data for one researcher action |
@@ -70,7 +69,7 @@ object, this includes `authority_at_creation`, `alignment_at_creation`,
 `research_attention_at_creation`, and `applicability_at_creation`. These fields
 never change after the object is sealed.
 
-Later publication, supersession, method change, attention, withdrawal,
+Later publication, supersession, method change, attention,
 invalidation, or evidence reclassification creates an append-only
 `AuthorityEvent`. `RecordState` folds the ordered events into current publication
 state, record position, alignment, research attention, and evidence eligibility.
@@ -87,7 +86,7 @@ Do not reintroduce one generic `status` field.
 
 - Creation authority states how the immutable bytes were created.
 - Derived publication state records whether the object is run-local, submitted,
-  validated, formal, withdrawn, or invalid.
+  validated, formal, or invalid.
 - Derived record position records current, historical, or none.
 - Derived alignment records exact, compatible, unassessed, outdated, or not
   applicable.
@@ -153,7 +152,7 @@ The run objects have different mutation rules.
   lead closure, and every candidate artifact sent to validation.
 - `RunState` records lifecycle events and their current projection.
 - `PublicationReceipt.source` distinguishes a research run, method lifecycle
-  command, or generation withdrawal command. A research-run receipt binds the
+  command. A research-run receipt binds the
   exact `RunSubmission` ID and digest. Every receipt identifies the committed
   event range, event-root digest, projection digests, and current-index
   generation, and carries its own verified content digest.
@@ -272,7 +271,7 @@ and smallest correction. It must not claim to prove scientific truth.
 
 ## Examples
 
-The sibling `../examples/` directory contains 65 valid examples covering every
+The sibling `../examples/` directory contains 62 valid examples covering every
 persisted object schema except `common-definitions`, `phase-contract`, and the
 two registry schemas. The five split phase contracts instantiate
 `phase-contract`; `contracts/digest-contracts.json` and
@@ -280,7 +279,7 @@ two registry schemas. The five split phase contracts instantiate
 
 Sixteen targeted invalid fixtures test explicit user control, cancellation,
 typed action-family isolation, malformed digests, current-only history isolation,
-lifecycle and withdrawal preconditions, prior-state binding, event-family
+lifecycle preconditions, prior-state binding, event-family
 isolation, the immutable-generation boundary, and exclusion of older-method
 evidence from exact current state.
 

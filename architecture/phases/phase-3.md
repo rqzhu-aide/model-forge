@@ -27,7 +27,7 @@ A run requires:
 - A current Phase 2 method catalog
 - One active selected method with an exact stable ID, version, and mathematical-definition digest
 
-A Phase 4 record is optional. A prior Phase 3 record is optional for the first run and required as current context for a rerun when one exists. A negative or partial prior scientific outcome does not block a rerun. A retired, withdrawn, or noncurrent method selection blocks preparation, and an older method version cannot be selected as the current target.
+A Phase 4 record is optional. A prior Phase 3 record is optional for the first run and required as current context for a rerun when one exists. A negative or partial prior scientific outcome does not block a rerun. A retired or noncurrent method selection blocks preparation, and an older method version cannot be selected as the current target.
 
 ## 4. Frozen inputs
 

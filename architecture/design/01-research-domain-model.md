@@ -108,7 +108,7 @@ Required components:
 - Literature provenance.
 - Current scientific summary and known limitations.
 
-Retirement is a method-portfolio lifecycle decision. Withdrawal applies only to the authority state of a specific formal content generation and is not a `MethodRecord` lifecycle state.
+Retirement is a method-portfolio lifecycle decision.
 
 The authoritative mathematical definition must include every object that changes the calculation or mathematical claim. Its exact identity payload is `mathematical_definition.canonical_definition` and has these required components:
 
@@ -201,7 +201,7 @@ Required metadata:
 - Change summary relative to the prior current generation.
 - Presentation artifacts for each supported information layer.
 
-The generation never stores mutable current position, current alignment, later attention, withdrawal, invalidation, or evidence eligibility. Those values belong to the derived state projection built from append-only authority events. A generation may be the current formal record and scientifically inconclusive without any contradiction.
+The generation never stores mutable current position, current alignment, later attention, invalidation, or evidence eligibility. Those values belong to the derived state projection built from append-only authority events. A generation may be the current formal record and scientifically inconclusive without any contradiction.
 
 ### 3.8 Scientific statement
 
@@ -274,7 +274,7 @@ Attention is separate from alignment and outcome. A supported and exactly aligne
 
 ### 3.12 Authority event and derived state
 
-An `AuthorityEvent` is an append-only record of a state change after a scientific object was created. It may publish or supersede a generation, recompute alignment, add or resolve research attention, withdraw or invalidate an object, or change evidence eligibility. Publication, supersession, withdrawal, and invalidation carry their permitted record-position effects, so there is no unconstrained generic position-change event. Every event names its subject, trigger, reason, prior-state digest when available, and exact changes.
+An `AuthorityEvent` is an append-only record of a state change after a scientific object was created. It may publish or supersede a generation, recompute alignment, add or resolve research attention, invalidate an object, or change evidence eligibility. Publication, supersession, and invalidation carry their permitted record-position effects, so there is no unconstrained generic position-change event. Every event names its subject, trigger, reason, prior-state digest when available, and exact changes.
 
 The canonical event payload is the RFC 8785 serialization of the complete event object with `content_sha256` and `event_root_sha256` omitted. Let $H$ be SHA-256. The stored content digest is
 
@@ -291,7 +291,7 @@ The journal root is
 \operatorname{bytes}(\texttt{content\_sha256})),
 \]
 
-where each digest is decoded from hexadecimal to 32 bytes before concatenation. The genesis prior root is 32 zero bytes. Event-type-specific schema conditions define the only legal `changes` fields for publication, supersession, withdrawal, invalidation, alignment recomputation, attention change, and evidence eligibility change.
+where each digest is decoded from hexadecimal to 32 bytes before concatenation. The genesis prior root is 32 zero bytes. Event-type-specific schema conditions define the only legal `changes` fields for publication, supersession, invalidation, alignment recomputation, attention change, and evidence eligibility change.
 
 A `DerivedRecordState` is a rebuildable projection from those events. It contains current publication state, record position, alignment, research attention, and evidence eligibility. The current index uses this projection. Deleting and rebuilding a projection from the event journal must reproduce the same state digest.
 
@@ -452,7 +452,7 @@ Publication computes impact from typed dependencies:
 3. A P4 publication atomically replaces the evidence index, empirical synthesis, implementation record, and phase decision. A P5 manuscript becomes non-current in alignment when any P4 generation in its frozen hard-dependency basis is replaced; a phase decision is contextual unless the manuscript explicitly binds it as hard.
 4. New P1 literature does not automatically invalidate every downstream record. The publication records literature-basis drift, and phase contracts determine whether reassessment is required.
 5. Retiring a method prevents new ordinary runs for it but does not delete its records or history.
-6. Withdrawing evidence or a scientific statement propagates an explicit affected-dependency notice to records that cite it.
+6. Retracting or invalidating evidence or a scientific statement propagates an explicit affected-dependency notice to records that cite it.
 
 Impact changes alignment and attention metadata. It does not erase scientific outcomes or launch reruns.
 

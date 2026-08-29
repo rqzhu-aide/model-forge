@@ -77,7 +77,7 @@ claim that an implementation test has run.
 | IT-019 | INV-019 | Immutable generations remain byte-identical while event replay alone reconstructs every later position, alignment, attention, and eligibility state. |
 | IT-020 | INV-020 | Omitted, duplicated, mode-inapplicable, multiply resolved, or stale publication bindings fail with stable diagnostics before commit. |
 | IT-021 | INV-021 | Independent implementations reproduce every canonical JSON and journal-root vector, including Unicode and numeric edge cases, or reject values excluded by the digest contract. |
-| IT-022 | INV-022 | Lifecycle and withdrawal commands require valid user authority or an exact live delegation, freeze target and control heads, remain idempotent, and cannot be authorized by an agent recommendation. |
+| IT-022 | INV-022 | Lifecycle commands require valid user authority or an exact live delegation, freeze target and control heads, remain idempotent, and cannot be authorized by an agent recommendation. |
 
 ## Required test groups
 
@@ -120,7 +120,7 @@ At minimum, test these global invariants:
 - no immutable content generation contains mutable current-position,
   current-alignment, current-attention, or eligibility fields;
 - an immutable generation remains byte-identical after replacement, method
-  change, retirement, withdrawal, or invalidation;
+  change, retirement, or invalidation;
 - every submitted run artifact retains the same run-local logical location, byte
   length, and digest after publication, recovery, and replay.
 
@@ -135,7 +135,7 @@ Publication and alignment tests must cover the dimensions separately:
 
 - promotion constructs a new formal generation instead of mutating the
   run-local candidate;
-- publication, replacement, withdrawal, invalidation, alignment, attention,
+- publication, replacement, invalidation, alignment, attention,
   and evidence-eligibility changes are represented by append-only authority
   events;
 - record-state and current-index projections are derived from those events;
@@ -148,7 +148,7 @@ Publication and alignment tests must cover the dimensions separately:
   without changing the earlier generation;
 - a dependency change moves derived alignment from exact to unassessed or
   outdated without changing the earlier generation;
-- withdrawal and invalidation do not rewrite an earlier scientific outcome;
+- invalidation does not rewrite an earlier scientific outcome;
 - an older method-definition digest is never treated as compatible;
 - the latest P3 or P4 generation remains current in position while its derived
   alignment is outdated.
@@ -221,7 +221,6 @@ Test at least:
   projection digest, or wrong current-index generation;
 - a publication receipt whose `content_sha256` does not equal SHA-256 of the
   RFC 8785 canonical complete receipt with only `content_sha256` omitted;
-- a withdrawal receipt that incorrectly invents a new scientific generation;
 - a publication or recovery path that moves, deletes, normalizes, truncates, or
   rewrites any submitted run artifact;
 - two disjoint publications whose second index rebuild drops the first commit.
@@ -243,7 +242,7 @@ scientific truth. They should verify that:
 
 ### 7. Run cancellation and formal control-command tests
 
-Test run cancellation, method lifecycle, and formal withdrawal independently:
+Test run cancellation and method lifecycle independently:
 
 - canonical command digests, authenticated actor or exact live delegation, and
   idempotency-key binding;
@@ -253,7 +252,6 @@ Test run cancellation, method lifecycle, and formal withdrawal independently:
 - legal lifecycle transitions and rejection of a no-op transition;
 - exact target generation, catalog, derived-state, current-index, event-sequence, and event-root compare-and-swap;
 - lifecycle-only method and catalog replacements that preserve method version, definition digest, and scientific content and create no run;
-- withdrawal of only a formal exact generation, with no replacement generation or automatic historical fallback;
 - source-discriminated receipts that exclude run-only fields for control commands and preserve complete event and projection proofs;
 - identical Web and authorized-remote behavior;
 - no formal change after stale, unauthorized, malformed, interrupted, or
@@ -325,7 +323,7 @@ For each phase, test:
 - outdated record;
 - unavailable phase with a precise reason;
 - every user-selectable run mode and context option;
-- all typed start, cancel, lifecycle, and withdrawal action branches, including
+- all typed start, cancel, and lifecycle action branches, including
   cross-branch field rejection and stable disabled reasons;
 - canonical labels for publication authority, record position, alignment,
   attention, scientific outcome, evidence eligibility, and execution state;

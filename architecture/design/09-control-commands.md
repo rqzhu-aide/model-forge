@@ -10,15 +10,10 @@ Version 1 defines two commands:
 
 1. `MethodLifecycleCommand` activates, retires, or reactivates one method
    through an atomic Phase 2 catalog transaction.
-2. `FormalGenerationWithdrawalCommand` withdraws one exact formal generation
-   through an atomic authority transaction.
 
-These commands use separate schemas because they have different scientific
-meanings. Method retirement is a reversible portfolio decision about whether a
-method is available for ordinary work. Generation withdrawal is an irreversible
-correction to the authority of exact published content. A common API may accept a
-discriminated union of the two command types, but it must not replace them with a
-generic target-state command.
+Method retirement is a reversible portfolio decision about whether a method is
+available for ordinary work. The command must not be replaced with a generic
+target-state command.
 
 `RunCancellationCommand` is not a third formal control command. It changes one
 run's execution state before immutable submission and never enters the formal
@@ -51,10 +46,10 @@ Both commands contain:
 operator records both the user authority and the operator identity. The service
 must reject any command outside the delegation.
 
-No role, profile, or agent recommendation authorizes a control command. This is
-especially strict for withdrawal: an agent may identify a possible correction
-and explain its evidence, but only an authenticated user or an operator acting
-under a currently valid user grant may submit the command.
+No role, profile, or agent recommendation authorizes a control command. An
+agent may identify a possible correction and explain its evidence, but only an
+authenticated user or an operator acting under a currently valid user grant may
+submit the command.
 
 `reason` contains:
 
@@ -128,8 +123,8 @@ Only these transitions are legal:
 
 Activation is a direct sealed user transaction (D-3, decided 2026-08-28):
 selecting a proposed method for Phase 3/4 work is a user authority act, sealed
-like retirement, and does not require a Phase 2 rerun. A withdrawn formal
-generation cannot be reactivated. A new command requesting the state already in
+like retirement, and does not require a Phase 2 rerun. A new command
+requesting the state already in
 force fails with `NO_STATE_CHANGE`. Repeating a previously committed command with
 the same idempotency key returns its original receipt.
 
@@ -167,89 +162,14 @@ Retirement removes the method from ordinary Phase 3 and Phase 4 launch
 eligibility. Reactivation restores eligibility only when all other phase
 prerequisites are satisfied.
 
-## 4. FormalGenerationWithdrawalCommand
+## 4. (Removed) Formal-generation withdrawal
 
-### 4.1 Purpose and fields
-
-`FormalGenerationWithdrawalCommand` withdraws one exact formal generation after
-an authenticated scientific-correction or administrative decision. Its
-`command_type` is `formal_generation_withdrawal`.
-
-In addition to the shared fields, it requires:
-
-| Field | Type | Meaning |
-|---|---|---|
-| `target` | object | Exact immutable formal generation to withdraw |
-| `expected_target_state` | object | Exact derived state shown to the user |
-
-`target` contains:
-
-```json
-{
-  "record_id": "record.theory.example",
-  "record_type": "theory_record",
-  "generation_id": "generation.theory.example.003",
-  "content_sha256": "..."
-}
-```
-
-`expected_target_state` contains:
-
-```json
-{
-  "publication_state": "formal",
-  "record_position": "current",
-  "record_state_sha256": "..."
-}
-```
-
-The target may be current or historical, but its derived publication state must
-be `formal` when the command commits.
-
-### 4.2 Withdrawal rules
-
-Withdrawal is not deletion. The immutable generation and its provenance remain
-stored and addressable for audit, but the resolver must reject it as an eligible
-ordinary downstream input.
-
-A withdrawn generation cannot be reactivated. Corrected scientific content must
-be published as a new generation through the applicable user-started research
-run. The service must not automatically restore an older historical generation
-to current position.
-
-### 4.3 Validation and transaction effects
-
-The service must verify that:
-
-1. The target identity and digest resolve to one immutable generation in the
-   project.
-2. Its current `DerivedRecordState` matches `expected_target_state`.
-3. Its publication state is `formal`.
-4. The actor is authorized to perform formal correction or withdrawal.
-5. Every current record with a hard or contextual dependency on the target has
-   been identified before commit.
-
-The atomic transaction:
-
-1. Appends one `withdrawn` `AuthorityEvent` for the exact target generation.
-2. Sets derived `publication_state` to `withdrawn`.
-3. Sets derived `record_position` to `none` when the target was current, or
-   preserves `historical` position when it was already historical.
-4. Removes a withdrawn current generation from its current-index slot and does
-   not fill that slot from history.
-5. Appends typed alignment and attention events for affected current dependents.
-6. Rebuilds affected `DerivedRecordState` projections and a complete replacement
-   `FormalCurrentRecordIndex`.
-7. Commits one atomic receipt.
-
-A current hard dependent of the withdrawn generation becomes noneligible for
-exact-current use. Its alignment changes to `unassessed` with cause
-`withdrawn_dependency`, and its research attention becomes `blocking` until an
-eligible replacement basis and an applicable user-started rerun resolve the
-dependency. A contextual dependency creates explicit attention but does not by
-itself erase the dependent record's scientific outcome.
-
-The transaction creates no replacement scientific generation.
+Removed 2026-08-28: the withdrawal command was specified but never implemented,
+and no mechanism ever produced a `withdrawn` record. The command, its schema,
+its delegation permission, and the `withdrawn` publication state were removed
+from the package. Corrected scientific content is published as a new generation
+through the applicable user-started research run; supersession and invalidation
+remain the only authority events that retire content from current use.
 
 ## 5. Receipt source semantics
 
@@ -278,16 +198,6 @@ transactions. Its source is a discriminated union:
 }
 ```
 
-```json
-{
-  "source": {
-    "kind": "generation_withdrawal_command",
-    "command_id": "...",
-    "command_sha256": "..."
-  }
-}
-```
-
 Only `research_run` may carry `run_id`, `phase`, or `manifest_sha256`. A control
 receipt still records validation reports, prior and new current-index identities
 and digests, the contiguous authority-event range and roots, derived projection
@@ -295,8 +205,7 @@ digests, exact record changes, impacts, actor command, transaction ID, and commi
 time.
 
 A method-lifecycle receipt records `replace` changes for `method_record` and
-`method_catalog`. A withdrawal receipt records a `withdraw` change with
-`subject_generation_id`, no `new_generation_id`, and every supporting
+`method_catalog`. Every supporting
 `authority_event_id`.
 
 ## 6. Optimistic concurrency and idempotency
@@ -318,7 +227,7 @@ it must not regenerate `command_id`, `requested_at`, or any other digested field
 
 ### 6.1 Stable command errors
 
-Every rejected run, cancellation, lifecycle, or withdrawal command returns a `CommandError`. Web and remote clients receive the same code, rule ID, affected object references, retryability, direct researcher message, and smallest corrective action. Free-form exception text is diagnostic only and cannot drive client behavior.
+Every rejected run, cancellation, or lifecycle command returns a `CommandError`. Web and remote clients receive the same code, rule ID, affected object references, retryability, direct researcher message, and smallest corrective action. Free-form exception text is diagnostic only and cannot drive client behavior.
 
 | Code | Category | HTTP | Retryable | Governing rule |
 |---|---|---:|---|---|
@@ -434,7 +343,6 @@ and a revocation handle. Permissions are action-specific:
 - `cancel_run` names exact runs or all runs in the project.
 - `retire_method`, `reactivate_method`, and `activate_method` name exact method
   IDs.
-- `withdraw_formal_generation` names exact generation IDs.
 
 Delegation never includes direct formal-record writes, generic target-state
 changes, or authority to enlarge its own scope. A grant is active only when its
@@ -476,7 +384,7 @@ The service resolves and records the grant at command acceptance, then rechecks
 project, action, exact target, expiry, and revocation immediately before the
 operation commits. A run creation, cancellation fence, or formal transaction
 fails with `DELEGATION_NOT_ACTIVE` if the second check fails. Remote cancellation,
-retirement, reactivation, and withdrawal descriptors are disabled until a
+retirement, reactivation, and activation descriptors are disabled until a
 covering active grant is resolved.
 
 ## 10. UI and remote-operation behavior
@@ -486,7 +394,6 @@ For formal control commands, the backend exposes typed action descriptors for:
 - `retire_method`
 - `reactivate_method`
 - `activate_method`
-- `withdraw_formal_generation`
 
 Each descriptor contains the exact target identity and digest, current state,
 allowed transition, expected control head, reason requirements, enabled state,
@@ -495,14 +402,19 @@ Correction descriptors reflect the bounded-attempt lanes: once a packaging or
 scientific attempt is spent, the corresponding action is disabled with the
 `correction.attempt_spent` reason code instead of failing at command time.
 
+A finished run whose designed next step is a fresh start (`failed`, `rejected`,
+`cancelled`, `correction_exhausted`, or a correcting run with both lanes spent)
+carries a `rerun_prefill` projection: its phase, mode, sealed choice values, and
+context policy. The run page presents "Rerun with the same basis", which opens
+the phase run form pre-filled from those frozen values; every field remains
+editable, supplementary material is not carried over, and launching seals a new
+command against the current record.
+
 The Phase 2 method table presents retire, reactivate, or activate according to
-the current lifecycle state. Withdrawal appears in the selected formal record's
-correction controls, not in the ordinary phase-run panel. The confirmation view states that:
+the current lifecycle state. The confirmation view states that:
 
 - No research run or role execution will occur.
 - Retirement preserves existing scientific records and history.
-- Withdrawal removes exact content from eligible current use and may block
-  dependent work.
 - No formal control action launches a later phase.
 
 The Web UI and authorized remote operator use the same command service and
@@ -511,8 +423,8 @@ is not a separate approval state.
 
 The common `ActionDescriptor` schema has five discriminated branches:
 `start_run`, `cancel_run`, `retire_method`, `reactivate_method`, and
-`withdraw_formal_generation`. Run-launch fields, cancellation run-head fields,
-method lifecycle fields, and withdrawal generation-state fields are disjoint.
+`activate_method`. Run-launch fields, cancellation run-head fields, and method
+lifecycle fields are disjoint.
 The descriptor communicates eligibility and command construction; it is never
 itself authorization.
 
@@ -549,41 +461,33 @@ Implementation must prove:
 4. A retired method can be reactivated by a new exact command when other
    prerequisites remain valid.
 5. A recommendation from any role cannot retire or reactivate a method.
-6. A formal generation can be withdrawn only by exact generation identity,
-   content digest, derived-state digest, and control head.
-7. Withdrawal leaves immutable bytes and provenance unchanged, removes current
-   eligibility, records dependent impacts, and never restores history as current.
-8. A withdrawn generation cannot be reactivated; correction requires a new
-   generation from the applicable user-started research run.
-9. Neither command creates a run ID, run workspace, manifest, role profile,
+6. Neither command creates a run ID, run workspace, manifest, role profile,
    handoff, or role execution.
-10. A stale command returns `409 CONFLICT` and produces no generation, event, or
+7. A stale command returns `409 CONFLICT` and produces no generation, event, or
     index change.
-11. Repeating an identical committed command returns the same receipt without
+8. Repeating an identical committed command returns the same receipt without
     duplicating generations or events.
-12. Failure or interruption cannot expose a partial lifecycle or withdrawal
-    transaction.
-13. A role or agent recommendation cannot authorize withdrawal or any other
-    formal control command.
-14. Cancellation is accepted only from the four legal pre-submission states and
+9. Failure or interruption cannot expose a partial lifecycle transaction.
+10. A role or agent recommendation cannot authorize any formal control command.
+11. Cancellation is accepted only from the four legal pre-submission states and
     closes the submission gate before cooperative stopping begins.
-15. A cancellation-submission race has one compare-and-swap winner and never
+12. A cancellation-submission race has one compare-and-swap winner and never
     modifies formal project state.
-16. Every remote operation is checked against an active grant at acceptance and
+13. Every remote operation is checked against an active grant at acceptance and
     immediately before commit.
-17. Expired, revoked, wrong-project, wrong-action, or wrong-target delegation
+14. Expired, revoked, wrong-project, wrong-action, or wrong-target delegation
     fails closed.
-18. Each typed action descriptor rejects fields belonging to another action
+15. Each typed action descriptor rejects fields belonging to another action
     branch.
-19. Every rejected command produces a schema-valid stable error and operational audit entry, with identical results through Web and remote clients.
-20. Schema-invalid and unauthenticated requests remain traceable to their exact raw bytes without a fabricated command, target, or user identity.
-21. Replaying accepted and rejected audit events reproduces the same chain root, and every accepted pre-commit event resolves to its exact durable effect.
-22. A correction command is accepted only from `failed`, `rejected`, or
+16. Every rejected command produces a schema-valid stable error and operational audit entry, with identical results through Web and remote clients.
+17. Schema-invalid and unauthenticated requests remain traceable to their exact raw bytes without a fabricated command, target, or user identity.
+18. Replaying accepted and rejected audit events reproduces the same chain root, and every accepted pre-commit event resolves to its exact durable effect.
+19. A correction command is accepted only from `failed`, `rejected`, or
     `correction_authorized` with at least one correctable finding, and its
     permitted scope never exceeds the target closure's declared outputs.
-23. A correction appends new validation-attempt, correction-closure, and
+20. A correction appends new validation-attempt, correction-closure, and
     submission-attempt records; no sealed output, closure, or base submission
     is rewritten.
-24. When the correction bounds are spent, further correction commands are
+21. When the correction bounds are spent, further correction commands are
     rejected and the run resolves to `correction_exhausted` with the findings
     preserved.

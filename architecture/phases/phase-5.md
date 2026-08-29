@@ -29,11 +29,11 @@ Every Phase 5 run uses one machine-checkable readiness predicate:
 - A complete Phase 3 record is formal and current for the selected stable method.
 - A Phase 4 evidence index, empirical synthesis, and implementation record are formal and current for the selected stable method.
 - The P3 and P4 records both name the exact current method version and mathematical-definition digest.
-- All required source artifacts pass integrity checks, and no required record is withdrawn or invalid.
+- All required source artifacts pass integrity checks, and no required record is invalid.
 
 The complete Phase 2 catalog is contextual input. An update to another method cannot block or invalidate this manuscript. P3 and P4 do not need to have consumed one another's latest generation. Any sibling-generation drift is passed to Phase 5 as research attention for reconciliation, avoiding an endless P3 and P4 rerun cycle.
 
-The gate distinguishes structural readiness from scientific outcome. A promoted P3 or P4 record satisfies workflow completion even when its outcome is partial, negative, contradictory, or inconclusive. Such outcomes do not block Phase 5, but the manuscript must state them faithfully. A missing record, failed integrity check, withdrawn record, noncurrent record position, or exact-method mismatch blocks preparation.
+The gate distinguishes structural readiness from scientific outcome. A promoted P3 or P4 record satisfies workflow completion even when its outcome is partial, negative, contradictory, or inconclusive. Such outcomes do not block Phase 5, but the manuscript must state them faithfully. A missing record, failed integrity check, invalid record, noncurrent record position, or exact-method mismatch blocks preparation.
 
 Review-revision mode additionally requires one complete formal Phase 5 manuscript within the selected stable method lineage. The review target may describe an older version of that stable method, because reconciling it with the newly frozen current basis is part of the revision. It must never come from another stable method ID. If no manuscript exists within the selected lineage, the user must run assembly mode first.
 

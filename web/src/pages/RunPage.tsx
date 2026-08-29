@@ -349,6 +349,14 @@ export function RunPage() {
       {guidance ? (
         <Panel title="What to do next" eyebrow="Recovery guidance">
           <p>{run.terminal_reason?.smallest_correction ?? guidance}</p>
+          {run.rerun_prefill ? (
+            <Link
+              to={`/projects/${encodeURIComponent(projectId)}/phases/${run.phase}?rerun=${encodeURIComponent(run.run_id)}#configure-run`}
+              className="button"
+            >
+              Rerun with the same basis
+            </Link>
+          ) : null}
           <Link to={`/projects/${encodeURIComponent(projectId)}/phases/${run.phase}#configure-run`} className="button button--quiet">
             Return to {run.phase} run controls
           </Link>

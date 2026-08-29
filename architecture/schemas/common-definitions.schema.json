@@ -73,7 +73,6 @@
                                                         "submitted",
                                                         "validated",
                                                         "formal",
-                                                        "withdrawn",
                                                         "invalid"
                                                     ]
                                        },
@@ -102,7 +101,6 @@
                                                       "older_method_version",
                                                       "upstream_basis_changed",
                                                       "sibling_basis_changed",
-                                                      "withdrawn_dependency",
                                                       "missing_dependency",
                                                       "not_applicable",
                                                       "other"

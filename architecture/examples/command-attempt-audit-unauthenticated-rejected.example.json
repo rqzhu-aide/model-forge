@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "event_type": "command_attempt_audit",
-  "audit_sequence": 5,
+  "audit_sequence": 4,
   "audit_event_id": "audit.command.unauthenticated.rejected.001",
   "project_id": "project.demo",
   "action_type": "cancel_run",
@@ -47,7 +47,7 @@
     }
   },
   "occurred_at": "2026-08-02T14:30:00Z",
-  "prior_audit_root_sha256": "ac9ebb94b5d3999bff893e15ef96139b5d7716f69905097414711080babe6104",
-  "content_sha256": "9e1c872f7b9b8a880181807fccbbaba92b78e0413818b290a3731dd739518fa1",
-  "audit_root_sha256": "6154a9ba79b308859bc2df69dbd8acdf0aec0ac4f8401893f567b45ed464c8b4"
+  "prior_audit_root_sha256": "452fdfdd19bccffb7217a3ba47d09d7a1debaec27d85a598df68c1963220f797",
+  "content_sha256": "632b7cecfb0df3980bffae5f277c17f8da42acd4255292920f136c9e3bb00bac",
+  "audit_root_sha256": "7f9d87b02e145ef7c6c83068718394a1e4ffac98a4ebb80f7ec6713395e758c2"
 }

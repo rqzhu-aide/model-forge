@@ -129,3 +129,60 @@ def test_spent_scientific_lane_disables_descriptor(tmp_path) -> None:
     assert "already spent" in (scientific.researcher_message or "")
     packaging = next(a for a in spent.actions if a.action_type == "package_run_outputs")
     assert packaging.enabled  # the packaging lane is independent
+
+
+def _detail_for(status, correction_attempts=None):
+    from model_forge.application.run_views import run_detail_view
+    import sqlite3 as _sq
+
+    class _Row(dict):
+        def __getitem__(self, k):
+            return super().__getitem__(k)
+
+    payload = {
+        "phase": "P4",
+        "mode": "p4.preliminary",
+        "requested_at": "2026-08-26T02:00:00Z",
+        "requested_by": "researcher.local",
+        "instructions": "Run preliminary empirical work.",
+        "phase_contract_version": "2.3.0",
+        "phase_contract_sha256": "c" * 64,
+        "choice_values": {"p4.instructions": "Run preliminary empirical work."},
+        "context_policy": "current_only",
+        "stage_plan": [],
+        "frozen_basis": [],
+    }
+    row = _Row(
+        run_id="run.example",
+        project_id="project.example",
+        status=status,
+        head_sequence=3,
+        created_at="2026-08-26T02:00:00Z",
+        updated_at="2026-08-26T03:00:00Z",
+        payload_json=json.dumps(payload),
+    )
+    return run_detail_view(
+        row,
+        event_rows=(),
+        manifest_row=None,
+        correction_attempts=correction_attempts,
+    )
+
+
+def test_rerun_prefill_present_for_terminal_failed_run() -> None:
+    detail = _detail_for("failed")
+    assert detail.rerun_prefill is not None
+    assert detail.rerun_prefill.phase == "P4"
+    assert detail.rerun_prefill.mode == "p4.preliminary"
+    assert detail.rerun_prefill.context_policy == "current_only"
+    assert "p4.instructions" in detail.rerun_prefill.choice_values
+
+
+def test_rerun_prefill_absent_while_correction_lanes_remain() -> None:
+    detail = _detail_for("correcting", correction_attempts=(0, 1))
+    assert detail.rerun_prefill is None
+
+
+def test_rerun_prefill_present_when_both_lanes_spent() -> None:
+    detail = _detail_for("correcting", correction_attempts=(1, 1))
+    assert detail.rerun_prefill is not None

@@ -41,7 +41,6 @@ Every immutable content generation records a frozen `authority_at_creation`. Tha
 | `submitted` | Run output is immutable and awaiting or undergoing validation | No |
 | `validated` | Submission passed validation but publication has not committed | No |
 | `formal` | Immutable generation was published with a receipt | Only when selected as current and suitably aligned |
-| `withdrawn` | A formal generation was withdrawn by an authorized correction process | No |
 | `invalid` | Object failed integrity or formal validation | No |
 
 ### 3.2 Derived record position
@@ -91,10 +90,9 @@ The arrows below describe derived state produced by append-only events. They do 
 run-local candidate: run_local -> submitted -> validated or invalid
 promotion: create formal generation + publication event carrying current position
 replacement: publication event for new current generation + supersession event carrying the prior generation's historical position
-withdrawal: append withdrawal event with authenticated reason and receipt
 ```
 
-Only the harness may advance run-local submission state. Only atomic promotion may create a formal content generation or append events that change the current projection. Withdrawal requires an authenticated administrative or scientific-correction command, a reason, and a receipt.
+Only the harness may advance run-local submission state. Only atomic promotion may create a formal content generation or append events that change the current projection.
 
 Publication position, alignment, attention, and evidence eligibility may change after publication. Each change appends an authority event and rebuilds the derived projection. It never mutates the immutable generation, whose `authority_at_creation`, frozen basis, scientific content, and digest remain fixed.
 
@@ -106,13 +104,12 @@ The authority-event schema must enforce these legal change families:
 |---|---|
 | `published` | Establish formal publication and, for a record generation, current position; may carry its creation-time alignment and attention projection |
 | `superseded` | Move one formal record generation from current to historical and identify its replacement |
-| `withdrawn` | Set publication to withdrawn and position to historical or none, with an authenticated reason |
 | `invalidated` | Set publication to invalid and position to historical or none, with an integrity or validation reason |
 | `alignment_recomputed` | Replace only the derived alignment assessment |
 | `attention_changed` | Replace only the derived research-attention assessment |
 | `evidence_eligibility_changed` | Change eligibility only for an evidence item; within the same publication transaction it may also establish the formal, alignment, and attention values required for a coherent first evidence projection |
 
-An event with a change outside its event-type family is invalid. Position changes occur only through publication, supersession, withdrawal, or invalidation, not through an unconstrained generic event.
+An event with a change outside its event-type family is invalid. Position changes occur only through publication, supersession, or invalidation, not through an unconstrained generic event.
 
 For hashing, form the event payload by omitting `content_sha256` and `event_root_sha256` and serializing the remaining complete object with RFC 8785 JSON Canonicalization Scheme. The content digest is SHA-256 of those payload bytes. Decode the prior-root and content-digest hexadecimal strings to 32 bytes, concatenate them in that order, and hash the 64 bytes with SHA-256 to obtain the new event root. The first event uses 32 zero bytes as its prior root.
 
@@ -209,7 +206,7 @@ project/control/replay-checkpoints/{checkpoint_id}.json
 Authority events and publication receipts are append-only. Each receipt carries
 a self-digest computed over its complete RFC 8785 canonical object with only the
 self-digest field omitted. One authority-event schema represents publication,
-position, dependency impact, alignment, attention, withdrawal, invalidation,
+position, dependency impact, alignment, attention, invalidation,
 and evidence-eligibility events. One record-state schema represents derived
 state for both record generations and evidence items. Record-state,
 current-index, and replay-checkpoint objects are projections that may be
@@ -264,7 +261,7 @@ Each immutable formal generation contains or resolves:
 - Schema versions.
 - Publication receipt reference.
 
-A content generation must not store mutable record position, current alignment, current attention, withdrawal state, or current evidence eligibility as if those values were part of its immutable scientific content. Those values are resolved from the control projections and their supporting events.
+A content generation must not store mutable record position, current alignment, current attention, or current evidence eligibility as if those values were part of its immutable scientific content. Those values are resolved from the control projections and their supporting events.
 
 Large primary artifacts may remain in content-addressed run or object storage. The formal generation then stores a verified immutable reference. The published record must remain usable even if temporary caches are removed.
 
@@ -299,7 +296,7 @@ It maintains:
 
 Focused publication must not silently rewrite unrelated methods. Catalog-wide summaries may be recomputed as part of the same atomic transaction.
 
-Method retirement is a Phase 2 portfolio action. Formal-generation withdrawal is a separate authority operation applied to a specific published generation; it does not change the method lifecycle state.
+Method retirement is a Phase 2 portfolio action on the method lifecycle state.
 
 ### 8.3 Phase 3: replaceable complete theory
 
@@ -334,7 +331,7 @@ The current index is the sole backend source for current-record resolution. A pr
 1. Resolve the sealed, mode-scoped publication bindings and reject any missing, ambiguous, or stale source-to-target operation.
 2. Verify expected prior current generations and the preceding committed event sequence.
 3. Install all new immutable content generations from only the outputs and bundle components named by those bindings, with frozen `authority_at_creation`.
-4. Append authority events for publication, supersession, alignment, attention, eligibility, and dependency impact. A research-run promotion must not append withdrawal events; only a validated `FormalGenerationWithdrawalCommand` transaction may do so. Position changes are carried only by the applicable typed event.
+4. Append authority events for publication, supersession, alignment, attention, eligibility, and dependency impact. Position changes are carried only by the applicable typed event.
 5. Replay the complete proposed event sequence to compute derived record-state projections for record generations and evidence items.
 6. Write a complete replacement current index from those projections.
 7. Commit generations, events, projections, the index, and publication receipt atomically.
@@ -364,7 +361,7 @@ Retention policy is explicit and project-configurable. Cleanup is never inferred
 - The storage service enforces project boundaries and role write scopes.
 - Secrets and private credentials are referenced through a secrets service and never stored in run artifacts.
 - Personal or restricted data carry access metadata that survives publication and UI projection.
-- Formal correction and withdrawal operations are append-only and auditable.
+- Formal correction operations are append-only and auditable.
 
 ## 12. Required storage tests
 
@@ -376,14 +373,13 @@ Implementation must prove:
 4. A P4 rerun appends evidence and atomically replaces the evidence index, empirical synthesis, implementation record, and phase decision.
 5. A focused P2 run does not modify unrelated method definitions.
 6. A method definition change marks dependent records as mismatched without deleting them.
-7. A withdrawn artifact cannot resolve as an eligible required input.
-8. Digest mismatch prevents resolution and publication.
-9. Cleanup removes only reconstructible or policy-approved material.
-10. Concurrent publication cannot produce a mixed current index.
-11. Supersession, withdrawal, method changes, attention changes, and evidence reclassification leave committed generation bytes and digests unchanged.
-12. Event replay from an empty state and from a verified checkpoint yields identical record-state and current-index digests.
-13. Independent implementations produce the fixed canonical bytes and SHA-256 values for all accepted Unicode and numeric digest vectors and reject every fail-closed vector.
-14. An exposition-only method revision preserves `definition_sha256` and the method version while changing its artifact digest and whole-record `content_sha256`.
-15. Publication, recovery, replay, archival, and later formal changes preserve every submitted artifact at the same run-local logical location with identical bytes and digest.
-16. Accepted, rejected, schema-invalid, and unauthenticated command attempts preserve their exact raw request bytes and replay to the same operational audit root.
-17. A sequence gap, altered request artifact, content-digest mismatch, or broken operational audit root blocks later commands while leaving scientific authority state unchanged.
+7. Digest mismatch prevents resolution and publication.
+8. Cleanup removes only reconstructible or policy-approved material.
+9. Concurrent publication cannot produce a mixed current index.
+10. Supersession, method changes, attention changes, and evidence reclassification leave committed generation bytes and digests unchanged.
+11. Event replay from an empty state and from a verified checkpoint yields identical record-state and current-index digests.
+12. Independent implementations produce the fixed canonical bytes and SHA-256 values for all accepted Unicode and numeric digest vectors and reject every fail-closed vector.
+13. An exposition-only method revision preserves `definition_sha256` and the method version while changing its artifact digest and whole-record `content_sha256`.
+14. Publication, recovery, replay, archival, and later formal changes preserve every submitted artifact at the same run-local logical location with identical bytes and digest.
+15. Accepted, rejected, schema-invalid, and unauthenticated command attempts preserve their exact raw request bytes and replay to the same operational audit root.
+16. A sequence gap, altered request artifact, content-digest mismatch, or broken operational audit root blocks later commands while leaving scientific authority state unchanged.

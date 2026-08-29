@@ -31,7 +31,7 @@ Create a decision record for at least:
 - changing Phase 5 readiness;
 - adding automated invalidation or promotion behavior;
 - changing a researcher-visible status meaning;
-- changing a control-command transition, concurrency basis, or withdrawal consequence;
+- changing a control-command transition or concurrency basis;
 - changing canonicalization, digest payload, or method-identity construction;
 - changing the role-isolation boundary, context packing policy, or context
   overflow behavior;

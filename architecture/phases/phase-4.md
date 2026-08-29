@@ -29,7 +29,7 @@ A run requires:
 - A current Phase 2 method catalog
 - One active selected method with an exact stable ID, version, and mathematical-definition digest
 
-A Phase 3 record is optional. The prior Phase 4 evidence index, empirical synthesis, and implementation record are absent on the first run and required together as current context on a rerun for the same exact method identity. A negative or inconclusive prior empirical outcome does not block a rerun. A retired, withdrawn, or noncurrent method selection blocks preparation, and an older method version cannot be selected as the current target.
+A Phase 3 record is optional. The prior Phase 4 evidence index, empirical synthesis, and implementation record are absent on the first run and required together as current context on a rerun for the same exact method identity. A negative or inconclusive prior empirical outcome does not block a rerun. A retired or noncurrent method selection blocks preparation, and an older method version cannot be selected as the current target.
 
 ## 4. Frozen inputs
 
@@ -91,7 +91,7 @@ Before promotion, the system verifies that:
 - All artifact links and recorded digests resolve
 - Preliminary and comprehensive runs satisfy their distinct required-scope schemas
 - The current evidence index contains only evidence eligible for the exact current method identity
-- Superseded, outdated, withdrawn, invalid, and unresolved evidence remains explicit and is not silently deleted
+- Superseded, outdated, invalid, and unresolved evidence remains explicit and is not silently deleted
 - Claims in the empirical synthesis link to eligible evidence or are labeled as interpretation
 - The theorist's fidelity issues have dispositions or acknowledged unresolved states in the lead synthesis
 - All writes remain inside the active run workspace
@@ -113,7 +113,7 @@ After validation, promotion is one atomic operation with two effects:
 
 The protocol, role handoffs, and detailed run artifacts remain immutable run provenance referenced by the promoted records. They do not create additional current Phase 4 slots.
 
-The current index may retain previously promoted evidence when it uses the exact method identity and the lead still assesses it as applicable. It excludes evidence that is outdated, superseded, withdrawn, invalid, or unresolved for current claims, while preserving that evidence in history. If promotion fails, no evidence is appended and the previous current index remains unchanged.
+The current index may retain previously promoted evidence when it uses the exact method identity and the lead still assesses it as applicable. It excludes evidence that is outdated, superseded, invalid, or unresolved for current claims, while preserving that evidence in history. If promotion fails, no evidence is appended and the previous current index remains unchanged.
 
 ## 10. Formal current record
 

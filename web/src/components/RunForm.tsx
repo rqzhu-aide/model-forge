@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
@@ -11,6 +11,7 @@ import type {
   MethodRow,
   PhaseId,
   PhaseView,
+  RerunPrefill,
   StartRunRequest,
 } from "../api/types";
 import { GroupedContextCards } from "./GroupedContextCards";
@@ -111,6 +112,7 @@ export function RunForm({
   onMethodChange,
   mode,
   onModeChange,
+  rerunPrefill,
 }: {
   projectId: string;
   phaseView: PhaseView;
@@ -119,6 +121,7 @@ export function RunForm({
   onMethodChange: (methodId: string) => void;
   mode: string;
   onModeChange: (mode: string) => void;
+  rerunPrefill?: RerunPrefill | undefined;
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -155,6 +158,45 @@ export function RunForm({
     );
     setReviewing(false);
   }, [phaseView.run_configuration.current_inputs]);
+
+  // One-click rerun (WP-UX): apply the finished run's frozen basis once,
+  // then leave every field editable.
+  const rerunApplied = useRef("");
+  useEffect(() => {
+    if (!rerunPrefill) return;
+    const fingerprint = JSON.stringify(rerunPrefill);
+    if (rerunApplied.current === fingerprint) return;
+    rerunApplied.current = fingerprint;
+    const prefix = phaseView.phase_id.toLowerCase();
+    const choices = rerunPrefill.choice_values ?? {};
+    const instructionsValue = choices[`${prefix}.instructions`];
+    if (typeof instructionsValue === "string") setInstructions(instructionsValue);
+    const scope = choices["p1.scope"];
+    if (phaseView.phase_id === "P1" && (scope === "broad_update" || scope === "focused_update")) {
+      setPhaseOneScope(scope);
+    }
+    const methodChoice = choices[`${prefix}.selected_method`] as MethodIdentity | undefined;
+    if (methodChoice?.stable_id && methods.some((m) => m.identity.stable_id === methodChoice.stable_id)) {
+      onMethodChange(methodChoice.stable_id);
+    }
+    const methodSpecValue = choices["p2.researcher_method_spec"];
+    if (typeof methodSpecValue === "string") setMethodSpec(methodSpecValue);
+    const historyPointers = choices[`${prefix}.selected_history`];
+    if (Array.isArray(historyPointers)) {
+      const wanted = new Set(
+        historyPointers
+          .map((pointer) => (pointer && typeof pointer === "object" ? (pointer as { sha256?: string }).sha256 : undefined))
+          .filter((value): value is string => Boolean(value)),
+      );
+      setSelectedHistory(
+        new Set(
+          phaseView.run_configuration.history_options
+            .filter((item) => item.artifact_pointer && wanted.has(item.artifact_pointer.sha256))
+            .map((item) => item.option_id),
+        ),
+      );
+    }
+  }, [rerunPrefill, phaseView, methods, onMethodChange, setInstructions]);
 
   const selectedMethod = methods.find((method) => method.identity.stable_id === selectedMethodId);
   const action = actionForSelection(phaseView.actions, mode, selectedMethod);
@@ -268,6 +310,12 @@ export function RunForm({
 
   return (
     <div className="run-form">
+      {rerunPrefill ? (
+        <p className="run-form__rerun-note">
+          Pre-filled from the finished run's frozen basis. Review every choice before launch
+          — supplementary material is not carried over, so re-attach it if needed.
+        </p>
+      ) : null}
       <fieldset>
         <legend>Run scope</legend>
         <div className="choice-cards">

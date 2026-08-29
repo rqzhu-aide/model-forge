@@ -35,7 +35,6 @@ VALID_EXAMPLES = {
     "action-reactivate-method.example.json": "action-descriptor.schema.json",
     "action-retire-method.example.json": "action-descriptor.schema.json",
     "action-start-run.example.json": "action-descriptor.schema.json",
-    "action-withdraw-formal-generation.example.json": "action-descriptor.schema.json",
     "attention-item.example.json": "attention-item.schema.json",
     "authority-event-record-published.example.json": "authority-event.schema.json",
     "authority-event-synthesis-published.example.json": "authority-event.schema.json",
@@ -49,7 +48,6 @@ VALID_EXAMPLES = {
     "command-attempt-audit-method-accepted.example.json": "command-attempt-audit-event.schema.json",
     "command-attempt-audit-start-accepted.example.json": "command-attempt-audit-event.schema.json",
     "command-attempt-audit-unauthenticated-rejected.example.json": "command-attempt-audit-event.schema.json",
-    "command-attempt-audit-withdrawal-rejected.example.json": "command-attempt-audit-event.schema.json",
     "command-error-delegation-not-active.example.json": "command-error.schema.json",
     "command-error.example.json": "command-error.schema.json",
     "compact-view.example.json": "compact-view.schema.json",
@@ -68,7 +66,6 @@ VALID_EXAMPLES = {
     "method-exposition-revision.example.json": "method-exposition-revision.schema.json",
     "digest-vectors.example.json": "digest-vectors.schema.json",
     "method-lifecycle-command.example.json": "method-lifecycle-command.schema.json",
-    "formal-generation-withdrawal-command.example.json": "formal-generation-withdrawal-command.schema.json",
     "prepared-role-context.example.json": "prepared-role-context.schema.json",
     "publication-receipt.example.json": "publication-receipt.schema.json",
     "publication-receipt-replay.example.json": "publication-receipt.schema.json",
@@ -100,13 +97,10 @@ VALID_EXAMPLES = {
 INVALID_EXAMPLES = {
     "authority-replay-existing-evidence-reset.invalid.json": "semantic:authority_prior_state",
     "authority-event-alignment-missing-prior-state.invalid.json": "authority-event.schema.json",
-    "authority-event-withdraw-current.invalid.json": "authority-event.schema.json",
     "authority-event-cross-family.invalid.json": "authority-event.schema.json",
     "authority-event-evidence-reclassification-missing-prior-state.invalid.json": "authority-event.schema.json",
     "decision-auto-action.invalid.json": "decision-record.schema.json",
     "method-lifecycle-no-op.invalid.json": "method-lifecycle-command.schema.json",
-    "formal-withdrawal-nonformal.invalid.json": "formal-generation-withdrawal-command.schema.json",
-    "publication-receipt-research-run-withdraw.invalid.json": "publication-receipt.schema.json",
     "record-state-old-method-included.invalid.json": "record-state.schema.json",
     "run-manifest-current-only-history.invalid.json": "run-manifest.schema.json",
     "scientific-record-mutable-position.invalid.json": "scientific-record.schema.json",
@@ -120,9 +114,6 @@ INVALID_EXPECTED_SCHEMA_ERRORS = {
     "authority-event-alignment-missing-prior-state.invalid.json": [
         ("<root>", "required"),
     ],
-    "authority-event-withdraw-current.invalid.json": [
-        ("changes/record_position", "enum"),
-    ],
     "authority-event-cross-family.invalid.json": [
         ("changes", "maxProperties"),
     ],
@@ -134,12 +125,6 @@ INVALID_EXPECTED_SCHEMA_ERRORS = {
     ],
     "method-lifecycle-no-op.invalid.json": [
         ("target_lifecycle_state", "const"),
-    ],
-    "formal-withdrawal-nonformal.invalid.json": [
-        ("expected_target_state/publication_state", "const"),
-    ],
-    "publication-receipt-research-run-withdraw.invalid.json": [
-        ("record_changes/0/change_kind", "not"),
     ],
     "record-state-old-method-included.invalid.json": [
         ("alignment/state", "const"),
@@ -283,7 +268,6 @@ def validate_digest_contract_registry(schemas, registry) -> list[str]:
         "review_finding.content",
         "review_report.content",
         "theory_record.content",
-        "formal_generation_withdrawal_command.content",
         "literature_source.content",
         "method_lifecycle_command.content",
         "method_record.definition",
@@ -1211,7 +1195,6 @@ def validate_command_attempt_audit(schemas, registry) -> list[str]:
     names = [
         "command-attempt-audit-start-accepted.example.json",
         "command-attempt-audit-method-accepted.example.json",
-        "command-attempt-audit-withdrawal-rejected.example.json",
         "command-attempt-audit-cancellation-accepted.example.json",
         "command-attempt-audit-unauthenticated-rejected.example.json",
     ]
@@ -1247,7 +1230,6 @@ def validate_command_attempt_audit(schemas, registry) -> list[str]:
     command_names = [
         "run-command.example.json",
         "method-lifecycle-command.example.json",
-        "formal-generation-withdrawal-command.example.json",
         "run-cancellation-command.example.json",
     ]
     commands = [load_json(EXAMPLES / name) for name in command_names]
@@ -1272,14 +1254,6 @@ def validate_command_attempt_audit(schemas, registry) -> list[str]:
                 "expected_generation_id": command["expected_method"]["generation_id"],
                 "expected_content_sha256": command["expected_method"]["content_sha256"],
                 "target_lifecycle_state": command["target_lifecycle_state"],
-            }
-        if command.get("command_type") == "formal_generation_withdrawal":
-            return {
-                "target_type": "formal_generation",
-                **command["target"],
-                "expected_record_state_sha256": command["expected_target_state"][
-                    "record_state_sha256"
-                ],
             }
         return {
             "target_type": "run_cancellation",
@@ -1328,15 +1302,9 @@ def validate_command_attempt_audit(schemas, registry) -> list[str]:
             if command_error["occurred_at"] != event["occurred_at"]:
                 errors.append(f"audit event {event['audit_event_id']} changed error time")
 
-    withdrawal_event = next(
-        item for item in events if item["action_type"] == "withdraw_formal_generation"
-    )
     standalone_error = load_json(
         EXAMPLES / "command-error-delegation-not-active.example.json"
     )
-    if withdrawal_event["result"]["command_error"] != standalone_error:
-        errors.append("withdrawal audit does not embed the complete canonical CommandError")
-
     error_policies = {
         "AUTHENTICATION_REQUIRED": ("authentication", 401, True, "MF-59"),
         "DELEGATION_NOT_ACTIVE": ("authorization", 403, True, "MF-55"),
@@ -1491,14 +1459,13 @@ def validate_control_and_context_semantics() -> list[str]:
         "reactivate_method": "action-reactivate-method.example.json",
         "retire_method": "action-retire-method.example.json",
         "start_run": "action-start-run.example.json",
-        "withdraw_formal_generation": "action-withdraw-formal-generation.example.json",
     }
     actions = {
         action_type: load_json(EXAMPLES / example_name)
         for action_type, example_name in action_files.items()
     }
     if {item["action_type"] for item in actions.values()} != set(action_files):
-        errors.append("typed action examples do not cover the six action branches exactly")
+        errors.append("typed action examples do not cover the five action branches exactly")
     descriptor_ids = [item["descriptor_id"] for item in actions.values()]
     if len(descriptor_ids) != len(set(descriptor_ids)):
         errors.append("typed action descriptor IDs must be unique")
@@ -1508,7 +1475,6 @@ def validate_control_and_context_semantics() -> list[str]:
         "retire_method": "control_transaction",
         "reactivate_method": "control_transaction",
         "activate_method": "control_transaction",
-        "withdraw_formal_generation": "control_transaction",
     }
     for action_type, action in actions.items():
         if action["action_type"] != action_type:
@@ -1576,17 +1542,6 @@ def validate_control_and_context_semantics() -> list[str]:
     checked_at = parse_time(cancel_auth["checked_at"])
     if not not_before <= checked_at < min(expires_at, revoked_at):
         errors.append("cancel action was not checked inside the live delegation interval")
-
-    withdraw_action = actions["withdraw_formal_generation"]
-    withdraw_auth = withdraw_action["authorization"]
-    if (
-        withdraw_auth.get("delegation_id") != grant["grant_id"]
-        or withdraw_auth.get("operator_id") != grant["operator_id"]
-        or withdraw_auth.get("user_id") != grant["user_id"]
-        or withdraw_auth.get("reason") != "revoked"
-        or parse_time(withdraw_action["issued_at"]) < revoked_at
-    ):
-        errors.append("disabled withdrawal action does not project the exact revocation")
 
     cancellation = load_json(EXAMPLES / "run-cancellation-command.example.json")
     cancellation_state = load_json(
@@ -2073,9 +2028,6 @@ def validate_examples(schemas, registry) -> list[str]:
         "method-lifecycle-command.example.json": load_json(
             EXAMPLES / "method-lifecycle-command.example.json"
         ),
-        "formal-generation-withdrawal-command.example.json": load_json(
-            EXAMPLES / "formal-generation-withdrawal-command.example.json"
-        ),
     }
     control_union_validator = Draft202012Validator(
         schemas["control-command.schema.json"],
@@ -2167,53 +2119,8 @@ def validate_examples(schemas, registry) -> list[str]:
         "effect_sha256": method_receipt["content_sha256"],
     }:
         errors.append("accepted method audit does not bind its exact publication receipt")
-    withdrawal_command = control_examples[
-        "formal-generation-withdrawal-command.example.json"
-    ]
-    withdrawal_receipt = json.loads(json.dumps(receipt_template))
-    withdrawal_receipt["publication_id"] = "publication.generation.withdraw.001"
-    withdrawal_receipt["transaction_id"] = "transaction.generation.withdraw.001"
-    withdrawal_receipt["source"] = {
-        "kind": "generation_withdrawal_command",
-        "command_id": withdrawal_command["command_id"],
-        "command_sha256": withdrawal_command["content_sha256"],
-    }
-    withdrawal_receipt["prior_current_index_generation_id"] = withdrawal_command[
-        "expected_control_head"
-    ]["current_index_generation_id"]
-    withdrawal_receipt["prior_current_index_sha256"] = withdrawal_command[
-        "expected_control_head"
-    ]["current_index_sha256"]
-    withdrawal_receipt["committed_event_range"] = {
-        "first_sequence": withdrawal_command["expected_control_head"]["last_event_sequence"]
-        + 1,
-        "last_sequence": withdrawal_command["expected_control_head"]["last_event_sequence"]
-        + 1,
-        "event_ids": ["event.generation.withdrawn.probe"],
-        "prior_event_root_sha256": withdrawal_command["expected_control_head"][
-            "event_root_sha256"
-        ],
-        "new_event_root_sha256": "2" * 64,
-    }
-    withdrawal_receipt["record_changes"] = [
-        {
-            "record_id": withdrawal_command["target"]["record_id"],
-            "record_type": withdrawal_command["target"]["record_type"],
-            "subject_generation_id": withdrawal_command["target"]["generation_id"],
-            "new_position": "none",
-            "change_kind": "withdraw",
-            "authority_event_ids": ["event.generation.withdrawn.probe"],
-        }
-    ]
-    withdrawal_receipt["cumulative_object_changes"] = []
-    withdrawal_receipt["state_changes"] = []
-    withdrawal_receipt["content_sha256"] = canonical_sha256(
-        withdrawal_receipt, {"content_sha256"}
-    )
-
     for label, probe in (
         ("method lifecycle receipt probe", method_receipt),
-        ("generation withdrawal receipt probe", withdrawal_receipt),
     ):
         found = list(receipt_validator.iter_errors(probe))
         for error in found:
@@ -3423,12 +3330,8 @@ def validate_global_invariants(schemas) -> list[str]:
         errors.append("scientific method generations must identify their producing research run")
 
     method_control = load_json(EXAMPLES / "method-lifecycle-command.example.json")
-    withdrawal_control = load_json(
-        EXAMPLES / "formal-generation-withdrawal-command.example.json"
-    )
     for name, control in (
         ("method-lifecycle-command.example.json", method_control),
-        ("formal-generation-withdrawal-command.example.json", withdrawal_control),
     ):
         if control["content_sha256"] != canonical_sha256(control, {"content_sha256"}):
             errors.append(f"{name} content digest does not match its authorized payload")
@@ -3454,8 +3357,6 @@ def validate_global_invariants(schemas) -> list[str]:
         "lifecycle_state"
     ]:
         errors.append("method lifecycle command must request a real active-retired transition")
-    if withdrawal_control["expected_target_state"]["publication_state"] != "formal":
-        errors.append("generation withdrawal command must freeze a currently formal target")
 
 
     command = load_json(EXAMPLES / "run-command.example.json")
@@ -3992,11 +3893,11 @@ def validate_global_invariants(schemas) -> list[str]:
     forbidden_state_by_schema = {
         "scientific-record.schema.json": {
             "publication_state", "record_position", "alignment", "research_attention",
-            "withdrawal_reason", "withdrawal_receipt_id", "invalid_reason",
+            "invalid_reason",
         },
         "evidence.schema.json": {
             "publication_state", "record_position", "alignment", "research_attention",
-            "eligible_for_current_index", "withdrawal_reason", "invalid_reason",
+            "eligible_for_current_index", "invalid_reason",
         },
         "method.schema.json": {"publication_state", "record_position"},
         "literature-source.schema.json": {"publication_state", "record_position"},
@@ -4123,7 +4024,7 @@ def validate_global_invariants(schemas) -> list[str]:
                 continue
             if event["event_type"] == "superseded":
                 expected_generation_id = change.get("prior_generation_id")
-            elif event["event_type"] in {"withdrawn", "invalidated"}:
+            elif event["event_type"] == "invalidated":
                 expected_generation_id = change.get("subject_generation_id")
             else:
                 expected_generation_id = change.get("new_generation_id")
@@ -4136,7 +4037,7 @@ def validate_global_invariants(schemas) -> list[str]:
                 errors.append(
                     f"record change and authority event {event_id} name different generations"
                 )
-        if change["change_kind"] not in {"withdraw", "invalidate"}:
+        if change["change_kind"] != "invalidate":
             matching = [events_by_id[item] for item in change["authority_event_ids"] if item in events_by_id]
             if not any(
                 event["changes"].get("publication_state") == "formal"
@@ -4264,7 +4165,7 @@ def validate_global_invariants(schemas) -> list[str]:
     receipt_changes = {
         (item["record_id"], item["record_type"], item.get("new_generation_id"))
         for item in receipt["record_changes"]
-        if item["change_kind"] not in {"withdraw", "invalidate"}
+        if item["change_kind"] != "invalidate"
     }
     index_changes = {
         (item["record_id"], item["record_type"], item["current_generation_id"])

@@ -134,6 +134,10 @@ def test_task_brief_states_manual_and_parallel_boundaries() -> None:
     )
     assert "common frozen basis" in brief
     assert "Do not start another role, rerun, phase" in brief
+    # D-8: the brief must tell agents not to author harness-owned envelope
+    # and identity fields (population happens mechanically before validation).
+    assert "schema_version" in brief and "content_sha256" in brief
+    assert "do not write them" in brief
     assert "negative, null, contradictory, or inconclusive" in brief
     # Every record-authoring brief carries the math-format convention.
     assert "delimited LaTeX" in brief

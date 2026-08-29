@@ -14,6 +14,7 @@ from ..api.models import (
     FindingItemView,
     MethodIdentity,
     PublicationReceiptView,
+    RerunPrefill,
     RunContract,
     RunDetail,
     RunEvent,
@@ -295,6 +296,23 @@ def run_detail_view(
         )
     terminal = payload.get("terminal_reason")
     validation = payload.get("validation_report")
+    state = str(row["status"])
+    rerun_prefill = None
+    lanes_spent = (
+        correction_attempts is not None
+        and not _lane_available(correction_attempts, "packaging")
+        and not _lane_available(correction_attempts, "scientific")
+    )
+    if (
+        state in ("failed", "rejected", "cancelled", "correction_exhausted")
+        or (state in ("correction_authorized", "correcting") and lanes_spent)
+    ) and payload.get("mode") and payload.get("context_policy"):
+        rerun_prefill = RerunPrefill(
+            phase=payload["phase"],
+            mode=str(payload["mode"]),
+            choice_values=dict(payload.get("choice_values") or {}),
+            context_policy=str(payload["context_policy"]),
+        )
     receipt = None
     if publication_row is not None:
         receipt = PublicationReceiptView(
@@ -335,6 +353,7 @@ def run_detail_view(
             else None
         ),
         publication_receipt=receipt,
+        rerun_prefill=rerun_prefill,
     )
 
 

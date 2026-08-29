@@ -195,7 +195,7 @@ Display:
 
 - Current literature corpus size and coverage.
 - Current synthesis.
-- Newly added, corrected, retracted, withdrawn, and duplicate sources from the latest run.
+- Newly added, corrected, retracted, and duplicate sources from the latest run.
 - Search provenance and unresolved coverage gaps.
 
 User controls:
@@ -320,17 +320,15 @@ An enabled action states:
 - Which exact method, version, record generation, run head, or formal control head it concerns, as applicable.
 - Which formal current records or selected history will be used.
 - The required reason and the expected scientific or eligibility consequences.
-- Whether publication replaces a current record, appends evidence, updates a catalog, or withdraws one exact generation.
+- Whether publication replaces a current record, appends evidence, or updates a catalog.
 
 Typed actions include `start_run`, `cancel_run`, `retire_method`,
-`reactivate_method`, `activate_method`, and `withdraw_formal_generation`.
+`reactivate_method`, and `activate_method`.
 Cancellation appears only
 while an exact run remains before immutable submission. Retirement,
-reactivation, and activation appear with the Phase 2 method table. Withdrawal appears in
+reactivation, and activation appear with the Phase 2 method table.
 formal-record correction controls, not in an ordinary phase-run panel.
-(Withdrawal is specified here and in 09 but not yet implemented end to end: the
-schemas, examples, and the `withdraw_formal_generation` action type exist, while
-the API endpoint, service method, and UI control are still open.) A
+ A
 confirmation form is part of command construction; it is not a second generic
 approval state. No control command launches a phase.
 
@@ -338,7 +336,7 @@ All action descriptors validate against one discriminated schema. Each branch
 contains only fields relevant to that action: run-contract and publication-target
 fields for `start_run`; run state and run-journal basis for `cancel_run`; method
 and catalog basis for retirement or reactivation; and exact formal generation,
-derived state, and control head for withdrawal. A client must not construct one
+derived state, and control head. A client must not construct one
 action by copying fields from another branch.
 
 Cancellation remains available only for `created`, `preparing`, `prepared`, or
@@ -367,7 +365,6 @@ three further states (02 §2.3-2.4): `correction_authorized`, `correcting`, and
 | `submitted` | Submitted for validation |
 | `validated` | Validated, not yet published |
 | `formal` | Formal project record |
-| `withdrawn` | Withdrawn from formal use |
 | `invalid` | Invalid formal record |
 
 ### 7.3 Record position
@@ -457,8 +454,8 @@ concurrency, or allow direct formal-record mutation. The UI does not accept a
 client assertion that delegation is valid.
 
 Role outputs and agent recommendations are evidence for the researcher. They
-cannot authorize `withdraw_formal_generation`. Remote retirement, reactivation,
-withdrawal, and cancellation controls remain disabled until the backend resolves
+cannot authorize control commands. Remote retirement, reactivation, activation,
+and cancellation controls remain disabled until the backend resolves
 an active grant covering the exact action and target. The service rechecks that
 grant before commit, so expiry or revocation after form construction fails closed.
 
@@ -479,7 +476,7 @@ Implementation must prove:
 11. Light and dark themes satisfy contrast and keyboard-navigation requirements.
 12. No test depends on parsing arbitrary Markdown to determine status or available actions;
 13. Deleting and rebuilding backend state projections does not change any user-visible state when the authority-event journal is unchanged.
-14. Method lifecycle and formal withdrawal controls display their exact basis, reason requirement, no-run behavior, and consequence summary.
+14. Method lifecycle controls display their exact basis, reason requirement, no-run behavior, and consequence summary.
 15. A stale Web or remote control command produces the same conflict response and no formal change.
 16. Out-of-order view updates are discarded by revision, stale active-run progress is identified explicitly, and every empty state cites its current-index and event-root basis.
 17. Cancellation and submission racing on one run produce exactly one winner:
@@ -489,4 +486,4 @@ Implementation must prove:
     contains no fields reserved for another action type.
 19. A remote destructive action is disabled without a covering active grant and
     fails closed if that grant expires or is revoked before commit.
-20. No role recommendation or agent-generated summary enables withdrawal.
+20. No role recommendation or agent-generated summary enables a control command.

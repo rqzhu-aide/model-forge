@@ -10,12 +10,9 @@ reject all sixteen.
 | `authority-event-alignment-missing-prior-state.invalid.json` | A state-dependent alignment update must bind the immediately prior subject state. |
 | `authority-event-cross-family.invalid.json` | An alignment event cannot also change research attention. |
 | `authority-event-evidence-reclassification-missing-prior-state.invalid.json` | A noninitial evidence reclassification must bind the immediately prior subject state. |
-| `authority-event-withdraw-current.invalid.json` | Withdrawal cannot leave a generation formal and current. |
 | `decision-auto-action.invalid.json` | A displayed action cannot authorize automatic execution. |
-| `formal-withdrawal-nonformal.invalid.json` | A withdrawal command must freeze a target whose derived publication state is formal. |
 | `method-lifecycle-malformed-digest.invalid.json` | A command digest must be exactly 64 lowercase hexadecimal characters. |
 | `method-lifecycle-no-op.invalid.json` | A lifecycle command must change active to retired or retired to active. |
-| `publication-receipt-research-run-withdraw.invalid.json` | An ordinary research run cannot withdraw a formal generation. |
 | `record-state-old-method-included.invalid.json` | Evidence from an older method version must be excluded and outdated, not included as exact current evidence. |
 | `run-cancellation-submitted.invalid.json` | A cancellation command cannot target a run whose immutable submission already exists. |
 | `run-manifest-current-only-history.invalid.json` | A current-only manifest cannot include selected history. |

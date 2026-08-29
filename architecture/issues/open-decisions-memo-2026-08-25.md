@@ -7,9 +7,11 @@ Audit 2026-08-28 status line: D-1, D-7, and D-9 are decided and landed.
 D-2 is CLOSED (stale premise - the code already implements its option (a);
 see the item). D-3 is DECIDED (activate_method sealed transaction landed
 2026-08-28). D-4 is DECIDED (FP closure sweep, commit 4a761f1). FP-7 is
-CLOSED. Still waiting on Tez: D-5 (hidden vs dimmed context options). D-6
-and D-8 remain open by design/partially mitigated as documented in their
-items.
+CLOSED. D-5 DECIDED 2026-08-28 (hidden stays). Withdrawal removed 2026-08-28
+(specified but never implemented; nothing produced or consumed it). D-8
+RESOLVED 2026-08-28 (F-3 envelope population before validation landed in
+896f55c; brief hardening added). D-6 remains open by design as documented in
+its item.
 
 ## D-1. P0-2: P5 contract presence model (context-selection issues) - RESOLVED
 
@@ -112,14 +114,12 @@ Recommendation: defer. Instruction-only isolation has produced no observed
 cross-contamination finding in any production run to date (46 archived +
 fresh cycle). Revisit if a contamination finding ever surfaces.
 
-## D-5. P1-3: hidden vs dimmed unavailable context options (product)
+## D-5. P1-3: hidden vs dimmed unavailable context options (product) - DECIDED 2026-08-28
 
-Context options hidden by mode are currently invisible
-(`_HIDDEN_BY_MODE`); the alternative is to show them dimmed with a reason.
-
-Recommendation: keep hidden. A dimmed-but-unselectable option invites the
-question "why can't I select this" on every page; the phase view already
-documents the mode's basis.
+DECIDED by Tez 2026-08-28: keep hidden. Context options excluded by the
+selected mode stay invisible (`_HIDDEN_BY_MODE`); a dimmed-but-unselectable
+option invites the question "why can't I select this" on every page, and the
+phase view already documents the mode's basis.
 
 ## D-6. K-7: reviewer-memory boundary (open by design)
 
@@ -192,7 +192,15 @@ run in `correcting` BY DESIGN (no transition event) - the recovery is
 the other lane or a fresh command, not a wedge. The packaging lane then
 recovered the run.
 
-## D-8. Harness-owned envelope fields are only stamped AT SEAL (F-3)
+## D-8. Harness-owned envelope fields are only stamped AT SEAL (F-3) - RESOLVED
+
+RESOLVED 2026-08-28: the recommended treatment landed in F-3 (commit 896f55c,
+2026-08-26). Both closure paths and the correction close path run disclosed
+repairs plus HV-4 envelope population (schema_version, content_sha256,
+created_at, identity fields) BEFORE validation, so validation checks science,
+not plumbing. Hardened 2026-08-28: the task brief now explicitly lists the
+harness-owned envelope and identity fields as do-not-write, and a test pins
+the guidance. Original finding below for the audit trail.
 
 `content_sha256`, `created_at`, `schema_version` sit in the harness-owned
 set (envelope.py) and are recomputed/overwritten at sealing - but
@@ -204,14 +212,6 @@ never extended to the envelope trio. Production cost: the P4 correction
 invocation (run e32ca610) wrote the right scientific content with the
 wrong envelope shape and burned the scientific attempt on
 `schema.required` findings for exactly these fields.
-
-Recommendation: extend the F-1 population machinery so harness-owned
-fields are populated BEFORE validation (compute content_sha256 over the
-agent content, set created_at, const-populate schema_version), making
-validation check science, not plumbing. Schema/contract version impact:
-population is harness-side; no contract text changes required if the
-schemas already declare these fields harness-owned - verify per schema
-before implementation.
 
 ## D-9. Rejection detail is not persisted; closure-vs-submission validation asymmetry
 

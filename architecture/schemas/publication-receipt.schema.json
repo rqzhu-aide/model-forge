@@ -67,16 +67,6 @@
             "command_id": { "$ref": "common-definitions.schema.json#/$defs/stableId" },
             "command_sha256": { "$ref": "common-definitions.schema.json#/$defs/sha256" }
           }
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["kind", "command_id", "command_sha256"],
-          "properties": {
-            "kind": { "const": "generation_withdrawal_command" },
-            "command_id": { "$ref": "common-definitions.schema.json#/$defs/stableId" },
-            "command_sha256": { "$ref": "common-definitions.schema.json#/$defs/sha256" }
-          }
         }
       ]
     },
@@ -154,7 +144,7 @@
           "new_position": { "$ref": "common-definitions.schema.json#/$defs/recordPosition" },
           "change_kind": {
             "type": "string",
-            "enum": ["create", "replace", "append", "withdraw", "invalidate"]
+            "enum": ["create", "replace", "append", "invalidate"]
           },
           "authority_event_ids": {
             "type": "array",
@@ -166,7 +156,7 @@
         "allOf": [
           {
             "if": {
-              "properties": { "change_kind": { "enum": ["withdraw", "invalidate"] } },
+              "properties": { "change_kind": { "const": "invalidate" } },
               "required": ["change_kind"]
             },
             "then": {
@@ -200,7 +190,7 @@
           "object_id": { "$ref": "common-definitions.schema.json#/$defs/stableId" },
           "object_type": { "$ref": "common-definitions.schema.json#/$defs/cumulativeObjectType" },
           "content_sha256": { "$ref": "common-definitions.schema.json#/$defs/sha256" },
-          "change_kind": { "type": "string", "enum": ["publish", "withdraw", "invalidate"] },
+          "change_kind": { "type": "string", "enum": ["publish", "invalidate"] },
           "authority_event_ids": {
             "type": "array",
             "minItems": 1,
@@ -212,7 +202,7 @@
     },
     "state_changes": {
       "type": "array",
-      "description": "Derived-state-only authority events committed by this transaction. Content publication, replacement, withdrawal, and invalidation remain under record_changes or cumulative_object_changes.",
+      "description": "Derived-state-only authority events committed by this transaction. Content publication, replacement, and invalidation remain under record_changes or cumulative_object_changes.",
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -322,20 +312,8 @@
       },
       "then": {
         "properties": {
-          "record_changes": {
-            "items": {
-              "properties": {
-                "change_kind": { "not": { "const": "withdraw" } }
-              }
-            }
-          },
-          "cumulative_object_changes": {
-            "items": {
-              "properties": {
-                "change_kind": { "not": { "const": "withdraw" } }
-              }
-            }
-          }
+          "record_changes": { "type": "array" },
+          "cumulative_object_changes": { "type": "array" }
         }
       }
     },
@@ -393,30 +371,6 @@
             }
           }
         ]
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "source": {
-            "properties": { "kind": { "const": "generation_withdrawal_command" } },
-            "required": ["kind"]
-          }
-        },
-        "required": ["source"]
-      },
-      "then": {
-        "properties": {
-          "record_changes": {
-            "minItems": 1,
-            "maxItems": 1,
-            "items": {
-              "properties": { "change_kind": { "const": "withdraw" } },
-              "required": ["change_kind"]
-            }
-          },
-          "cumulative_object_changes": { "maxItems": 0 }
-        }
       }
     }
   ]

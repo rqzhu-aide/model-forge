@@ -1,10 +1,9 @@
-# S11: User-Controlled Lifecycle and Withdrawal
+# S11: User-Controlled Lifecycle
 
 ## Purpose
 
-Verify that method retirement, method reactivation, and formal-generation
-withdrawal are explicit user-authorized control transactions rather than research
-runs.
+Verify that method activation, retirement, and reactivation are explicit
+user-authorized control transactions rather than research runs.
 
 ## Initial state
 
@@ -32,65 +31,43 @@ Repeating the same idempotency key and command digest returns the same receipt.
 A reactivation command based on the earlier control head returns `409 CONFLICT`
 and changes nothing. After refresh, a new exact command may change `retired` to
 `active` and restore ordinary launch eligibility when all other prerequisites are
-satisfied.
+satisfied. Activation from `proposed` uses the same sealed transaction (D-3).
 
 ## Delegated remote control
 
-The researcher issues an immutable delegation that covers this project, the
-`retire_method` action for `method.overlap_stabilized_score`, and withdrawal of
-one named theory generation. The remote operator submits the same typed lifecycle
-command used by the Web UI. The service records an acceptance check, rechecks the
-exact project, action, method target, time window, and revocation state immediately
-before commit, and then commits the retirement transaction. The pre-commit audit
-event binds the resulting publication receipt ID and self-digest.
+The researcher issues an immutable delegation that covers this project and the
+`retire_method` action for `method.overlap_stabilized_score`. The remote operator
+submits the same typed lifecycle command used by the Web UI. The service records
+an acceptance check, rechecks the exact project, action, method target, time
+window, and revocation state immediately before commit, and then commits the
+retirement transaction. The pre-commit audit event binds the resulting
+publication receipt ID and self-digest.
 
 A command for a different method is denied with `DELEGATION_NOT_ACTIVE`. It
 returns the same `CommandError` through Web and remote clients, appends a rejected
 command-attempt audit event, and changes no method, catalog, authority event, or
 current index.
 
-For the covered withdrawal target, the service accepts the command, but the
-researcher revokes the grant before the pre-commit check. The second check fails
-closed with `DELEGATION_NOT_ACTIVE`. The rejection records the exact grant and
-failed revocation check, and no formal withdrawal occurs. A role recommendation
+If the researcher revokes the grant before the pre-commit check, the second check
+fails closed with `DELEGATION_NOT_ACTIVE`. The rejection records the exact grant
+and failed revocation check, and no formal change occurs. A role recommendation
 cannot substitute for either the user command or the active delegation.
-
-## Formal-generation withdrawal
-
-The user selects the exact current Phase 3 generation and submits a
-`FormalGenerationWithdrawalCommand` with its content digest, formal current
-`DerivedRecordState` digest, current control head, authenticated actor, and
-scientific-correction reason.
-
-The service appends one `withdrawn` event for the exact generation, removes it
-from current resolution without restoring an older generation, records typed
-alignment and attention impacts for dependents, rebuilds projections and the
-current index, and commits one receipt. The withdrawn generation's immutable
-bytes and provenance remain available for audit but cannot serve as an eligible
-ordinary input. Correction requires a new generation from a later user-started
-Phase 3 run.
 
 ## Acceptance checks
 
-- Both commands validate only against their distinct schemas and the
-  `ControlCommand` union.
-- The lifecycle command permits only `active` to `retired` and `retired` to
-  `active`.
+- The command validates only against its schema and the `ControlCommand` union.
+- The lifecycle command permits only `active` to `retired`, `retired` to
+  `active`, and `proposed` to `active`.
 - A no-op lifecycle command is rejected before any formal change.
-- Withdrawal requires an exact target whose derived publication state is
-  `formal`.
-- A nonformal withdrawal request is rejected before any formal change.
 - Every transaction compares the exact current-index generation and digest,
   event sequence and root, target generations, and target state before commit.
 - Any stale basis returns `409 CONFLICT` without a generation, event, receipt, or
   index change.
 - Retirement preserves downstream scientific records but disables ordinary
   Phase 3 and Phase 4 launches for that method.
-- Withdrawal preserves immutable bytes, blocks target eligibility, propagates
-  dependency effects, and never restores an older generation as current.
-- Neither command creates a run ID, run workspace, run manifest, handoff, role
+- The command creates no run ID, run workspace, run manifest, handoff, role
   profile, or role execution.
-- Neither command launches a later phase.
+- The command launches no later phase.
 - A delegated lifecycle command commits only when the exact grant remains active
   for the project, action, and method at both acceptance and pre-commit.
 - A wrong-target remote command and a grant revoked between the two checks both
@@ -99,4 +76,4 @@ Phase 3 run.
 - Each accepted pre-commit audit event binds the exact durable RunState event or
   publication receipt by identity and digest.
 - Web and remote clients receive the same stable error and smallest correction.
-- No role output or recommendation authorizes a lifecycle or withdrawal command.
+- No role output or recommendation authorizes a lifecycle command.

@@ -104,7 +104,6 @@ const statusLabels = {
     submitted: "Submitted",
     validated: "Validated",
     formal: "Formal record",
-    withdrawn: "Withdrawn",
     invalid: "Invalid",
   },
   position: {
@@ -195,8 +194,6 @@ export function compactScientificStatusSummary(
   } else if (status.publication_state === "invalid") {
     stateLabel = "Invalid";
     stateTone = "danger";
-  } else if (status.publication_state === "withdrawn") {
-    stateLabel = "Withdrawn";
   } else if (status.alignment === "exact" || status.alignment === "compatible") {
     stateLabel = "Current basis";
     stateTone = "positive";

@@ -211,7 +211,7 @@
     {
       "if": {
         "properties": {
-          "publication_state": { "enum": ["withdrawn", "invalid"] }
+          "publication_state": { "const": "invalid" }
         },
         "required": ["publication_state"]
       },

@@ -37,19 +37,13 @@
       "method_ids": [
         "method.overlap_stabilized_score"
       ]
-    },
-    {
-      "action_type": "withdraw_formal_generation",
-      "generation_ids": [
-        "generation.theory.overlap_stabilized_score.003"
-      ]
     }
   ],
   "issued_at": "2026-08-01T12:00:00Z",
   "not_before": "2026-08-01T12:00:00Z",
   "expires_at": "2026-08-03T12:00:00Z",
   "revocation_handle": "revocation.handle.research.operator.001",
-  "content_sha256": "1280be75c6230b2690191cc84e190085af0fe710e560ce8e7f7290bc99bc5a93",
+  "content_sha256": "8a34fa67a83bdb8f20478d511fc9c4ccb29d4ace5ad5ceebedce9da883faed24",
   "signature": {
     "algorithm": "Ed25519",
     "key_id": "key.researcher.demo.001",

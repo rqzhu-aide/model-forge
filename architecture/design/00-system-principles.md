@@ -135,7 +135,7 @@ Every formal publication must have a receipt identifying the source run, validat
 ### INV-019: Immutable content, event-derived current state
 
 A sealed scientific generation records its authority and scientific assessments
-at creation. Later supersession, alignment, attention, withdrawal, invalidation,
+at creation. Later supersession, alignment, attention, invalidation,
 or evidence-eligibility changes must append authority events and rebuild derived
 state. They must never rewrite the generation.
 
@@ -157,9 +157,9 @@ Every persisted structured-object or derived-chain digest must name one machine-
 
 ### INV-022: Typed user control outside research runs
 
-Method retirement or reactivation and formal-generation withdrawal require distinct authenticated, content-digested control commands. Each command freezes the exact control head and target state, uses optimistic concurrency, creates no research run or role execution, and commits through a source-discriminated atomic receipt. An agent recommendation cannot authorize either operation. Every accepted or rejected run-start, cancellation, lifecycle, or withdrawal attempt is recorded in a separate append-only operational audit. Each audit event preserves the raw request artifact, any validated command binding, requester status, exact or explicitly unresolved target, check stage, authorization checks, complete stable error or committed effect, and a verifiable prior-root chain. Operational audit events never carry scientific authority.
+Method activation, retirement, and reactivation require an authenticated, content-digested control command. Each command freezes the exact control head and target state, uses optimistic concurrency, creates no research run or role execution, and commits through a source-discriminated atomic receipt. An agent recommendation cannot authorize the operation. Every accepted or rejected run-start, cancellation, or lifecycle attempt is recorded in a separate append-only operational audit. Each audit event preserves the raw request artifact, any validated command binding, requester status, exact or explicitly unresolved target, check stage, authorization checks, complete stable error or committed effect, and a verifiable prior-root chain. Operational audit events never carry scientific authority.
 
-**Observable test:** A stale or unauthorized control command changes nothing; a successful lifecycle command preserves mathematical method identity; and a successful withdrawal creates no replacement scientific generation or automatic historical fallback. Schema-invalid and unauthenticated attempts remain traceable from exact request bytes without inventing a trusted command or user, and replay reproduces the same operational audit root.
+**Observable test:** A stale or unauthorized control command changes nothing; and a successful lifecycle command preserves mathematical method identity. Schema-invalid and unauthenticated attempts remain traceable from exact request bytes without inventing a trusted command or user, and replay reproduces the same operational audit root.
 
 ## 4. Scientific communication principles
 
@@ -187,7 +187,7 @@ A failed proof attempt, counterexample, null result, unstable computation, or vi
 
 The harness is shared, but publication semantics differ by phase:
 
-- Phase 1 expands a cumulative, deduplicated literature basis and records corrections or withdrawals.
+- Phase 1 expands a cumulative, deduplicated literature basis and records corrections or venue withdrawals.
 - Phase 2 updates either the full method catalog or one selected method while preserving stable method lineage.
 - Phase 3 replaces the complete current theory record for the selected method.
 - Phase 4 appends immutable evidence and atomically replaces four current slots for the selected method: the evidence index, empirical synthesis, implementation record, and phase decision.

@@ -3860,3 +3860,11 @@ p.run-monitor-note {
 .context-feedback__select input {
   accent-color: var(--interactive);
 }
+
+.run-form__rerun-note {
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 2px solid var(--accent, #5b6b7a);
+  font-size: 0.85rem;
+  color: var(--muted, #6b7280);
+}

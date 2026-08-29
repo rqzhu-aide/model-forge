@@ -128,18 +128,17 @@ Implement:
 - ordered authority-event append with idempotent event IDs, RFC 8785 event payload digests, event-type change constraints, and the specified prior-root plus content-digest chain;
 - deterministic event replay into record-state and current-index projections;
 - historical generation retention without mutable status fields;
-- replacement, retirement, withdrawal, invalidation, alignment, attention, and
+- replacement, retirement, invalidation, alignment, attention, and
   evidence-eligibility events;
 - publication receipts with verified RFC 8785 self-digests that bind event
   ranges and roots to projection digests and current-index generations;
-- withdrawal events that identify the affected generation without creating a
   replacement generation;
 - conflict detection for two publications that change the same current slot;
 - ordered, serialized event-journal commits that preserve both successful
   disjoint-target publications and rebuild the global current index from the
   newly committed head;
 - one atomic authority transaction service shared by research publication,
-  method lifecycle changes, and formal-generation withdrawal;
+  method lifecycle changes;
 - exact control-head and target compare-and-swap, scoped delegation rechecks,
   idempotent command recovery,
   and no-run execution for control commands;
@@ -154,7 +153,7 @@ its original run-local location with identical bytes and digest, a published
 generation remains byte-identical after later changes, receipts verify the exact
 committed state,
 and deleting and rebuilding projections from the event journal yields the same
-state digest. Method lifecycle and withdrawal tests must also prove that a stale
+state digest. Method lifecycle tests must also prove that a stale
 control command changes nothing and that no control transaction creates a run.
 S12 must prove that disjoint publications both commit in one deterministic
 journal order while a same-target stale publication conflicts.

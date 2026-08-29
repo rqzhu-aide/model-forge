@@ -1,6 +1,6 @@
 # Coherent example record set
 
-This directory contains 65 valid examples. Its central connected record set
+This directory contains 62 valid examples. Its central connected record set
 describes one fictional statistical method and one user-launched Phase 4
 preliminary run. Focused examples cover deterministic digests, method identity,
 role context, cancellation, action descriptions, remote delegation, control
@@ -106,7 +106,7 @@ versions.
 ## User actions, cancellation, and delegated control
 
 The five `action-*.example.json` files cover the closed action families for
-starting or cancelling a run, retiring or reactivating a method, and withdrawing
+starting or cancelling a run, and retiring, reactivating, or activating a method,
 a formal generation. An action descriptor reports current eligibility and the
 exact command fields needed next. It is not authorization.
 
@@ -117,7 +117,6 @@ gate. Cancellation cannot begin after immutable submission.
 
 - `method-lifecycle-command.example.json` retires one exact active method without
   changing its mathematics or starting a research run.
-- `formal-generation-withdrawal-command.example.json` withdraws one exact formal
   generation without deleting its immutable bytes or restoring an older version.
 - `delegation-grant.example.json` gives one remote operator bounded project,
   action, target, and time scope.
@@ -127,15 +126,15 @@ gate. Cancellation cannot begin after immutable submission.
   `command-error-delegation-not-active.example.json` give Web and remote clients
   the same stable failure envelope for ordinary and delegated failures.
 
-Lifecycle and withdrawal commands freeze the full current-index and event-journal
+Lifecycle commands freeze the full current-index and event-journal
 head. The receipt schema has separate source branches for a research run, method
-lifecycle command, and generation withdrawal command.
+lifecycle command.
 
 ## Operational command audit
 
 The five `command-attempt-audit-*.example.json` records form one independent
 project-scoped hash chain. They cover accepted run start, accepted method
-lifecycle, rejected delegated withdrawal, accepted cancellation, and a malformed
+lifecycle, accepted cancellation, and a malformed
 unauthenticated request. The malformed record points to
 `raw-command-request-malformed.txt` and hashes its exact bytes. Accepted events
 bind the exact durable RunState event or publication receipt by stable ID and
@@ -151,9 +150,7 @@ rejected:
 - `authority-event-alignment-missing-prior-state.invalid.json`;
 - `authority-event-cross-family.invalid.json`;
 - `authority-event-evidence-reclassification-missing-prior-state.invalid.json`;
-- `authority-event-withdraw-current.invalid.json`;
 - `decision-auto-action.invalid.json`;
-- `formal-withdrawal-nonformal.invalid.json`;
 - `method-lifecycle-malformed-digest.invalid.json`;
 - `method-lifecycle-no-op.invalid.json`;
 - `publication-receipt-research-run-withdraw.invalid.json`;

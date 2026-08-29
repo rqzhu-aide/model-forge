@@ -212,3 +212,53 @@ describe("RunForm supplementary material (ADR-019)", () => {
     expect(screen.queryByRole("radio", { name: /From the project shelf/ })).not.toBeInTheDocument();
   });
 });
+
+
+describe("RunForm one-click rerun prefill (WP-UX)", () => {
+  beforeEach(() => {
+    startRunMock.mockReset();
+    startRunMock.mockResolvedValue({ run_id: "run.1" });
+    listMaterialsMock.mockReset();
+    listMaterialsMock.mockResolvedValue([]);
+    getMaterialContentMock.mockReset();
+    window.localStorage.clear();
+  });
+  afterEach(cleanup);
+
+  it("pre-fills instructions and scope from the frozen basis and shows the note", async () => {
+    const rerunPrefill = {
+      phase: "P1" as const,
+      mode: "p1.update",
+      choice_values: {
+        "p1.instructions": "Replicate the earlier sweep exactly.",
+        "p1.scope": "focused_update",
+      },
+      context_policy: "current_only",
+    };
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <RunForm
+            projectId="project-1"
+            phaseView={phaseView}
+            methods={[]}
+            selectedMethodId=""
+            onMethodChange={() => undefined}
+            mode="p1.update"
+            onModeChange={() => undefined}
+            rerunPrefill={rerunPrefill}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByText(/Pre-filled from the finished run's frozen basis/),
+      ).toBeInTheDocument(),
+    );
+    const textarea = screen.getByRole("textbox", { name: /instructions/i });
+    await waitFor(() => expect(textarea).toHaveValue("Replicate the earlier sweep exactly."));
+    expect(screen.getByRole("radio", { name: /Focused literature question/i })).toBeChecked();
+  });
+});

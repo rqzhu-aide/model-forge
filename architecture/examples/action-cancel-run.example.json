@@ -11,7 +11,7 @@
     "user_id": "researcher.demo",
     "operator_id": "operator.hermes.demo",
     "delegation_id": "delegation.research.operator.001",
-    "grant_sha256": "1280be75c6230b2690191cc84e190085af0fe710e560ce8e7f7290bc99bc5a93",
+    "grant_sha256": "8a34fa67a83bdb8f20478d511fc9c4ccb29d4ace5ad5ceebedce9da883faed24",
     "checked_at": "2026-08-02T14:19:59Z",
     "expires_at": "2026-08-03T12:00:00Z"
   },

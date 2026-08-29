@@ -18,9 +18,6 @@
     },
     {
       "$ref": "#/$defs/activateMethod"
-    },
-    {
-      "$ref": "#/$defs/withdrawGeneration"
     }
   ],
   "$defs": {
@@ -51,8 +48,7 @@
             "cancel_run",
             "retire_method",
             "reactivate_method",
-            "activate_method",
-            "withdraw_formal_generation"
+            "activate_method"
           ]
         },
         "execution_kind": {
@@ -589,92 +585,6 @@
           "const": true
         }
       }
-    },
-    "withdrawGeneration": {
-      "allOf": [
-        {
-          "$ref": "#/$defs/shared"
-        },
-        {
-          "type": "object",
-          "required": [
-            "target",
-            "expected_target_state",
-            "expected_control_head",
-            "affected_dependents",
-            "reason_required"
-          ],
-          "properties": {
-            "action_type": {
-              "const": "withdraw_formal_generation"
-            },
-            "execution_kind": {
-              "const": "control_transaction"
-            },
-            "target": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "record_id",
-                "record_type",
-                "generation_id",
-                "content_sha256"
-              ],
-              "properties": {
-                "record_id": {
-                  "$ref": "common-definitions.schema.json#/$defs/stableId"
-                },
-                "record_type": {
-                  "$ref": "common-definitions.schema.json#/$defs/recordType"
-                },
-                "generation_id": {
-                  "$ref": "common-definitions.schema.json#/$defs/stableId"
-                },
-                "content_sha256": {
-                  "$ref": "common-definitions.schema.json#/$defs/sha256"
-                }
-              }
-            },
-            "expected_target_state": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "publication_state",
-                "record_position",
-                "record_state_sha256"
-              ],
-              "properties": {
-                "publication_state": {
-                  "const": "formal"
-                },
-                "record_position": {
-                  "enum": [
-                    "current",
-                    "historical"
-                  ]
-                },
-                "record_state_sha256": {
-                  "$ref": "common-definitions.schema.json#/$defs/sha256"
-                }
-              }
-            },
-            "expected_control_head": {
-              "$ref": "#/$defs/expectedControlHead"
-            },
-            "affected_dependents": {
-              "type": "array",
-              "uniqueItems": true,
-              "items": {
-                "$ref": "common-definitions.schema.json#/$defs/stableId"
-              }
-            },
-            "reason_required": {
-              "const": true
-            }
-          }
-        }
-      ],
-      "unevaluatedProperties": false
     },
     "activateMethod": {
       "allOf": [

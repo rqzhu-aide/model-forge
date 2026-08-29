@@ -47,7 +47,7 @@
         "cancel_run",
         "retire_method",
         "reactivate_method",
-        "withdraw_formal_generation"
+        "activate_method"
       ]
     },
     "target": {
@@ -55,7 +55,6 @@
         {"$ref": "#/$defs/runStartTarget"},
         {"$ref": "#/$defs/runCancellationTarget"},
         {"$ref": "#/$defs/methodLifecycleTarget"},
-        {"$ref": "#/$defs/formalGenerationTarget"},
         {"$ref": "#/$defs/unresolvedTarget"}
       ]
     },
@@ -135,7 +134,7 @@
       "if": {
         "properties": {
           "action_type": {
-            "enum": ["retire_method", "reactivate_method"]
+            "enum": ["retire_method", "reactivate_method", "activate_method"]
           }
         },
         "required": ["action_type"]
@@ -145,24 +144,6 @@
           "target": {
             "oneOf": [
               {"$ref": "#/$defs/methodLifecycleTarget"},
-              {"$ref": "#/$defs/unresolvedTarget"}
-            ]
-          }
-        }
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "action_type": {"const": "withdraw_formal_generation"}
-        },
-        "required": ["action_type"]
-      },
-      "then": {
-        "properties": {
-          "target": {
-            "oneOf": [
-              {"$ref": "#/$defs/formalGenerationTarget"},
               {"$ref": "#/$defs/unresolvedTarget"}
             ]
           }
@@ -467,36 +448,6 @@
         "target_lifecycle_state": {
           "type": "string",
           "enum": ["active", "retired"]
-        }
-      }
-    },
-    "formalGenerationTarget": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "target_type",
-        "record_id",
-        "record_type",
-        "generation_id",
-        "content_sha256",
-        "expected_record_state_sha256"
-      ],
-      "properties": {
-        "target_type": {"const": "formal_generation"},
-        "record_id": {
-          "$ref": "common-definitions.schema.json#/$defs/stableId"
-        },
-        "record_type": {
-          "$ref": "common-definitions.schema.json#/$defs/recordType"
-        },
-        "generation_id": {
-          "$ref": "common-definitions.schema.json#/$defs/stableId"
-        },
-        "content_sha256": {
-          "$ref": "common-definitions.schema.json#/$defs/sha256"
-        },
-        "expected_record_state_sha256": {
-          "$ref": "common-definitions.schema.json#/$defs/sha256"
         }
       }
     },

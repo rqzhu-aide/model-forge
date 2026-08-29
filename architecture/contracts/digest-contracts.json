@@ -107,21 +107,6 @@
             ]
         },
         {
-            "contract_id":  "formal_generation_withdrawal_command.content",
-            "object_kind":  "formal_generation_withdrawal_command",
-            "schema_file":  "formal-generation-withdrawal-command.schema.json",
-            "instance_pointer":  "",
-            "digest_location":  {
-                "kind":  "embedded",
-                "json_pointer":  "/content_sha256"
-            },
-            "construction":  "rfc8785_sha256",
-            "payload_pointer":  "",
-            "excluded_json_pointers":  [
-                "/content_sha256"
-            ]
-        },
-        {
             "contract_id":  "literature_source.content",
             "object_kind":  "literature_source",
             "schema_file":  "literature-source.schema.json",

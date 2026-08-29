@@ -179,7 +179,7 @@ During `preparing`, the harness:
 13. Freezes each role's read allowlist and role-specific write root, including profile, skill, tool, knowledge-resource, and output-contract digests.
 14. Writes and seals the run manifest.
 
-Preparation fails if a required current record is absent, incompatible, withdrawn, or not eligible under the phase contract. The error response must identify the missing scientific prerequisite and the user actions that could resolve it.
+Preparation fails if a required current record is absent, incompatible, invalid, or not eligible under the phase contract. The error response must identify the missing scientific prerequisite and the user actions that could resolve it.
 
 A run command may carry researcher seed inputs (ADR-019, scenario S31): inline content mapped to declared supplementary contract input ids (`pN.researcher_material`). Each seed is content-addressed into the artifact store at preparation, wrapped in a synthetic record reference carrying the run's selected method identity, and frozen with `origin: "researcher_seed"`; all required inputs keep `origin: "current_record"` and always resolve from published current records. Seeds are additive only: they never satisfy a required input and never count for rerun detection. A seed naming a required input fails preparation with `input.seed_replaces_published_input`; a seed naming an undeclared input fails with `input.unknown_seed`. The stale-basis generation guard compares published inputs only, so no seed exemption exists.
 
@@ -347,7 +347,7 @@ The publisher must perform the following logical transaction:
 5. Resolve the sealed publication bindings and reject any missing, ambiguous, or undeclared source-to-target operation.
 6. Construct every new immutable formal content generation in a private staging namespace from only the outputs and bundle components named by those bindings. Each generation records frozen `authority_at_creation` and never stores mutable current position or eligibility.
 7. Verify staged object digests and references.
-8. Construct append-only authority events for publication, supersession, dependency impact, alignment, attention, and evidence-eligibility changes. A research-run promotion must not construct withdrawal events; only a validated `FormalGenerationWithdrawalCommand` transaction may do so.
+8. Construct append-only authority events for publication, supersession, dependency impact, alignment, attention, and evidence-eligibility changes.
 9. Replay the proposed events over the prior committed state to prepare complete derived record-state projections and one new current index.
 10. Commit the staged generations, authority events, derived projections, current index, and publication receipt as one atomic operation.
 11. Mark the run `published` only after the committed state can be read and verified.
@@ -475,12 +475,11 @@ The UI, command-line tools, and authorized remote agents should use the same com
 - `get_validation_report(run_id)`
 - `get_publication_receipt(run_id)`
 - `change_method_lifecycle(command)`
-- `withdraw_formal_generation(command)`
 
 These two typed control commands use the same authority transaction service but
 do not create a research run, run workspace, or role execution. Method lifecycle
 changes atomically replace the method and catalog generations while preserving
-mathematical identity. Withdrawal changes the authority of one exact generation
+mathematical identity.
 without creating a replacement or restoring history as current. Both commands
 freeze the control head, target state, actor, reason, and command digest. See
 [Control commands](09-control-commands.md).
@@ -490,7 +489,7 @@ alone cannot authorize either control command.
 
 `cancel_run` accepts a `RunCancellationCommand`; it does not accept a bare run ID
 and actor. Remote destructive actions, including cancellation, retirement,
-reactivation, and withdrawal, are disabled unless an active delegation covers
+and reactivation, are disabled unless an active delegation covers
 the exact project, action, and target.
 
 ## 13. Required harness tests
@@ -514,7 +513,6 @@ At minimum, implementation must prove:
 15. Every formal append, create, or replacement operation resolves to one sealed publication binding and no publisher infers a target from a filename.
 16. Independent event writers compute identical content digests and journal roots from the same canonical payload and prior root.
 17. A method lifecycle command atomically replaces only the method and catalog generations while preserving exact mathematical identity and creating no run.
-18. A formal-generation withdrawal creates no replacement generation, never restores history as current, and records dependent impacts.
 19. A stale control head, target generation, or state digest yields a conflict with no generation, event, receipt, or index change.
 20. The Web UI and authorized remote client submit the same typed control commands and receive the same idempotency and conflict behavior.
 21. Cancellation is accepted only from `created`, `preparing`, `prepared`, or

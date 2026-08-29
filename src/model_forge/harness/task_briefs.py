@@ -709,8 +709,11 @@ def render_task_brief(
         f"Project: `{project_id}`",
         f"Phase and mode: `{plan.identity.phase_id}` / `{plan.mode_id}`",
         "",
-        "Timestamps (`created_at`, `updated_at`, `finalized_at`, `published_at`) "
-        "are stamped by the harness from sealed run facts — do not write them.",
+        "Envelope fields (`schema_version`, `content_sha256`, `created_at`, "
+        "`updated_at`, `finalized_at`, `published_at`) and identity fields "
+        "(`record_id`, `generation_id`, `generation_number`, `record_type`, "
+        "`source_run_id`, `authority_at_creation`) are populated by the "
+        "harness from sealed run facts — do not write them.",
         "",
         "## Immutable instruction boundary",
         "",

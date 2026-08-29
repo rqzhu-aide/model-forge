@@ -81,9 +81,6 @@
         },
         {
           "$ref": "#/$defs/methodPermission"
-        },
-        {
-          "$ref": "#/$defs/withdrawPermission"
         }
       ]
     },
@@ -160,27 +157,6 @@
           ]
         },
         "method_ids": {
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": {
-            "$ref": "common-definitions.schema.json#/$defs/stableId"
-          }
-        }
-      }
-    },
-    "withdrawPermission": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "action_type",
-        "generation_ids"
-      ],
-      "properties": {
-        "action_type": {
-          "const": "withdraw_formal_generation"
-        },
-        "generation_ids": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,

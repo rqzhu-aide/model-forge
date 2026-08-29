@@ -34,7 +34,7 @@ The exact identifiers, invariant links, test groups, phase suites, and milestone
 | S08 | `s08.phase5_workflow` | P5 assembly and review-revision | P5 | M7 |
 | S09 | `s09.interrupted_promotion` | Interrupted publication recovery and submitted-run preservation | P1, P2, P5 | M2, M3 |
 | S10 | `s10.negative_result` | Complete negative scientific result | P3, P4, P5 | M6, M7 |
-| S11 | `s11.control_commands` | User-controlled lifecycle, withdrawal, and delegated control | Control suite | M2, M5 |
+| S11 | `s11.control_commands` | User-controlled lifecycle and delegated control | Control suite | M2, M5 |
 | S12 | `s12.disjoint_concurrent_publication` | Disjoint concurrent publication | P3 | M2, M3, M6 |
 | S13 | `s13.role_setup_configuration` | Exact role setup through configuration | Trusted-local suite | M3 |
 | S14 | `s14.first_run_clean_state` | First run starts with clean state | Trusted-local suite | M3 |

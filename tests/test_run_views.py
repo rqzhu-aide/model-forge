@@ -178,11 +178,13 @@ def test_rerun_prefill_present_for_terminal_failed_run() -> None:
     assert "p4.instructions" in detail.rerun_prefill.choice_values
 
 
-def test_rerun_prefill_absent_while_correction_lanes_remain() -> None:
-    detail = _detail_for("correcting", correction_attempts=(0, 1))
+def test_rerun_prefill_absent_while_scientific_lane_remains() -> None:
+    detail = _detail_for("correcting", correction_attempts=(1, 0))
     assert detail.rerun_prefill is None
 
 
-def test_rerun_prefill_present_when_both_lanes_spent() -> None:
-    detail = _detail_for("correcting", correction_attempts=(1, 1))
+def test_rerun_prefill_present_when_scientific_lane_spent() -> None:
+    # Packaging only reshapes sealed bytes; with the scientific lane spent a
+    # full rerun is the substantive next step even if packaging is free.
+    detail = _detail_for("correcting", correction_attempts=(0, 1))
     assert detail.rerun_prefill is not None

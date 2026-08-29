@@ -403,7 +403,8 @@ scientific attempt is spent, the corresponding action is disabled with the
 `correction.attempt_spent` reason code instead of failing at command time.
 
 A finished run whose designed next step is a fresh start (`failed`, `rejected`,
-`cancelled`, `correction_exhausted`, or a correcting run with both lanes spent)
+`cancelled`, `correction_exhausted`, or a correcting run whose scientific lane
+is spent - the packaging lane can only reshape already-sealed bytes)
 carries a `rerun_prefill` projection: its phase, mode, sealed choice values, and
 context policy. The run page presents "Rerun with the same basis", which opens
 the phase run form pre-filled from those frozen values; every field remains

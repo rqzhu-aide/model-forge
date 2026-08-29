@@ -618,7 +618,7 @@ class RerunPrefill(StrictModel):
     choices: phase, mode, choice values, and context policy. Presented only
     for states where a fresh run is the designed next step (failed, rejected,
     cancelled, correction_exhausted, or a correcting run whose bounded
-    correction lanes are both spent).
+    scientific lane is spent - packaging can only reshape sealed bytes).
     """
 
     phase: PhaseId

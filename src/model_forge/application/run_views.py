@@ -298,9 +298,11 @@ def run_detail_view(
     validation = payload.get("validation_report")
     state = str(row["status"])
     rerun_prefill = None
+    # A spent scientific lane means no correction can change the science any
+    # more (packaging can only reshape already-sealed bytes); a full rerun is
+    # the substantive next step even if the packaging lane is technically free.
     lanes_spent = (
         correction_attempts is not None
-        and not _lane_available(correction_attempts, "packaging")
         and not _lane_available(correction_attempts, "scientific")
     )
     if (

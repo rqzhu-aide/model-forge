@@ -100,24 +100,76 @@ def _recipe_for_run(repository: HubRepository, run_id: str) -> PreparedRunRecipe
     return PreparedRunRecipe.load(document, str(row["manifest_sha256"]))
 
 
+def _recover_frozen_contract(
+    specification: SpecificationPackage,
+    repository: HubRepository,
+    artifacts: ArtifactStore,
+    project_id: str,
+    pinned_sha256: str,
+) -> dict[str, Any] | None:
+    """Load frozen contract bytes preserved at seal time.
+
+    Runs sealed under a superseded contract version pin the contract by
+    digest; the bytes are content-addressed into the artifact store at
+    preparation so corrections can always resolve the exact frozen plan.
+    The recovered document is accepted only when its registry digest equals
+    the run's pinned digest.
+    """
+    for row in repository.find_artifacts_by_purpose(project_id, "phase_contract_frozen"):
+        document = loads_json(
+            artifacts.read_bytes(str(row["sha256"])),
+            source=f"artifact {row['artifact_id']}",
+        )
+        if type(document) is not dict:
+            continue
+        digest = specification.digests.compute("phase_contract.content", document)
+        if str(digest) == pinned_sha256:
+            return document
+    return None
+
+
 def _plan_from_recipe(
-    specification: SpecificationPackage, recipe: PreparedRunRecipe
+    specification: SpecificationPackage,
+    recipe: PreparedRunRecipe,
+    *,
+    repository: HubRepository | None = None,
+    artifacts: ArtifactStore | None = None,
+    project_id: str | None = None,
 ):
     identity = specification.phases.identity(str(recipe.document["phase"]))
     if (
         str(identity.contract_version)
-        != str(recipe.document["phase_contract_version"])
-        or str(identity.phase_contract_sha256)
-        != str(recipe.document["phase_contract_sha256"])
+        == str(recipe.document["phase_contract_version"])
+        and str(identity.phase_contract_sha256)
+        == str(recipe.document["phase_contract_sha256"])
     ):
-        raise ValueError("Frozen phase contract is unavailable.")
-    request = recipe.document["user_request"]
-    return specification.resolve_phase(
-        identity,
-        str(recipe.document["mode"]),
-        dict(request["choice_values"]),
-        str(request["context_policy"]),
-    )
+        request = recipe.document["user_request"]
+        return specification.resolve_phase(
+            identity,
+            str(recipe.document["mode"]),
+            dict(request["choice_values"]),
+            str(request["context_policy"]),
+        )
+    # The run was sealed under a superseded contract version. Recover the
+    # exact frozen contract bytes preserved at seal time and resolve the plan
+    # from them, re-pinned through the digest registry.
+    if repository is not None and artifacts is not None and project_id is not None:
+        document = _recover_frozen_contract(
+            specification,
+            repository,
+            artifacts,
+            project_id,
+            str(recipe.document["phase_contract_sha256"]),
+        )
+        if document is not None:
+            request = recipe.document["user_request"]
+            return specification.resolve_phase_frozen(
+                document,
+                str(recipe.document["mode"]),
+                dict(request["choice_values"]),
+                str(request["context_policy"]),
+            )
+    raise ValueError("Frozen phase contract is unavailable.")
 
 
 def _closure_payload(repository: HubRepository, closure_id: str) -> dict[str, Any]:
@@ -155,7 +207,13 @@ def revalidate_closure_outputs(
     Exactly one ``run_validation_attempts`` row is recorded per call.
     """
     recipe = _recipe_for_run(repository, run_id)
-    plan = _plan_from_recipe(specification, recipe)
+    plan = _plan_from_recipe(
+        specification,
+        recipe,
+        repository=repository,
+        artifacts=artifacts,
+        project_id=str(recipe.document["project_id"]),
+    )
     output_plan = build_output_plan(plan)
 
     payload = _closure_payload(repository, role_closure_id)
@@ -262,7 +320,13 @@ def record_revalidation_closure(
     and never mutated.  Returns the correction closure id.
     """
     recipe = _recipe_for_run(repository, run_id)
-    plan = _plan_from_recipe(specification, recipe)
+    plan = _plan_from_recipe(
+        specification,
+        recipe,
+        repository=repository,
+        artifacts=artifacts,
+        project_id=str(recipe.document["project_id"]),
+    )
     payload = _closure_payload(repository, role_closure_id)
     stage_id = str(payload.get("stage_id", ""))
     role = str(payload.get("role", ""))
@@ -406,7 +470,13 @@ def normalize_closure_outputs(
     """
     codes = _check_normalize_allowlist(transformation_codes)
     recipe = _recipe_for_run(repository, run_id)
-    plan = _plan_from_recipe(specification, recipe)
+    plan = _plan_from_recipe(
+        specification,
+        recipe,
+        repository=repository,
+        artifacts=artifacts,
+        project_id=str(recipe.document["project_id"]),
+    )
     output_plan = build_output_plan(plan)
 
     payload = _closure_payload(repository, role_closure_id)
@@ -582,7 +652,13 @@ def record_normalize_closure(
     and never mutated.  Returns the correction closure id.
     """
     recipe = _recipe_for_run(repository, run_id)
-    plan = _plan_from_recipe(specification, recipe)
+    plan = _plan_from_recipe(
+        specification,
+        recipe,
+        repository=repository,
+        artifacts=artifacts,
+        project_id=str(recipe.document["project_id"]),
+    )
     payload = _closure_payload(repository, role_closure_id)
     stage_id = str(payload.get("stage_id", ""))
     role = str(payload.get("role", ""))
@@ -733,7 +809,13 @@ def preview_normalize(
     """
     codes = _check_normalize_allowlist(transformation_codes)
     recipe = _recipe_for_run(repository, run_id)
-    plan = _plan_from_recipe(specification, recipe)
+    plan = _plan_from_recipe(
+        specification,
+        recipe,
+        repository=repository,
+        artifacts=artifacts,
+        project_id=str(recipe.document["project_id"]),
+    )
     output_plan = build_output_plan(plan)
 
     payload = _closure_payload(repository, role_closure_id)
@@ -1037,7 +1119,13 @@ async def execute_targeted_correction(
     findings.
     """
     recipe = _recipe_for_run(repository, run_id)
-    plan = _plan_from_recipe(specification, recipe)
+    plan = _plan_from_recipe(
+        specification,
+        recipe,
+        repository=repository,
+        artifacts=artifacts,
+        project_id=str(recipe.document["project_id"]),
+    )
     payload = _closure_payload(repository, role_closure_id)
     stage_id = str(payload.get("stage_id", ""))
     role = str(payload.get("role", ""))

@@ -1554,6 +1554,7 @@ class ModelForgeService:
             manifest_row=self.queries.run_manifest(run_id),
             publication_row=receipt,
             execution_activity=self.queries.latest_execution_activity(run_id),
+            correction_attempts=self._correction_attempt_counts(run_id),
         )
 
     async def list_supervised_runs(
@@ -2368,7 +2369,25 @@ class ModelForgeService:
         # 6. Scope gate: the requested scope must stay inside the closure's
         #    declared outputs — or, for a closure that failed before output
         #    sealing (K5-3), its plan-declared contract outputs.
-        closure_output_ids = self._correction_scope_outputs(run_id, closure_payload)
+        try:
+            closure_output_ids = self._correction_scope_outputs(run_id, closure_payload)
+        except ValueError as error:
+            if "Frozen phase contract" in str(error):
+                raise CommandRejected(
+                    new_command_error(
+                        "CORRECTION_NOT_APPLICABLE",
+                        object_refs=[run_id, role_closure_id],
+                        researcher_message=(
+                            "The run's frozen phase contract bytes are not "
+                            "recoverable from the artifact store."
+                        ),
+                        smallest_correction=(
+                            "Restore the phase_contract_frozen artifact or start "
+                            "a fresh run under the current contract."
+                        ),
+                    )
+                ) from error
+            raise
         if not set(command.permitted_output_scope).issubset(closure_output_ids):
             raise CommandRejected(
                 new_command_error(
@@ -2966,7 +2985,18 @@ class ModelForgeService:
         if not stage_id or not role:
             return declared
         recipe = _recipe_for_run(self.repository, run_id)
-        plan = _plan_from_recipe(self.specification, recipe)
+        run_row = self.repository.get_run(run_id)
+        plan = _plan_from_recipe(
+            self.specification,
+            recipe,
+            repository=self.repository,
+            artifacts=self.artifacts,
+            project_id=(
+                str(run_row["project_id"])
+                if run_row is not None
+                else str(recipe.document.get("project_id", ""))
+            ),
+        )
         output_plan = build_output_plan(plan)
         return declared | {
             spec.contract_output_id

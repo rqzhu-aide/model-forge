@@ -1679,6 +1679,25 @@ class HubRepository:
     # ADR-019: project researcher-material shelf (informal, mutable)
     # ------------------------------------------------------------------ #
 
+    def find_artifacts_by_purpose(
+        self, project_id: str, purpose: str
+    ) -> tuple[sqlite3.Row, ...]:
+        """Return artifact rows whose metadata purpose matches, newest first."""
+        with self._database.connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM artifacts WHERE project_id = ? ORDER BY recorded_at DESC",
+                (project_id,),
+            ).fetchall()
+        matches: list[sqlite3.Row] = []
+        for row in rows:
+            try:
+                metadata = json.loads(str(row["payload_json"]))
+            except (TypeError, json.JSONDecodeError):
+                continue
+            if isinstance(metadata, dict) and metadata.get("purpose") == purpose:
+                matches.append(row)
+        return tuple(matches)
+
     def add_researcher_material(
         self,
         *,

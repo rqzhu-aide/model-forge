@@ -155,8 +155,10 @@ class PhaseContractRepository:
         *,
         architecture_root: Path,
         contracts: Sequence[_LoadedPhaseContract],
+        digests: DigestContractRegistry | None = None,
     ) -> None:
         self.architecture_root = architecture_root
+        self._digests = digests
         self._contracts = {item.identity.phase_id: item for item in contracts}
         modes: dict[str, str] = {}
         for loaded in contracts:
@@ -245,7 +247,7 @@ class PhaseContractRepository:
             loaded.append(
                 _LoadedPhaseContract(identity=identity, document=_freeze_json(document))
             )
-        return cls(architecture_root=root, contracts=loaded)
+        return cls(architecture_root=root, contracts=loaded, digests=digests)
 
     @staticmethod
     def _validate_contract_semantics(contract: Mapping[str, Any]) -> None:
@@ -734,7 +736,59 @@ class PhaseContractRepository:
                 f"Phase {identity.phase_id} contract digest does not match the loaded "
                 "contract.",
             )
-        contract = loaded.document
+        return self._resolve_document(
+            loaded.document, expected, mode_id, choice_values, context_policy
+        )
+
+    def resolve_frozen(
+        self,
+        document: Mapping[str, Any],
+        mode_id: str,
+        choice_values: Mapping[str, Any],
+        context_policy: str,
+    ) -> ResolvedPhasePlan:
+        """Resolve a plan from frozen contract bytes.
+
+        Runs sealed under a superseded contract version pin the contract by
+        digest; corrections for those runs must resolve against the exact
+        frozen document, not the currently loaded registry. The document is
+        semantics-validated and re-pinned through the digest registry before
+        resolution.
+        """
+        if self._digests is None:
+            raise _fail(
+                "phase_contract.digest_registry_unavailable",
+                "Frozen contract resolution requires the digest registry.",
+            )
+        if type(document) is not dict:
+            raise _fail(
+                "phase_contract.frozen_invalid",
+                "A frozen phase contract must be a JSON object.",
+            )
+        phase_id = document.get("phase_id")
+        if phase_id not in _PHASE_IDS:
+            raise _fail(
+                "phase_contract.not_found", f"Unknown phase contract {phase_id!r}."
+            )
+        self._validate_contract_semantics(document)
+        digest = self._digests.compute("phase_contract.content", document)
+        identity = PhaseContractIdentity(
+            phase_id=phase_id,
+            contract_version=SemanticVersion(document["contract_version"]),
+            phase_contract_sha256=Sha256Digest(digest),
+        )
+        return self._resolve_document(
+            document, identity, mode_id, choice_values, context_policy
+        )
+
+    def _resolve_document(
+        self,
+        contract: Mapping[str, Any],
+        identity: PhaseContractIdentity,
+        mode_id: str,
+        choice_values: Mapping[str, Any],
+        context_policy: str,
+    ) -> ResolvedPhasePlan:
         modes = tuple(mode for mode in contract["run_modes"] if mode["mode_id"] == mode_id)
         if len(modes) != 1:
             raise _fail(
@@ -802,7 +856,7 @@ class PhaseContractRepository:
                     f"{mode_id!r}: {sorted(unknown)}.",
                 )
         return ResolvedPhasePlan(
-            identity=expected,
+            identity=identity,
             mode_id=mode_id,
             choice_values=_freeze_json(normalized_choices),
             context_policy=context_policy,

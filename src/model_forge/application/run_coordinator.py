@@ -14,6 +14,7 @@ from typing import Any, Sequence
 from ..configuration.resources import RoleResourceCatalog
 from ..configuration.skill_assignments import SkillAssignmentMatrix, SkillDefaults
 from ..contracts.runtime import RuntimePhaseContract, resolve_runtime_contract
+from ..digests.jcs import canonicalize
 from ..domain.identities import ArtifactPointer, MethodIdentity, Sha256Digest, StableId
 from ..domain.runs import RunStatus, isoformat_utc, utc_now
 from ..domain.validation import ValidationFinding, finding_from_dict
@@ -230,6 +231,9 @@ class RunCoordinator:
         if not inputs.passed:
             message = "; ".join(item.message for item in inputs.findings)
             raise ValueError(message or "Required current inputs could not be frozen.")
+        self._preserve_frozen_contract(
+            str(run["project_id"]), str(command["phase"])
+        )
         output_plan = build_output_plan(plan)
         roles = {
             step.role for stage in plan.stages for step in stage.role_steps
@@ -646,7 +650,18 @@ class RunCoordinator:
             or str(identity.phase_contract_sha256)
             != str(recipe.document["phase_contract_sha256"])
         ):
-            raise ValueError("Frozen phase contract is unavailable.")
+            # The run was sealed under a superseded contract version; resolve
+            # the plan from the frozen contract bytes preserved at seal time.
+            document = self._recover_frozen_contract(recipe)
+            if document is None:
+                raise ValueError("Frozen phase contract is unavailable.")
+            request = recipe.document["user_request"]
+            return self.specification.resolve_phase_frozen(
+                document,
+                str(recipe.document["mode"]),
+                dict(request["choice_values"]),
+                str(request["context_policy"]),
+            )
         request = recipe.document["user_request"]
         return self.specification.resolve_phase(
             identity,
@@ -654,6 +669,58 @@ class RunCoordinator:
             dict(request["choice_values"]),
             str(request["context_policy"]),
         )
+
+    def _preserve_frozen_contract(self, project_id: str, phase: str) -> None:
+        """Content-address the exact contract bytes at seal time.
+
+        A contract version bump must never orphan corrections, submissions,
+        or execution of runs sealed under the older version: the bytes are
+        stored under their digest and findable by purpose.
+        """
+        document = self.specification.phases.contract_document(phase)
+        identity = self.specification.phases.identity(phase)
+        pinned = str(identity.phase_contract_sha256)
+        payload = canonicalize(document)
+        stored = self.artifacts.put_bytes(payload)
+        artifact_id = "artifact.phase_contract." + hashlib.sha256(
+            f"{project_id}:{phase}:{pinned}".encode()
+        ).hexdigest()[:24]
+        self.repository.record_artifact(
+            artifact_id,
+            project_id,
+            str(stored.sha256),
+            stored.size,
+            "application/json",
+            f"artifact://sha256/{stored.sha256}",
+            {
+                "relative_path": stored.relative_path,
+                "purpose": "phase_contract_frozen",
+                "phase_id": phase,
+                "contract_version": str(identity.contract_version),
+                "phase_contract_sha256": pinned,
+            },
+        )
+
+    def _recover_frozen_contract(
+        self, recipe: PreparedRunRecipe
+    ) -> dict[str, Any] | None:
+        project_id = str(recipe.document.get("project_id", ""))
+        pinned = str(recipe.document["phase_contract_sha256"])
+        for row in self.repository.find_artifacts_by_purpose(
+            project_id, "phase_contract_frozen"
+        ):
+            document = loads_json(
+                self.artifacts.read_bytes(str(row["sha256"])),
+                source=f"artifact {row['artifact_id']}",
+            )
+            if type(document) is not dict:
+                continue
+            digest = self.specification.digests.compute(
+                "phase_contract.content", document
+            )
+            if str(digest) == pinned:
+                return document
+        return None
 
     def _prepare_seed_records(
         self,

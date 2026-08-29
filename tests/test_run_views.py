@@ -72,3 +72,60 @@ def test_created_run_has_one_explicit_cancel_action(tmp_path) -> None:
     assert view.actions[0].action_type == "cancel_run"
     assert view.actions[0].enabled is True
     assert view.stage_plan[0].execution == "parallel"
+
+
+def _correcting_run(repository):
+    repository.create_project("project.example", {"name": "Example"})
+    raw = repository.record_raw_command(
+        "request.example", "project.example", "a" * 64, {"artifact": "raw"}
+    )
+    command = {"command_id": "command.example", "phase": "P4", "mode": "p4.preliminary"}
+    repository.seal_command(
+        "command.example", "project.example", raw.row["request_id"],
+        "request-example", "b" * 64, command,
+    )
+    payload = {
+        "phase": "P4",
+        "mode": "p4.preliminary",
+        "requested_at": "2026-08-26T02:00:00Z",
+        "requested_by": "researcher.local",
+        "instructions": "Run preliminary empirical work.",
+        "phase_contract_version": "2.3.0",
+        "phase_contract_sha256": "c" * 64,
+        "stage_plan": [],
+        "findings": [
+            {
+                "code": "output.required_missing",
+                "message": "Required output was not produced.",
+                "blocks_publication": True,
+                "finding_class": "correctable_contract_error",
+            }
+        ],
+    }
+    event = {"event_type": "run.failed", "message": "Run failed."}
+    repository.create_run(
+        "run.example", "project.example", "command.example", "correcting",
+        payload, "event.example", _digest(event), event,
+    )
+    return "run.example"
+
+
+def test_spent_scientific_lane_disables_descriptor(tmp_path) -> None:
+    repository = HubRepository(tmp_path / "hub.sqlite3")
+    repository.initialize()
+    run_id = _correcting_run(repository)
+    row = repository.get_run(run_id)
+
+    from model_forge.application.run_views import run_summary_view
+
+    fresh = run_summary_view(row, correction_attempts=(0, 0))
+    scientific = next(a for a in fresh.actions if a.action_type == "revise_scientific_content")
+    assert scientific.enabled
+
+    spent = run_summary_view(row, correction_attempts=(0, 1))
+    scientific = next(a for a in spent.actions if a.action_type == "revise_scientific_content")
+    assert not scientific.enabled
+    assert scientific.reason_code == "correction.attempt_spent"
+    assert "already spent" in (scientific.researcher_message or "")
+    packaging = next(a for a in spent.actions if a.action_type == "package_run_outputs")
+    assert packaging.enabled  # the packaging lane is independent

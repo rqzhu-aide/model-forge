@@ -5,8 +5,9 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
-from typing import Any
+from typing import Any, Literal
 
+from .correction import check_correction_bounds
 from ..api.models import (
     ActionDescriptor,
     FindingGroupView,
@@ -57,10 +58,31 @@ def run_event_view(row: sqlite3.Row) -> RunEvent:
     )
 
 
+def _lane_available(
+    correction_attempts: tuple[int, int] | None,
+    lane: Literal["packaging", "scientific"],
+) -> bool:
+    """Whether a bounded correction lane still has its one attempt (HV-5.6).
+
+    ``correction_attempts`` is (packaging, scientific) attempt counts; None
+    means the counts were not loaded (list views) and the descriptor stays
+    optimistic — the command-time bounds gate remains the authority.
+    """
+    if correction_attempts is None:
+        return True
+    packaging, scientific = correction_attempts
+    return check_correction_bounds(
+        correction_type=lane,
+        prior_packaging_attempts=packaging,
+        prior_scientific_attempts=scientific,
+    )
+
+
 def run_summary_view(
     row: sqlite3.Row,
     *,
     has_publication: bool = False,
+    correction_attempts: tuple[int, int] | None = None,
 ) -> RunSummary:
     payload = _payload(row)
     state = str(row["status"])
@@ -143,7 +165,18 @@ def run_summary_view(
                 ),
                 action_type="package_run_outputs",
                 execution_kind="control_transaction",
-                enabled=True,
+                enabled=_lane_available(correction_attempts, "packaging"),
+                reason_code=(
+                    None
+                    if _lane_available(correction_attempts, "packaging")
+                    else "correction.attempt_spent"
+                ),
+                researcher_message=(
+                    None
+                    if _lane_available(correction_attempts, "packaging")
+                    else "The bounded packaging correction attempt for this run "
+                    "was already spent. Start a full phase rerun."
+                ),
                 consequence_summary=(
                     "Re-invoke the role to fix envelope/format issues only; "
                     "one bounded attempt."
@@ -160,7 +193,18 @@ def run_summary_view(
                 ),
                 action_type="revise_scientific_content",
                 execution_kind="control_transaction",
-                enabled=True,
+                enabled=_lane_available(correction_attempts, "scientific"),
+                reason_code=(
+                    None
+                    if _lane_available(correction_attempts, "scientific")
+                    else "correction.attempt_spent"
+                ),
+                researcher_message=(
+                    None
+                    if _lane_available(correction_attempts, "scientific")
+                    else "The bounded scientific correction attempt for this run "
+                    "was already spent. Start a full phase rerun."
+                ),
                 consequence_summary=(
                     "Re-invoke the role to revise the scientific content "
                     "within the frozen scope; one bounded attempt."
@@ -191,10 +235,13 @@ def run_detail_view(
     manifest_row: sqlite3.Row | None,
     publication_row: sqlite3.Row | None = None,
     execution_activity: tuple[sqlite3.Row, ...] = (),
+    correction_attempts: tuple[int, int] | None = None,
 ) -> RunDetail:
     payload = _payload(row)
     receipt_present = publication_row is not None
-    summary = run_summary_view(row, has_publication=receipt_present)
+    summary = run_summary_view(
+        row, has_publication=receipt_present, correction_attempts=correction_attempts
+    )
     manifest = _payload(manifest_row) if manifest_row is not None else {}
     events = [run_event_view(item) for item in event_rows]
     stage_states = payload.get("stage_states", {})

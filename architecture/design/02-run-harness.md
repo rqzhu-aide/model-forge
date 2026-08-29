@@ -151,6 +151,8 @@ The user selects every run and rerun. The command must state:
 
 UI defaults are conveniences. The backend receives the resolved values, not an instruction to infer them later.
 
+At preparation the exact contract document bytes are content-addressed into the artifact store (`phase_contract_frozen` purpose). Submission, execution, and corrections resolve the run's plan from those frozen bytes whenever the sealed version or digest differs from the currently loaded registry, re-pinning the recovered document through the digest registry before use. A contract version bump therefore never orphans an in-flight or correctable run; if the frozen bytes are genuinely unrecoverable, the correction command fails with `CORRECTION_NOT_APPLICABLE` rather than an internal error.
+
 An authorized remote operator may issue the same command on the user's behalf. The command records both the user authority and operating identity.
 
 Remote operation requires an active `DelegationGrant` whose project, action, and

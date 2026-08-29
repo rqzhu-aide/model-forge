@@ -52,5 +52,20 @@ class SpecificationPackage:
             context_policy,
         )
 
+    def resolve_phase_frozen(
+        self,
+        document: Mapping[str, Any],
+        mode_id: str,
+        choice_values: Mapping[str, Any],
+        context_policy: str,
+    ) -> ResolvedPhasePlan:
+        """Resolve a plan from frozen contract bytes (superseded versions)."""
+        return self.phases.resolve_frozen(
+            document,
+            mode_id,
+            choice_values,
+            context_policy,
+        )
+
 
 __all__ = ["SpecificationPackage"]

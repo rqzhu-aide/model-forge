@@ -491,6 +491,9 @@ For formal control commands, the backend exposes typed action descriptors for:
 Each descriptor contains the exact target identity and digest, current state,
 allowed transition, expected control head, reason requirements, enabled state,
 reason code when disabled, consequence summary, and affected-dependent preview.
+Correction descriptors reflect the bounded-attempt lanes: once a packaging or
+scientific attempt is spent, the corresponding action is disabled with the
+`correction.attempt_spent` reason code instead of failing at command time.
 
 The Phase 2 method table presents retire, reactivate, or activate according to
 the current lifecycle state. Withdrawal appears in the selected formal record's

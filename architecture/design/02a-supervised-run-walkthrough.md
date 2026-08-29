@@ -40,7 +40,7 @@ order, all before returning:
    (`replayed: true`) instead of a second launch.
 2. **Project-role state lock**: one run per (project, role); a second start
    while one is live gets `SUPERVISED_RUN_LOCKED` 409.
-3. **Seal** (`run_profile_assembler.seal_run`): creates
+3. **Seal** (`run_profile_assembler.seal_invocation`): creates
    `~/.model-forge/runs/<invocation_id>/`, writes the manifest (brief hash,
    expected outputs, timeout, resolved Hermes binary, memory policy), hashes
    it, registers it in `hub.sqlite3` (`run_profile_seals`,

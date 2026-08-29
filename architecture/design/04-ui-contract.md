@@ -60,7 +60,7 @@ The UI consumes read-only view models produced by backend projection services.
 
 ### 3.1 Project overview
 
-`ProjectOverviewView` contains:
+`ProjectOverview` contains:
 
 - Project question and domains.
 - Current literature basis summary.
@@ -71,7 +71,7 @@ The UI consumes read-only view models produced by backend projection services.
 
 ### 3.2 Method row
 
-`MethodRowView` contains:
+`MethodRow` contains:
 
 - Stable method ID, display name, version, and lifecycle state.
 - Compact method definition summary.
@@ -99,7 +99,7 @@ The row must not collapse "not run," "outdated," "inconclusive," and "failed exe
 
 ### 3.4 Run view
 
-`RunView` contains:
+`RunDetail` contains:
 
 - Run ID, phase, mode, selected method, and requesting actor.
 - Frozen contract, input, prepared-context, and manifest summary with digests.
@@ -181,7 +181,7 @@ The run command also accepts the researcher seed channel (ADR-019): a `seed_inpu
 
 The project overview carries a "Supplementary material" shelf panel: material is attached once per project - copied in (paste text or attach a small file up to 1 MB; the bytes are content-addressed into the project artifact store) or kept external as a link (the URL itself is kept; anything derived from it is generated inside the project workspace). The shelf is informal, mutable project state: entries can be removed, but the content-addressed bytes survive removal because runs may have sealed them.
 
-The run form exposes the channel as a "Supplementary material" section with up to four choices: none, from the project shelf (seal a shelf item; the exact stored bytes or link are fetched at launch and pinned inside the sealed command), copy into the project record (attach new small material inline), or external link (sealed as `text/uri-list`). The final command review lists the attached material with its size and media type. On the run page, frozen basis entries seeded this way carry a "researcher material" provenance badge; published inputs stay unmarked.
+The run form exposes the channel as a "Supplementary material" section with up to four choices: none, from the project shelf (seal a shelf item; the exact stored bytes or link are fetched at launch and pinned inside the sealed command), copy into the project record (attach new small material inline), or external link (sealed as `text/uri-list`). The final command review lists the attached material - with size and media type for copy-in material, and by name or URL for shelf and link choices. On the run page, frozen basis entries seeded this way carry a "researcher material" provenance badge; published inputs stay unmarked.
 
 ### 4.5 History panel
 
@@ -305,7 +305,7 @@ The backend returns possible actions as typed action descriptors:
   "issued_at": "2026-08-02T14:00:00Z",
   "command_contract": {
     "phase": "P3",
-    "phase_contract_version": "2.0.0",
+    "phase_contract_version": "2.5.0",
     "phase_contract_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
     "mode": "p3.theory_establishment"
   }
@@ -326,7 +326,10 @@ Typed actions include `start_run`, `cancel_run`, `retire_method`,
 `reactivate_method`, and `withdraw_formal_generation`. Cancellation appears only
 while an exact run remains before immutable submission. Retirement and
 reactivation appear with the Phase 2 method table. Withdrawal appears in
-formal-record correction controls, not in an ordinary phase-run panel. A
+formal-record correction controls, not in an ordinary phase-run panel.
+(Withdrawal is specified here and in 09 but not yet implemented end to end: the
+schemas, examples, and the `withdraw_formal_generation` action type exist, while
+the API endpoint, service method, and UI control are still open.) A
 confirmation form is part of command construction; it is not a second generic
 approval state. No control command launches a phase.
 
@@ -350,7 +353,9 @@ or terminal runs.
 
 Use only the canonical run states: `created`, `preparing`, `prepared`, `running`,
 `cancellation_requested`, `submitted`, `validating`, `promoting`, `published`,
-`failed`, `rejected`, `conflicted`, or `cancelled`. The display label for
+`failed`, `rejected`, `conflicted`, or `cancelled`. Correction supervision adds
+three further states (02 §2.3-2.4): `correction_authorized`, `correcting`, and
+`correction_exhausted`. The display label for
 `promoting` may be "Publishing," but the persisted value does not change.
 
 ### 7.2 Publication authority

@@ -31,8 +31,8 @@ The current validator checks:
 - independent schema validation of every split phase contract and contiguous
   per-mode stage sequences;
 - exact traceability across `INV-001` through `INV-022`, `IT-001` through
-  `IT-022`, `MF-01` through `MF-60`, all 12 scenario documents, phase acceptance
-  lists, and `M0` through `M9`;
+  `IT-022`, `MF-01` through `MF-75`, all 31 scenario documents, phase acceptance
+  lists, and the milestone ids (`M2` through `M7`, `M9`);
 - local Markdown links, forbidden long dash characters, trailing whitespace, and
   unambiguous RFC 8785 wording in schema descriptions;
 - fixed phase modes, role order, stage reads and writes, prepared contexts, and

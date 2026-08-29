@@ -3,6 +3,13 @@
 Status: for Tez. Each item needs a decision; none blocks the running fresh
 cycle. Recommendations are the coder's, prepared for audit.
 
+Audit 2026-08-28 status line: D-1, D-7, and D-9 are decided and landed.
+D-2 is CLOSED (stale premise - the code already implements its option (a);
+see the item). D-4 is DECIDED (FP closure sweep, commit 4a761f1). FP-7 is
+CLOSED. Still waiting on Tez: D-3 (method activation transaction) and
+D-5 (hidden vs dimmed context options). D-6 and D-8 remain open by
+design/partially mitigated as documented in their items.
+
 ## D-1. P0-2: P5 contract presence model (context-selection issues) - RESOLVED
 
 DECIDED by Tez 2026-08-26: the mode boundary is not a schema problem to be
@@ -38,7 +45,15 @@ Landed (P5 contract 2.3.0 -> 2.4.0):
 History: the original D-1 analysis (options a/b/c, recommendation b)
 superseded by Tez's direction.
 
-## D-2. K-1 D5: revalidate unreachable for REJECTED runs
+## D-2. K-1 D5: revalidate unreachable for REJECTED runs - CLOSED (stale premise)
+
+Audit 2026-08-28: the premise below is refuted by the code. Correction
+eligibility already includes `rejected` (service.py:2299 and :3022), and
+`_correction_target_closure` implements exactly option (a): for REJECTED runs
+it targets the newest SUCCEEDED closure covering the requested scope
+(service.py:2870-2890). This has been in the code since before this memo
+(commit 90f84f1, 2026-08-23). Retained below as the historical record; no
+decision is needed.
 
 The correction command path targets the newest FAILED closure; a REJECTED
 run (submission rejected at the gate) has no failed closure, so revalidate
@@ -76,7 +91,11 @@ record one bit of user intent; the activation IS a user decision by
 design, so a direct sealed transaction is the honest shape. Small package:
 lifecycle transition extension + command path + UI action + tests.
 
-## D-4. FP-8: parallel-stage isolation (design)
+## D-4. FP-8: parallel-stage isolation (design) - DECIDED 2026-08-28
+
+DECIDED in the instruction-output-integrity closure record
+(archive/instruction-output-integrity-fix-plan.md, "FP-8 decisions";
+commit 4a761f1): designed-deferred, matching the recommendation below.
 
 Should P1 discovery and P5 parallel reviews get harness-enforced read
 scoping instead of instruction-only isolation? This is a contract plus
@@ -228,9 +247,12 @@ Observed 2026-08-26 (P5 run d93f5891 rejected, submission.validation_failed):
    suspect.  Legitimate skips (no validator for the phase; no phase-prefixed
    outputs at all) remain skips.
 
-## FP-7 status (frontend small repairs)
+## FP-7 status (frontend small repairs) - CLOSED 2026-08-28
 
-Being handled in this sweep as code items where the intent is unambiguous
+All FP-7 items landed and verified in the instruction-output-integrity
+closure sweep (commits fac1b2c, 4a761f1; closure record in
+archive/instruction-output-integrity-fix-plan.md). Original note: being
+handled in this sweep as code items where the intent is unambiguous
 (validation-report link, size badge, fetch routing, retired-panel cleanup).
 FP-7.4 (per-option deselection) is folded into D-4/D-5 and stays with the
 design decision.

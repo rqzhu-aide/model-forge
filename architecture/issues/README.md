@@ -12,7 +12,8 @@ items are marked in place and the document retires to
   recommendations and wait on Tez.
 - [context-selection-issues.md](context-selection-issues.md) - cross-phase
   context-card audit findings (2026-08-07). P0-2 is RESOLVED (folded into
-  memo D-1 and landed 2026-08-26 with P5 contract 2.4.0); the remaining
+  memo D-1 and landed 2026-08-26 with P5 contract 2.4.0; P5 is now at
+  2.5.0 under ADR-019); the remaining
   findings predate the current UI and need re-verification before further
   work is scheduled.
 - [10-open-implementation-gaps.md](10-open-implementation-gaps.md) -

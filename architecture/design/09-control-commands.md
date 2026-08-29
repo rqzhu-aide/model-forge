@@ -328,18 +328,24 @@ Every rejected run, cancellation, lifecycle, or withdrawal command returns a `Co
 | `RUN_ALREADY_SUBMITTED` | `transition` | 409 | no | `MF-59` |
 | `CANCELLATION_REQUESTED` | `concurrency` | 409 | no | `MF-59` |
 | `CONTROL_HEAD_STALE` | `concurrency` | 409 | yes | `MF-49` |
+| `STALE_BASIS` | `concurrency` | 409 | yes | `MF-49` |
 | `TARGET_STATE_MISMATCH` | `concurrency` | 409 | yes | `MF-49` |
 | `TARGET_NOT_FOUND` | `dependency` | 404 | no | `MF-59` |
 | `DEPENDENCY_CLOSURE_INCOMPLETE` | `dependency` | 422 | yes | `MF-59` |
 | `NO_STATE_CHANGE` | `transition` | 409 | no | `MF-47` |
 | `PUBLICATION_CONFLICT` | `concurrency` | 409 | yes | `MF-56` |
+| `CUSTOMIZATION_CONFLICT` | `transition` | 409 | no | `MF-49` |
+| `ROLE_PROVISIONING_FAILED` | `transition` | 500 | yes | `MF-59` |
+| `SUPERVISED_RUN_INVALID` | `schema` | 400 | yes | `MF-60` |
+| `SUPERVISED_RUN_LOCKED` | `concurrency` | 409 | no | `MF-61` |
+| `SUPERVISED_RUN_PREFLIGHT_FAILED` | `dependency` | 409 | yes | `MF-62` |
 | `CORRECTION_NOT_APPLICABLE` | `transition` | 409 | no | `MF-73` |
 | `CORRECTION_SCOPE_INVALID` | `schema` | 400 | yes | `MF-74` |
 | `CORRECTION_EXHAUSTED` | `transition` | 409 | no | `MF-75` |
 
 The `CommandError` schema enforces this mapping. A code cannot be paired with a different category, HTTP status, retryability value, or rule.
 
-HTTP status is transport metadata. The stable code and `MH` rule identify the architecture failure. `retryable: true` means that a new command may be prepared after the stated correction; it never authorizes automatic retry.
+HTTP status is transport metadata. The stable code and `MF` rule identify the architecture failure. `retryable: true` means that a new command may be prepared after the stated correction; it never authorizes automatic retry.
 
 ## 7. RunCancellationCommand
 

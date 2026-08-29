@@ -42,6 +42,7 @@ ActionType = Literal[
     "cancel_run",
     "retire_method",
     "reactivate_method",
+    "activate_method",
     "withdraw_formal_generation",
     "update_project_brief",
     "save_profile",

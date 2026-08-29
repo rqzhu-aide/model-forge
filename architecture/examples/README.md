@@ -1,6 +1,6 @@
 # Coherent example record set
 
-This directory contains 64 valid examples. Its central connected record set
+This directory contains 65 valid examples. Its central connected record set
 describes one fictional statistical method and one user-launched Phase 4
 preliminary run. Focused examples cover deterministic digests, method identity,
 role context, cancellation, action descriptions, remote delegation, control

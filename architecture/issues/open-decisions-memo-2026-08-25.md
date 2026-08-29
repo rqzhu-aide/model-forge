@@ -5,10 +5,11 @@ cycle. Recommendations are the coder's, prepared for audit.
 
 Audit 2026-08-28 status line: D-1, D-7, and D-9 are decided and landed.
 D-2 is CLOSED (stale premise - the code already implements its option (a);
-see the item). D-4 is DECIDED (FP closure sweep, commit 4a761f1). FP-7 is
-CLOSED. Still waiting on Tez: D-3 (method activation transaction) and
-D-5 (hidden vs dimmed context options). D-6 and D-8 remain open by
-design/partially mitigated as documented in their items.
+see the item). D-3 is DECIDED (activate_method sealed transaction landed
+2026-08-28). D-4 is DECIDED (FP closure sweep, commit 4a761f1). FP-7 is
+CLOSED. Still waiting on Tez: D-5 (hidden vs dimmed context options). D-6
+and D-8 remain open by design/partially mitigated as documented in their
+items.
 
 ## D-1. P0-2: P5 contract presence model (context-selection issues) - RESOLVED
 
@@ -70,7 +71,13 @@ Recommendation: (b). A rejection means the submission itself was not
 publishable; re-running with corrected instructions is the honest path,
 and the fresh-cycle evidence shows re-runs are cheap (~35-75 min).
 
-## D-3. User activation of proposed methods costs a full P2 run
+## D-3. User activation of proposed methods costs a full P2 run - DECIDED 2026-08-28
+
+DECIDED by Tez 2026-08-28: option (a) landed. `activate_method` is a sealed
+user control transaction (proposed -> active) through the same atomic
+method+catalog command path as retire/reactivate; the Phase 2 method table
+offers Activate for proposed methods. No Phase 2 rerun is required. Original
+analysis retained below.
 
 Discovered 2026-08-24: P3/P4 require the selected method lifecycle =
 active, and the only path from proposed to active is a P2 publication

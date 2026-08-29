@@ -116,7 +116,11 @@ class ResearchProjectionService:
                 str(item.get("statement", "")) if type(item) is dict else str(item)
                 for item in assumptions
             ]
-            action_type = "reactivate_method" if lifecycle == "retired" else "retire_method"
+            action_type = (
+                "reactivate_method"
+                if lifecycle == "retired"
+                else ("activate_method" if lifecycle == "proposed" else "retire_method")
+            )
             result.append(
                 MethodRow(
                     identity=ApiMethodIdentity.model_validate(identity.to_dict()),
@@ -157,44 +161,35 @@ class ResearchProjectionService:
                             action_type=action_type,
                             execution_kind="control_transaction",
                             enabled=(
-                                lifecycle in {"active", "retired"}
+                                lifecycle in {"proposed", "active", "retired"}
                                 and not active_run_exists
                                 and catalog is not None
                             ),
                             reason_code=(
                                 None
                                 if (
-                                    lifecycle in {"active", "retired"}
+                                    lifecycle in {"proposed", "active", "retired"}
                                     and not active_run_exists
                                     and catalog is not None
                                 )
                                 else (
-                                    "method.proposed_requires_phase_2"
-                                    if lifecycle == "proposed"
-                                    else (
-                                        "control.active_run"
-                                        if active_run_exists
-                                        else "method.catalog_missing"
-                                    )
+                                    "control.active_run"
+                                    if active_run_exists
+                                    else "method.catalog_missing"
                                 )
                             ),
                             researcher_message=(
                                 None
                                 if (
-                                    lifecycle in {"active", "retired"}
+                                    lifecycle in {"proposed", "active", "retired"}
                                     and not active_run_exists
                                     and catalog is not None
                                 )
                                 else (
-                                    "A proposed method must be activated by a Phase 2 "
-                                    "research publication."
-                                    if lifecycle == "proposed"
-                                    else (
-                                        "Wait for active research runs to finish or cancel "
-                                        "them before changing the method portfolio."
-                                        if active_run_exists
-                                        else "A current Phase 2 method catalog is required."
-                                    )
+                                    "Wait for active research runs to finish or cancel "
+                                    "them before changing the method portfolio."
+                                    if active_run_exists
+                                    else "A current Phase 2 method catalog is required."
                                 )
                             ),
                             consequence_summary=(

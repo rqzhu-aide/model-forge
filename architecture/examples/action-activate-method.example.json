@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0.0",
-  "descriptor_id": "action.reactivate.method.001",
-  "action_type": "reactivate_method",
+  "descriptor_id": "action.activate.method.001",
+  "action_type": "activate_method",
   "execution_kind": "control_transaction",
   "project_id": "project.demo",
   "enabled": true,
-  "researcher_message": "Reactivate this method for ordinary Phase 3 and Phase 4 launches.",
+  "researcher_message": "Activate this proposed method for Phase 3 and Phase 4 launches.",
   "authorization": {
     "status": "direct_user",
     "user_id": "researcher.demo"
@@ -22,7 +22,7 @@
       "version": 2,
       "definition_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
     },
-    "lifecycle_state": "retired"
+    "lifecycle_state": "proposed"
   },
   "expected_catalog": {
     "record_id": "record.method_catalog.current",

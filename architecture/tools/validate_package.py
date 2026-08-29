@@ -30,6 +30,7 @@ EXAMPLES = ARCHITECTURE / "examples"
 CONTRACTS = ARCHITECTURE / "contracts"
 
 VALID_EXAMPLES = {
+    "action-activate-method.example.json": "action-descriptor.schema.json",
     "action-cancel-run.example.json": "action-descriptor.schema.json",
     "action-reactivate-method.example.json": "action-descriptor.schema.json",
     "action-retire-method.example.json": "action-descriptor.schema.json",
@@ -1485,6 +1486,7 @@ def validate_control_and_context_semantics() -> list[str]:
     """Validate action, cancellation, delegation, and role-context relationships."""
     errors: list[str] = []
     action_files = {
+        "activate_method": "action-activate-method.example.json",
         "cancel_run": "action-cancel-run.example.json",
         "reactivate_method": "action-reactivate-method.example.json",
         "retire_method": "action-retire-method.example.json",
@@ -1496,16 +1498,17 @@ def validate_control_and_context_semantics() -> list[str]:
         for action_type, example_name in action_files.items()
     }
     if {item["action_type"] for item in actions.values()} != set(action_files):
-        errors.append("typed action examples do not cover the five action branches exactly")
+        errors.append("typed action examples do not cover the six action branches exactly")
     descriptor_ids = [item["descriptor_id"] for item in actions.values()]
     if len(descriptor_ids) != len(set(descriptor_ids)):
         errors.append("typed action descriptor IDs must be unique")
     expected_execution_kind = {
         "start_run": "research_run",
-        "cancel_run": "run_cancellation",
-        "retire_method": "formal_control_transaction",
-        "reactivate_method": "formal_control_transaction",
-        "withdraw_formal_generation": "formal_control_transaction",
+        "cancel_run": "control_transaction",
+        "retire_method": "control_transaction",
+        "reactivate_method": "control_transaction",
+        "activate_method": "control_transaction",
+        "withdraw_formal_generation": "control_transaction",
     }
     for action_type, action in actions.items():
         if action["action_type"] != action_type:
@@ -1527,6 +1530,7 @@ def validate_control_and_context_semantics() -> list[str]:
     for action_type, expected_prior, expected_target in (
         ("retire_method", "active", "retired"),
         ("reactivate_method", "retired", "active"),
+        ("activate_method", "proposed", "active"),
     ):
         action = actions[action_type]
         if (

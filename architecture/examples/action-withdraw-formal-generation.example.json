@@ -1,40 +1,40 @@
 {
-    "schema_version":  "1.0.0",
-    "descriptor_id":  "action.withdraw.generation.001",
-    "action_type":  "withdraw_formal_generation",
-    "execution_kind":  "formal_control_transaction",
-    "project_id":  "project.demo",
-    "enabled":  false,
-    "reason_code":  "DELEGATION_NOT_ACTIVE",
-    "researcher_message":  "An active grant covering this exact generation is required for remote withdrawal.",
-    "authorization":  {
-                          "status":  "delegation_not_active",
-                          "user_id":  "researcher.demo",
-                          "operator_id":  "operator.hermes.demo",
-                          "delegation_id":  "delegation.research.operator.001",
-                          "reason":  "revoked"
-                      },
-    "consequence_summary":  "Withdrawal preserves the immutable generation but removes it from eligible use and propagates dependency impacts.",
-    "issued_at":  "2026-08-02T18:01:00Z",
-    "target":  {
-                   "record_id":  "record.theory.overlap_stabilized_score",
-                   "record_type":  "theory_record",
-                   "generation_id":  "generation.theory.overlap_stabilized_score.003",
-                   "content_sha256":  "7777777777777777777777777777777777777777777777777777777777777777"
-               },
-    "expected_target_state":  {
-                                  "publication_state":  "formal",
-                                  "record_position":  "current",
-                                  "record_state_sha256":  "8888888888888888888888888888888888888888888888888888888888888888"
-                              },
-    "expected_control_head":  {
-                                  "current_index_generation_id":  "generation.current_index.041",
-                                  "current_index_sha256":  "9999999999999999999999999999999999999999999999999999999999999999",
-                                  "last_event_sequence":  44,
-                                  "event_root_sha256":  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                              },
-    "affected_dependents":  [
-                                "record.manuscript.overlap_stabilized_score"
-                            ],
-    "reason_required":  true
+  "schema_version": "1.0.0",
+  "descriptor_id": "action.withdraw.generation.001",
+  "action_type": "withdraw_formal_generation",
+  "execution_kind": "control_transaction",
+  "project_id": "project.demo",
+  "enabled": false,
+  "reason_code": "DELEGATION_NOT_ACTIVE",
+  "researcher_message": "An active grant covering this exact generation is required for remote withdrawal.",
+  "authorization": {
+    "status": "delegation_not_active",
+    "user_id": "researcher.demo",
+    "operator_id": "operator.hermes.demo",
+    "delegation_id": "delegation.research.operator.001",
+    "reason": "revoked"
+  },
+  "consequence_summary": "Withdrawal preserves the immutable generation but removes it from eligible use and propagates dependency impacts.",
+  "issued_at": "2026-08-02T18:01:00Z",
+  "target": {
+    "record_id": "record.theory.overlap_stabilized_score",
+    "record_type": "theory_record",
+    "generation_id": "generation.theory.overlap_stabilized_score.003",
+    "content_sha256": "7777777777777777777777777777777777777777777777777777777777777777"
+  },
+  "expected_target_state": {
+    "publication_state": "formal",
+    "record_position": "current",
+    "record_state_sha256": "8888888888888888888888888888888888888888888888888888888888888888"
+  },
+  "expected_control_head": {
+    "current_index_generation_id": "generation.current_index.041",
+    "current_index_sha256": "9999999999999999999999999999999999999999999999999999999999999999",
+    "last_event_sequence": 44,
+    "event_root_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "affected_dependents": [
+    "record.manuscript.overlap_stabilized_score"
+  ],
+  "reason_required": true
 }

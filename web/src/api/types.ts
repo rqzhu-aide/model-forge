@@ -31,6 +31,7 @@ export type ActionType =
   | "cancel_run"
   | "retire_method"
   | "reactivate_method"
+  | "activate_method"
   | "withdraw_formal_generation"
   | "save_profile"
   | "install_skill"

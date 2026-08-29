@@ -6,10 +6,12 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 
 from model_forge import __version__
 from model_forge.api import create_app
+from model_forge.api.errors import CommandRejected
 from model_forge.api.models import (
     CreateProjectRequest,
     ReasonedActionRequest,
@@ -419,6 +421,86 @@ def test_method_lifecycle_preserves_identity_catalog_and_history(
         active = (await service.list_methods(project_id))[0]
         assert active.lifecycle_state == "active"
         assert active.identity == before.identity
+
+    asyncio.run(scenario())
+
+
+def test_proposed_method_activates_via_sealed_command(tmp_path: Path) -> None:
+    """D-3: a proposed method activates directly, no Phase 2 rerun needed."""
+
+    async def scenario() -> None:
+        service, repository, artifacts = _service(tmp_path)
+        project_id = await _create_project(service)
+        original = _publish_method_catalog(
+            repository,
+            artifacts,
+            project_id,
+            method_mutator=lambda method: method.update(
+                {"lifecycle_state": "proposed"}
+            ),
+        )
+        method_id = str(original["identity"]["stable_id"])
+
+        before = (await service.list_methods(project_id))[0]
+        assert before.lifecycle_state == "proposed"
+        action = before.actions[0]
+        assert action.action_type == "activate_method"
+        assert action.enabled
+
+        activate = ReasonedActionRequest(
+            action_descriptor_id=action.descriptor_id,
+            reason="Select this proposed method for Phase 3 theory work.",
+        )
+        body = json.dumps(activate.model_dump(mode="json"), sort_keys=True).encode()
+        raw = await service.preserve_raw_request(
+            _raw(
+                body,
+                family="method_lifecycle",
+                key="activate-method",
+                project_id=project_id,
+            )
+        )
+        await service.change_method_lifecycle(
+            project_id, method_id, activate, raw_request=raw
+        )
+
+        active = (await service.list_methods(project_id))[0]
+        assert active.lifecycle_state == "active"
+        assert active.identity == before.identity
+        assert active.actions[0].action_type == "retire_method"
+        catalog = repository.get_current_record(
+            project_id, "p2.method_catalog.current"
+        )
+        assert catalog is not None
+        assert json.loads(catalog["payload_json"])["methods"][0][
+            "lifecycle_state"
+        ] == "active"
+        assert len(
+            service.queries.list_formal_generations(
+                project_id, record_type="method_record"
+            )
+        ) == 2
+        assert service.queries.list_runs(project_id) == ()
+
+        # A second activation against the stale descriptor is rejected.
+        stale = ReasonedActionRequest(
+            action_descriptor_id=action.descriptor_id,
+            reason="Attempt to activate from the pre-activation basis.",
+        )
+        stale_body = json.dumps(stale.model_dump(mode="json"), sort_keys=True).encode()
+        stale_raw = await service.preserve_raw_request(
+            _raw(
+                stale_body,
+                family="method_lifecycle",
+                key="activate-method-stale",
+                project_id=project_id,
+            )
+        )
+        with pytest.raises(CommandRejected) as excinfo:
+            await service.change_method_lifecycle(
+                project_id, method_id, stale, raw_request=stale_raw
+            )
+        assert excinfo.value.error.code == "CONTROL_HEAD_STALE"
 
     asyncio.run(scenario())
 

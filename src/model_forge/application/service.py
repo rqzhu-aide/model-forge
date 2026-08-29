@@ -1133,7 +1133,8 @@ class ModelForgeService:
             (
                 item
                 for item in method.actions
-                if item.action_type in {"retire_method", "reactivate_method"}
+                if item.action_type
+                in {"retire_method", "reactivate_method", "activate_method"}
             ),
             None,
         )
@@ -1160,7 +1161,7 @@ class ModelForgeService:
             )
         target_state = (
             "retired" if action.action_type == "retire_method" else "active"
-        )
+        )  # activate_method and reactivate_method both target "active"
         now = utc_now()
         project = self.repository.get_project(project_id)
         method_row = self.repository.get_current_record(

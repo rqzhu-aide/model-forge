@@ -1,4 +1,4 @@
-"""Atomic method retirement and reactivation control transactions."""
+"""Atomic method activation, retirement, and reactivation control transactions."""
 
 from __future__ import annotations
 
@@ -60,12 +60,17 @@ class MethodLifecycleCommandService:
         if type(identity) is not dict or identity.get("stable_id") != method_id:
             raise ValueError("The selected method does not match its current formal slot.")
         prior_state = str(prior_method.get("lifecycle_state", "proposed"))
-        legal = {("active", "retired"), ("retired", "active")}
+        legal = {
+            ("active", "retired"),
+            ("retired", "active"),
+            ("proposed", "active"),
+        }
         if (prior_state, target_state) not in legal:
             if prior_state == target_state:
                 raise ValueError("The method is already in the requested lifecycle state.")
             raise ValueError(
-                "Only active methods may be retired and only retired methods may be reactivated."
+                "Only proposed methods may be activated, active methods retired, "
+                "and retired methods reactivated."
             )
 
         prior_catalog = row_json(catalog_row)

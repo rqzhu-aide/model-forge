@@ -323,9 +323,10 @@ An enabled action states:
 - Whether publication replaces a current record, appends evidence, updates a catalog, or withdraws one exact generation.
 
 Typed actions include `start_run`, `cancel_run`, `retire_method`,
-`reactivate_method`, and `withdraw_formal_generation`. Cancellation appears only
-while an exact run remains before immutable submission. Retirement and
-reactivation appear with the Phase 2 method table. Withdrawal appears in
+`reactivate_method`, `activate_method`, and `withdraw_formal_generation`.
+Cancellation appears only
+while an exact run remains before immutable submission. Retirement,
+reactivation, and activation appear with the Phase 2 method table. Withdrawal appears in
 formal-record correction controls, not in an ordinary phase-run panel.
 (Withdrawal is specified here and in 09 but not yet implemented end to end: the
 schemas, examples, and the `withdraw_formal_generation` action type exist, while

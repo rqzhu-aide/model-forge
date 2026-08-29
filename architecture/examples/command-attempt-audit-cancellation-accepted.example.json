@@ -34,7 +34,7 @@
     "authentication_check": "passed",
     "delegation_check": {
       "grant_id": "delegation.research.operator.001",
-      "grant_sha256": "e55f7512a94764c1d35c9de2d83075ee089c7e93bf7dc8ffbab73dc247006dbb",
+      "grant_sha256": "1280be75c6230b2690191cc84e190085af0fe710e560ce8e7f7290bc99bc5a93",
       "project_scope_check": "passed",
       "action_scope_check": "passed",
       "target_scope_check": "passed",
@@ -51,7 +51,7 @@
     }
   },
   "occurred_at": "2026-08-02T14:20:00Z",
-  "prior_audit_root_sha256": "9f29927bd8ae181311942f9574fdb6418c9ef0202086e1c4d4ff21976d611577",
-  "content_sha256": "595b8fbd5617814222a5ca4b43156adb5c53e5d8e6cf3acd63678d0da022a3d0",
-  "audit_root_sha256": "695daf074693d3b78136ea5ba325ce2fc6f070a5c01861a54f4cd3d148bcf7d5"
+  "prior_audit_root_sha256": "cae7520151625444ed87337e498c40fbbbb718550bb2373e03c74b1b38b3a210",
+  "content_sha256": "a8911a22b5a0c3c9872afbd34683ae95e97fbc756fc04327283ba24010be6f17",
+  "audit_root_sha256": "ac9ebb94b5d3999bff893e15ef96139b5d7716f69905097414711080babe6104"
 }

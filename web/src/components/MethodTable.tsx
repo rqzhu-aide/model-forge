@@ -17,11 +17,19 @@ interface PendingLifecycleAction {
   action: ActionDescriptor;
 }
 
+type LifecycleActionType = "retire_method" | "reactivate_method" | "activate_method";
+
+const LIFECYCLE_VERB: Record<LifecycleActionType, string> = {
+  retire_method: "Retire",
+  reactivate_method: "Reactivate",
+  activate_method: "Activate",
+};
+
 export function methodLifecycleConfirmationTitle(
-  actionType: "retire_method" | "reactivate_method",
+  actionType: LifecycleActionType,
   method: MethodRow,
 ): string {
-  const verb = actionType === "retire_method" ? "Retire" : "Reactivate";
+  const verb = LIFECYCLE_VERB[actionType];
   return `${verb} ${method.display_name}, v${method.identity.version} (definition ${shortDigest(method.identity.definition_sha256)})?`;
 }
 
@@ -72,9 +80,13 @@ export function MethodTable({ projectId, methods }: { projectId: string; methods
           <tbody>
             {methods.map((method) => {
               const lifecycleAction = method.actions.find((action) =>
-                action.action_type === "retire_method" || action.action_type === "reactivate_method",
+                action.action_type === "retire_method" ||
+                action.action_type === "reactivate_method" ||
+                action.action_type === "activate_method",
               );
-              const actionLabel = lifecycleAction?.action_type === "retire_method" ? "Retire" : "Reactivate";
+              const actionLabel = lifecycleAction
+                ? LIFECYCLE_VERB[lifecycleAction.action_type as LifecycleActionType]
+                : "";
               const disabledReason = lifecycleAction && !lifecycleAction.enabled
                 ? (lifecycleAction.researcher_message ?? "This lifecycle change is unavailable in the current method state.")
                 : undefined;
@@ -140,10 +152,10 @@ export function MethodTable({ projectId, methods }: { projectId: string; methods
           open
           action={pending.action}
           title={methodLifecycleConfirmationTitle(
-            pending.action.action_type === "retire_method" ? "retire_method" : "reactivate_method",
+            pending.action.action_type as LifecycleActionType,
             pending.method,
           )}
-          confirmLabel={pending.action.action_type === "retire_method" ? "Retire method" : "Reactivate method"}
+          confirmLabel={`${LIFECYCLE_VERB[pending.action.action_type as LifecycleActionType]} method`}
           busy={mutation.isPending}
           onCancel={() => setPending(undefined)}
           onConfirm={(reason) => mutation.mutate({ ...pending, reason })}

@@ -2,11 +2,14 @@
   "schema_version": "1.0.0",
   "descriptor_id": "action.retire.method.001",
   "action_type": "retire_method",
-  "execution_kind": "formal_control_transaction",
+  "execution_kind": "control_transaction",
   "project_id": "project.demo",
   "enabled": true,
   "researcher_message": "Retire this method from ordinary Phase 3 and Phase 4 launches.",
-  "authorization": {"status": "direct_user", "user_id": "researcher.demo"},
+  "authorization": {
+    "status": "direct_user",
+    "user_id": "researcher.demo"
+  },
   "consequence_summary": "The method and catalog receive lifecycle-only replacement generations; existing scientific records remain formal.",
   "issued_at": "2026-08-02T15:00:00Z",
   "method_id": "method.overlap_stabilized_score",

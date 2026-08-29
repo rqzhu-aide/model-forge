@@ -8,8 +8,8 @@ workspace, or role execution.
 
 Version 1 defines two commands:
 
-1. `MethodLifecycleCommand` retires or reactivates one method through an atomic
-   Phase 2 catalog transaction.
+1. `MethodLifecycleCommand` activates, retires, or reactivates one method
+   through an atomic Phase 2 catalog transaction.
 2. `FormalGenerationWithdrawalCommand` withdraws one exact formal generation
    through an atomic authority transaction.
 
@@ -124,8 +124,11 @@ Only these transitions are legal:
 |---|---|---|
 | `active` | `retired` | Retire method |
 | `retired` | `active` | Reactivate method |
+| `proposed` | `active` | Activate method |
 
-`proposed` activation remains a Phase 2 research publication. A withdrawn formal
+Activation is a direct sealed user transaction (D-3, decided 2026-08-28):
+selecting a proposed method for Phase 3/4 work is a user authority act, sealed
+like retirement, and does not require a Phase 2 rerun. A withdrawn formal
 generation cannot be reactivated. A new command requesting the state already in
 force fails with `NO_STATE_CHANGE`. Repeating a previously committed command with
 the same idempotency key returns its original receipt.
@@ -429,7 +432,8 @@ and a revocation handle. Permissions are action-specific:
   command is covered only when its exact method ID is listed; omitting
   `method_ids` covers only non-method-bound modes in the named phases.
 - `cancel_run` names exact runs or all runs in the project.
-- `retire_method` and `reactivate_method` name exact method IDs.
+- `retire_method`, `reactivate_method`, and `activate_method` name exact method
+  IDs.
 - `withdraw_formal_generation` names exact generation IDs.
 
 Delegation never includes direct formal-record writes, generic target-state
@@ -481,15 +485,16 @@ For formal control commands, the backend exposes typed action descriptors for:
 
 - `retire_method`
 - `reactivate_method`
+- `activate_method`
 - `withdraw_formal_generation`
 
 Each descriptor contains the exact target identity and digest, current state,
 allowed transition, expected control head, reason requirements, enabled state,
 reason code when disabled, consequence summary, and affected-dependent preview.
 
-The Phase 2 method table presents retire or reactivate according to the current
-lifecycle state. Withdrawal appears in the selected formal record's correction
-controls, not in the ordinary phase-run panel. The confirmation view states that:
+The Phase 2 method table presents retire, reactivate, or activate according to
+the current lifecycle state. Withdrawal appears in the selected formal record's
+correction controls, not in the ordinary phase-run panel. The confirmation view states that:
 
 - No research run or role execution will occur.
 - Retirement preserves existing scientific records and history.

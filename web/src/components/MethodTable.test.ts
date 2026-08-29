@@ -27,6 +27,12 @@ describe("method lifecycle confirmation identity", () => {
       "Reactivate Stabilized one-step estimator, v4 (definition 12345678…abcdef)?",
     );
   });
+
+  it("names activation for a proposed method (D-3)", () => {
+    expect(methodLifecycleConfirmationTitle("activate_method", method)).toBe(
+      "Activate Stabilized one-step estimator, v4 (definition 12345678…abcdef)?",
+    );
+  });
 });
 
 describe("method lifecycle cache consistency", () => {

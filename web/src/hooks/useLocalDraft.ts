@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface DraftStorage {
   getItem(key: string): string | null;
@@ -41,8 +41,15 @@ export function writeDraft(storage: DraftStorage | undefined, key: string, value
 export function useLocalDraft(key: string) {
   const [initialDraft] = useState(() => readDraft(browserStorage(), key));
   const [value, setValue] = useState(initialDraft);
+  const skipPersist = useRef(false);
 
   useEffect(() => {
+    // An externally applied value (e.g. a rerun prefill) must not overwrite
+    // the user's own stored draft; the next genuine edit resumes persistence.
+    if (skipPersist.current) {
+      skipPersist.current = false;
+      return;
+    }
     writeDraft(browserStorage(), key, value);
   }, [key, value]);
 
@@ -56,10 +63,16 @@ export function useLocalDraft(key: string) {
     setValue("");
   }, [key]);
 
+  const applyExternal = useCallback((next: string) => {
+    skipPersist.current = true;
+    setValue(next);
+  }, []);
+
   return {
     value,
     setValue,
     clear,
+    applyExternal,
     restored: Boolean(initialDraft.trim()),
   };
 }

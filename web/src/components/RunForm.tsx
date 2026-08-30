@@ -130,6 +130,7 @@ export function RunForm({
     setValue: setInstructions,
     clear: clearInstructionsDraft,
     restored: restoredInstructionDraft,
+    applyExternal: applyExternalInstructions,
   } = useLocalDraft(runInstructionDraftKey(projectId, phaseView.phase_id));
   const [phaseOneScope, setPhaseOneScope] = useState<PhaseOneScope>("broad_update");
   const [selectedHistory, setSelectedHistory] = useState<Set<string>>(new Set());
@@ -163,14 +164,25 @@ export function RunForm({
   // then leave every field editable.
   const rerunApplied = useRef("");
   useEffect(() => {
-    if (!rerunPrefill) return;
-    const fingerprint = JSON.stringify(rerunPrefill);
+    if (!rerunPrefill) {
+      // The rerun link was removed; allow a later identical link to re-apply.
+      rerunApplied.current = "";
+      return;
+    }
+    // Apply only when the form already shows the frozen basis's mode, and
+    // only once the method list is populated: the PhasePage effect switches
+    // mode first, and this effect retries as the mode-keyed phase view and
+    // the methods query arrive (stamping early would silently drop the
+    // method and history prefill).
+    if (mode !== rerunPrefill.mode) return;
+    if (phaseNeedsMethod(phaseView.phase_id, mode) && methods.length === 0) return;
+    const fingerprint = `${JSON.stringify(rerunPrefill)}@${mode}`;
     if (rerunApplied.current === fingerprint) return;
     rerunApplied.current = fingerprint;
     const prefix = phaseView.phase_id.toLowerCase();
     const choices = rerunPrefill.choice_values ?? {};
     const instructionsValue = choices[`${prefix}.instructions`];
-    if (typeof instructionsValue === "string") setInstructions(instructionsValue);
+    if (typeof instructionsValue === "string") applyExternalInstructions(instructionsValue);
     const scope = choices["p1.scope"];
     if (phaseView.phase_id === "P1" && (scope === "broad_update" || scope === "focused_update")) {
       setPhaseOneScope(scope);
@@ -196,7 +208,7 @@ export function RunForm({
         ),
       );
     }
-  }, [rerunPrefill, phaseView, methods, onMethodChange, setInstructions]);
+  }, [rerunPrefill, mode, phaseView, methods, onMethodChange, applyExternalInstructions]);
 
   const selectedMethod = methods.find((method) => method.identity.stable_id === selectedMethodId);
   const action = actionForSelection(phaseView.actions, mode, selectedMethod);
@@ -311,7 +323,7 @@ export function RunForm({
   return (
     <div className="run-form">
       {rerunPrefill ? (
-        <p className="run-form__rerun-note">
+        <p className="run-form__rerun-note" role="status">
           Pre-filled from the finished run's frozen basis. Review every choice before launch
           — supplementary material is not carried over, so re-attach it if needed.
         </p>
@@ -414,9 +426,11 @@ export function RunForm({
         />
         <small>{phaseView.run_configuration.instruction_help}</small>
         <small className="draft-note" role="status">
-          {restoredInstructionDraft
-            ? "A locally stored draft was restored. It is cleared after the run starts."
-            : "Leave empty to use the default instruction generated from the project brief."}
+          {rerunPrefill
+            ? "Instructions were pre-filled from the finished run; your local draft is untouched."
+            : restoredInstructionDraft
+              ? "A locally stored draft was restored. It is cleared after the run starts."
+              : "Leave empty to use the default instruction generated from the project brief."}
         </small>
       </label>
 

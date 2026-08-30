@@ -567,9 +567,8 @@ def _compute_projection(
     else:
         recovery = "in_progress"
 
-    # Recovery controls — empty until HV-5 correction endpoints land.
-    # The projection identifies what recovery is possible, but must not
-    # advertise controls that have no backing API handler.
+    # Recovery controls: empty here; run_summary_view overwrites this list
+    # via model_copy for the correction-surface states (lines ~116-125).
     recovery_controls: list[str] = []
 
     return RunLifecycleProjection(

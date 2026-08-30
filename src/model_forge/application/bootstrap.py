@@ -101,6 +101,10 @@ def build_service(settings: ApplicationSettings) -> ModelForgeService:
             role_resources=resources,
             executor=executor,
         )
+    if coordinator is not None:
+        # Preserve frozen contract bytes for manifests sealed before the
+        # feature existed; idempotent and cheap on an empty backfill set.
+        coordinator.backfill_frozen_contracts()
     return ModelForgeService(
         settings=settings,
         specification=specification,

@@ -60,7 +60,12 @@ export function RunList({
               <Link to={`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(run.run_id)}`}>
                 {run.phase} research run
               </Link>
-              <RunStatePill state={run.state} />
+              <RunStatePill
+                state={run.state}
+                {...(run.lifecycle_projection?.recovery_summary
+                  ? { recoverySummary: run.lifecycle_projection.recovery_summary }
+                  : {})}
+              />
             </div>
             {(isLatest || isFormalSource) ? (
               <div className="run-list__markers" aria-label="Run relationship to current phase state">

@@ -17,7 +17,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Mapping
 
-from ..domain.identities import MethodIdentity
+from ..domain.identities import SCHEMA_VERSION, MethodIdentity
 from ..domain.validation import (
     FindingClass,
     ValidationFinding,
@@ -48,7 +48,7 @@ class SealedRunFacts:
     mode: str
     role: str
     method_identity: dict[str, Any]
-    schema_version: str = "1.0.0"
+    schema_version: str = SCHEMA_VERSION
     generation_id: str = ""
     generation_number: int = 0
     sealed_basis_digest: str = ""

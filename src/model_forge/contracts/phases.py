@@ -22,7 +22,9 @@ from ..json_io import load_json
 from ..schemas import SchemaCatalog
 
 
-_PHASE_IDS = ("P1", "P2", "P3", "P4", "P5")
+from ..domain.identities import PHASE_IDS as _DOMAIN_PHASE_IDS
+
+_PHASE_IDS = tuple(sorted(_DOMAIN_PHASE_IDS))
 _CONTEXT_POLICIES = frozenset(
     {"current_only", "current_plus_selected_history"}
 )

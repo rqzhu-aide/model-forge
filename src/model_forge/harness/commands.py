@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any
 
 from ..application.ids import new_id
-from ..domain.identities import MethodIdentity
+from ..domain.identities import SCHEMA_VERSION, MethodIdentity
 from ..domain.runs import RunRequest, isoformat_utc, thaw_json, utc_now
 from ..specification import SpecificationPackage
 
@@ -186,7 +186,7 @@ def build_run_command(
     )
     identity = request.phase_contract
     document: dict[str, Any] = {
-        "schema_version": "1.0.0",
+        "schema_version": SCHEMA_VERSION,
         "command_id": command_id or new_id("command", identity.phase_id.lower()),
         "idempotency_key": request.idempotency_key,
         "project_id": str(request.project_id),

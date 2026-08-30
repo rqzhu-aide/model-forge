@@ -20,6 +20,7 @@ vi.mock("../api/client", async (importOriginal) => {
     api: {
       ...actual.api,
       getPhaseView: vi.fn(),
+      getRun: vi.fn(),
       listMethods: vi.fn(),
     },
   };
@@ -256,3 +257,108 @@ describe("PhasePage reviewed basis", () => {
     expect(screen.getByText(/reads memory, never writes/)).toBeInTheDocument();
   });
 });
+
+describe("PhasePage one-click rerun (WP-UX)", () => {
+  function rerunView(): PhaseView {
+    return phaseView({
+      run_configuration: {
+        modes: [
+          {
+            mode_id: "p1.standard",
+            label: "Standard",
+            description: "Single-pass synthesis.",
+          },
+          {
+            mode_id: "p1.deep",
+            label: "Deep sweep",
+            description: "Two-pass deep synthesis.",
+          },
+        ],
+        default_mode: "p1.standard",
+        instruction_label: "Instructions",
+        instruction_help: "State the synthesis instructions.",
+        current_inputs: [],
+        history_options: [],
+        stage_plan: [
+          { stage_id: "s1", label: "Synthesize", roles: ["research_lead"], execution: "serial" },
+        ],
+      },
+    });
+  }
+
+  function sourceRun() {
+    return {
+      run_id: "run.p1.p1-deep.abc123",
+      phase: "P1",
+      mode: "p1.deep",
+      state: "failed",
+      requested_by: "researcher.demo",
+      requested_at: "2026-08-28T10:00:00Z",
+      updated_at: "2026-08-28T10:30:00Z",
+      actions: [],
+      rerun_prefill: {
+        phase: "P1",
+        mode: "p1.deep",
+        choice_values: { "p1.instructions": "Repeat the deep sweep exactly." },
+        context_policy: "current_only",
+      },
+    };
+  }
+
+  it("applies the frozen mode even when the phase view resolves first (B1)", async () => {
+    // The phase view wins the race; the default-mode effect must still wait
+    // for the rerun prefill instead of locking in the default mode.
+    (api.getPhaseView as ReturnType<typeof vi.fn>).mockResolvedValue(rerunView());
+    (api.getRun as ReturnType<typeof vi.fn>).mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve(sourceRun()), 20)),
+    );
+    (api.listMethods as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/projects/project-1/phases/P1?rerun=run.p1.p1-deep.abc123"]}>
+          <Routes>
+            <Route path="/projects/:projectId/phases/:phaseId" element={<PhasePage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("radio", { name: /Deep sweep/i })).toBeChecked();
+    });
+    expect(screen.getByRole("radio", { name: /Standard/i })).not.toBeChecked();
+    await waitFor(() => {
+      expect(screen.getByRole("textbox", { name: /instructions/i })).toHaveValue(
+        "Repeat the deep sweep exactly.",
+      );
+    });
+    expect(screen.getByText(/Review every choice before launch/i)).toBeInTheDocument();
+  });
+
+  it("shows a note when the source run offers no rerun basis (B3)", async () => {
+    (api.getPhaseView as ReturnType<typeof vi.fn>).mockResolvedValue(rerunView());
+    (api.getRun as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...sourceRun(),
+      rerun_prefill: undefined,
+    });
+    (api.listMethods as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/projects/project-1/phases/P1?rerun=run.p1.p1-deep.abc123"]}>
+          <Routes>
+            <Route path="/projects/:projectId/phases/:phaseId" element={<PhasePage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/does not offer a rerun basis/i),
+      ).toBeInTheDocument();
+    });
+  });
+});
+

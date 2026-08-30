@@ -20,6 +20,7 @@ from ..schemas import SchemaCatalog
 from ..storage import ArtifactStore
 from ..storage.repository import HubRepository
 from .execution_context import RunExecutionContext
+from ..domain.identities import SCHEMA_VERSION
 from .role_execution import (
     RoleClosureResult,
     RoleLifecycleError,
@@ -335,7 +336,7 @@ class SubmissionAssembler:
             "submission", str(self.context.run_id), str(self.context.manifest_sha256)
         )
         document: dict[str, Any] = {
-            "schema_version": "1.0.0",
+            "schema_version": SCHEMA_VERSION,
             "submission_id": submission_id,
             "run_id": str(self.context.run_id),
             "project_id": str(self.context.project_id),

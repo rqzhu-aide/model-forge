@@ -261,4 +261,75 @@ describe("RunForm one-click rerun prefill (WP-UX)", () => {
     await waitFor(() => expect(textarea).toHaveValue("Replicate the earlier sweep exactly."));
     expect(screen.getByRole("radio", { name: /Focused literature question/i })).toBeChecked();
   });
+  it("applies the method prefill when the method list arrives late and leaves the local draft untouched (B2, B7)", async () => {
+    const p4View: PhaseView = {
+      ...phaseView,
+      phase_id: "P4",
+      run_configuration: {
+        ...phaseView.run_configuration,
+        modes: [
+          {
+            mode_id: "p4.preliminary",
+            label: "Preliminary",
+            description: "Preliminary empirical evaluation.",
+          },
+        ],
+        default_mode: "p4.preliminary",
+      },
+    };
+    const methodRow = {
+      identity: {
+        stable_id: "method.anel",
+        version: 1,
+        definition_sha256: "a".repeat(64),
+      },
+      lifecycle_state: "active",
+    };
+    const rerunPrefill = {
+      phase: "P4" as const,
+      mode: "p4.preliminary",
+      choice_values: {
+        "p4.instructions": "Re-run the preliminary evaluation.",
+        "p4.selected_method": methodRow.identity,
+      },
+      context_policy: "current_only",
+    };
+    // The user's own unsent draft must survive the prefill (B7).
+    const draftKey = "model-forge:run-instructions:v1:project-1:P4";
+    window.localStorage.setItem(draftKey, "my own draft notes");
+    const onMethodChange = vi.fn();
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const element = (methods: unknown[]) => (
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <RunForm
+            projectId="project-1"
+            phaseView={p4View}
+            methods={methods as never}
+            selectedMethodId=""
+            onMethodChange={onMethodChange}
+            mode="p4.preliminary"
+            onModeChange={() => undefined}
+            rerunPrefill={rerunPrefill}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    const { rerender } = render(element([]));
+    // Methods not yet loaded: nothing applied yet.
+    expect(onMethodChange).not.toHaveBeenCalled();
+    // Methods arrive (the query resolves): the prefill retries and applies.
+    rerender(element([methodRow]));
+    await waitFor(() => expect(onMethodChange).toHaveBeenCalledWith("method.anel"));
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: /instructions/i })).toHaveValue(
+        "Re-run the preliminary evaluation.",
+      ),
+    );
+    expect(window.localStorage.getItem(draftKey)).toBe("my own draft notes");
+    expect(
+      screen.getByText(/your local draft is untouched/i),
+    ).toBeInTheDocument();
+  });
 });

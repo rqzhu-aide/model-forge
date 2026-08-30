@@ -151,7 +151,7 @@ The user selects every run and rerun. The command must state:
 
 UI defaults are conveniences. The backend receives the resolved values, not an instruction to infer them later.
 
-At preparation the exact contract document bytes are content-addressed into the artifact store (`phase_contract_frozen` purpose). Submission, execution, and corrections resolve the run's plan from those frozen bytes whenever the sealed version or digest differs from the currently loaded registry, re-pinning the recovered document through the digest registry before use. A contract version bump therefore never orphans an in-flight or correctable run; if the frozen bytes are genuinely unrecoverable, the correction command fails with `CORRECTION_NOT_APPLICABLE` rather than an internal error.
+At preparation the exact contract document bytes are content-addressed into the artifact store (`phase_contract_frozen` purpose). Submission, execution, and corrections resolve the run's plan from those frozen bytes whenever the sealed version or digest differs from the currently loaded registry, re-pinning the recovered document through the digest registry before use. A contract version bump therefore never orphans an in-flight or correctable run; if the frozen bytes are genuinely unrecoverable, the correction command fails with `CORRECTION_NOT_APPLICABLE` rather than an internal error. At service startup a backfill preserves the bytes for any manifest sealed before this feature existed whose pinned digest still matches the loaded registry; manifests pinned to bytes no registry holds are by construction unrecoverable and left untouched.
 
 An authorized remote operator may issue the same command on the user's behalf. The command records both the user authority and operating identity.
 
@@ -289,6 +289,16 @@ Checks:
 - IDs are well formed and unique in scope.
 - Digests, media types, and sizes match.
 - No path escapes the run namespace.
+
+Harness-owned envelope and identity fields (`schema_version`, `content_sha256`,
+`created_at`, `updated_at`, `published_at`, record and generation identities)
+are populated from sealed run facts BEFORE validation on every closure path
+(stage close, run close, and correction close), so validation checks science,
+not plumbing. The task brief tells agents not to author these fields at all;
+an agent that writes them anyway has them overwritten from run facts and the
+overwrite is recorded as a disclosed transformation, never silently. Fields
+blamed by a validation finding that the harness owns are reclassified as
+operational failures (ADR-015) rather than agent-correctable defects.
 
 ### 8.2 Identity and provenance validation
 

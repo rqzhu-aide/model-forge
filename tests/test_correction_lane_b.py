@@ -477,3 +477,47 @@ def test_packaging_root_change_with_present_source_still_violates() -> None:
     corrected = {"out": "not-even-an-object"}
     violations = _verify(source, corrected, "packaging", set(), {"out"})
     assert [v.code for v in violations] == ["correction.blast_radius_violated"]
+
+
+def test_executor_failed_correction_spends_the_bounded_attempt(tmp_path: Path) -> None:
+    """HV-5.6: an executor-level failure still consumes the lane's attempt.
+
+    Without the attempt row a persistently failing agent could be retried
+    forever and the run would never reach correction_exhausted.
+    """
+    fixture = _Fixture(
+        tmp_path,
+        DeterministicFakeExecutor(_golden_output, fail_roles=frozenset({"theorist"})),
+    )
+    base_closure_id = _seal_failed_closure_bytes(
+        fixture, "theorist", _fixable_defect_bytes()
+    )
+
+    services = _lane_b_services(fixture, "cmd_b_fail", "packaging")
+    outcome = _drive(
+        fixture,
+        services,
+        base_closure_id,
+        "cmd_b_fail",
+        "packaging",
+        (_scope(fixture),),
+    )
+
+    assert outcome.passed is False
+    correction_closure = fixture.repository.get_role_closure(outcome.closure_id)
+    assert correction_closure is not None
+    correction_payload = loads_json(
+        correction_closure["payload_json"], source="correction closure"
+    )
+    assert correction_payload["status"] == "failed"
+    assert correction_payload["failure_code"] == "executor.role_failed"
+
+    # The bounded attempt is spent: exactly one failed attempt row exists,
+    # bound to the packaging lane and command.
+    attempts = fixture.repository.list_validation_attempts(RUN)
+    assert len(attempts) == 1
+    assert attempts[0]["correction_type"] == "packaging"
+    assert attempts[0]["correction_command_id"] == "cmd_b_fail"
+    report = json.loads(attempts[0]["report_json"])
+    assert report["passed"] is False
+    assert [item["code"] for item in report["findings"]] == ["executor.role_failed"]

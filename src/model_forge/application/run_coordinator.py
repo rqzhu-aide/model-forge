@@ -9,13 +9,19 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Mapping, Sequence
 
 from ..configuration.resources import RoleResourceCatalog
 from ..configuration.skill_assignments import SkillAssignmentMatrix, SkillDefaults
 from ..contracts.runtime import RuntimePhaseContract, resolve_runtime_contract
 from ..digests.jcs import canonicalize
-from ..domain.identities import ArtifactPointer, MethodIdentity, Sha256Digest, StableId
+from ..domain.identities import (
+    PHASE_IDS,
+    ArtifactPointer,
+    MethodIdentity,
+    Sha256Digest,
+    StableId,
+)
 from ..domain.runs import RunStatus, isoformat_utc, utc_now
 from ..domain.validation import ValidationFinding, finding_from_dict
 from ..executors import RoleExecutor
@@ -186,6 +192,7 @@ class RunCoordinator:
         manifest_row = self.repository.get_manifest(run_id)
         if manifest_row is not None:
             recipe = self._load_recipe(run_id)
+            self._backfill_manifest_contract(recipe.document)
             self._mark_prepared(run_id, recipe)
             return
 
@@ -669,6 +676,55 @@ class RunCoordinator:
             dict(request["choice_values"]),
             str(request["context_policy"]),
         )
+
+    def _backfill_manifest_contract(self, document: Mapping[str, Any]) -> bool:
+        """Preserve frozen contract bytes for one sealed manifest if possible.
+
+        Only manifests whose pinned digest still matches the loaded registry
+        can be backfilled; older pins are unrecoverable by construction and
+        left untouched. Idempotent: an already-preserved pin is skipped.
+        """
+        project_id = str(document.get("project_id", ""))
+        phase = str(document.get("phase", ""))
+        pinned = str(document.get("phase_contract_sha256", ""))
+        if not project_id or not phase or not pinned:
+            return False
+        try:
+            identity = self.specification.phases.identity(phase)
+        except Exception:
+            return False
+        if str(identity.phase_contract_sha256) != pinned:
+            return False
+        for row in self.repository.find_artifacts_by_purpose(
+            project_id, "phase_contract_frozen"
+        ):
+            metadata = loads_json(
+                str(row["payload_json"]),
+                source=f"artifact {row['artifact_id']}",
+            )
+            if type(metadata) is dict and str(
+                metadata.get("phase_contract_sha256", "")
+            ) == pinned:
+                return False
+        self._preserve_frozen_contract(project_id, phase)
+        return True
+
+    def backfill_frozen_contracts(self) -> int:
+        """Preserve frozen contract bytes for every recoverable manifest.
+
+        Covers manifests sealed before the preservation feature and the
+        manifest-exists re-prepare path; returns the count preserved.
+        """
+        preserved = 0
+        for row in self.repository.list_manifests():
+            document = loads_json(
+                str(row["payload_json"]), source=f"manifest {row['run_id']}"
+            )
+            if type(document) is dict and self._backfill_manifest_contract(
+                document
+            ):
+                preserved += 1
+        return preserved
 
     def _preserve_frozen_contract(self, project_id: str, phase: str) -> None:
         """Content-address the exact contract bytes at seal time.
@@ -1192,7 +1248,7 @@ def _append_gaps_to_role_instructions(
         item_phase = payload.get("phase")
         if type(item_phase) is not str:
             item_phase = run_phases.get(source_run_id)
-        if item_phase not in {"P1", "P2", "P3", "P4", "P5"}:
+        if item_phase not in PHASE_IDS:
             continue
         reference = question[len("LITERATURE_GAP:"):].strip()
         gaps.append(f"[{item_phase}] {reference}")

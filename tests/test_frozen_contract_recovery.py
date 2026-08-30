@@ -8,6 +8,7 @@ exact contract bytes at seal time and resolves orphaned runs from them.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -151,3 +152,77 @@ def test_seal_time_preservation_stores_pinned_bytes(
         specification.digests.compute("phase_contract.content", document)
         == str(identity.phase_contract_sha256)
     )
+
+
+def test_backfill_preserves_recoverable_manifests_only(
+    specification: SpecificationPackage, stores
+) -> None:
+    """Manifests sealed before the preservation feature get their frozen
+    contract bytes at startup when the pinned digest still matches the
+    loaded registry; unknown or stale pins are left untouched."""
+    repository, artifacts = stores
+    coordinator = RunCoordinator.__new__(RunCoordinator)
+    coordinator.specification = specification
+    coordinator.repository = repository
+    coordinator.artifacts = artifacts
+
+    # The stores fixture already creates the "prj_frozen" project.
+    raw = repository.record_raw_command(
+        "request.backfill", "prj_frozen", "a" * 64, {"artifact": "raw"}
+    )
+    identity = specification.phases.identity("P1")
+    documents = [
+        # Recoverable: pinned digest matches the loaded registry.
+        {
+            "project_id": "prj_frozen",
+            "phase": "P1",
+            "phase_contract_sha256": str(identity.phase_contract_sha256),
+        },
+        # Unrecoverable: pinned digest matches nothing we hold.
+        {
+            "project_id": "prj_frozen",
+            "phase": "P1",
+            "phase_contract_sha256": "f" * 64,
+        },
+        # Malformed: missing fields.
+        {"project_id": "prj_frozen"},
+    ]
+    for index, document in enumerate(documents):
+        repository.seal_command(
+            f"command.backfill.{index}",
+            "prj_frozen",
+            raw.row["request_id"],
+            f"request-backfill-{index}",
+            "b" * 64,
+            {"command_id": f"command.backfill.{index}"},
+        )
+        repository.create_run(
+            f"run.backfill.{index}",
+            "prj_frozen",
+            f"command.backfill.{index}",
+            "published",
+            {"phase": document.get("phase", "P1")},
+            f"event.backfill.{index}",
+            "c" * 64,
+            {"event_type": "run.published"},
+        )
+    with repository.database.connect() as connection:
+        for index, document in enumerate(documents):
+            connection.execute(
+                "INSERT INTO run_manifests (run_id, manifest_sha256,"
+                " payload_json, sealed_at) VALUES (?, ?, ?, ?)",
+                (
+                    f"run.backfill.{index}",
+                    hashlib.sha256(json.dumps(document).encode()).hexdigest(),
+                    json.dumps(document),
+                    "2026-08-28T00:00:00Z",
+                ),
+            )
+
+    assert coordinator.backfill_frozen_contracts() == 1
+    rows = repository.find_artifacts_by_purpose(
+        "prj_frozen", "phase_contract_frozen"
+    )
+    assert len(rows) == 1
+    # Idempotent: a second startup backfill preserves nothing new.
+    assert coordinator.backfill_frozen_contracts() == 0

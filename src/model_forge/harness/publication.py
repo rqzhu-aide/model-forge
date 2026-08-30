@@ -16,6 +16,7 @@ from datetime import datetime
 from typing import Any
 
 from ..contracts import ResolvedPhasePlan
+from ..domain.identities import PHASE_IDS
 from ..digests.jcs import JCSCanonicalizationError, canonicalize
 from ..domain.runs import isoformat_utc
 from ..storage.repository import HubRepository
@@ -564,7 +565,7 @@ def _extract_bindings(
             )
         exact = tuple(_mapping(item, "publication binding") for item in source)
         source_phase = _phase_from_bindings(exact)
-    if type(source_phase) is not str or source_phase not in {"P1", "P2", "P3", "P4", "P5"}:
+    if type(source_phase) is not str or source_phase not in PHASE_IDS:
         raise _fail("publication.invalid_phase", "A valid phase identity is required.")
     if phase is not None and phase != source_phase:
         raise _fail(

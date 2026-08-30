@@ -16,7 +16,16 @@ _SEMANTIC_VERSION = re.compile(r"^[1-9][0-9]*\.[0-9]+\.[0-9]+$")
 _ARTIFACT_URI = re.compile(r"^(artifact|generation|run)://[^\s]+$")
 _WINDOWS_DRIVE = re.compile(r"^[A-Za-z]:")
 _MEDIA_TYPE = re.compile(r"^[A-Za-z0-9!#$&^_.+\-]+/[A-Za-z0-9!#$&^_.+\-]+$")
-_PHASE_IDS = frozenset({"P1", "P2", "P3", "P4", "P5"})
+#: Canonical set of declared phase ids. Every layer derives its guard sets
+#: from this single source; the pydantic Literal in api/models.py is the one
+#: deliberate duplication (types must stay literal).
+PHASE_IDS = frozenset({"P1", "P2", "P3", "P4", "P5"})
+
+#: The single architecture schema_version. Every document the runtime
+#: authors carries this exact value; bump it in lockstep with the schema
+#: package consts.
+SCHEMA_VERSION = "1.0.0"
+_PHASE_IDS = PHASE_IDS
 
 
 def _error(code: str, field: str, message: str) -> DomainValidationError:

@@ -61,7 +61,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from ..contracts import ResolvedPhasePlan
-from ..domain.identities import MethodIdentity, PhaseContractIdentity
+from ..domain.identities import PHASE_IDS, MethodIdentity, PhaseContractIdentity
 from ..domain.runs import isoformat_utc, utc_now
 from ..harness.publication import (
     RegisteredArtifactMetadata,
@@ -83,7 +83,7 @@ _OUTPUT_PATH_KEYS = ("relative_path", "path")
 _TERMINAL_LAUNCH_STATUSES = frozenset({"succeeded", "failed", "cancelled"})
 
 #: Phases with a phase-specific scientific validator to reuse.
-_PHASE_VALIDATOR_PHASES = frozenset({"P1", "P2", "P3", "P4", "P5"})
+_PHASE_VALIDATOR_PHASES = PHASE_IDS
 
 #: Identity keys checked inside output JSON documents (check 6).  The run
 #: id of a sealed run IS its invocation id (the launcher binds
@@ -447,12 +447,23 @@ def _build_plan_from_manifest(manifest: Mapping[str, Any]) -> ResolvedPhasePlan:
     on P3/P4 records and skipped mode-specific checks on P2/P5 records.
     """
     phase = manifest.get("phase", "")
-    mode = manifest.get("mode", "")
+    # The formal lane seals a top-level mode; the supervised lane carries it
+    # in user_choices. Accept either; absence in both is corruption.
+    user_choices = manifest.get("user_choices")
+    mode = manifest.get("mode", "") or (
+        user_choices.get("mode", "") if type(user_choices) is dict else ""
+    )
     contract_version = manifest.get("phase_contract_version", "1.0.0")
     contract_sha256 = manifest.get("phase_contract_sha256", "0" * 64)
-    # PhaseContractIdentity validates phase_id; default to P1 for empty/invalid.
-    valid_phases = {"P1", "P2", "P3", "P4", "P5"}
-    phase_id = str(phase) if phase in valid_phases else "P1"
+    # A sealed manifest always carries a phase; treat its absence as
+    # corruption instead of silently validating against the wrong phase.
+    # Mode may legitimately be absent (the supervised lane's single-role
+    # invocations have no mode concept); it stays empty then.
+    if str(phase) not in PHASE_IDS:
+        raise ValueError(
+            f"Run manifest carries an unknown or missing phase {phase!r}."
+        )
+    phase_id = str(phase)
     return ResolvedPhasePlan(
         identity=PhaseContractIdentity(
             phase_id=phase_id,

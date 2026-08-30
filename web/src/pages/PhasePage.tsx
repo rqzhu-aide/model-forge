@@ -61,12 +61,22 @@ export function PhasePage() {
     enabled: Boolean(projectId && rerunRunId),
   });
   const rerunPrefill = rerunQuery.data?.rerun_prefill;
+  // True once the user explicitly picks a mode; rerun prefill then no longer
+  // overrides the mode (B1: the frozen basis must win over the default until
+  // the user says otherwise).
+  const [userModeOverride, setUserModeOverride] = useState(false);
+
+  const availableModes = phaseQuery.data?.run_configuration.modes ?? [];
+  const rerunModeApplicable = Boolean(
+    rerunPrefill
+    && rerunPrefill.phase === phaseId
+    && availableModes.some((item) => item.mode_id === rerunPrefill.mode),
+  );
 
   useEffect(() => {
-    if (rerunPrefill && rerunPrefill.phase === phaseId && !mode) {
-      setMode(rerunPrefill.mode);
-    }
-  }, [rerunPrefill, phaseId, mode]);
+    if (!rerunPrefill || !rerunModeApplicable || userModeOverride) return;
+    if (mode !== rerunPrefill.mode) setMode(rerunPrefill.mode);
+  }, [rerunPrefill, rerunModeApplicable, userModeOverride, mode]);
 
   const needsMethods = phaseId === "P2" || phaseId === "P3" || phaseId === "P4" || phaseId === "P5";
   const methodsQuery = useQuery({
@@ -77,8 +87,11 @@ export function PhasePage() {
 
   useEffect(() => {
     const defaultMode = phaseQuery.data?.run_configuration.default_mode;
-    if (!mode && defaultMode) setMode(defaultMode);
-  }, [mode, phaseQuery.data?.run_configuration.default_mode]);
+    if (mode || !defaultMode) return;
+    // A pending rerun prefill decides the mode; wait for it (B1).
+    if (rerunQuery.isLoading || rerunModeApplicable) return;
+    setMode(defaultMode);
+  }, [mode, phaseQuery.data?.run_configuration.default_mode, rerunQuery.isLoading, rerunModeApplicable]);
 
   if (!projectId || !phaseId) return <NotFoundPage />;
   if (phaseQuery.isLoading) return <LoadingState label={`Loading ${phaseId} state…`} />;
@@ -173,6 +186,17 @@ export function PhasePage() {
         title={`Configure a ${phaseId} run or rerun`}
         description="Choose the scope and context, state your instructions, then review the exact command before launch."
       >
+        {rerunRunId && rerunQuery.error ? (
+          <ErrorState
+            error={rerunQuery.error}
+            title="The source run for the rerun could not be loaded"
+          />
+        ) : null}
+        {rerunRunId && rerunQuery.isSuccess && !rerunPrefill ? (
+          <p className="run-form__rerun-note" role="status">
+            That run does not offer a rerun basis; the form below starts fresh.
+          </p>
+        ) : null}
         {!mode ? <LoadingState label="Resolving the default run scope…" /> : (
           <RunForm
             key={`${projectId}-${phaseId}-run-form`}
@@ -182,8 +206,9 @@ export function PhasePage() {
             selectedMethodId={selectedMethodId}
             onMethodChange={setSelectedMethodId}
             mode={mode}
-            rerunPrefill={rerunPrefill}
+            rerunPrefill={rerunPrefill?.phase === phaseId ? rerunPrefill : undefined}
             onModeChange={(nextMode) => {
+              setUserModeOverride(true);
               setMode(nextMode);
               if (phaseId === "P2" && nextMode !== "p2.focused_method") setSelectedMethodId("");
             }}

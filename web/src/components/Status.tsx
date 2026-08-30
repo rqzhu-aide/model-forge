@@ -256,7 +256,3 @@ export function CompactPhaseStatus({ status }: { status: ScientificStatus | unde
     </span>
   );
 }
-
-export function UnknownStatus({ value }: { value?: string }) {
-  return <span>{value ? sentenceCase(value) : "Not recorded"}</span>;
-}

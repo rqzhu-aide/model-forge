@@ -346,6 +346,24 @@ refreshes the run and reports that cancellation is no longer available. It must
 not offer cancellation for `submitted`, `validating`, `promoting`, `published`,
 or terminal runs.
 
+Correction descriptors reflect the bounded-attempt lanes (HV-5.6): once a
+packaging or scientific attempt is spent, the corresponding correction action
+is disabled with the `correction.attempt_spent` reason code in both the run
+list and the run detail view, rather than failing at command time. When the
+designed next step for a finished run is a fresh start - `failed`, `rejected`,
+`cancelled`, `correction_exhausted`, or a correcting run whose scientific lane
+is spent (the packaging lane can only reshape already-sealed bytes) - the run
+detail carries a `rerun_prefill` projection with the run's phase, mode, sealed
+choice values, and context policy. The run page presents "Rerun with the same
+basis" for those runs; it opens the phase run form pre-filled from the frozen
+values, shows a banner naming the source, keeps every field editable, and
+deliberately does not carry supplementary material across. Launching from the
+pre-filled form seals a new command against the current record. The frozen
+mode wins over the phase default until the user picks a mode explicitly, the
+prefill applies only once the method list and history options for that mode
+have loaded, and pre-filling instructions never overwrites the researcher's
+locally stored draft.
+
 ## 7. Status presentation
 
 ### 7.1 Execution state

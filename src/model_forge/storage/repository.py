@@ -575,6 +575,14 @@ class HubRepository:
             return connection.execute(
                 "SELECT * FROM run_manifests WHERE run_id = ?", (run_id,)
             ).fetchone()
+
+    def list_manifests(self) -> tuple[sqlite3.Row, ...]:
+        with self._database.connect() as connection:
+            return tuple(
+                connection.execute(
+                    "SELECT run_id, payload_json FROM run_manifests"
+                ).fetchall()
+            )
     def seal_submission(
         self,
         run_id: str,

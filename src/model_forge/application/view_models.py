@@ -37,6 +37,7 @@ from ..api.models import (
 )
 from ..contracts import PhaseContractRepository
 from ..domain.identities import MethodIdentity
+from ..domain.identities import PHASE_IDS
 from ..projections import build_phase_configuration
 from ..storage.repository import HubRepository
 from .repository_views import RepositoryQueries, row_json
@@ -524,7 +525,7 @@ class ResearchProjectionService:
     ) -> list[PhaseNavigationSummary]:
         current = self.repository.list_current_records(project_id)
         summaries: list[PhaseNavigationSummary] = []
-        for phase_id in ("P1", "P2", "P3", "P4", "P5"):
+        for phase_id in sorted(PHASE_IDS):
             rows = _phase_rows(current, phase_id, None)
             phase_runs = [run for run in active_runs if run.phase == phase_id]
             phase_attention = self._attention_items(
@@ -643,7 +644,7 @@ class ResearchProjectionService:
                     attention_id=attention_id,
                     severity=severity,
                     question=str(payload.get("question", "Open research question")),
-                    phase=item_phase if item_phase in {"P1", "P2", "P3", "P4", "P5"} else None,
+                    phase=item_phase if item_phase in PHASE_IDS else None,
                     method_id=(
                         str(item_method.stable_id)
                         if item_method is not None
@@ -693,7 +694,7 @@ class ResearchProjectionService:
             item_phase = payload.get("phase")
             if type(item_phase) is not str:
                 item_phase = run_phases.get(source_run_id)
-            if item_phase not in {"P1", "P2", "P3", "P4", "P5"}:
+            if item_phase not in PHASE_IDS:
                 continue
             item_method = _payload_method(payload) or run_methods.get(source_run_id)
             result.append(

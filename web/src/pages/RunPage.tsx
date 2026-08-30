@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
-import { api } from "../api/client";
+import { ApiError, api } from "../api/client";
 import type { FindingGroup, RunDetail, RunLifecycleProjection, RunLifecycleState } from "../api/types";
 import { ConfirmActionDialog } from "../components/ConfirmActionDialog";
 import { CorrectionControls, correctionStateNotice } from "../components/CorrectionControls";
@@ -144,7 +144,12 @@ export function RunPage() {
 
   if (!projectId || !runId) return <NotFoundPage />;
   if (runQuery.isLoading) return <LoadingState label="Loading run state..." />;
-  if (runQuery.error) return <ErrorState error={runQuery.error} title="Run state is unavailable" />;
+  if (runQuery.error) {
+    if (runQuery.error instanceof ApiError && runQuery.error.status === 404) {
+      return <NotFoundPage />;
+    }
+    return <ErrorState error={runQuery.error} title="Run state is unavailable" />;
+  }
   if (!runQuery.data) return <NotFoundPage />;
 
   const run = runQuery.data;
@@ -346,9 +351,11 @@ export function RunPage() {
         </Panel>
       </div>
 
-      {guidance ? (
+      {guidance || run.rerun_prefill ? (
         <Panel title="What to do next" eyebrow="Recovery guidance">
-          <p>{run.terminal_reason?.smallest_correction ?? guidance}</p>
+          {guidance ? (
+            <p>{run.terminal_reason?.smallest_correction ?? guidance}</p>
+          ) : null}
           {run.rerun_prefill ? (
             <Link
               to={`/projects/${encodeURIComponent(projectId)}/phases/${run.phase}?rerun=${encodeURIComponent(run.run_id)}#configure-run`}

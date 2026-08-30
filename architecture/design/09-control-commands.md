@@ -317,7 +317,14 @@ finding, or a correction type the build does not offer is rejected with
 target closure did not declare is rejected with `CORRECTION_SCOPE_INVALID`
 (`MF-74`). Correction attempts are bounded per run; when the bounds are spent
 the command is rejected with `CORRECTION_EXHAUSTED` (`MF-75`) and the run
-resolves to `correction_exhausted`.
+resolves to `correction_exhausted`. The attempt bound counts every lane
+invocation, including executor-level failures: a correction whose role fails
+before producing validatable outputs still records a failed validation
+attempt, so a persistently failing agent cannot be retried indefinitely.
+The preview endpoint accepts exactly the states the command accepts
+(`failed`, `rejected`, `correction_authorized`, and `correcting` for the D6
+retry case) and maps an unrecoverable frozen contract to
+`CORRECTION_NOT_APPLICABLE` rather than an internal error.
 
 A `revalidate` correction re-checks the already sealed output bytes against
 the current schemas and records a new validation attempt; on pass the run

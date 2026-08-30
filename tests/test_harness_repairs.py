@@ -589,14 +589,23 @@ def test_build_plan_from_manifest_passes_real_mode() -> None:
     assert plan.identity.phase_id == "P3"
 
 
-def test_build_plan_from_manifest_defaults_safely() -> None:
-    """Missing mode/phase should default safely without raising."""
+def test_build_plan_from_manifest_fails_loud_on_missing_phase_or_mode() -> None:
+    """A manifest without phase/mode is corruption: raise, never default.
+
+    The old shim defaulted to a P1/empty-mode plan and silently validated
+    against the wrong phase; the audit fix makes the failure explicit.
+    """
+    import pytest
+
     from model_forge.application.output_validation import _build_plan_from_manifest
 
-    # Empty manifest — phase defaults to "run" (not a valid PhaseContractIdentity
-    # phase_id, but this function doesn't validate; it constructs for the
-    # validator dispatch which handles unknown phases by skipping).
-    plan = _build_plan_from_manifest({})
+    with pytest.raises(ValueError, match="unknown or missing phase"):
+        _build_plan_from_manifest({})
+    with pytest.raises(ValueError, match="unknown or missing phase"):
+        _build_plan_from_manifest({"phase": "P9", "mode": "p9.x"})
+    # Mode is legitimately absent for supervised-lane invocations; the plan
+    # keeps an empty mode rather than raising.
+    plan = _build_plan_from_manifest({"phase": "P3"})
     assert plan.mode_id == ""
 
 

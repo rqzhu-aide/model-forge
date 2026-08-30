@@ -87,7 +87,7 @@ from ..configuration.skill_installer import (
 )
 from ..contracts import PhaseContractError
 from ..digests.jcs import canonicalize
-from ..domain.identities import MethodIdentity
+from ..domain.identities import SCHEMA_VERSION, PHASE_IDS, MethodIdentity
 from ..domain.runs import RunRequest, isoformat_utc, utc_now
 from ..executors.local_hermes import (
     LocalHermesExecutor,
@@ -921,7 +921,7 @@ class ModelForgeService:
             )
         now = utc_now()
         sealed_payload = {
-            "schema_version": "1.0.0",
+            "schema_version": SCHEMA_VERSION,
             "command_type": "project_brief_update",
             "command_id": "command.project_brief."
             + hashlib.sha256(request_id.encode()).hexdigest(),
@@ -1182,7 +1182,7 @@ class ModelForgeService:
                 )
             )
         sealed_payload = {
-            "schema_version": "1.0.0",
+            "schema_version": SCHEMA_VERSION,
             "command_type": "method_lifecycle_change",
             "command_id": "command.method_lifecycle."
             + hashlib.sha256(request_id.encode()).hexdigest(),
@@ -2193,7 +2193,7 @@ class ModelForgeService:
                 )
             )
         cancellation = {
-            "schema_version": "1.0.0",
+            "schema_version": SCHEMA_VERSION,
             "command_id": "command.cancel." + hashlib.sha256(request_id.encode()).hexdigest(),
             "project_id": project_id,
             "run_id": run_id,
@@ -2502,6 +2502,13 @@ class ModelForgeService:
                 )
 
         # 7. Build, validate, and seal the correction command document.
+        # Check for an in-flight worker BEFORE sealing: a busy lane means
+        # this request is a replay or a rapid repeat; report current state
+        # without sealing another command row (which restart reconciliation
+        # would otherwise surface as a spurious interrupted correction).
+        existing = self._correction_tasks.get(run_id)
+        if existing is not None and not existing.done():
+            return await self.get_run(project_id, run_id)
         head = str(row["head_sequence"])
         latest_attempt = self.repository.get_latest_validation_attempt(run_id)
         attempt_id = (
@@ -2510,7 +2517,7 @@ class ModelForgeService:
             else f"attempt.{run_id}.0"
         )
         document = {
-            "schema_version": "1.0.0",
+            "schema_version": SCHEMA_VERSION,
             "command_id": _derive_command_id(run_id, command.correction_type, head),
             "run_id": run_id,
             "role_closure_id": role_closure_id,
@@ -2622,12 +2629,6 @@ class ModelForgeService:
                         )
                     )
                 row = result.run
-            existing = self._correction_tasks.get(run_id)
-            if existing is not None and not existing.done():
-                # A correction worker is already in flight for this run
-                # (sealed-command replay or a rapid repeat request): the
-                # lane is busy; report current state without double-firing.
-                return await self.get_run(project_id, run_id)
 
             async def _drive_lane_b() -> None:
                 try:
@@ -3058,7 +3059,15 @@ class ModelForgeService:
             in ("correctable_contract_error", "scientific_claim_blocker")
             for item in closure_findings
         )
-        if status not in ("failed", "rejected", "correction_authorized"):
+        # D6 retry surface: a correcting run (a failed Lane B attempt leaves
+        # the run here) may preview its next correction just as it may issue
+        # the command itself.
+        if status not in (
+            "failed",
+            "rejected",
+            "correction_authorized",
+            "correcting",
+        ):
             raise CommandRejected(
                 new_command_error(
                     "CORRECTION_NOT_APPLICABLE",
@@ -3107,15 +3116,34 @@ class ModelForgeService:
                     ),
                 )
             ) from error
+        try:
+            output_scope = sorted(
+                self._correction_scope_outputs(run_id, closure_payload)
+            )
+        except ValueError as error:
+            if "Frozen phase contract" in str(error):
+                raise CommandRejected(
+                    new_command_error(
+                        "CORRECTION_NOT_APPLICABLE",
+                        object_refs=[run_id, str(closure_row["closure_id"])],
+                        researcher_message=(
+                            "The run's frozen phase contract bytes are not "
+                            "recoverable from the artifact store."
+                        ),
+                        smallest_correction=(
+                            "Restore the phase_contract_frozen artifact or "
+                            "start a fresh run under the current contract."
+                        ),
+                    )
+                ) from error
+            raise
         return CorrectionPreviewView(
             current_findings=preview["current_findings"],
             remaining_findings=preview["remaining_findings"],
             fixed_findings=preview["fixed_findings"],
             transformations=preview["transformations"],
             passing=bool(preview["passing"]),
-            output_scope=sorted(
-                self._correction_scope_outputs(run_id, closure_payload)
-            ),
+            output_scope=output_scope,
         )
 
     async def get_profiles(self, project_id: str) -> ProfileConfigurationView:
@@ -3893,7 +3921,7 @@ def _collect_open_literature_gaps(
         item_phase = payload.get("phase")
         if type(item_phase) is not str:
             item_phase = run_phases.get(source_run_id)
-        if item_phase not in {"P1", "P2", "P3", "P4", "P5"}:
+        if item_phase not in PHASE_IDS:
             continue
         result.append(
             {

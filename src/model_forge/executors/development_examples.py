@@ -13,6 +13,7 @@ from typing import Any, Mapping
 
 from ..executors.protocol import RoleInvocation
 from ..json_io import load_json
+from ..domain.identities import SCHEMA_VERSION
 
 
 def load_dedicated_examples(example_root: Path) -> dict[str, dict[str, Any]]:
@@ -106,7 +107,7 @@ def load_dedicated_examples(example_root: Path) -> dict[str, dict[str, Any]]:
     )
 
     protocol = {
-        "schema_version": "1.0.0",
+        "schema_version": SCHEMA_VERSION,
         "protocol_id": "protocol.empirical.example.001",
         "phase": "P4",
         "source_run_id": "run.p4.example.001",
@@ -225,7 +226,7 @@ def load_dedicated_examples(example_root: Path) -> dict[str, dict[str, Any]]:
     }
 
     review_finding = {
-        "schema_version": "1.0.0",
+        "schema_version": SCHEMA_VERSION,
         "issue_id": "issue.review.scope_claim.001",
         "source_run_id": "run.p5.review_revision.20260901t100000z",
         "raised_by": "outside_reviewer",
@@ -247,7 +248,7 @@ def load_dedicated_examples(example_root: Path) -> dict[str, dict[str, Any]]:
     }
 
     review_report = {
-        "schema_version": "1.0.0",
+        "schema_version": SCHEMA_VERSION,
         "report_id": "report.outside.example.001",
         "source_run_id": "run.p5.review_revision.20260901t100000z",
         "reviewer_role": "outside_reviewer",

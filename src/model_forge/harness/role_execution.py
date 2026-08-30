@@ -15,9 +15,12 @@ from ..contracts import ResolvedPhasePlan, ResolvedStage
 from ..digests.jcs import canonicalize
 from ..domain.runs import isoformat_utc, thaw_json, utc_now
 from ..domain.validation import (
+    FindingClass,
     OutputTransformationRecord,
     TransformationEntry,
+    ValidationFinding,
     ValidationReport,
+    ValidationSeverity,
     registry_version,
 )
 from ..executors import (
@@ -34,6 +37,7 @@ from ..storage.repository import (
     RepositoryConflictError,
 )
 from ..capabilities.broker import CapabilityBroker
+from ..domain.identities import SCHEMA_VERSION
 from .envelope import SealedRunFacts, populate_harness_fields
 from .execution_context import RunExecutionContext
 from .output_adapters import AdaptedOutput, DefaultOutputAdapter
@@ -186,7 +190,7 @@ def _apply_disclosed_mechanical_repairs(
                     item[field] = ts
                     changed = True
             if "schema_version" in allowed_props and "schema_version" not in item:
-                item["schema_version"] = "1.0.0"
+                item["schema_version"] = SCHEMA_VERSION
                 changed = True
             identity = item.get("identity")
             if isinstance(identity, dict) and identity.get("version", 1) < 1:
@@ -487,7 +491,7 @@ def apply_normalize_transformations(
             and "schema_version" in allowed_props
             and "schema_version" not in item
         ):
-            item["schema_version"] = "1.0.0"
+            item["schema_version"] = SCHEMA_VERSION
             changed = True
         # identity.version bump deliberately omitted: identity_version_bump
         # is not an allowlisted normalize code.
@@ -2032,6 +2036,49 @@ class RoleLifecycleService:
                     findings = [item.to_dict() for item in violations]
         elif status is RoleExecutionStatus.FAILED:
             failure_code = "executor.role_failed"
+            if self.context.correction_type is not None:
+                # HV-5.6: an executor-failed correction invocation still
+                # spends the bounded attempt. Without this row a persistently
+                # failing agent could be retried forever and the run would
+                # never reach correction_exhausted.
+                ordinal = self.repository.count_validation_attempts(run_id) + 1
+                attempt_id = f"attempt.{run_id}.{ordinal}"
+                report = ValidationReport.from_findings(
+                    f"report.{attempt_id}",
+                    run_id,
+                    self.context.correction_type,
+                    [
+                        ValidationFinding(
+                            code="executor.role_failed",
+                            message=(
+                                "The correction executor failed before "
+                                "producing validatable outputs; the bounded "
+                                "correction attempt is spent."
+                            ),
+                            severity=ValidationSeverity.ERROR,
+                            finding_class=FindingClass.OPERATIONAL_FAILURE,
+                            correction_class="none",
+                        )
+                    ],
+                )
+                prior = self.repository.get_latest_validation_attempt(run_id)
+                self.repository.record_validation_attempt(
+                    attempt_id,
+                    run_id,
+                    ordinal,
+                    registry_version(),
+                    json.dumps(report.to_dict(), sort_keys=True),
+                    hashlib.sha256(
+                        f"{self.context.correction_type}:executor_failed".encode(
+                            "utf-8"
+                        )
+                    ).hexdigest(),
+                    correction_type=self.context.correction_type,
+                    prior_attempt_id=(
+                        str(prior["attempt_id"]) if prior is not None else None
+                    ),
+                    correction_command_id=self.context.correction_command_id,
+                )
 
         if status is RoleExecutionStatus.CANCELLED:
             failure_code = None

@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Literal
 
+from ..domain.identities import SCHEMA_VERSION
 from ..domain.validation import (
     OutputTransformationRecord,
     ValidationFinding,
@@ -52,7 +53,7 @@ class OutputCorrectionCommand:
     correction_type: CorrectionType
     permitted_output_scope: tuple[str, ...]
     expected_lifecycle_head: str  # for optimistic concurrency
-    schema_version: str = "1.0.0"  # output-correction-command.schema.json
+    schema_version: str = SCHEMA_VERSION  # output-correction-command.schema.json
     role_closure_id: str = ""  # closure whose output is being corrected
     validation_attempt_id: str = ""  # attempt whose report drives the correction
     user_instruction: str | None = None

@@ -14,6 +14,7 @@ from ..storage.artifacts import ArtifactStore
 from ..storage.repository import HubRepository
 from .ids import new_id
 from .repository_views import row_json
+from ..domain.identities import SCHEMA_VERSION
 
 
 class MethodLifecycleCommandService:
@@ -226,7 +227,7 @@ class MethodLifecycleCommandService:
             event_entries.append((event, event_sha, authority_root))
 
         receipt = {
-            "schema_version": "1.0.0",
+            "schema_version": SCHEMA_VERSION,
             "receipt_id": receipt_id,
             "project_id": project_id,
             "source": {

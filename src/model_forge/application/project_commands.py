@@ -13,6 +13,7 @@ from ..domain.runs import isoformat_utc, utc_now
 from ..storage.artifacts import ArtifactStore
 from ..storage.repository import HubRepository, ZERO_SHA256
 from .ids import new_id
+from ..domain.identities import SCHEMA_VERSION
 
 
 class ProjectCommandService:
@@ -48,7 +49,7 @@ class ProjectCommandService:
         self.repository.create_project(project_id, payload, created_at=at)
 
         brief = {
-            "schema_version": "1.0.0",
+            "schema_version": SCHEMA_VERSION,
             "record_id": new_id("record", "project_brief"),
             "record_type": "project_brief",
             "project_id": project_id,
@@ -205,7 +206,7 @@ class ProjectCommandService:
         generation_id = new_id("generation", "project_brief")
         replacement.update(
             {
-                "schema_version": "1.0.0",
+                "schema_version": SCHEMA_VERSION,
                 "record_id": str(prior.get("record_id", new_id("record", "project_brief"))),
                 "record_type": "project_brief",
                 "project_id": project_id,
@@ -281,7 +282,7 @@ class ProjectCommandService:
             event_entries.append((event, event_sha, authority_root))
 
         receipt = {
-            "schema_version": "1.0.0",
+            "schema_version": SCHEMA_VERSION,
             "receipt_id": receipt_id,
             "project_id": project_id,
             "source": {

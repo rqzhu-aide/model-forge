@@ -1,36 +1,36 @@
 :root {
   color-scheme: light;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  /* Luxury editorial palette (2026-08-26): paper whites, ink text, hairline
-     lines, one restrained ink accent; status tones muted to match. */
-  --canvas: #f8f8f6;
-  --canvas-strong: #efefec;
-  --surface: #ffffff;
-  --surface-soft: #f4f4f1;
+  /* Warm paper + ivory cards (2026-08-29): cards are warm ivory, never
+     pure white; the canvas sits a half-step deeper so cards lift. */
+  --canvas: #f6f5ef;
+  --canvas-strong: #ecebe3;
+  --surface: #fdfcf8;
+  --surface-soft: #f3f2ea;
   --text: #111113;
   --text-soft: #3f3f46;
   --muted: #6f6f77;
-  --line: #e4e4e0;
-  --line-strong: #c6c6c0;
+  --line: #e6e4da;
+  --line-strong: #c8c5b9;
   --accent: #18181b;
   --accent-dark: #000000;
-  --accent-soft: #efefec;
+  --accent-soft: #efede4;
   --on-accent: #ffffff;
   --positive: #2f6b4f;
-  --positive-soft: #e7efe8;
+  --positive-soft: #e6eee5;
   --warning: #7d6127;
-  --warning-soft: #f4eedd;
+  --warning-soft: #f3ecda;
   --danger: #96363e;
-  --danger-soft: #f5e7e8;
+  --danger-soft: #f4e6e5;
   --on-danger: #ffffff;
   --information: #3d5a73;
-  --information-soft: #e8edf1;
+  --information-soft: #e7ebef;
   /* Functional affordance hue: links, hover tints, focus rings, and
      action-area borders - the single restrained cue that says
      "interactive" without disturbing the ink/paper base. */
   --interactive: #31546e;
   --interactive-dark: #24455c;
-  --interactive-soft: #e8edf1;
+  --interactive-soft: #e7ebef;
   --sidebar: #0c0c0d;
   --sidebar-raised: #171719;
   --sidebar-text: #f4f4f2;
@@ -54,17 +54,18 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  /* Editorial dark: true-ink canvas, off-white ink accent (inverted
-     monochrome), desaturated status tones. */
-  --canvas: #0b0b0c;
-  --canvas-strong: #121214;
-  --surface: #141416;
-  --surface-soft: #1a1a1d;
-  --text: #f4f4f2;
-  --text-soft: #c6c6cc;
-  --muted: #8e8e96;
-  --line: #262629;
-  --line-strong: #3f3f44;
+  /* Warm charcoal dark: comfortable near-black with a warm undertone
+     (archify warm-dark family), off-white ink accent, desaturated status
+     tones. */
+  --canvas: #121110;
+  --canvas-strong: #181714;
+  --surface: #1b1a17;
+  --surface-soft: #22201c;
+  --text: #f5f3ee;
+  --text-soft: #c9c7bf;
+  --muted: #94928b;
+  --line: #2c2a25;
+  --line-strong: #45423a;
   --accent: #f5f5f3;
   --accent-dark: #ffffff;
   --accent-soft: #262629;
@@ -81,11 +82,11 @@
   --interactive: #9db8d1;
   --interactive-dark: #b9cddf;
   --interactive-soft: #1a232c;
-  --sidebar: #080809;
-  --sidebar-raised: #141416;
+  --sidebar: #100f0d;
+  --sidebar-raised: #1a1815;
   --sidebar-text: #f4f4f2;
   --sidebar-soft: #8e8e96;
-  --sidebar-line: #232326;
+  --sidebar-line: #2a2723;
   --sidebar-active-bg: rgba(255, 255, 255, 0.09);
   --sidebar-active-text: #ffffff;
   --sidebar-active-line: rgba(255, 255, 255, 0.4);
@@ -3985,9 +3986,16 @@ p.run-monitor-note {
   color: var(--phase-hue);
 }
 
-/* Phase status card: a 2px top hairline in the phase hue. */
+/* Phase status card: a 2px top hairline in the phase hue, plus a whisper
+   of the hue in the card background so each phase's card is visually its
+   own without breaking the ivory base. */
 .phase-status-card[data-phase] {
   border-top: 2px solid var(--phase-hue);
+  background: color-mix(in srgb, var(--phase-hue) 4%, var(--surface));
+}
+
+:root[data-theme="dark"] .phase-status-card[data-phase] {
+  background: color-mix(in srgb, var(--phase-hue) 9%, var(--surface));
 }
 
 /* Phase chip in run lists. */

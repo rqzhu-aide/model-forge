@@ -314,6 +314,15 @@ The backend returns possible actions as typed action descriptors:
 
 The UI may disable a control only from this backend eligibility response or a directly local incomplete form field. It must not duplicate phase dependency logic in frontend code.
 
+Density rules (measured, 2026-08-29): grid card pairs hug their own content
+(`align-items: start` on the two-column grids) so a short card never carries
+dead space beside a tall sibling. Long reference surfaces collapse: the
+profiles and skills settings page renders each role as a collapsed disclosure
+naming the assigned profile and skill attention count; the P1 literature-gap
+banner shows at most two references with a "show all" disclosure and clamps
+long reference text to two lines; the role configuration page keeps the full
+SOUL text behind a disclosure.
+
 An enabled action states:
 
 - Whether it starts a research run or performs a no-run control transaction.

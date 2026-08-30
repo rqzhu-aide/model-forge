@@ -428,7 +428,10 @@ export function RoleConfigurationPage() {
         title="SOUL definition"
         description="Read-only reference text. It is written into the profile only by provisioning."
       >
-        <pre className="soul-text">{definition.soul_text}</pre>
+        <details className="soul-details">
+          <summary>Show the full SOUL text</summary>
+          <pre className="soul-text">{definition.soul_text}</pre>
+        </details>
         <dl className="record-metadata">
           <div><dt>SOUL digest</dt><dd><code>{definition.soul_sha256}</code></dd></div>
           <div>

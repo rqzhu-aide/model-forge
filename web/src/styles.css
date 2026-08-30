@@ -858,6 +858,9 @@ code {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.25rem;
+  /* Keep each card hugging its own content instead of stretching to the
+     tallest sibling (left dead space inside the shorter card). */
+  align-items: start;
 }
 
 .form-stack,
@@ -3867,4 +3870,79 @@ p.run-monitor-note {
   border-left: 2px solid var(--accent, #5b6b7a);
   font-size: 0.85rem;
   color: var(--muted, #6b7280);
+}
+
+/* ── Collapsible profile cards (long settings page) ── */
+
+.profile-collapsible {
+  border: 1px solid var(--hairline, #e5e7eb);
+  border-radius: var(--radius, 8px);
+  background: var(--surface, #fff);
+}
+
+.profile-collapsible > summary {
+  cursor: pointer;
+  padding: 0.7rem 1.1rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.profile-collapsible__name {
+  font-weight: 600;
+}
+
+.profile-collapsible__meta {
+  font-size: 0.85rem;
+  color: var(--muted, #6b7280);
+}
+
+.profile-collapsible__attention {
+  color: var(--warning, #92600a);
+  font-weight: 600;
+}
+
+.profile-collapsible[open] > summary {
+  border-bottom: 1px solid var(--hairline, #e5e7eb);
+}
+
+.profile-collapsible > article {
+  padding: 1rem 1.1rem;
+}
+
+/* ── Literature gap banner: clamp long references ── */
+
+.literature-gap-banner__reference {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.literature-gap-banner__list li {
+  display: block;
+}
+
+.literature-gap-banner__more {
+  margin-top: 0.4rem;
+}
+
+.literature-gap-banner__more summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--accent, #5b6b7a);
+}
+
+.literature-gap-banner__more[open] summary {
+  margin-bottom: 0.35rem;
+}
+
+/* ── SOUL definition collapsible ── */
+
+.soul-details summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--accent, #5b6b7a);
+  margin-bottom: 0.5rem;
 }

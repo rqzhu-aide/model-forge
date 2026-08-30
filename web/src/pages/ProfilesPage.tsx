@@ -257,7 +257,29 @@ export function ProfilesPage() {
       </Panel>
 
       <div className="profile-list">
-        {profilesQuery.data.profiles.map((role) => <RoleProfileCard projectId={projectId} role={role} key={role.role_id} />)}
+        {profilesQuery.data.profiles.map((role) => {
+          const attention = role.skills.filter(
+            (skill) => skill.status === "missing" || skill.status === "update_available",
+          ).length;
+          return (
+            <details className="profile-collapsible" key={role.role_id}>
+              <summary>
+                <span className="profile-collapsible__name">{role.display_name}</span>
+                <span className="profile-collapsible__meta">
+                  Profile: <code>{role.profile_id}</code>
+                  {" · "}
+                  {role.skills.length} recommended skill{role.skills.length === 1 ? "" : "s"}
+                  {attention ? (
+                    <span className="profile-collapsible__attention">
+                      {" · "}{attention} need{attention === 1 ? "s" : ""} attention
+                    </span>
+                  ) : null}
+                </span>
+              </summary>
+              <RoleProfileCard projectId={projectId} role={role} />
+            </details>
+          );
+        })}
       </div>
       <ProjectionNote projection={profilesQuery.data.projection} />
     </div>

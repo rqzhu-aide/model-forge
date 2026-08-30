@@ -134,14 +134,31 @@ export function PhasePage() {
             Consider a focused literature update to incorporate these:
           </p>
           <ul className="literature-gap-banner__list">
-            {phase.literature_gaps.map((gap) => (
+            {(phase.literature_gaps.length > 2
+              ? phase.literature_gaps.slice(0, 2)
+              : phase.literature_gaps
+            ).map((gap) => (
               <li key={gap.attention_id}>
                 <span className="literature-gap-banner__phase">{gap.raised_by_phase}</span>
                 {" "}
-                {gap.reference}
+                <span className="literature-gap-banner__reference">{gap.reference}</span>
               </li>
             ))}
           </ul>
+          {phase.literature_gaps.length > 2 ? (
+            <details className="literature-gap-banner__more">
+              <summary>Show all {phase.literature_gaps.length} suggested references</summary>
+              <ul className="literature-gap-banner__list">
+                {phase.literature_gaps.slice(2).map((gap) => (
+                  <li key={gap.attention_id}>
+                    <span className="literature-gap-banner__phase">{gap.raised_by_phase}</span>
+                    {" "}
+                    <span className="literature-gap-banner__reference">{gap.reference}</span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
         </div>
       ) : null}
 

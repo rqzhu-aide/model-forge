@@ -41,6 +41,15 @@
   --sidebar-active-line: rgba(255, 255, 255, 0.35);
   --shadow: 0 1px 2px rgba(17, 17, 19, 0.05), 0 12px 32px rgba(17, 17, 19, 0.04);
   --radius: 10px;
+  /* Phase identity hues (2026-08-29, archify-inspired muted tonal strokes):
+     a quiet per-phase color so same-page elements are visually distinct
+     without disturbing the ink/paper base. Used for eyebrows, hairlines,
+     active-tab accents, and phase chips - never for body text. */
+  --phase-p1: #0e7490; /* literature - cyan (WCAG 5.0:1 on paper) */
+  --phase-p2: #7c3aed; /* method - violet (5.4:1) */
+  --phase-p3: #047857; /* theory - emerald (5.2:1) */
+  --phase-p4: #b45309; /* empirical - amber (4.7:1) */
+  --phase-p5: #be3c5a; /* manuscript - rose (5.0:1) */
 }
 
 :root[data-theme="dark"] {
@@ -81,6 +90,12 @@
   --sidebar-active-text: #ffffff;
   --sidebar-active-line: rgba(255, 255, 255, 0.4);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px rgba(0, 0, 0, 0.3);
+  /* Phase hues, dark-theme brightened (archify dark strokes). */
+  --phase-p1: #22d3ee;
+  --phase-p2: #a78bfa;
+  --phase-p3: #34d399;
+  --phase-p4: #fbbf24;
+  --phase-p5: #fb7185;
 }
 
 * {
@@ -3945,4 +3960,76 @@ p.run-monitor-note {
   font-size: 0.85rem;
   color: var(--accent, #5b6b7a);
   margin-bottom: 0.5rem;
+}
+
+/* ── Phase identity hues: hooks ── */
+
+[data-phase="P1"] { --phase-hue: var(--phase-p1); }
+[data-phase="P2"] { --phase-hue: var(--phase-p2); }
+[data-phase="P3"] { --phase-hue: var(--phase-p3); }
+[data-phase="P4"] { --phase-hue: var(--phase-p4); }
+[data-phase="P5"] { --phase-hue: var(--phase-p5); }
+
+/* Active phase tab: quiet underline + phase code in the phase hue. */
+.project-workspace-tab[data-phase].is-active {
+  border-bottom: 2px solid var(--phase-hue);
+}
+.project-workspace-tab[data-phase].is-active .project-workspace-tab__label > span {
+  color: var(--phase-hue);
+  font-weight: 600;
+}
+
+/* Phase page eyebrow and run page eyebrow carry the phase hue. */
+.phase-heading .eyebrow[data-phase],
+.run-heading .eyebrow[data-phase] {
+  color: var(--phase-hue);
+}
+
+/* Phase status card: a 2px top hairline in the phase hue. */
+.phase-status-card[data-phase] {
+  border-top: 2px solid var(--phase-hue);
+}
+
+/* Phase chip in run lists. */
+.phase-chip[data-phase] {
+  color: var(--phase-hue);
+  font-weight: 600;
+}
+
+/* ── Gentle motion (archify-trace inspired, kept quiet) ── */
+
+@keyframes mf-panel-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.page-stack > * {
+  animation: mf-panel-in 180ms ease-out;
+}
+
+@keyframes mf-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 35%, transparent); }
+  50% { box-shadow: 0 0 0 5px transparent; }
+}
+
+.project-workspace-tab__status[data-tone="running"] {
+  animation: mf-pulse 1.6s ease-out infinite;
+}
+
+.project-workspace-tab,
+.panel,
+.profile-collapsible {
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-stack > *,
+  .project-workspace-tab__status[data-tone="running"] {
+    animation: none;
+  }
+  .project-workspace-tab,
+  .panel,
+  .profile-collapsible {
+    transition: none;
+  }
 }

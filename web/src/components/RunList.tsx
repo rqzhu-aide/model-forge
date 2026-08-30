@@ -58,7 +58,7 @@ export function RunList({
           <li key={run.run_id}>
             <div className="run-list__heading">
               <Link to={`/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(run.run_id)}`}>
-                {run.phase} research run
+                <span className="phase-chip" data-phase={run.phase}>{run.phase}</span> research run
               </Link>
               <RunStatePill
                 state={run.state}

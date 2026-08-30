@@ -71,6 +71,7 @@ export function ProjectWorkspaceTabs({ projectId, overview, loading = false }: P
           <NavLink
             to={`${basePath}/phases/${phase}`}
             key={phase}
+            data-phase={phase}
             className={({ isActive }) => isActive ? "project-workspace-tab is-active" : "project-workspace-tab"}
             title={`${phase}: ${phaseNames[phase]}. ${status.label}.`}
           >

@@ -72,7 +72,7 @@ export function PhaseStatusCard({ phase }: { phase: PhaseView }) {
       : undefined;
 
   return (
-    <section className="phase-status-card" aria-label="Current phase status">
+    <section className="phase-status-card" aria-label="Current phase status" data-phase={phase.phase_id}>
       <div className="phase-status-card__header">
         <CompactPhaseStatus status={phase.assessment} />
       </div>

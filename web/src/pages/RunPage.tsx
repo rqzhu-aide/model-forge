@@ -174,7 +174,7 @@ export function RunPage() {
     <div className="page-stack">
       <header className="page-header run-heading">
         <div>
-          <p className="eyebrow">Controlled research operation</p>
+          <p className="eyebrow" data-phase={run.phase}>Controlled research operation · {run.phase}</p>
           <h1>{run.phase} run</h1>
           <p><code>{run.run_id}</code></p>
         </div>

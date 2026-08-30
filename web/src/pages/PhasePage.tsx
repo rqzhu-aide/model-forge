@@ -114,7 +114,7 @@ export function PhasePage() {
     <div className="page-stack">
       <header className="page-header phase-heading">
         <div>
-          <p className="eyebrow">{phaseId} research phase</p>
+          <p className="eyebrow" data-phase={phaseId}>{phaseId} research phase</p>
           <h1>{phase.name}</h1>
           <p>{phase.purpose}</p>
         </div>

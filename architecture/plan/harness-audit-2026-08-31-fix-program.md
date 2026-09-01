@@ -232,9 +232,28 @@ current_generations when the inventory flag is set.
   updates instead of duplicates. Deterministic fold change; regression
   test with `[isbn:Y]` prior vs `[doi:X, isbn:Y]` change.
 
-### P-F: Fencing deletion (R15; decided: delete)
+### P-F: Fencing deletion (R15; decided: delete) -- DONE
 
-- Remove the unused token machinery (`advance`, `check_fence`,
+DONE 2026-09-01: pins commit d3cf9c4, fix commit 6dc2ff7. Tests 1368 ->
+1368 (delta 0: removed the 3 TestInvocationFencer tests, added 3 in
+tests/test_run_advancement_guarantee.py; all three verified by the
+coordinator to fail on pre-fix code with the predicted defects -
+find_spec assertion, _fencer source assertion, AttributeError on the
+lease call). Gates: pytest exit 0 (1368 passed), validate_package.py
+exit 0 (re-run by the coordinator after the commit). Probe facts
+recorded in the pins doc
+(plan/harness-audit-2026-08-31-pf-pins.md): production usage was exactly
+four lines in run_coordinator.py; the same-named fencing classes in
+diagnostics/store.py and application/run_profile_assembler.py are
+separate machinery and were left untouched. Implementation: module
+deleted; coordinator import, construction, acquire/release, and the
+lease-only try/finally removed (asyncio lock kept); unused imports and
+stale docstrings cleaned in the two WP1/WP2 test files;
+02-run-harness.md section 10 now documents the single-advancement
+guarantee as per-run asyncio lock + compare_and_swap_run CAS +
+closure-existence checks.
+
+- R15: removed the unused token machinery (`advance`, `check_fence`,
   `current_token`, `_seed_from_heartbeats`, `is_terminal`) and the
   in-memory lease store from `harness/invocation_fencing.py`; remove
   `acquire_lease`/`release_lease` usage in `run_coordinator.py:112,172`

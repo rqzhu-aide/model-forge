@@ -40,7 +40,6 @@ from ..harness.publication_basis import (
     recover_publication_head,
 )
 from ..harness.stage_execution import HarnessExecutionServices
-from ..harness.invocation_fencing import FencingError, InvocationFencer
 from ..harness.submission_validation import (
     SubmissionValidationResult,
     validate_submission,
@@ -94,7 +93,6 @@ class RunCoordinator:
         self.orchestrator = ContractSequentialOrchestrator()
         self.orchestrators = OrchestratorRegistry((self.orchestrator,))
         self.publisher = ContractPublicationService(repository)
-        self._fencer = InvocationFencer(repository)
         self._locks: dict[str, asyncio.Lock] = {}
         self._tasks: set[asyncio.Task[None]] = set()
         resource_root = Path(__file__).resolve().parents[3] / "resources"
@@ -112,68 +110,63 @@ class RunCoordinator:
 
         lock = self._locks.setdefault(run_id, asyncio.Lock())
         async with lock:
-            holder = f"coordinator:{run_id}"
-            self._fencer.acquire_lease(run_id, holder)
-            try:
-                for _ in range(24):
-                    row = self.repository.get_run(run_id)
-                    status = str(row["status"])
-                    if status in _TERMINAL:
+            for _ in range(24):
+                row = self.repository.get_run(run_id)
+                status = str(row["status"])
+                if status in _TERMINAL:
+                    return
+                try:
+                    if status == "created":
+                        self.lifecycle.transition(
+                            run_id,
+                            RunStatus.PREPARING,
+                            "Freezing the exact inputs, roles, resources, and publication basis.",
+                        )
+                    elif status == "preparing":
+                        self._prepare(run_id)
+                    elif status == "prepared":
+                        self.lifecycle.transition(
+                            run_id,
+                            RunStatus.RUNNING,
+                            "The frozen role plan is starting.",
+                        )
+                    elif status == "running":
+                        pending = await self._execute(run_id)
+                        if pending:
+                            return
+                    elif status == "cancellation_requested":
+                        pending = await self._settle_cancellation(run_id)
+                        if pending:
+                            return
+                    elif status == "submitted":
+                        self.lifecycle.transition(
+                            run_id,
+                            RunStatus.VALIDATING,
+                            "The immutable submission is being checked against the frozen contract.",
+                            payload_updates={
+                                "validation_report": {
+                                    "status": "pending",
+                                    "summary": "Submission validation is in progress.",
+                                }
+                            },
+                        )
+                    elif status == "validating":
+                        self._validate(run_id)
+                    elif status == "promoting":
+                        self._promote(run_id)
+                    elif status in ("correction_authorized", "correcting"):
+                        # HV-5.8: Never auto-advance correction states.
+                        # These require explicit user authorization and
+                        # must not be relanched on restart.
                         return
-                    try:
-                        if status == "created":
-                            self.lifecycle.transition(
-                                run_id,
-                                RunStatus.PREPARING,
-                                "Freezing the exact inputs, roles, resources, and publication basis.",
-                            )
-                        elif status == "preparing":
-                            self._prepare(run_id)
-                        elif status == "prepared":
-                            self.lifecycle.transition(
-                                run_id,
-                                RunStatus.RUNNING,
-                                "The frozen role plan is starting.",
-                            )
-                        elif status == "running":
-                            pending = await self._execute(run_id)
-                            if pending:
-                                return
-                        elif status == "cancellation_requested":
-                            pending = await self._settle_cancellation(run_id)
-                            if pending:
-                                return
-                        elif status == "submitted":
-                            self.lifecycle.transition(
-                                run_id,
-                                RunStatus.VALIDATING,
-                                "The immutable submission is being checked against the frozen contract.",
-                                payload_updates={
-                                    "validation_report": {
-                                        "status": "pending",
-                                        "summary": "Submission validation is in progress.",
-                                    }
-                                },
-                            )
-                        elif status == "validating":
-                            self._validate(run_id)
-                        elif status == "promoting":
-                            self._promote(run_id)
-                        elif status in ("correction_authorized", "correcting"):
-                            # HV-5.8: Never auto-advance correction states.
-                            # These require explicit user authorization and
-                            # must not be relanched on restart.
-                            return
-                        else:
-                            raise RuntimeError(f"Unsupported active run status {status!r}.")
-                    except asyncio.CancelledError:
-                        raise
-                    except Exception as error:
-                        if self._handle_error(run_id, error):
-                            return
-                        raise
-            finally:
-                self._fencer.release_lease(run_id)
+                    else:
+                        raise RuntimeError(f"Unsupported active run status {status!r}.")
+                except asyncio.CancelledError:
+                    raise
+                except Exception as error:
+                    if self._handle_error(run_id, error):
+                        return
+                    raise
 
     async def resume_incomplete(self) -> None:
         """Schedule every durable nonterminal run after application startup."""

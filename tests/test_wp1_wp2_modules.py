@@ -1,5 +1,5 @@
-"""Tests for WP1 D1.2 CapabilityBroker, D1.4 InvocationFencing,
-WP2 D2.1 OutputAdapter, and D2.2 scientific validators."""
+"""Tests for WP1 D1.2 CapabilityBroker, WP2 D2.1 OutputAdapter, and
+D2.2 scientific validators."""
 
 from __future__ import annotations
 
@@ -11,11 +11,6 @@ import pytest
 
 from model_forge.capabilities.broker import CapabilityBroker, CapabilityBrokerError
 from model_forge.harness.execution_records import FrozenInputPath
-from model_forge.harness.invocation_fencing import (
-    FencingError,
-    FencingToken,
-    InvocationFencer,
-)
 from model_forge.harness.output_adapters import (
     AdaptedOutput,
     DefaultOutputAdapter,
@@ -112,81 +107,6 @@ class TestCapabilityBroker:
                 workspace=workspace,
                 frozen_inputs={"bad": frozen},
             )
-
-
-# ---------------------------------------------------------------------------
-# InvocationFencer
-# ---------------------------------------------------------------------------
-
-class _FakeConn:
-    def __init__(self, closure_exists: bool = False) -> None:
-        self._closure_exists = closure_exists
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *args):
-        return None
-
-    def execute(self, query, params=()):
-        return type("R", (), {"fetchone": lambda s: {"1": 1} if self._closure_exists else None})()
-
-
-class _FakeDB:
-    def __init__(self):
-        self.closure_exists = False
-
-    def connect(self):
-        return _FakeConn(closure_exists=self.closure_exists)
-
-
-class _FakeRepo:
-    def __init__(self):
-        self._database = _FakeDB()
-
-
-class TestInvocationFencer:
-    def test_fence_prevents_stale_advance(self) -> None:
-        fencer = InvocationFencer(_FakeRepo())  # type: ignore
-        token0 = fencer.current_token("exec-001")
-        assert token0.token == 0
-
-        token1 = fencer.advance("exec-001", token0)
-        assert token1.token == 1
-
-        # Stale token (token0) cannot advance
-        with pytest.raises(FencingError, match="Stale"):
-            fencer.advance("exec-001", token0)
-
-    def test_lease_acquire_and_takeover(self) -> None:
-        fencer = InvocationFencer(_FakeRepo(), lease_ttl_seconds=10)  # type: ignore
-        lease = fencer.acquire_lease("exec-002", "coordinator-A")
-        assert lease.holder == "coordinator-A"
-
-        # Same holder can re-acquire
-        lease2 = fencer.acquire_lease("exec-002", "coordinator-A")
-        assert lease2.holder == "coordinator-A"
-
-        # Different holder cannot acquire while lease is active
-        with pytest.raises(FencingError, match="held by"):
-            fencer.acquire_lease("exec-002", "coordinator-B")
-
-        # Release and then another can acquire
-        fencer.release_lease("exec-002")
-        lease3 = fencer.acquire_lease("exec-002", "coordinator-B")
-        assert lease3.holder == "coordinator-B"
-
-    def test_advance_rejects_terminal(self) -> None:
-        repo = _FakeRepo()
-        fencer = InvocationFencer(repo)  # type: ignore
-        token = fencer.current_token("exec-003")
-
-        # Simulate closure existing
-        repo._database.closure_exists = True
-        assert fencer.is_terminal("exec-003") is True
-
-        with pytest.raises(FencingError, match="terminal"):
-            fencer.advance("exec-003", token)
 
 
 # ---------------------------------------------------------------------------

@@ -4,15 +4,13 @@ These tests verify that:
 1. CapabilityBroker is invoked during role execution (inputs materialized)
 2. OutputAdapter is invoked after validation (linked artifacts captured)
 3. Raw output is preserved on failure
-4. InvocationFencer is active during run coordination
-5. NetworkPolicy modes work correctly
-6. Golden fixtures are schema-valid
-7. Mutation fixtures are properly labelled
+4. NetworkPolicy modes work correctly
+5. Golden fixtures are schema-valid
+6. Mutation fixtures are properly labelled
 """
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import json
 from pathlib import Path
@@ -24,7 +22,6 @@ from model_forge.capabilities.broker import CapabilityBroker
 from model_forge.capabilities.network import NetworkPolicy, NetworkPolicyError
 from model_forge.executors.protocol import RoleInvocation, RoleExecutionStatus
 from model_forge.harness.execution_records import FrozenInputPath
-from model_forge.harness.invocation_fencing import InvocationFencer
 from model_forge.harness.output_adapters import DefaultOutputAdapter, preserve_raw_output
 
 

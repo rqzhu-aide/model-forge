@@ -394,6 +394,15 @@ Two runs may execute concurrently when their phase contracts allow it. Publicati
 
 Version 1 does not merge concurrent publications to the same formal target. If a target's expected generation changed, the later publication becomes `conflicted`. Runs affecting disjoint method targets may publish independently. A deterministic same-target merge policy requires a later architecture decision and phase-specific tests.
 
+Advancement of a single run is single-threaded by construction. Within one
+server process, a per-run asyncio lock in the run coordinator serializes the
+whole advancement loop. Across processes and restarts, every lifecycle
+transition commits through an exact run-head compare-and-swap
+(`compare_and_swap_run`), so a stale advancer conflicts instead of
+double-advancing, and role re-execution is excluded by closure-existence
+checks during reconcile. There is no separate fencing-token or
+coordinator-lease layer.
+
 The global authority journal still has one total order. When two validated
 research runs have disjoint publication targets and unchanged hard dependencies,
 the publisher serializes their commits. The second transaction may append to the

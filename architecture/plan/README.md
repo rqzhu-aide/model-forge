@@ -6,7 +6,9 @@ specification or decision record before code relies on such a change.
 
 ## Active plans
 
-No active plans. New work starts as a plan document in this directory.
+- [harness-audit-2026-08-31-fix-program.md](harness-audit-2026-08-31-fix-program.md) -
+  fix program for the 2026-08-31 harness audit (R1-R37), packages P-A
+  through P-J.
 
 ## Supporting documents
 

@@ -155,6 +155,88 @@ def test_definition_sha256_added_when_absent(tmp_output: Path) -> None:
     assert len(record["identity"]["definition_sha256"]) == 64
 
 
+def test_content_sha256_recomputed_after_definition_stamping(tmp_output: Path) -> None:
+    """content_sha256 must be recomputed AFTER identity.definition_sha256 is
+    stamped: the *.content digest contract covers the stamped document."""
+    from model_forge.digests.jcs import canonicalize
+    from model_forge.harness.role_execution import _fix_self_referential_hashes
+
+    record = {
+        "schema_version": "1.0.0",
+        "record_id": "mth.test",
+        "content_sha256": "TBD_BY_MODEL_FORGE_ON_WRITE",
+        "identity": {
+            "stable_id": "mth_test",
+            "version": 1,
+            "definition_sha256": "placeholder",
+        },
+        "mathematical_definition": {
+            "canonical_definition": {"target_or_estimand": "x"},
+        },
+    }
+    changed = _fix_self_referential_hashes(record, tmp_output)
+
+    assert changed is True
+    # The definition digest must be stamped inside the document the
+    # content_sha256 digest covers.
+    expected_def = hashlib.sha256(
+        canonicalize({"target_or_estimand": "x"})
+    ).hexdigest()
+    assert record["identity"]["definition_sha256"] == expected_def
+    snapshot = {k: v for k, v in record.items() if k != "content_sha256"}
+    expected = hashlib.sha256(canonicalize(snapshot)).hexdigest()
+    assert record["content_sha256"] == expected
+
+
+def test_content_sha256_recomputed_after_output_pointer_stamping(tmp_path: Path) -> None:
+    """content_sha256 must be recomputed AFTER output:// pointer stamping so
+    the embedded digest covers the stamped artifact fields."""
+    from types import SimpleNamespace
+
+    from model_forge.digests.jcs import canonicalize
+    from model_forge.harness.role_execution import (
+        _OutputPointerContext,
+        _fix_self_referential_hashes,
+    )
+
+    (tmp_path / "synthesis-compact.json").write_text('{"title": "x"}')
+    context = _OutputPointerContext(
+        project_id="project.test",
+        run_id="run.test",
+        run_root=tmp_path,
+        specs=[
+            SimpleNamespace(
+                relative_path="synthesis-compact.json",
+                contract_output_id="p1.synthesis_compact",
+            )
+        ],
+    )
+    record = {
+        "record_id": "rec.test",
+        "content_sha256": "TBD_BY_MODEL_FORGE_ON_WRITE",
+        "representations": [
+            {
+                "information_layer": "compact_decision_view",
+                "artifact": {
+                    "uri": "output://synthesis-compact.json",
+                    "media_type": "application/json",
+                },
+            }
+        ],
+    }
+    changed = _fix_self_referential_hashes(
+        record, tmp_path / "synthesis-candidate.json", pointer_context=context
+    )
+
+    assert changed is True
+    artifact = record["representations"][0]["artifact"]
+    expected_sha = hashlib.sha256(b'{"title": "x"}').hexdigest()
+    assert artifact["sha256"] == expected_sha
+    snapshot = {k: v for k, v in record.items() if k != "content_sha256"}
+    expected = hashlib.sha256(canonicalize(snapshot)).hexdigest()
+    assert record["content_sha256"] == expected
+
+
 # ---------------------------------------------------------------------------
 # _strip_empty_strings
 # ---------------------------------------------------------------------------

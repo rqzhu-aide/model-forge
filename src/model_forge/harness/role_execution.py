@@ -869,6 +869,13 @@ def _fix_self_referential_hashes(
        the harness stamps the real artifact_id, uri, and sha256 from the
        input's bytes.  Unresolvable pointers are left untouched for
        validation to reject.
+
+    ``content_sha256`` is recomputed LAST, after the handoff, definition,
+    and pointer stamping steps, so the stamped value matches the sealed
+    bytes per the ``*.content`` digest contracts
+    (``architecture/contracts/digest-contracts.json``): those steps mutate
+    the document the digest covers, so an earlier recompute would seal a
+    digest of bytes that never existed.
     """
     changed = False
 
@@ -876,13 +883,7 @@ def _fix_self_referential_hashes(
         nonlocal changed
         touched = False
 
-        # 1. content_sha256 — always recompute (hash paradox)
-        if "content_sha256" in obj:
-            correct = _compute_content_hash(obj, {"content_sha256"})
-            if obj.get("content_sha256") != correct:
-                obj["content_sha256"] = correct
-                touched = True
-        # 2. handoff_artifact.sha256 — recompute from the handoff dict
+        # 1. handoff_artifact.sha256 — recompute from the handoff dict
         ha = obj.get("handoff_artifact")
         if isinstance(ha, dict) and "sha256" in ha:
             snapshot = dict(obj)
@@ -894,7 +895,7 @@ def _fix_self_referential_hashes(
                 ha["sha256"] = correct
                 touched = True
 
-        # 3. identity.definition_sha256 — digest contract
+        # 2. identity.definition_sha256 — digest contract
         # ``method_record.definition``: payload is
         # ``/mathematical_definition/canonical_definition`` (RFC 8785), and
         # the digest lives at ``/identity/definition_sha256``.  Agents cannot
@@ -911,7 +912,7 @@ def _fix_self_referential_hashes(
                     identity["definition_sha256"] = correct
                     touched = True
 
-        # 4. representations[].artifact and top-level primary_artifact
+        # 3. representations[].artifact and top-level primary_artifact
         # output:// pointers (E-2) — stamp the real pointer to the
         # declared output's bytes.  A pointer at the record's own output
         # (primary_artifact self-pointer, E-2d) first preserves the exact
@@ -940,7 +941,7 @@ def _fix_self_referential_hashes(
                 ):
                     touched = True
 
-        # 5. mathematical_definition.canonical_artifact input:// pointers
+        # 4. mathematical_definition.canonical_artifact input:// pointers
         # (E-2e) — stamp the real pointer to the materialized input bytes.
         # Materialized inputs live in the role's inputs/ directory (a
         # sibling of the output files inside roles/<NN>-<role>/), derived
@@ -961,6 +962,15 @@ def _fix_self_referential_hashes(
                 project_id=pointer_context.project_id,
                 run_id=pointer_context.run_id,
             ):
+                touched = True
+
+        # 5. content_sha256 - recompute LAST (hash paradox), after every
+        # other stamping step, so the digest covers the sealed document per
+        # the *.content digest contracts.
+        if "content_sha256" in obj:
+            correct = _compute_content_hash(obj, {"content_sha256"})
+            if obj.get("content_sha256") != correct:
+                obj["content_sha256"] = correct
                 touched = True
 
         return touched

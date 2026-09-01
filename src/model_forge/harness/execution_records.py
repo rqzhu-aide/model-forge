@@ -24,6 +24,15 @@ class RoleExecutionPending(RoleLifecycleError):
     """An acknowledged external execution has not reached a terminal state."""
 
 
+class RoleExecutionInfrastructureError(RoleLifecycleError):
+    """Harness-side bookkeeping failed; the execution outcome is unknown.
+
+    Raised when an observer/persistence call (not the executor's domain
+    logic) fails, so the failure must NOT be sealed into a durable FAILED
+    closure. The run stays `running` and a later pass reconciles.
+    """
+
+
 @dataclass(frozen=True, slots=True)
 class FrozenInputPath:
     input_id: str
@@ -217,6 +226,7 @@ def immutable_write(path: Path, payload: bytes) -> None:
 __all__ = [
     "FrozenInputPath",
     "RoleClosureResult",
+    "RoleExecutionInfrastructureError",
     "RoleExecutionPending",
     "RoleLifecycleError",
     "SealedRoleOutput",

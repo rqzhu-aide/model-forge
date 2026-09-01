@@ -51,6 +51,7 @@ logger = logging.getLogger(__name__)
 from .execution_records import (
     FrozenInputPath,
     RoleClosureResult,
+    RoleExecutionInfrastructureError,
     RoleExecutionPending,
     RoleLifecycleError,
     SealedRoleOutput,
@@ -193,9 +194,15 @@ def _apply_disclosed_mechanical_repairs(
                 item["schema_version"] = SCHEMA_VERSION
                 changed = True
             identity = item.get("identity")
-            if isinstance(identity, dict) and identity.get("version", 1) < 1:
-                identity["version"] = 1
-                changed = True
+            if isinstance(identity, dict):
+                version = identity.get("version")
+                if (
+                    isinstance(version, bool)
+                    or not isinstance(version, (int, float))
+                    or version < 1
+                ):
+                    identity["version"] = 1
+                    changed = True
             if no_additional and allowed_props:
                 for key in list(item.keys()):
                     if key not in allowed_props:
@@ -1434,19 +1441,28 @@ class _CorrectionObserver(_RepositoryObserver):
         self, invocation: RoleInvocation, external_execution_id: str
     ) -> None:
         self.external_execution_id = external_execution_id
-        self.repository.acknowledge_execution(
-            invocation.execution_id,
-            external_execution_id,
-            {
-                "kind": "role_invocation_correction",
-                "execution_id": invocation.execution_id,
-                "invocation_id": invocation.invocation_id,
-                "external_execution_id": external_execution_id,
-                "correction_command_id": self._correction_command_id,
-                "correction_type": self._correction_type,
-                "source_closure_id": self._source_closure_id,
-            },
-        )
+        try:
+            self.repository.acknowledge_execution(
+                invocation.execution_id,
+                external_execution_id,
+                {
+                    "kind": "role_invocation_correction",
+                    "execution_id": invocation.execution_id,
+                    "invocation_id": invocation.invocation_id,
+                    "external_execution_id": external_execution_id,
+                    "correction_command_id": self._correction_command_id,
+                    "correction_type": self._correction_type,
+                    "source_closure_id": self._source_closure_id,
+                },
+            )
+        except RoleExecutionInfrastructureError:
+            raise
+        except Exception as error:
+            raise RoleExecutionInfrastructureError(
+                f"Harness bookkeeping for execution "
+                f"{invocation.execution_id} failed: "
+                f"{type(error).__name__}: {error}"
+            ) from error
 
 
 class RoleLifecycleService:
@@ -1530,6 +1546,8 @@ class RoleLifecycleService:
                         f"Execution {execution_id} is acknowledged but not terminal."
                     )
         except RoleExecutionPending:
+            raise
+        except RoleExecutionInfrastructureError:
             raise
         except Exception as error:
             result = RoleExecutionResult(
@@ -1655,6 +1673,8 @@ class RoleLifecycleService:
                         f"Execution {execution_id} is acknowledged but not terminal."
                     )
         except RoleExecutionPending:
+            raise
+        except RoleExecutionInfrastructureError:
             raise
         except Exception as error:
             result = RoleExecutionResult(
@@ -3073,6 +3093,7 @@ class RoleLifecycleService:
 __all__ = [
     "FrozenInputPath",
     "RoleClosureResult",
+    "RoleExecutionInfrastructureError",
     "RoleExecutionPending",
     "RoleLifecycleError",
     "RoleLifecycleService",

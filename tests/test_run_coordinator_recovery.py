@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import sqlite3
 from pathlib import Path
 
 from model_forge.api.models import (
@@ -13,6 +14,9 @@ from model_forge.api.models import (
 from model_forge.api.ports import RawRequestBody
 from model_forge.application.bootstrap import build_service
 from model_forge.application.settings import ApplicationSettings
+from model_forge.executors import RoleExecutionResult, RoleExecutionStatus
+from model_forge.executors.development import SchemaExampleFakeExecutor
+from model_forge.storage.repository import HubRepository
 
 
 ARCHITECTURE = Path(__file__).resolve().parents[1] / "architecture"
@@ -226,5 +230,139 @@ def test_cancellation_before_preparation_starts_no_role_or_publication(
         assert (
             service.repository.get_publication_receipt_for_run(started.run_id) is None
         )
+
+    asyncio.run(scenario())
+
+
+class _RestartFakeExecutor(SchemaExampleFakeExecutor):
+    """External process finishes its work but the harness pass is
+    interrupted before close; reconcile stays non-terminal once, then
+    returns the completed result."""
+
+    def __init__(self, architecture_root: Path) -> None:
+        super().__init__(architecture_root)
+        self.completed: dict[str, RoleExecutionResult] = {}
+        self.reconcile_suspended = True
+
+    async def execute(self, invocation, observer):
+        await observer.launch_intent(invocation)
+        external_id = f"fake:{invocation.execution_id}"
+        await observer.launch_acknowledged(invocation, external_id)
+        for offset, output_path in enumerate(invocation.expected_output_paths, start=1):
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(
+                json.dumps(self._example_output(invocation, offset), ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+        result = RoleExecutionResult(
+            RoleExecutionStatus.SUCCEEDED, external_id, 0,
+            "Process completed; the harness pass was interrupted before close.",
+        )
+        self.completed[invocation.execution_id] = result
+        await observer.heartbeat(invocation, "interrupted pass")
+        return result
+
+    async def reconcile(self, external_execution_id: str):
+        if self.reconcile_suspended:
+            return None
+        return self.completed.get(external_execution_id.removeprefix("fake:"))
+
+    async def cancel(self, external_execution_id: str) -> None:
+        return None
+
+
+def test_restart_with_in_flight_role_recovers(tmp_path: Path, monkeypatch) -> None:
+    async def scenario() -> None:
+        service = _service(tmp_path)
+        coordinator = service.run_launcher.__self__
+        service.run_launcher = None
+        coordinator.executor = _RestartFakeExecutor(ARCHITECTURE)
+
+        # One-shot harness-side failure: the FIRST heartbeat append raises;
+        # later calls delegate to the original repository method. HubRepository
+        # uses __slots__, so the wrap is applied at the class level.
+        original_append = HubRepository.append_execution_heartbeat
+        heartbeat_calls = 0
+
+        def flaky_append_execution_heartbeat(self, *args, **kwargs):
+            nonlocal heartbeat_calls
+            heartbeat_calls += 1
+            if heartbeat_calls == 1:
+                raise sqlite3.OperationalError("database is locked")
+            return original_append(self, *args, **kwargs)
+
+        monkeypatch.setattr(
+            HubRepository, "append_execution_heartbeat", flaky_append_execution_heartbeat
+        )
+
+        project = await _create_project(service, key="create-restart")
+        started, _, _ = await _start_phase_one(
+            service, project.project_id, key="start-restart"
+        )
+        assert started.state == "created"
+
+        # Pass 1: the heartbeat raises inside the observer. The harness-side
+        # bookkeeping failure must NOT be sealed into a durable FAILED
+        # closure; the run stays running.
+        await coordinator.run(started.run_id)
+        detail = await service.get_run(project.project_id, started.run_id)
+        assert detail.state == "running", detail.terminal_reason
+        completed_after_pass_one = len(coordinator.executor.completed)
+
+        # Pass 2: the acknowledgement exists and reconcile is still
+        # non-terminal, so the pass must leave the run running without
+        # re-executing the role.
+        await coordinator.run(started.run_id)
+        detail = await service.get_run(project.project_id, started.run_id)
+        assert detail.state == "running", detail.terminal_reason
+        assert len(coordinator.executor.completed) == completed_after_pass_one
+
+        # Pass 3+: reconcile now returns the completed result and the run
+        # drives to publication.
+        coordinator.executor.reconcile_suspended = False
+        for _ in range(10):
+            await coordinator.run(started.run_id)
+            detail = await service.get_run(project.project_id, started.run_id)
+            if detail.state in TERMINAL_STATES:
+                break
+        assert detail.state == "published", detail.terminal_reason
+
+    asyncio.run(scenario())
+
+
+class _NullIdentityVersionExecutor(SchemaExampleFakeExecutor):
+    """Emit schema examples whose identity block carries a null version."""
+
+    def _example_output(self, invocation, offset):
+        document = super()._example_output(invocation, offset)
+        if isinstance(document, dict):
+            document["identity"] = {"version": None}
+        elif isinstance(document, list):
+            for item in document:
+                if isinstance(item, dict):
+                    item["identity"] = {"version": None}
+        return document
+
+
+def test_null_identity_version_is_coerced_during_repair(tmp_path: Path) -> None:
+    async def scenario() -> None:
+        service = _service(tmp_path)
+        coordinator = service.run_launcher.__self__
+        service.run_launcher = None
+        coordinator.executor = _NullIdentityVersionExecutor(ARCHITECTURE)
+
+        project = await _create_project(service, key="create-null-version")
+        started, _, _ = await _start_phase_one(
+            service, project.project_id, key="start-null-version"
+        )
+        assert started.state == "created"
+
+        detail = None
+        for _ in range(10):
+            await coordinator.run(started.run_id)
+            detail = await service.get_run(project.project_id, started.run_id)
+            if detail.state in TERMINAL_STATES:
+                break
+        assert detail.state == "published", detail.terminal_reason
 
     asyncio.run(scenario())

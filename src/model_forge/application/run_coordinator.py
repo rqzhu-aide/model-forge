@@ -26,6 +26,10 @@ from ..domain.runs import RunStatus, isoformat_utc, utc_now
 from ..domain.validation import ValidationFinding, finding_from_dict
 from ..executors import RoleExecutor
 from ..harness.execution_context import RunExecutionContext
+from ..harness.execution_records import (
+    RoleExecutionInfrastructureError,
+    RoleExecutionPending,
+)
 from ..harness.index_reducers import prepare_index_transforms
 from ..harness.inputs import CurrentRecordReference, resolve_run_inputs
 from ..harness.outputs import build_output_plan
@@ -303,13 +307,19 @@ class RunCoordinator:
             recipe.document["orchestration_binding"]
         )
         orchestrator = self.orchestrators.resolve(binding)
-        result = await orchestrator.execute(
-            run_id=context.run_id,
-            manifest_sha256=context.manifest_sha256,
-            binding=binding,
-            plan=plan,
-            services=ProgressReportingServices(services, self.lifecycle),
-        )
+        try:
+            result = await orchestrator.execute(
+                run_id=context.run_id,
+                manifest_sha256=context.manifest_sha256,
+                binding=binding,
+                plan=plan,
+                services=ProgressReportingServices(services, self.lifecycle),
+            )
+        except (RoleExecutionPending, RoleExecutionInfrastructureError):
+            # Restart-safe recovery: an acknowledged execution is still in
+            # flight, or harness bookkeeping hit a transient failure. Leave
+            # the run `running`; the next resume/notify pass reconciles.
+            return True
         if result.status is OrchestrationStatus.SUBMITTED:
             return False
         if result.status is OrchestrationStatus.CANCELLED:

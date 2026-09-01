@@ -433,5 +433,23 @@ a decision item, not a defect.
   execution path so `executor.cancel` reaches the in-flight role.
 - R17 (instruction layers): KEEP LIVE resolution of mode/stage instruction
   layers and the P1 gap appendix at execution time; record as deliberate.
-- R37 (vacuous review-revision pass): left as-is; flagged for a future
+- R37 (review-revision vacuous pass): left as-is; flagged for a future
   contract decision (not part of this fix program).
+
+## Coordinator notes (added during the fix program)
+
+- 2026-09-01, Pkg E pinning, R35 symptom correction: the stated symptom
+  "enriched identifiers duplicate instead of update" is NOT cured by the
+  pinned fix. Keying on the full sorted identifier tuple still assigns
+  [isbn:Y] and [doi:X, isbn:Y] different keys, so cross-run enrichment
+  still yields two entries (as it did pre-fix). What the pinned fix
+  actually changes is the COLLISION case: two distinct items sharing
+  their lexicographically smallest identifier (e.g. [doi:X] vs
+  [doi:X, isbn:Y]) previously folded into one entry, silently losing the
+  prior item; post-fix both survive. Overlap-based identity resolution
+  (merge items sharing any identifier) would address enrichment but is a
+  design decision with its own failure modes (identifier reuse across
+  editions), left for a future contract decision. The R35 regression
+  test pins the collision case. Details:
+  [plan/harness-audit-2026-08-31-pe-pins.md](plan/harness-audit-2026-08-31-pe-pins.md)
+  probe fact 6.

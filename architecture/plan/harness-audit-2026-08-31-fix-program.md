@@ -170,7 +170,43 @@ fields).
   and emit dedicated population codes for HV-4 overwrites and deliberate
   generation-identity strips (`role_execution.py:321-326,381-386`).
 
-### P-E: Publication and reducers (R11, R12, R32, R33, R34, R35)
+### P-E: Publication and reducers (R11, R12, R32, R33, R34, R35) -- DONE
+
+DONE 2026-09-01: pins commit d099e03, fix commit 3d1b539. Tests 1358 ->
+1368 (+10: test_index_transform_missing_declared_prior_input_fails,
+test_bundle_generation_registers_own_artifact,
+test_keyed_binding_with_slot_scope_is_rejected,
+test_plan_binding_outside_run_mode_is_rejected,
+test_malformed_prior_index_non_object_raises,
+test_malformed_prior_index_wrong_format_raises,
+test_malformed_prior_index_missing_array_raises,
+test_shared_smallest_identifier_does_not_merge,
+test_recover_publication_head_requires_sealed_inventory,
+test_capture_publication_basis_single_snapshot; the coordinator
+independently re-verified the nine regression tests fail on pre-fix code
+with the predicted defects - the tenth is a behavior-preservation smoke
+for the single-transaction refactor). Gates: pytest exit 0 (1368
+passed), validate_package.py exit 0 (re-run by the coordinator after the
+commit). Probe facts recorded in the pins doc
+(plan/harness-audit-2026-08-31-pe-pins.md): R11 conditioned on a prior
+generation because an unconditional set-equality check would fail every
+legitimate first-run index build (frozen_inputs holds only resolved
+inputs); R33 applicable_modes enforced only when the binding source
+carries a mode (all 22 real contract bindings declare it, so field
+rejection would break all publication); R35 audit symptom correction
+recorded in the audit doc's Coordinator notes - the pinned full-tuple
+key fixes the silent-merge collision case, while the named enrichment
+case ([isbn:Y] vs [doi:X, isbn:Y]) still yields two entries and needs an
+identity-resolution design decision. Implementation: transform-input
+consumption check in the deterministic_index replace branch; fail-closed
+_prior_items with format/format_version checks; bundle payloads
+registered as their own content-addressed artifacts (new artifacts
+parameter on publish/validate_materialization, wired from the
+coordinator); binding-mode applicability check in _extract_bindings;
+keyed upsert_each + slot scope rejected fail-loud;
+capture_head_and_current_slots reads head and inventory in one
+immediate transaction; recover_publication_head requires the sealed
+current_generations when the inventory flag is set.
 
 - R11: in `_materialize_writes`, require
   `set(prepared.source_input_sha256) == set(binding.source_input_ids)` and

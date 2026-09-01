@@ -262,7 +262,33 @@ closure-existence checks.
   so the single-advancement guarantee is documented as: per-process
   asyncio lock + `compare_and_swap_run` CAS + closure-existence checks.
 
-### P-G: Cancellation enforcement (R14; decided: enforce)
+### P-G: Cancellation enforcement (R14; decided: enforce) -- DONE
+
+DONE 2026-09-01: pins commit 9868ba1, fix commit b72f939. Tests 1368 ->
+1369 (+1: test_mid_flight_cancellation_terminates_role_and_closes_cancelled;
+passes on the pre-package tree because the mechanism already shipped - see
+below). Gates: pytest exit 0 (1369 passed), validate_package.py exit 0.
+CONTRADICTION recorded in the audit doc's Coordinator notes: R14's premise
+that settle_cancellation is the only executor.cancel call site and that
+the prompt-kill path is unreachable was already false at audit time -
+RepositoryExecutionObserver.heartbeat polls cancellation_requested on
+every heartbeat and calls executor.cancel (execution_observer.py:96-114,
+present in groundwork commit 429c198), the local_hermes poll loop
+heartbeats once per poll interval with the same executor instance, and
+both closure paths convert the killed role to CANCELLED. Live probe
+(plan/harness-audit-2026-08-31-pg-pins.md, probe fact 4): a 30 s
+in-flight role terminated 0.33 s after cancellation acceptance; both
+parallel roles received executor.cancel; stage outcome CANCELLED; both
+closures sealed "cancelled". Resolution per the program's contradiction
+rule: no production change; the package ships the planned mid-flight
+regression test (pinning the previously untested behavior) and the
+02-run-harness.md 11.1 prompt-enforcement paragraph. Executed
+planner-direct (test + two doc edits smaller than the brief; pins doc
+records the rationale).
+
+- R14: verified already implemented (observer-heartbeat cancellation
+  polling -> executor.cancel -> PID-identity-guarded process-group kill ->
+  CANCELLED closure). Regression test named above pins it.
 
 - Wire `cancellation_requested` polling into the local_hermes execute
   loop (alongside the heartbeat cadence, `executors/local_hermes.py:465-470`):

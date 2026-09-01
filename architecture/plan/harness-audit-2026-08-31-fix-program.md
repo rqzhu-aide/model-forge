@@ -129,7 +129,29 @@ the (possibly empty) sealed set for every non-failed closure.
   merge violation findings into the persisted report
   (`role_execution.py:1981-2006` vs `:2026-2036`).
 
-### P-D: Envelope and provenance (R9, R10, R26)
+### P-D: Envelope and provenance (R9, R10, R26) -- DONE
+
+DONE 2026-09-01: pins commit cfccf57, fix commit 67b58e6. Tests 1351 ->
+1358 (+7: test_review_basis_generation_id_stripped_when_run_fact_empty,
+test_to_role_stripped_when_terminal, test_record_type_stripped_when_unresolved,
+test_catalog_mode_method_identity_finding_stays_correctable,
+test_method_bound_method_identity_finding_stays_operational,
+test_generation_identity_strip_code, test_harness_population_overwrite_code;
+all seven verified by the coordinator to fail on pre-fix code with the
+predicted defects: fabricated-value survival for the R9 trio, TypeError on
+the new method_bound/harness_owned parameters for R10/R26). Gates: pytest
+exit 0 (1358 passed, 0 failures), validate_package.py exit 0 (re-run by
+the coordinator after the commit). Pre-dispatch reproduction probe
+(/tmp/pd_probe.py) confirmed all three defects live; the same probe
+post-fix confirms the flips. Probe decisions recorded in the pins doc:
+sequence needs no strip (phase contracts 1-based), lineage gets no strip
+(never populated by the harness, required by method.schema.json - residual
+ADR-015-premise gap for method-bound lineage recorded in the pins doc, not
+fixed here), record_type stripped when unresolved (scientific-record's
+recordType is an enum, so in-enum fabrication would pass). No R26 rule-7
+test migrations were needed (legacy _classify_transformations callers do
+not pass harness_owned and no test pinned the old codes on harness-owned
+fields).
 
 - R9: pop provenance-class harness-owned fields when the sealed run fact
   is empty, mirroring the generation-identity strip

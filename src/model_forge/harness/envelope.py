@@ -231,6 +231,7 @@ def reclassify_harness_owned_finding(
     *,
     schema_file: str,
     failing_property: str | None,
+    method_bound: bool = True,
 ) -> ValidationFinding:
     """Route a finding on a harness-owned field to operational failure.
 
@@ -239,11 +240,21 @@ def reclassify_harness_owned_finding(
     harness re-populates or omits those fields at every close), so the
     finding is an operational harness fault, not an agent-correctable
     contract error.  The message names the fault explicitly.
+
+    The ADR-015 premise (the harness re-populates those fields at every
+    close) holds for ``identity``/``lineage`` only when the run is
+    method-bound; catalog modes (p2.full_catalog, p2.researcher_proposal)
+    leave them agent-authored by design (populate_harness_fields
+    :360-367), so ``method_bound=False`` removes them from the effective
+    owned set for method.schema.json.
     """
+    owned = harness_owned_fields(schema_file)
+    if schema_file == "method.schema.json" and not method_bound:
+        owned = owned - {"identity", "lineage"}
     if (
         failing_property is None
         or finding.finding_class is not FindingClass.CORRECTABLE_CONTRACT_ERROR
-        or failing_property not in harness_owned_fields(schema_file)
+        or failing_property not in owned
     ):
         return finding
     return replace(
@@ -323,6 +334,11 @@ def populate_harness_fields(
       by an agent.  When the run-facts value is empty, any agent-supplied
       value is DELETED from the candidate; when non-empty, it is
       overwritten.
+    - Provenance-class harness-owned fields (record_type, to_role,
+      review_basis_generation_id) follow the generation-identity strip
+      rule: when the sealed run fact is empty, any agent-supplied value is
+      DELETED (fail-loud via the schema's required rule where applicable),
+      because a fabricated value could otherwise pass validation.
 
     No model call is needed. All values are reproducible from sealed inputs.
     No scientific claim, assumption, result, citation, or provenance
@@ -354,8 +370,11 @@ def populate_harness_fields(
         result["phase"] = run_facts.phase
     if "mode" in owned:
         result["mode"] = run_facts.mode
-    if "record_type" in owned and run_facts.record_type:
-        result["record_type"] = run_facts.record_type
+    if "record_type" in owned:
+        if run_facts.record_type:
+            result["record_type"] = run_facts.record_type
+        else:
+            result.pop("record_type", None)
 
     # Method identity: populate only when the run is method-bound.  Catalog
     # modes (p2.full_catalog, p2.researcher_proposal) have no selected method;
@@ -409,16 +428,22 @@ def populate_harness_fields(
         result["generated_by"] = run_facts.role
     if "sequence" in owned and run_facts.sequence:
         result["sequence"] = run_facts.sequence
-    if "to_role" in owned and run_facts.to_role:
-        result["to_role"] = run_facts.to_role
+    if "to_role" in owned:
+        if run_facts.to_role:
+            result["to_role"] = run_facts.to_role
+        else:
+            result.pop("to_role", None)
 
     # Review-specific harness fields
     if "raised_by" in owned:
         result["raised_by"] = run_facts.role
     if "reviewer_role" in owned:
         result["reviewer_role"] = run_facts.reviewer_role or run_facts.role
-    if "review_basis_generation_id" in owned and run_facts.review_basis_generation_id:
-        result["review_basis_generation_id"] = run_facts.review_basis_generation_id
+    if "review_basis_generation_id" in owned:
+        if run_facts.review_basis_generation_id:
+            result["review_basis_generation_id"] = run_facts.review_basis_generation_id
+        else:
+            result.pop("review_basis_generation_id", None)
 
     # Authority marker: a string enum per common-definitions
     # creationAuthority; role outputs are always run-local candidates.

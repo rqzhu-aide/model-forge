@@ -558,3 +558,68 @@ def test_reclassify_ignores_non_correctable_and_unknown_property() -> None:
         )
         is correctable
     )
+
+
+# --------------------------------------------------------------------------- #
+# P-D: provenance strip-when-empty (R9) + mode-aware reclassification (R10)   #
+# --------------------------------------------------------------------------- #
+
+
+def test_review_basis_generation_id_stripped_when_run_fact_empty() -> None:
+    result = populate_harness_fields(
+        {"review_basis_generation_id": "generation.fabricated.001"},
+        _facts(review_basis_generation_id=""),
+        "review-finding.schema.json",
+    )
+    assert "review_basis_generation_id" not in result
+
+
+def test_to_role_stripped_when_terminal() -> None:
+    result = populate_harness_fields(
+        {"to_role": "theorist"}, _facts(), "handoff.schema.json"
+    )
+    assert "to_role" not in result
+
+
+def test_record_type_stripped_when_unresolved() -> None:
+    result = populate_harness_fields(
+        {"record_type": "manuscript"},
+        _facts(record_type=""),
+        "scientific-record.schema.json",
+    )
+    assert "record_type" not in result
+
+
+def test_catalog_mode_method_identity_finding_stays_correctable() -> None:
+    finding = make_finding(
+        code="schema.type",
+        message="1 is not of type 'string'",
+        object_id="p2.method",
+        pointer="/identity/version",
+    )
+    assert finding.finding_class is FindingClass.CORRECTABLE_CONTRACT_ERROR
+    unchanged = reclassify_harness_owned_finding(
+        finding,
+        schema_file="method.schema.json",
+        failing_property="identity",
+        method_bound=False,
+    )
+    assert unchanged is finding
+    assert unchanged.finding_class is FindingClass.CORRECTABLE_CONTRACT_ERROR
+
+
+def test_method_bound_method_identity_finding_stays_operational() -> None:
+    finding = make_finding(
+        code="schema.type",
+        message="1 is not of type 'string'",
+        object_id="p2.method",
+        pointer="/identity/version",
+    )
+    rerouted = reclassify_harness_owned_finding(
+        finding,
+        schema_file="method.schema.json",
+        failing_property="identity",
+        method_bound=True,
+    )
+    assert rerouted.finding_class is FindingClass.OPERATIONAL_FAILURE
+    assert rerouted.correction_class == "none"

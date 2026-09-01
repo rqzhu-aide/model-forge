@@ -184,6 +184,7 @@ def validate_submission(
             item=item,
             spec=spec,
             closure_basis=closure_basis,
+            method_bound=selected_method is not None,
         )
         findings.extend(result[1])
         if result[0] is not None:
@@ -213,6 +214,7 @@ def _verify_output(
     item: Mapping[str, Any],
     spec: OutputSpec,
     closure_basis: Mapping[str, tuple[str, str]],
+    method_bound: bool = True,
 ) -> tuple[RegisteredValidatedOutput | None, tuple[ValidationFinding, ...]]:
     findings: list[ValidationFinding] = []
     closure_id = str(item.get("source_invocation_closure_id"))
@@ -305,6 +307,7 @@ def _verify_output(
                     prefix + issue.json_pointer,
                     schema_file=spec.schema_file,
                     failing_property=issue.failing_property,
+                    method_bound=method_bound,
                 )
             )
     if findings:
@@ -414,6 +417,8 @@ def _finding(
     pointer: str = "",
     schema_file: str | None = None,
     failing_property: str | None = None,
+    *,
+    method_bound: bool = True,
 ) -> ValidationFinding:
     finding = make_finding(
         code=code,
@@ -426,6 +431,7 @@ def _finding(
             finding,
             schema_file=schema_file,
             failing_property=failing_property,
+            method_bound=method_bound,
         )
     return finding
 

@@ -38,7 +38,7 @@ from ..storage.repository import (
 )
 from ..capabilities.broker import CapabilityBroker
 from ..domain.identities import SCHEMA_VERSION
-from .envelope import SealedRunFacts, populate_harness_fields
+from .envelope import SealedRunFacts, harness_owned_fields, populate_harness_fields
 from .execution_context import RunExecutionContext
 from .output_adapters import AdaptedOutput, DefaultOutputAdapter
 from .outputs import OutputPlan, OutputSpec, validate_role_outputs
@@ -244,7 +244,7 @@ def _apply_disclosed_mechanical_repairs(
                 changed = True
 
         # Build transformation entries by diffing raw vs repaired.
-        entries = _classify_transformations(raw_snapshot, data, renames=id_renames)
+        entries = _classify_transformations(raw_snapshot, data, renames=id_renames, harness_owned=harness_owned_fields(spec.schema_file))
 
         if changed or populated:
             repaired_text = _json.dumps(data, indent=2, ensure_ascii=False)
@@ -265,12 +265,18 @@ def _apply_disclosed_mechanical_repairs(
     return records
 
 
+_GENERATION_IDENTITY_FIELDS = frozenset(
+    {"generation_id", "generation_number", "review_basis_generation_id"}
+)
+
+
 def _classify_transformations(
     raw: Any,
     repaired: Any,
     pointer: str = "",
     *,
     renames: Mapping[str, str] | None = None,
+    harness_owned: frozenset[str] = frozenset(),
 ) -> list[TransformationEntry]:
     """Diff the raw snapshot against the repaired data, classifying changes.
 
@@ -281,6 +287,12 @@ def _classify_transformations(
     value is a rename source is an ``id_sanitization`` (definition-site
     sanitization or same-valued reference rewrite), never a generic
     ``value_rewrite``.
+
+    *harness_owned* is the schema's harness-owned field set.  Top-level
+    removals of harness-owned generation-identity fields are recorded as
+    ``generation_identity_strip`` (not null/empty-string/additional-
+    properties strips), and top-level overwrites of harness-owned fields
+    are recorded as ``harness_population_overwrite`` (not ``value_rewrite``).
     """
     entries: list[TransformationEntry] = []
     id_renames = renames or {}
@@ -300,7 +312,13 @@ def _classify_transformations(
             # Keys removed from repaired (stripped/deleted)
             for key in sorted(raw_keys - rep_keys):
                 child_ptr = f"{ptr}/{key}"
-                if key.endswith("_at") or key.endswith("_timestamp") or key.endswith("_time"):
+                if not ptr and key in _GENERATION_IDENTITY_FIELDS and key in harness_owned:
+                    entries.append(TransformationEntry(
+                        code="generation_identity_strip",
+                        json_pointer=child_ptr,
+                        detail=f"stripped agent-fabricated generation identity '{key}'",
+                    ))
+                elif key.endswith("_at") or key.endswith("_timestamp") or key.endswith("_time"):
                     if raw_obj[key] is None:
                         entries.append(TransformationEntry(
                             code="null_strip",
@@ -384,6 +402,12 @@ def _classify_transformations(
                         code="identity_version_bump",
                         json_pointer=child_ptr,
                         detail=f"bumped identity.version: {rv} → {pv}",
+                    ))
+                elif not ptr and key in harness_owned:
+                    entries.append(TransformationEntry(
+                        code="harness_population_overwrite",
+                        json_pointer=child_ptr,
+                        detail=f"harness-populated field '{key}': {rv!r} → {pv!r}",
                     ))
                 else:
                     entries.append(TransformationEntry(
@@ -2024,6 +2048,7 @@ class RoleLifecycleService:
                         return None
                     return str(row["artifact_id"])
 
+                run_facts = self._sealed_run_facts(stage, role)
                 repair_records = _apply_disclosed_mechanical_repairs(
                     run_root=self.workspace.for_read(f"runs/{run_id}"),
                     output_plan=scoped_plan,
@@ -2031,7 +2056,7 @@ class RoleLifecycleService:
                     role=role,
                     run_id=run_id,
                     project_id=str(self.context.project_id),
-                    run_facts=self._sealed_run_facts(stage, role),
+                    run_facts=run_facts,
                     record_type_by_output=self._record_type_by_output(),
                     canonical_source_lookup=_canonical_source_lookup,
                 )
@@ -2044,6 +2069,7 @@ class RoleLifecycleService:
                     output_plan=output_plan,
                     stage=stage,
                     role=role,
+                    method_bound=bool(run_facts.method_identity),
                 )
                 findings = [item.to_dict() for item in validation.findings]
                 sealed_outputs = tuple(
@@ -2740,6 +2766,7 @@ class RoleLifecycleService:
                         return None
                     return str(row["artifact_id"])
 
+                run_facts = self._sealed_run_facts(stage, role)
                 repair_records = _apply_disclosed_mechanical_repairs(
                     run_root=self.workspace.for_read(f"runs/{self.context.run_id}"),
                     output_plan=self.context.output_plan,
@@ -2747,7 +2774,7 @@ class RoleLifecycleService:
                     role=role,
                     run_id=str(self.context.run_id),
                     project_id=str(self.context.project_id),
-                    run_facts=self._sealed_run_facts(stage, role),
+                    run_facts=run_facts,
                     record_type_by_output=self._record_type_by_output(),
                     canonical_source_lookup=_canonical_source_lookup,
                 )
@@ -2757,6 +2784,7 @@ class RoleLifecycleService:
                     output_plan=self.context.output_plan,
                     stage=stage,
                     role=role,
+                    method_bound=bool(run_facts.method_identity),
                 )
                 findings = [item.to_dict() for item in validation.findings]
                 if not validation.passed:

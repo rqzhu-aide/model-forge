@@ -129,6 +129,8 @@ def _finding(
     spec: OutputSpec,
     pointer: str = "",
     failing_property: str | None = None,
+    *,
+    method_bound: bool = True,
 ) -> ValidationFinding:
     finding = make_finding(
         code=code,
@@ -140,6 +142,7 @@ def _finding(
         finding,
         schema_file=spec.schema_file,
         failing_property=failing_property,
+        method_bound=method_bound,
     )
 
 
@@ -150,6 +153,7 @@ def validate_role_outputs(
     output_plan: OutputPlan,
     stage: ResolvedStage,
     role: str,
+    method_bound: bool = True,
 ) -> OutputValidationResult:
     """Validate the exact declared outputs for one role closure.
 
@@ -183,6 +187,7 @@ def validate_role_outputs(
                         "output.required_missing",
                         f"Required output {spec.contract_output_id!r} was not produced.",
                         spec,
+                        method_bound=method_bound,
                     )
                 )
             continue
@@ -192,6 +197,7 @@ def validate_role_outputs(
                     "output.unsafe_path",
                     f"Output {spec.contract_output_id!r} does not resolve safely inside the run.",
                     spec,
+                    method_bound=method_bound,
                 )
             )
             continue
@@ -201,6 +207,7 @@ def validate_role_outputs(
                     "output.not_regular_file",
                     f"Output {spec.contract_output_id!r} must be a regular JSON file.",
                     spec,
+                    method_bound=method_bound,
                 )
             )
             continue
@@ -213,6 +220,7 @@ def validate_role_outputs(
                     error.code,
                     f"Output {spec.contract_output_id!r} is not strict JSON: {error.message}",
                     spec,
+                    method_bound=method_bound,
                 )
             )
             continue
@@ -222,6 +230,7 @@ def validate_role_outputs(
                     "output.unreadable",
                     f"Output {spec.contract_output_id!r} cannot be read: {error}.",
                     spec,
+                    method_bound=method_bound,
                 )
             )
             continue
@@ -234,6 +243,7 @@ def validate_role_outputs(
                         "output.expected_array",
                         f"Output {spec.contract_output_id!r} must be a JSON array.",
                         spec,
+                        method_bound=method_bound,
                     )
                 )
                 continue
@@ -245,6 +255,7 @@ def validate_role_outputs(
                         "output.expected_object",
                         f"Output {spec.contract_output_id!r} must be a JSON object.",
                         spec,
+                        method_bound=method_bound,
                     )
                 )
                 continue
@@ -255,6 +266,7 @@ def validate_role_outputs(
                     "output.unknown_schema_application",
                     f"Output {spec.contract_output_id!r} has unsupported schema application.",
                     spec,
+                    method_bound=method_bound,
                 )
             )
             continue
@@ -270,6 +282,7 @@ def validate_role_outputs(
                         spec,
                         prefix + issue.json_pointer,
                         failing_property=issue.failing_property,
+                        method_bound=method_bound,
                     )
                 )
         if item_findings:

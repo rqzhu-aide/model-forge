@@ -40,11 +40,12 @@ import copy
 import hashlib
 import json
 import tempfile
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from ..contracts import ResolvedPhasePlan
 from ..digests.jcs import canonicalize
 from ..domain import StableId
 from ..domain.runs import isoformat_utc, utc_now
@@ -88,6 +89,15 @@ from .correction import (
     _derive_attempt_id,
     build_correction_instruction,
 )
+
+
+def _plan_method_bound(plan: ResolvedPhasePlan) -> bool:
+    """True when the frozen plan selected a method (any
+    ``*.selected_method`` choice carrying a Mapping value)."""
+    return any(
+        str(key).endswith(".selected_method") and isinstance(value, Mapping)
+        for key, value in plan.choice_values.items()
+    )
 
 
 def _recipe_for_run(repository: HubRepository, run_id: str) -> PreparedRunRecipe:
@@ -257,6 +267,7 @@ def revalidate_closure_outputs(
             output_plan=output_plan,
             stage=stage,
             role=role,
+            method_bound=_plan_method_bound(plan),
         )
 
     ordinal = repository.count_validation_attempts(run_id) + 1
@@ -575,6 +586,7 @@ def normalize_closure_outputs(
             output_plan=output_plan,
             stage=stage,
             role=role,
+            method_bound=_plan_method_bound(plan),
         )
 
     ordinal = repository.count_validation_attempts(run_id) + 1
@@ -893,6 +905,7 @@ def preview_normalize(
             output_plan=output_plan,
             stage=stage,
             role=role,
+            method_bound=_plan_method_bound(plan),
         )
         remaining = validate_role_outputs(
             schema_catalog=schemas,
@@ -900,6 +913,7 @@ def preview_normalize(
             output_plan=output_plan,
             stage=stage,
             role=role,
+            method_bound=_plan_method_bound(plan),
         )
 
     remaining_keys = {

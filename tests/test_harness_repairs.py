@@ -577,6 +577,41 @@ def test_classify_transformations_empty_when_identical() -> None:
 
 
 # --------------------------------------------------------------------------- #
+# P-D (R26): population-aware transformation codes                            #
+# --------------------------------------------------------------------------- #
+
+
+def test_generation_identity_strip_code() -> None:
+    """Top-level harness-owned generation-id removals use the new code."""
+    from model_forge.harness.envelope import harness_owned_fields
+    from model_forge.harness.role_execution import _classify_transformations
+
+    entries = _classify_transformations(
+        {"generation_id": "generation.fake.001", "title": "a"},
+        {"title": "a"},
+        harness_owned=harness_owned_fields("decision-record.schema.json"),
+    )
+    assert len(entries) == 1
+    assert entries[0].code == "generation_identity_strip"
+    assert entries[0].json_pointer == "/generation_id"
+
+
+def test_harness_population_overwrite_code() -> None:
+    """Top-level harness-owned overwrites are attributed to the harness."""
+    from model_forge.harness.envelope import harness_owned_fields
+    from model_forge.harness.role_execution import _classify_transformations
+
+    entries = _classify_transformations(
+        {"source_run_id": "agent", "title": "a"},
+        {"source_run_id": "run-x", "title": "b"},
+        harness_owned=harness_owned_fields("scientific-record.schema.json"),
+    )
+    by_pointer = {e.json_pointer: e for e in entries}
+    assert by_pointer["/source_run_id"].code == "harness_population_overwrite"
+    assert by_pointer["/title"].code == "value_rewrite"
+
+
+# --------------------------------------------------------------------------- #
 # HV-1.3: Schema-path-aware timestamp injection                               #
 # --------------------------------------------------------------------------- #
 

@@ -27,7 +27,17 @@ R15 delete, R14 enforce, R17 keep live (no code), R37 deferred.
 
 ## Packages
 
-### P-A: Recovery core (R1, R5, R6)
+### P-A: Recovery core (R1, R5, R6) -- DONE
+
+DONE 2026-08-31: pins commit 223edfa, fix commit ac8586e. Tests 1340 ->
+1342 (+2: test_restart_with_in_flight_role_recovers,
+test_null_identity_version_is_coerced_during_repair; both verified to fail
+on pre-fix code). Gates: pytest exit 0, validate_package.py exit 0.
+Implementation: `_execute` catches RoleExecutionPending and the new
+RoleExecutionInfrastructureError (return True, run stays running);
+observer repository calls wrap failures as RoleExecutionInfrastructureError
+and both role_execution try blocks re-raise it unsealed;
+identity.version coerced per pin.
 
 - R1: `RoleExecutionPending` must not terminally fail the run. Catch it in
   `run_coordinator._execute` (return True, making the pending branch at

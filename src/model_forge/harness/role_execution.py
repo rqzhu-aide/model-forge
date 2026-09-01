@@ -1607,7 +1607,10 @@ class RoleLifecycleService:
         materialized (plain write) into the correction output paths so the
         agent edits them in place; and the close path validates the
         correction run root, records exactly one validation attempt row, and
-        verifies the blast radius before sealing.
+        verifies the blast radius before sealing.  On the reconcile path (a
+        durable acknowledgement exists) source-byte materialization is
+        skipped so the agent's in-place edits survive an idempotent replay
+        (R4).
         """
         command_id = self.context.correction_command_id
         if not command_id:
@@ -1643,6 +1646,7 @@ class RoleLifecycleService:
                 closed_at=None,
             )
 
+        acknowledgement = self._acknowledgement(execution_id)
         output_plan = self._correction_output_plan(stage, role, command_id)
         (
             invocation,
@@ -1659,6 +1663,7 @@ class RoleLifecycleService:
             invocation_id=invocation_id,
             execution_id=execution_id,
             source_closure_id=source_closure_id,
+            materialize_source_bytes=acknowledgement is None,
         )
         observer = _CorrectionObserver(
             repository=self.repository,
@@ -1670,7 +1675,6 @@ class RoleLifecycleService:
             source_closure_id=source_closure_id,
         )
         await observer.launch_intent(invocation)
-        acknowledgement = self._acknowledgement(execution_id)
         try:
             if acknowledgement is None:
                 result = await self.executor.execute(invocation, observer)
@@ -1750,6 +1754,7 @@ class RoleLifecycleService:
         invocation_id: str,
         execution_id: str,
         source_closure_id: str,
+        materialize_source_bytes: bool,
     ) -> tuple[RoleInvocation, dict[str, Any], str]:
         """Mirror ``_prepare_invocation`` under the correction workspace."""
         role_step = stage.step_for(role)
@@ -1827,10 +1832,15 @@ class RoleLifecycleService:
         # bytes were digest-verified by the caller before this point.
         # K5-3: a closure that failed before output sealing has no bytes for
         # some (or all) plan-declared outputs; those are skipped here and
-        # the re-invoked role rewrites them from scratch.
+        # the re-invoked role rewrites them from scratch.  When a durable
+        # acknowledgement exists the correction workspace may hold the
+        # agent's in-place edits from before a crash; re-materializing
+        # source bytes would clobber them and record a silent no-op as
+        # success (R4), so the caller skips materialization on the
+        # reconcile path (the `_recovery_invocation` pattern).
         for spec, output_path in zip(specs, output_paths):
             source = source_output_bytes.get(spec.contract_output_id)
-            if source is None:
+            if source is None or not materialize_source_bytes:
                 continue
             output_path.write_bytes(source)
 
@@ -1932,138 +1942,173 @@ class RoleLifecycleService:
         run_id = str(self.context.run_id)
         status = RoleExecutionStatus(result.status)
         failure_code: str | None = None
+        raw_seal_sha256: str | None = None
         sealed_outputs: tuple[SealedRoleOutput, ...] = ()
         findings: list[dict[str, Any]] = []
         transformation_summaries: list[dict[str, Any]] = []
         if self.repository.cancellation_requested(run_id):
             status = RoleExecutionStatus.CANCELLED
         elif status is RoleExecutionStatus.SUCCEEDED:
-            # F-3: correction closures run the same disclosed mechanical
-            # repair + harness-owned envelope population stage (HV-4) as
-            # normal closures, restricted to the correction's permitted
-            # output scope so materialized source bytes for out-of-scope
-            # outputs stay byte-identical for blast-radius verification.
-            scoped_plan = replace(
-                output_plan,
-                specs=tuple(
-                    spec
-                    for spec in output_plan.specs
-                    if spec.contract_output_id in output_scope
-                ),
-            )
-
-            # Snapshot the agent's raw in-scope bytes BEFORE the repair pass:
-            # blast-radius verification below judges the agent's own edits.
-            # Comparing post-repair bytes would attribute harness-authored
-            # transformations (HV-4 envelope population, self-referential
-            # hash recomputation) to the agent and fabricate violations.
-            agent_raw_bytes: dict[str, bytes] = {}
-            for scoped_spec in scoped_plan.specs:
-                raw_path = (
-                    self.workspace.for_read(f"runs/{run_id}")
-                    / scoped_spec.relative_path
+            # HV-1.1: Seal the raw output bytes BEFORE any mechanical repair
+            # rewrites the workspace in place.  Repair and validation failure
+            # must never destroy the agent's original bytes: the sealed raw
+            # snapshot is always recoverable from the artifact store.
+            # Fail closed when preservation fails: without the raw snapshot
+            # the harness could not prove which bytes the agent wrote.
+            raw_seal_sha256 = None
+            try:
+                from .output_adapters import preserve_raw_output
+                raw_seal_sha256 = preserve_raw_output(
+                    workspace=invocation.workspace,
+                    run_id=invocation.run_id,
+                    role=role,
+                    artifacts=self.artifacts,
                 )
-                if raw_path.is_file():
-                    agent_raw_bytes[scoped_spec.contract_output_id] = (
-                        raw_path.read_bytes()
+            except Exception as error:
+                logger.exception(
+                    "Raw output preservation failed for run %s role %s",
+                    invocation.run_id,
+                    role,
+                )
+                status = RoleExecutionStatus.FAILED
+                failure_code = "output.raw_preservation_failed"
+                result = RoleExecutionResult(
+                    status=RoleExecutionStatus.FAILED,
+                    external_execution_id=result.external_execution_id,
+                    exit_code=result.exit_code,
+                    summary="Raw output preservation failed; the candidate was not validated.",
+                    diagnostic_text=f"{type(error).__name__}: {error}",
+                )
+            if status is RoleExecutionStatus.SUCCEEDED:
+                # F-3: correction closures run the same disclosed mechanical
+                # repair + harness-owned envelope population stage (HV-4) as
+                # normal closures, restricted to the correction's permitted
+                # output scope so materialized source bytes for out-of-scope
+                # outputs stay byte-identical for blast-radius verification.
+                scoped_plan = replace(
+                    output_plan,
+                    specs=tuple(
+                        spec
+                        for spec in output_plan.specs
+                        if spec.contract_output_id in output_scope
+                    ),
+                )
+
+                # Snapshot the agent's raw bytes for ALL of the role's specs
+                # (not only the in-scope repair plan) BEFORE the repair pass:
+                # blast-radius verification below judges the agent's own edits.
+                # Untouched out-of-scope outputs then compare equal to their
+                # materialized source bytes, and agent tampering with an
+                # out-of-scope output is caught instead of comparing against
+                # an absent corrected document (R3).
+                agent_raw_bytes: dict[str, bytes] = {}
+                for role_spec in output_plan.for_stage_role(stage.stage_id, role):
+                    raw_path = (
+                        self.workspace.for_read(f"runs/{run_id}")
+                        / role_spec.relative_path
+                    )
+                    if raw_path.is_file():
+                        agent_raw_bytes[role_spec.contract_output_id] = (
+                            raw_path.read_bytes()
+                        )
+
+                def _canonical_source_lookup(digest: str) -> "str | None":
+                    with self.repository.database.connect() as connection:
+                        row = connection.execute(
+                            "SELECT artifact_id FROM artifacts "
+                            "WHERE sha256 = ? AND project_id = ? "
+                            "ORDER BY rowid LIMIT 1",
+                            (digest, str(self.context.project_id)),
+                        ).fetchone()
+                    if row is None:
+                        return None
+                    return str(row["artifact_id"])
+
+                repair_records = _apply_disclosed_mechanical_repairs(
+                    run_root=self.workspace.for_read(f"runs/{run_id}"),
+                    output_plan=scoped_plan,
+                    stage=stage,
+                    role=role,
+                    run_id=run_id,
+                    project_id=str(self.context.project_id),
+                    run_facts=self._sealed_run_facts(stage, role),
+                    record_type_by_output=self._record_type_by_output(),
+                    canonical_source_lookup=_canonical_source_lookup,
+                )
+                transformation_summaries = [
+                    record.to_dict() for record in repair_records.values()
+                ]
+                validation = validate_role_outputs(
+                    schema_catalog=self.schemas,
+                    run_root=self.workspace.for_read(f"runs/{run_id}"),
+                    output_plan=output_plan,
+                    stage=stage,
+                    role=role,
+                )
+                findings = [item.to_dict() for item in validation.findings]
+                sealed_outputs = tuple(
+                    self._seal_output(item.spec, item.path, item.sha256)
+                    for item in validation.outputs
+                )
+                violations: tuple[ValidationFinding, ...] = ()
+                if not validation.passed:
+                    status = RoleExecutionStatus.FAILED
+                    failure_code = "output.structural_validation_failed"
+                else:
+                    # Lazy import: application.correction_execution already
+                    # imports harness.stage_execution, so a top-level import here
+                    # would be circular (DEVIATION B).
+                    from ..application.correction_execution import (
+                        verify_correction_blast_radius,
                     )
 
-            def _canonical_source_lookup(digest: str) -> "str | None":
-                with self.repository.database.connect() as connection:
-                    row = connection.execute(
-                        "SELECT artifact_id FROM artifacts "
-                        "WHERE sha256 = ? AND project_id = ? "
-                        "ORDER BY rowid LIMIT 1",
-                        (digest, str(self.context.project_id)),
-                    ).fetchone()
-                if row is None:
-                    return None
-                return str(row["artifact_id"])
-
-            repair_records = _apply_disclosed_mechanical_repairs(
-                run_root=self.workspace.for_read(f"runs/{run_id}"),
-                output_plan=scoped_plan,
-                stage=stage,
-                role=role,
-                run_id=run_id,
-                project_id=str(self.context.project_id),
-                run_facts=self._sealed_run_facts(stage, role),
-                record_type_by_output=self._record_type_by_output(),
-                canonical_source_lookup=_canonical_source_lookup,
-            )
-            transformation_summaries = [
-                record.to_dict() for record in repair_records.values()
-            ]
-            validation = validate_role_outputs(
-                schema_catalog=self.schemas,
-                run_root=self.workspace.for_read(f"runs/{run_id}"),
-                output_plan=output_plan,
-                stage=stage,
-                role=role,
-            )
-            findings = [item.to_dict() for item in validation.findings]
-            sealed_outputs = tuple(
-                self._seal_output(item.spec, item.path, item.sha256)
-                for item in validation.outputs
-            )
-            ordinal = self.repository.count_validation_attempts(run_id) + 1
-            attempt_id = f"attempt.{run_id}.{ordinal}"
-            report = ValidationReport.from_findings(
-                f"report.{attempt_id}",
-                run_id,
-                self.context.correction_type,
-                validation.findings,
-            )
-            digest_input = (
-                f"{self.context.correction_type}:"
-                + "".join(sorted(item.sha256 for item in validation.outputs))
-            )
-            source_sha256 = hashlib.sha256(digest_input.encode("utf-8")).hexdigest()
-            prior = self.repository.get_latest_validation_attempt(run_id)
-            prior_attempt_id = (
-                str(prior["attempt_id"]) if prior is not None else None
-            )
-            self.repository.record_validation_attempt(
-                attempt_id,
-                run_id,
-                ordinal,
-                registry_version(),
-                json.dumps(report.to_dict(), sort_keys=True),
-                source_sha256,
-                correction_type=self.context.correction_type,
-                prior_attempt_id=prior_attempt_id,
-                correction_command_id=self.context.correction_command_id,
-            )
-            if not validation.passed:
-                status = RoleExecutionStatus.FAILED
-                failure_code = "output.structural_validation_failed"
-            else:
-                # Lazy import: application.correction_execution already
-                # imports harness.stage_execution, so a top-level import here
-                # would be circular (DEVIATION B).
-                from ..application.correction_execution import (
-                    verify_correction_blast_radius,
+                    source_documents = {
+                        contract_output_id: json.loads(data)
+                        for contract_output_id, data in source_output_bytes.items()
+                    }
+                    corrected_documents = {
+                        contract_output_id: json.loads(data)
+                        for contract_output_id, data in agent_raw_bytes.items()
+                    }
+                    violations = verify_correction_blast_radius(
+                        source_outputs=source_documents,
+                        corrected_outputs=corrected_documents,
+                        correction_type=self.context.correction_type,
+                        permitted_pointers=permitted_pointers,
+                        output_scope=output_scope,
+                    )
+                    if violations:
+                        status = RoleExecutionStatus.FAILED
+                        failure_code = "correction.blast_radius_violated"
+                        findings = [item.to_dict() for item in violations]
+                ordinal = self.repository.count_validation_attempts(run_id) + 1
+                attempt_id = f"attempt.{run_id}.{ordinal}"
+                report = ValidationReport.from_findings(
+                    f"report.{attempt_id}",
+                    run_id,
+                    self.context.correction_type,
+                    list(violations) if violations else validation.findings,
                 )
-
-                source_documents = {
-                    contract_output_id: json.loads(data)
-                    for contract_output_id, data in source_output_bytes.items()
-                }
-                corrected_documents = {
-                    contract_output_id: json.loads(data)
-                    for contract_output_id, data in agent_raw_bytes.items()
-                }
-                violations = verify_correction_blast_radius(
-                    source_outputs=source_documents,
-                    corrected_outputs=corrected_documents,
+                digest_input = (
+                    f"{self.context.correction_type}:"
+                    + "".join(sorted(item.sha256 for item in validation.outputs))
+                )
+                source_sha256 = hashlib.sha256(digest_input.encode("utf-8")).hexdigest()
+                prior = self.repository.get_latest_validation_attempt(run_id)
+                prior_attempt_id = (
+                    str(prior["attempt_id"]) if prior is not None else None
+                )
+                self.repository.record_validation_attempt(
+                    attempt_id,
+                    run_id,
+                    ordinal,
+                    registry_version(),
+                    json.dumps(report.to_dict(), sort_keys=True),
+                    source_sha256,
                     correction_type=self.context.correction_type,
-                    permitted_pointers=permitted_pointers,
-                    output_scope=output_scope,
+                    prior_attempt_id=prior_attempt_id,
+                    correction_command_id=self.context.correction_command_id,
                 )
-                if violations:
-                    status = RoleExecutionStatus.FAILED
-                    failure_code = "correction.blast_radius_violated"
-                    findings = [item.to_dict() for item in violations]
         elif status is RoleExecutionStatus.FAILED:
             failure_code = "executor.role_failed"
             if self.context.correction_type is not None:
@@ -2137,7 +2182,7 @@ class RoleLifecycleService:
             "outputs": [self._output_document(item) for item in sealed_outputs],
             "findings": findings,
             "output_transformations": transformation_summaries,
-            "raw_output_sha256": None,
+            "raw_output_sha256": raw_seal_sha256,
             "closed_at": closed_at,
         }
         closure_sha256 = document_sha256(closure_document)

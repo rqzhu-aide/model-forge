@@ -836,6 +836,55 @@ def _seal_empty_outputs_failed_closure(fixture: _Fixture, role: str) -> str:
     return closure_id
 
 
+def _seal_empty_outputs_succeeded_closure(fixture: _Fixture, role: str) -> str:
+    """Seal a SUCCEEDED closure with NO declared outputs.
+
+    The D5 rejected-run shape: the role closed SUCCEEDED but recorded no
+    output entries, so the sealed-only correctable scope is empty.
+    """
+    stage = fixture.stage
+    invocation_id, execution_id, closure_id = role_identity(
+        fixture.context, stage, role
+    )
+    fixture.repository.get_or_create_execution(
+        execution_id,
+        invocation_id,
+        RUN,
+        _digest("f"),
+        {"kind": "role_invocation", "role": role},
+    )
+    fixture.repository.acknowledge_execution(
+        execution_id,
+        f"external.base.{role}",
+        {"kind": "role_acknowledgement", "role": role},
+    )
+    document = {
+        "format": "model-forge.role-invocation-closure",
+        "format_version": "1.0.0",
+        "closure_id": closure_id,
+        "execution_id": execution_id,
+        "invocation_id": invocation_id,
+        "run_id": RUN,
+        "project_id": PROJECT,
+        "phase": fixture.plan.identity.phase_id,
+        "mode": fixture.plan.mode_id,
+        "sequence": stage.sequence,
+        "stage_id": stage.stage_id,
+        "role": role,
+        "status": "succeeded",
+        "failure_code": None,
+        "outputs": [],
+        "findings": [],
+        "closed_at": "2026-08-20T00:00:00Z",
+    }
+    closure_sha = document_sha256(document)
+    document["closure_sha256"] = closure_sha
+    fixture.repository.close_execution(
+        execution_id, closure_id, closure_sha, document
+    )
+    return closure_id
+
+
 def test_correction_controls_hidden_when_no_correctable_findings(
     tmp_path: Path,
 ) -> None:
@@ -989,6 +1038,37 @@ def test_correction_scope_uses_plan_declared_outputs_when_nothing_sealed(
         ]
         assert correction
         assert correction[-1]["status"] == "succeeded"
+
+    asyncio.run(scenario())
+
+
+def test_correction_scope_succeeded_empty_closure_refused(
+    tmp_path: Path,
+) -> None:
+    """R13: a SUCCEEDED closure keeps the sealed-only scope, even when the
+    sealed set is EMPTY; the plan-declared union is reserved for closures
+    with status "failed" (K5-3/C-2).  An empty sealed scope rejects the
+    command with CORRECTION_SCOPE_INVALID."""
+
+    async def scenario() -> None:
+        fixture = _Fixture(tmp_path, DeterministicFakeExecutor(_golden_output))
+        stack = _ServiceStack(fixture)
+        _seal_empty_outputs_succeeded_closure(fixture, "theorist")
+        _set_run(fixture, "failed", _run_payload(fixture, CORRECTABLE))
+
+        detail = await stack.service.get_run(PROJECT, RUN)
+        action = _correction_action(detail, "package_run_outputs")
+        command = CorrectionRequest(
+            correction_type="packaging",
+            permitted_output_scope=[_scope(fixture)],
+            action_descriptor_id=action.descriptor_id,
+        )
+        receipt = await _preserve(stack.service, command, "corr-r13-empty")
+        with pytest.raises(CommandRejected) as caught:
+            await stack.service.request_output_correction(
+                PROJECT, RUN, command, raw_request=receipt
+            )
+        assert caught.value.error.code == "CORRECTION_SCOPE_INVALID"
 
     asyncio.run(scenario())
 

@@ -128,12 +128,24 @@ def test_scientific_instruction_ignores_pointers() -> None:
 
 import asyncio
 import dataclasses
+import hashlib
 import json
 from pathlib import Path
 
+import pytest
+
 from model_forge.application.correction_execution import execute_targeted_correction
+from model_forge.digests.jcs import canonicalize
 from model_forge.executors import DeterministicFakeExecutor
-from model_forge.harness.execution_records import correction_role_identity
+from model_forge.executors.protocol import RoleExecutionResult, RoleExecutionStatus
+from model_forge.harness.execution_records import (
+    RoleExecutionPending,
+    closure_artifact_id,
+    correction_role_identity,
+    document_sha256,
+    output_artifact_id,
+    role_identity,
+)
 from model_forge.harness.stage_execution import HarnessExecutionServices
 from model_forge.json_io import loads_json
 
@@ -143,7 +155,7 @@ from test_correction_command_path import (
     _scope,
     _seal_failed_closure_bytes,
 )
-from test_correction_execution import _Fixture, _PermissiveSchemas
+from test_correction_execution import _Fixture, _PermissiveSchemas, _digest
 from test_correction_normalize import _fixable_defect_bytes
 from test_correction_submission import _golden_output
 
@@ -521,3 +533,365 @@ def test_executor_failed_correction_spends_the_bounded_attempt(tmp_path: Path) -
     report = json.loads(attempts[0]["report_json"])
     assert report["passed"] is False
     assert [item["code"] for item in report["findings"]] == ["executor.role_failed"]
+
+
+# --------------------------------------------------------------------------- #
+# Audit-2026-08-31 Pkg C: correction lane regression coverage (R3, R4, R7, R22)
+# --------------------------------------------------------------------------- #
+
+
+class _GoldenStub:
+    """Minimal invocation stand-in: _golden_output keys on the file name."""
+
+    def __init__(self, name: str) -> None:
+        self.expected_output_paths = [Path(name)]
+
+
+def _golden_output_by_name(name: str):
+    return _golden_output(_GoldenStub(name), 1)
+
+
+def _seal_multi_output_failed_closure(fixture: _Fixture, role: str) -> str:
+    """_seal_failed_closure_bytes generalized to EVERY spec of one role.
+
+    Seals one artifact per spec of the stage-1 (p1.lead_synthesis) role and
+    closes a FAILED base closure listing all of them, so a partial-scope
+    correction has materialized source bytes for out-of-scope outputs.
+    """
+    stage = fixture.plan.stages[1]
+    specs = fixture.output_plan.for_stage_role(stage.stage_id, role)
+    outputs: list[dict[str, object]] = []
+    for spec in specs:
+        name = Path(spec.relative_path).name
+        payload = (
+            json.dumps(_golden_output_by_name(name), indent=2) + "\n"
+        ).encode()
+        stored = fixture.artifacts.put_bytes(payload)
+        artifact_id = output_artifact_id(
+            fixture.context, spec, str(stored.sha256)
+        )
+        fixture.repository.record_artifact(
+            artifact_id,
+            PROJECT,
+            str(stored.sha256),
+            stored.size,
+            "application/json",
+            f"artifact://sha256/{stored.sha256}",
+            {
+                "kind": "validated_role_output",
+                "run_id": RUN,
+                "contract_output_id": spec.contract_output_id,
+                "output_id": spec.output_id,
+                "storage_relative_path": stored.relative_path,
+            },
+        )
+        outputs.append(
+            {
+                "contract_output_id": spec.contract_output_id,
+                "output_id": spec.output_id,
+                "artifact_id": artifact_id,
+                "sha256": str(stored.sha256),
+                "size": stored.size,
+                "media_type": "application/json",
+                "storage_relative_path": stored.relative_path,
+            }
+        )
+    invocation_id, execution_id, closure_id = role_identity(
+        fixture.context, stage, role
+    )
+    invocation_sha256 = _digest("f")
+    fixture.repository.get_or_create_execution(
+        execution_id,
+        invocation_id,
+        RUN,
+        invocation_sha256,
+        {"kind": "role_invocation", "role": role},
+    )
+    fixture.repository.acknowledge_execution(
+        execution_id,
+        f"external.base.{role}",
+        {"kind": "role_acknowledgement", "role": role},
+    )
+    document = {
+        "format": "model-forge.role-invocation-closure",
+        "format_version": "1.0.0",
+        "conformance_state": "vertical_slice",
+        "closure_id": closure_id,
+        "execution_id": execution_id,
+        "invocation_id": invocation_id,
+        "invocation_sha256": invocation_sha256,
+        "run_id": RUN,
+        "project_id": PROJECT,
+        "phase": fixture.plan.identity.phase_id,
+        "mode": fixture.plan.mode_id,
+        "sequence": stage.sequence,
+        "stage_id": stage.stage_id,
+        "role": role,
+        "status": "failed",
+        "external_execution_id": f"external.base.{role}",
+        "exit_code": 1,
+        "summary": "Base invocation failed after sealing its outputs.",
+        "diagnostic_text": None,
+        "failure_code": "output.structural_validation_failed",
+        "outputs": outputs,
+        "findings": [],
+        "output_transformations": [],
+        "raw_output_sha256": None,
+        "closed_at": "2026-08-16T00:00:00Z",
+    }
+    closure_sha256 = document_sha256(document)
+    document["closure_sha256"] = closure_sha256
+    closure_bytes = canonicalize(document)
+    stored_closure = fixture.artifacts.put_bytes(
+        closure_bytes, expected_sha256=hashlib.sha256(closure_bytes).hexdigest()
+    )
+    fixture.repository.record_artifact(
+        closure_artifact_id(closure_id),
+        PROJECT,
+        str(stored_closure.sha256),
+        stored_closure.size,
+        "application/json",
+        f"artifact://sha256/{stored_closure.sha256}",
+        {
+            "kind": "role_invocation_closure",
+            "run_id": RUN,
+            "closure_id": closure_id,
+            "storage_relative_path": stored_closure.relative_path,
+        },
+    )
+    fixture.repository.close_execution(
+        execution_id, closure_id, closure_sha256, document
+    )
+    return closure_id
+
+
+def _golden_editing(edit_names: frozenset[str]):
+    """_golden_output factory that marks the named outputs as agent-edited."""
+
+    def factory(invocation, offset: int):
+        document = _golden_output(invocation, offset)
+        name = Path(str(invocation.expected_output_paths[offset - 1])).name
+        if name in edit_names and isinstance(document, dict):
+            document = dict(document)
+            document["agent_correction_edit"] = True
+        return document
+
+    return factory
+
+
+class _CrashAfterAckExecutor(DeterministicFakeExecutor):
+    """Acknowledge and store the result, then crash before closure write."""
+
+    async def execute(self, invocation, observer) -> RoleExecutionResult:
+        await super().execute(invocation, observer)
+        raise RoleExecutionPending("Simulated post-acknowledgement crash.")
+
+
+def test_partial_scope_correction_of_multi_output_role_passes(
+    tmp_path: Path,
+) -> None:
+    # R3: out-of-scope outputs with materialized source bytes compare
+    # equal, so a partial-scope scientific correction is clean.
+    fixture = _Fixture(
+        tmp_path,
+        DeterministicFakeExecutor(
+            _golden_editing(frozenset({"synthesis-candidate.json"}))
+        ),
+    )
+    fixture.execute()
+    base_closure_id = _seal_multi_output_failed_closure(
+        fixture, "research_lead"
+    )
+    services = _lane_b_services(fixture, "cmd_r3", "scientific")
+    outcome = _drive(
+        fixture,
+        services,
+        base_closure_id,
+        "cmd_r3",
+        "scientific",
+        ("p1.synthesis_candidate",),
+    )
+
+    assert outcome.passed is True
+    assert outcome.findings == ()
+
+
+def test_out_of_scope_edit_of_multi_output_role_violates_blast_radius(
+    tmp_path: Path,
+) -> None:
+    # R3: an agent edit to an out-of-scope output is caught; the in-scope
+    # scientific edit stays free.
+    fixture = _Fixture(
+        tmp_path,
+        DeterministicFakeExecutor(
+            _golden_editing(
+                frozenset({"synthesis-candidate.json", "decision.json"})
+            )
+        ),
+    )
+    fixture.execute()
+    base_closure_id = _seal_multi_output_failed_closure(
+        fixture, "research_lead"
+    )
+    services = _lane_b_services(fixture, "cmd_r3b", "scientific")
+    outcome = _drive(
+        fixture,
+        services,
+        base_closure_id,
+        "cmd_r3b",
+        "scientific",
+        ("p1.synthesis_candidate",),
+    )
+
+    assert outcome.passed is False
+    violations = [
+        finding
+        for finding in outcome.findings
+        if finding.code == "correction.blast_radius_violated"
+    ]
+    assert len(violations) == 1
+    assert violations[0].object_id == "p1.decision"
+
+
+def test_correction_replay_preserves_agent_edits(tmp_path: Path) -> None:
+    # R4: an idempotent replay after a post-acknowledgement crash must not
+    # re-materialize source bytes over the agent's in-place edits.
+    fixture = _Fixture(tmp_path, DeterministicFakeExecutor(_golden_output))
+    output_name = Path(
+        fixture.output_plan.for_stage_role(
+            fixture.stage.stage_id, "theorist"
+        )[0].relative_path
+    ).name
+    assert output_name == "theory-discovery.json"
+    fixture.executor = _CrashAfterAckExecutor(
+        _golden_editing(frozenset({output_name}))
+    )
+    base_closure_id = _seal_failed_closure_bytes(
+        fixture, "theorist", _fixable_defect_bytes()
+    )
+
+    services = _lane_b_services(fixture, "cmd_r4", "scientific")
+    with pytest.raises(RoleExecutionPending):
+        _drive(
+            fixture,
+            services,
+            base_closure_id,
+            "cmd_r4",
+            "scientific",
+            (_scope(fixture),),
+        )
+
+    outcome = _drive(
+        fixture,
+        services,
+        base_closure_id,
+        "cmd_r4",
+        "scientific",
+        (_scope(fixture),),
+    )
+
+    # (a) The replay reconciled the acknowledged execution: no fresh execute.
+    assert len(fixture.executor.invocations) == 1
+    closure_id = correction_role_identity(
+        RUN, fixture.recipe.sha256, fixture.stage, "theorist", "cmd_r4"
+    )[2]
+    assert outcome.closure_id == closure_id
+    row = fixture.repository.get_role_closure(closure_id)
+    assert row is not None
+    payload = json.loads(row["payload_json"])
+    # (b) The correction closure sealed SUCCEEDED.
+    assert payload["status"] == RoleExecutionStatus.SUCCEEDED.value
+    # (c) The agent's in-place edit survived into the sealed output bytes.
+    sealed = fixture.artifacts.read_bytes(payload["outputs"][0]["sha256"])
+    assert b"agent_correction_edit" in sealed
+
+
+def test_correction_closure_preserves_raw_output(tmp_path: Path) -> None:
+    # R7: the correction close path seals the raw role workspace bytes.
+    fixture = _Fixture(tmp_path, DeterministicFakeExecutor(_golden_output))
+    base_closure_id = _seal_failed_closure_bytes(
+        fixture, "theorist", _fixable_defect_bytes()
+    )
+    services = _lane_b_services(fixture, "cmd_r7", "packaging")
+    outcome = _drive(
+        fixture,
+        services,
+        base_closure_id,
+        "cmd_r7",
+        "packaging",
+        (_scope(fixture),),
+    )
+
+    assert outcome.passed is True
+    row = fixture.repository.get_role_closure(outcome.closure_id)
+    assert row is not None
+    payload = json.loads(row["payload_json"])
+    raw_sha256 = payload["raw_output_sha256"]
+    assert type(raw_sha256) is str
+    assert len(raw_sha256) == 64
+    assert all(character in "0123456789abcdef" for character in raw_sha256)
+    fixture.artifacts.verify(raw_sha256)
+
+
+def test_correction_raw_preservation_failure_closes_failed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # R7: a raw-preservation store failure closes the correction FAILED
+    # (base-path parity) instead of validating without a raw snapshot.
+    def _raising(**kwargs):
+        raise RuntimeError("simulated store failure")
+
+    monkeypatch.setattr(
+        "model_forge.harness.output_adapters.preserve_raw_output", _raising
+    )
+    fixture = _Fixture(tmp_path, DeterministicFakeExecutor(_golden_output))
+    base_closure_id = _seal_failed_closure_bytes(
+        fixture, "theorist", _fixable_defect_bytes()
+    )
+    services = _lane_b_services(fixture, "cmd_r7b", "packaging")
+    outcome = _drive(
+        fixture,
+        services,
+        base_closure_id,
+        "cmd_r7b",
+        "packaging",
+        (_scope(fixture),),
+    )
+
+    assert outcome.passed is False
+    row = fixture.repository.get_role_closure(outcome.closure_id)
+    assert row is not None
+    payload = json.loads(row["payload_json"])
+    assert payload["status"] == RoleExecutionStatus.FAILED.value
+    assert payload["failure_code"] == "output.raw_preservation_failed"
+
+
+def test_blast_radius_violation_attempt_report_records_failure(
+    tmp_path: Path,
+) -> None:
+    # R22: the persisted attempt report reflects the post-blast outcome.
+    fixture = _Fixture(
+        tmp_path, DeterministicFakeExecutor(_golden_with_unrelated_change)
+    )
+    base_closure_id = _seal_failed_closure_bytes(
+        fixture, "theorist", _fixable_defect_bytes()
+    )
+    services = _lane_b_services(fixture, "cmd_r22", "packaging")
+    outcome = _drive(
+        fixture,
+        services,
+        base_closure_id,
+        "cmd_r22",
+        "packaging",
+        (_scope(fixture),),
+    )
+
+    assert outcome.passed is False
+    attempts = fixture.repository.list_validation_attempts(RUN)
+    assert len(attempts) == 1
+    report = json.loads(attempts[0]["report_json"])
+    assert report["passed"] is False
+    assert any(
+        item["code"] == "correction.blast_radius_violated"
+        for item in report["findings"]
+    )

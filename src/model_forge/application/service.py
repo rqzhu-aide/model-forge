@@ -2987,7 +2987,7 @@ class ModelForgeService:
             for entry in closure_payload.get("outputs", ())
             if type(entry) is dict and "contract_output_id" in entry
         }
-        if declared and str(closure_payload.get("status")) != "failed":
+        if str(closure_payload.get("status")) != "failed":
             return declared
         stage_id = closure_payload.get("stage_id")
         role = closure_payload.get("role")

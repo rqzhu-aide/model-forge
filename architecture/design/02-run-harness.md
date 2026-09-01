@@ -455,6 +455,17 @@ immediate. Late role output remains diagnostic run-local material and cannot be
 accepted into a submission. Cancellation preserves available diagnostics and
 never changes formal records.
 
+Prompt enforcement is durable, not advisory. The local_hermes executor's
+poll loop heartbeats through the repository-backed execution observer, which
+reads the run's `cancellation_requested` flag at every heartbeat. On the
+first heartbeat after acceptance the observer calls `executor.cancel` with
+the durable external execution identity; the executor verifies PID identity
+(process start time and host boot id) and terminates the process group
+(SIGTERM, then SIGKILL after the grace window). The in-flight role then
+closes as `cancelled` instead of running to natural exit. End-to-end
+cancellation latency is bounded by the executor poll interval plus the
+termination grace window.
+
 ### 11.2 Execution failure
 
 Tool errors, inaccessible inputs, permission violations, and missing required role submissions produce `failed`. A scientific conclusion that the proposed method fails is not an execution failure when documented in a valid submission.

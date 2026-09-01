@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
+import time
 from pathlib import Path
 
 import pytest
@@ -13,7 +15,11 @@ from model_forge.contracts import (
 )
 from model_forge.digests.jcs import canonicalize
 from model_forge.domain import PhaseContractIdentity
-from model_forge.executors import DeterministicFakeExecutor
+from model_forge.executors import (
+    DeterministicFakeExecutor,
+    RoleExecutionResult,
+    RoleExecutionStatus,
+)
 from model_forge.harness.execution_context import RunExecutionContext
 from model_forge.harness.outputs import build_output_plan
 from model_forge.harness.preparation import PreparedRunRecipe
@@ -348,6 +354,99 @@ def test_cancellation_fence_prevents_new_role_launch(tmp_path: Path) -> None:
     assert cancelled.applied is True
     assert outcome.status is StageStatus.CANCELLED
     assert fixture.executor.invocations == []
+
+
+def test_mid_flight_cancellation_terminates_role_and_closes_cancelled(
+    tmp_path: Path,
+) -> None:
+    """R14: a cancellation requested mid-flight reaches the in-flight role.
+
+    The repository-backed execution observer polls ``cancellation_requested``
+    at every heartbeat and invokes ``executor.cancel`` with the durable
+    external execution id; the closure layer then seals the role as
+    ``cancelled``.  A 30-second role must terminate promptly once
+    cancellation is accepted, not run to natural exit.
+    """
+
+    class SlowExecutor(DeterministicFakeExecutor):
+        """Runs for 30 s, heartbeating like the local_hermes poll loop."""
+
+        async def execute(self, invocation, observer):  # noqa: ANN001, ANN201, ANN202
+            self.invocations.append(invocation)
+            await observer.launch_intent(invocation)
+            external_id = f"fake:{invocation.execution_id}"
+            await observer.launch_acknowledged(invocation, external_id)
+            deadline = time.monotonic() + 30.0
+            while time.monotonic() < deadline:
+                if external_id in self.cancelled:
+                    # Killed by executor.cancel: the real executor surfaces
+                    # SIGTERM as a non-zero exit; the closure layer converts
+                    # it to CANCELLED because cancellation was requested.
+                    result = RoleExecutionResult(
+                        status=RoleExecutionStatus.FAILED,
+                        external_execution_id=external_id,
+                        exit_code=-15,
+                        summary="terminated by cancellation",
+                    )
+                    self.results[invocation.execution_id] = result
+                    return result
+                await observer.heartbeat(invocation, "slow executor running")
+                await asyncio.sleep(0.01)
+            raise AssertionError("cancellation never reached the in-flight role")
+
+    fixture = Fixture(tmp_path)
+    executor = SlowExecutor()
+    services = fixture.new_services(executor)
+
+    async def drive():  # noqa: ANN202
+        task = asyncio.create_task(
+            services.execute_or_reconcile_stage(
+                run_id=fixture.context.run_id,
+                manifest_sha256=fixture.context.manifest_sha256,
+                stage=fixture.plan.stages[0],
+            )
+        )
+        await asyncio.sleep(0.3)  # both roles launch and start heartbeats
+        fixture.repository.record_raw_command(
+            "request.cancel",
+            "project.stage_test",
+            _digest("e"),
+            {"request": "cancel"},
+        )
+        fixture.repository.seal_command(
+            "command.cancel",
+            "project.stage_test",
+            "request.cancel",
+            "cancel-once",
+            _digest("f"),
+            {"command": "cancel"},
+        )
+        requested = fixture.repository.request_cancellation(
+            "run.stage_test",
+            "command.cancel",
+            "running",
+            1,
+            {"state": "cancellation_requested"},
+            "event.cancel",
+            _digest("1"),
+            {"to": "cancellation_requested"},
+        )
+        assert requested.applied is True
+        # If cancellation were unreachable the stage would hang for 30 s.
+        return await asyncio.wait_for(task, timeout=10)
+
+    outcome = asyncio.run(drive())
+
+    assert outcome.status is StageStatus.CANCELLED
+    assert len(executor.cancelled) == 2  # both in-flight roles got cancel
+    with fixture.repository.database.connect() as connection:
+        rows = connection.execute(
+            "SELECT payload_json FROM role_execution_closures ORDER BY closure_id"
+        ).fetchall()
+    assert len(rows) == 2
+    assert {
+        json.loads(row["payload_json"])["status"] for row in rows
+    } == {"cancelled"}
 
 
 def test_new_service_reconciles_closures_without_relaunch(tmp_path: Path) -> None:

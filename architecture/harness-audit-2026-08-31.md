@@ -453,3 +453,21 @@ a decision item, not a defect.
   test pins the collision case. Details:
   [plan/harness-audit-2026-08-31-pe-pins.md](plan/harness-audit-2026-08-31-pe-pins.md)
   probe fact 6.
+- 2026-09-01, Pkg G pinning, R14 contradiction: the finding's premise
+  that `settle_cancellation` is the only `executor.cancel` call site and
+  that the prompt-kill path is "unreachable for the role that matters"
+  was already false at audit time. `RepositoryExecutionObserver.heartbeat`
+  polls `cancellation_requested` on every heartbeat and invokes
+  `executor.cancel` (execution_observer.py:96-114); this code is present
+  in the groundwork commit 429c198 carrying this audit. The local_hermes
+  poll loop heartbeats once per poll interval (local_hermes.py:466-470)
+  with the same executor instance, so the finding's own suggested fix
+  ("execute loop (or observer heartbeat) poll ... and call cancel")
+  describes the shipped mechanism. Live probe (recipe and output in
+  [plan/harness-audit-2026-08-31-pg-pins.md](plan/harness-audit-2026-08-31-pg-pins.md),
+  probe fact 4): a 30 s in-flight role terminated 0.33 s after
+  cancellation acceptance; both parallel roles received `executor.cancel`;
+  stage outcome CANCELLED; both closures sealed "cancelled". Resolution:
+  no production change; P-G ships the planned mid-flight regression test
+  (passes on the pre-package tree, pinning existing behavior) and the
+  11.1 wording update.

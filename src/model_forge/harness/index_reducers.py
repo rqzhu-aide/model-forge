@@ -149,7 +149,7 @@ def _reducer(binding_id: str) -> Reducer:
 def _literature_library(
     prior: Any | None, changes: list[dict[str, Any]]
 ) -> dict[str, Any]:
-    prior_items = _prior_items(prior, "sources")
+    prior_items = _prior_items(prior, "sources", "model-forge.literature-library-index")
     merged = {_literature_key(item): item for item in prior_items}
     for item in changes:
         merged[_literature_key(item)] = item
@@ -167,7 +167,7 @@ def _literature_library(
 def _method_catalog(
     prior: Any | None, changes: list[dict[str, Any]]
 ) -> dict[str, Any]:
-    prior_items = _prior_items(prior, "methods")
+    prior_items = _prior_items(prior, "methods", "model-forge.method-catalog-index")
     merged = {_method_key(item): item for item in prior_items}
     for item in changes:
         merged[_method_key(item)] = item
@@ -197,7 +197,7 @@ def _method_catalog(
 def _review_issue_ledger(
     prior: Any | None, changes: list[dict[str, Any]]
 ) -> dict[str, Any]:
-    prior_items = _prior_items(prior, "issues")
+    prior_items = _prior_items(prior, "issues", "model-forge.review-issue-ledger")
     merged = {_review_issue_key(item): item for item in prior_items}
     for item in changes:
         merged[_review_issue_key(item)] = item
@@ -212,10 +212,31 @@ def _review_issue_ledger(
     }
 
 
-def _prior_items(prior: Any | None, field: str) -> list[dict[str, Any]]:
-    if type(prior) is not dict or type(prior.get(field)) is not list:
+def _prior_items(
+    prior: Any | None, field: str, expected_format: str
+) -> list[dict[str, Any]]:
+    if prior is None:
         return []
-    return [dict(item) for item in prior[field] if type(item) is dict]
+    if type(prior) is not dict:
+        raise ValueError(f"Prior {expected_format} index is not a JSON object.")
+    if (
+        prior.get("format") != expected_format
+        or prior.get("format_version") != "1.0.0"
+    ):
+        raise ValueError(
+            f"Prior index format does not match {expected_format} 1.0.0."
+        )
+    items = prior.get(field)
+    if type(items) is not list:
+        raise ValueError(f"Prior {expected_format} index lacks the {field} array.")
+    result: list[dict[str, Any]] = []
+    for item in items:
+        if type(item) is not dict:
+            raise ValueError(
+                f"Prior {expected_format} index contains a non-object item."
+            )
+        result.append(dict(item))
+    return result
 
 
 def _literature_key(document: Mapping[str, Any]) -> str:
@@ -227,7 +248,11 @@ def _literature_key(document: Mapping[str, Any]) -> str:
             if type(item) is dict and item.get("kind") and item.get("value")
         )
         if values:
-            return values[0]
+            # Key on the full sorted identifier tuple: distinct items that
+            # share only their smallest identifier must not fold together.
+            # Enrichment of an item's identifier set still produces a separate
+            # entry (residual design item recorded in the audit doc).
+            return canonicalize(values).decode("utf-8")
     for field in ("source_id", "record_id"):
         value = document.get(field)
         if type(value) is str and value:

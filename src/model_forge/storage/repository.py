@@ -107,6 +107,21 @@ def _same(row: sqlite3.Row, **values: Any) -> bool:
     return all(row[key] == value for key, value in values.items())
 
 
+_CURRENT_RECORDS_SQL = """
+SELECT
+    s.project_id, s.slot_key, s.revision AS slot_revision,
+    g.*, a.sha256 AS artifact_sha256,
+    a.storage_uri AS artifact_storage_uri,
+    a.size AS artifact_size
+FROM current_slots AS s
+JOIN formal_generations AS g
+    ON g.project_id = s.project_id
+    AND g.generation_id = s.generation_id
+JOIN artifacts AS a ON a.artifact_id = g.artifact_id
+WHERE s.project_id = ? ORDER BY s.slot_key
+"""
+
+
 def _not_found(entity: str, identity: str) -> RepositoryNotFoundError:
     return RepositoryNotFoundError(entity, identity)
 
@@ -1403,23 +1418,20 @@ class HubRepository:
     def list_current_records(self, project_id: str) -> tuple[sqlite3.Row, ...]:
         with self._database.connect() as connection:
             return tuple(
-                connection.execute(
-                    """
-                    SELECT
-                        s.project_id, s.slot_key, s.revision AS slot_revision,
-                        g.*, a.sha256 AS artifact_sha256,
-                        a.storage_uri AS artifact_storage_uri,
-                        a.size AS artifact_size
-                    FROM current_slots AS s
-                    JOIN formal_generations AS g
-                        ON g.project_id = s.project_id
-                        AND g.generation_id = s.generation_id
-                    JOIN artifacts AS a ON a.artifact_id = g.artifact_id
-                    WHERE s.project_id = ? ORDER BY s.slot_key
-                    """,
-                    (project_id,),
-                ).fetchall()
+                connection.execute(_CURRENT_RECORDS_SQL, (project_id,)).fetchall()
             )
+
+    def capture_head_and_current_slots(
+        self, project_id: str
+    ) -> tuple[sqlite3.Row, tuple[sqlite3.Row, ...]]:
+        """Read the project head and the full slot inventory in one transaction."""
+        project_id = _text(project_id, "project_id")
+        with self._database.immediate_transaction() as connection:
+            project = self._require_project(connection, project_id)
+            rows = tuple(
+                connection.execute(_CURRENT_RECORDS_SQL, (project_id,)).fetchall()
+            )
+        return project, rows
 
     def list_collection_items(
         self, project_id: str, collection_key: str

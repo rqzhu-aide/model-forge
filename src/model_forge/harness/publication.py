@@ -19,6 +19,7 @@ from ..contracts import ResolvedPhasePlan
 from ..domain.identities import PHASE_IDS
 from ..digests.jcs import JCSCanonicalizationError, canonicalize
 from ..domain.runs import isoformat_utc
+from ..storage import ArtifactStore
 from ..storage.repository import HubRepository
 from .preparation import PreparedRunRecipe
 
@@ -224,6 +225,7 @@ class ContractPublicationService:
         slot_scope_prefix: str | None = None,
         slot_resolver: SlotResolver | None = None,
         prepared_transforms: Mapping[str, PreparedPublisherTransform] | None = None,
+        artifacts: ArtifactStore | None = None,
     ) -> None:
         """Check the complete publication plan without writing formal state."""
 
@@ -253,6 +255,8 @@ class ContractPublicationService:
             slot_scope_prefix=slot_scope_prefix,
             slot_resolver=slot_resolver,
             prepared_transforms=normalized_transforms,
+            repository=self.repository,
+            artifacts=artifacts,
         )
         if not current and not collection:
             raise _fail(
@@ -273,6 +277,7 @@ class ContractPublicationService:
         slot_scope_prefix: str | None = None,
         slot_resolver: SlotResolver | None = None,
         prepared_transforms: Mapping[str, PreparedPublisherTransform] | None = None,
+        artifacts: ArtifactStore | None = None,
     ) -> PublicationResult:
         """Publish validated outputs without changing run state.
 
@@ -312,6 +317,8 @@ class ContractPublicationService:
             slot_scope_prefix=slot_scope_prefix,
             slot_resolver=slot_resolver,
             prepared_transforms=normalized_transforms,
+            repository=self.repository,
+            artifacts=artifacts,
         )
         if not current_writes and not collection_writes:
             raise _fail(
@@ -534,9 +541,11 @@ def _extract_bindings(
     explicit_phase: str | None,
 ) -> tuple[tuple[Mapping[str, Any], ...], str]:
     phase: str | None = explicit_phase
+    mode: str | None = None
     if isinstance(source, ResolvedPhasePlan):
         exact = tuple(source.publication_bindings)
         source_phase = source.identity.phase_id
+        mode = source.mode_id
     elif isinstance(source, PreparedRunRecipe):
         document = source.document
         for field, expected in (
@@ -557,6 +566,9 @@ def _extract_bindings(
             )
         exact = tuple(_mapping(item, "publication binding") for item in raw)
         source_phase = document.get("phase")
+        recipe_mode = document.get("mode")
+        if type(recipe_mode) is str:
+            mode = recipe_mode
     else:
         if isinstance(source, (str, bytes)) or not isinstance(source, Sequence):
             raise _fail(
@@ -574,7 +586,23 @@ def _extract_bindings(
         )
     if not exact:
         raise _fail("publication.empty_bindings", "At least one binding is required.")
-    return _validate_bindings(exact), source_phase
+    validated = _validate_bindings(exact)
+    if mode is not None:
+        for binding in validated:
+            declared = binding.get("applicable_modes")
+            if declared is None:
+                continue
+            if (
+                isinstance(declared, (str, bytes))
+                or not isinstance(declared, Sequence)
+                or mode not in {str(item) for item in declared}
+            ):
+                raise _fail(
+                    "publication.binding_mode_inapplicable",
+                    f"Binding {binding['binding_id']!r} is not applicable to "
+                    f"mode {mode!r}.",
+                )
+    return validated, source_phase
 
 
 def _phase_from_bindings(bindings: Sequence[Mapping[str, Any]]) -> str:
@@ -841,6 +869,8 @@ def _materialize_writes(
     slot_scope_prefix: str | None,
     slot_resolver: SlotResolver | None,
     prepared_transforms: Mapping[str, PreparedPublisherTransform],
+    repository: HubRepository,
+    artifacts: ArtifactStore | None,
 ) -> tuple[tuple[_CurrentWrite, ...], tuple[_CollectionWrite, ...]]:
     required_outputs = {
         output_id for binding in bindings for output_id in binding["output_ids"]
@@ -860,6 +890,13 @@ def _materialize_writes(
         raise _fail(
             "publication.transform_coverage_mismatch",
             f"Prepared index transforms must exactly cover {sorted(index_bindings)}.",
+        )
+    if (slot_scope_prefix is not None or slot_resolver is not None) and any(
+        str(binding["operation"]) == "upsert_each" for binding in bindings
+    ):
+        raise _fail(
+            "publication.keyed_scope_unsupported",
+            "Keyed upsert_each bindings do not support slot scope or a resolver.",
         )
     current: list[_CurrentWrite] = []
     collection: list[_CollectionWrite] = []
@@ -1005,6 +1042,17 @@ def _materialize_writes(
                         "publication.stale_transform",
                         f"Prepared transform for {binding_id!r} does not match source outputs.",
                     )
+                declared_inputs = {
+                    str(value) for value in binding.get("source_input_ids", ())
+                }
+                if prior is not None and {
+                    str(key) for key in prepared.source_input_sha256
+                } != declared_inputs:
+                    raise _fail(
+                        "publication.transform_input_missing",
+                        f"Prepared transform for {binding_id!r} did not consume the "
+                        "declared frozen prior inputs.",
+                    )
                 document: Any = dict(prepared.document)
                 artifact = prepared.artifact
             else:
@@ -1016,7 +1064,20 @@ def _materialize_writes(
                 document = output.document
                 artifact = output.artifact
         else:
-            document, artifact = _bundle_document(binding, outputs)
+            if artifacts is None:
+                raise _fail(
+                    "publication.bundle_artifact_store_required",
+                    f"Bundle {binding_id!r} requires an artifact store for "
+                    "bundle artifact registration.",
+                )
+            document, artifact = _bundle_document(
+                binding,
+                outputs,
+                repository=repository,
+                artifacts=artifacts,
+                project_id=project_id,
+                run_id=run_id,
+            )
         document_sha256 = _canonical_digest(document, binding_id)
         generation_id = _generation_id(
             project_id=project_id,
@@ -1048,6 +1109,11 @@ def _materialize_writes(
 def _bundle_document(
     binding: Mapping[str, Any],
     outputs: Mapping[str, RegisteredValidatedOutput],
+    *,
+    repository: HubRepository,
+    artifacts: ArtifactStore,
+    project_id: str,
+    run_id: str,
 ) -> tuple[dict[str, Any], RegisteredArtifactMetadata]:
     components = []
     method_identity: dict[str, Any] | None = None
@@ -1087,9 +1153,49 @@ def _bundle_document(
     }
     if method_identity is not None:
         bundle["method_identity"] = method_identity
+    payload = canonicalize(bundle)
+    stored = artifacts.put_bytes(payload)
+    digest = str(stored.sha256)
+    binding_id = str(binding["binding_id"])
+    artifact_id = _deterministic_id(
+        "artifact",
+        {
+            "kind": "publication_bundle",
+            "project_id": project_id,
+            "run_id": run_id,
+            "publication_binding_id": binding_id,
+            "content_sha256": digest,
+        },
+    )
+    repository.record_artifact(
+        artifact_id,
+        project_id,
+        digest,
+        stored.size,
+        "application/json",
+        f"artifact://sha256/{digest}",
+        {
+            "kind": "publication_bundle",
+            "run_id": run_id,
+            "publication_binding_id": binding_id,
+            "storage_relative_path": stored.relative_path,
+            "source_output_sha256": {
+                str(component["output_id"]): outputs[
+                    str(component["output_id"])
+                ].document_sha256
+                for component in binding["components"]
+            },
+        },
+    )
     return (
         bundle,
-        outputs[str(binding["components"][0]["output_id"])].artifact,
+        RegisteredArtifactMetadata(
+            artifact_id=artifact_id,
+            sha256=digest,
+            byte_length=stored.size,
+            media_type="application/json",
+            storage_uri=f"artifact://sha256/{digest}",
+        ),
     )
 
 

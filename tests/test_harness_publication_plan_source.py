@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+
+import pytest
 
 from model_forge.contracts import PhaseContractRepository
 from model_forge.digests import DigestContractRegistry
@@ -11,6 +14,7 @@ from model_forge.harness.publication import (
     ContractPublicationService,
     FrozenPublicationHead,
     PreparedPublisherTransform,
+    PublicationError,
     RegisteredArtifactMetadata,
     RegisteredValidatedOutput,
 )
@@ -150,3 +154,107 @@ def test_resolved_phase_plan_is_accepted_without_thawing_frozen_bindings(
     assert len(result.generation_ids) == 4
     assert len(result.collection_item_ids) == 2
     assert result.new_authority_sequence == 6
+
+
+def test_plan_binding_outside_run_mode_is_rejected(tmp_path: Path) -> None:
+    schemas = SchemaCatalog.load(ARCHITECTURE / "schemas")
+    digests = DigestContractRegistry.load(
+        ARCHITECTURE / "contracts" / "digest-contracts.json", schemas
+    )
+    contracts = PhaseContractRepository.load(ARCHITECTURE, schemas, digests)
+    plan = contracts.resolve(
+        contracts.identity("P1"),
+        "p1.literature_update",
+        {"p1.scope": "broad_update", "p1.instructions": "Update literature."},
+        "current_only",
+    )
+    bindings = tuple(
+        {**binding, "applicable_modes": ["p5.assembly"]}
+        if str(binding["binding_id"]) == "p1.rebuild_literature_library"
+        else binding
+        for binding in plan.publication_bindings
+    )
+    plan = dataclasses.replace(plan, publication_bindings=bindings)
+
+    repository = HubRepository(tmp_path / "hub.sqlite3")
+    repository.initialize()
+    repository.create_project("project.plan", {"name": "Plan source"})
+    repository.record_raw_command(
+        "request.plan", "project.plan", _sha(b"raw"), {"request": "plan"}
+    )
+    repository.seal_command(
+        "command.plan",
+        "project.plan",
+        "request.plan",
+        "idempotency.plan",
+        _sha(b"command"),
+        {"command": "plan"},
+    )
+    repository.create_run(
+        "run.plan",
+        "project.plan",
+        "command.plan",
+        "submitted",
+        {"state": "submitted"},
+        "event.plan",
+        _sha(b"event"),
+        {"to": "submitted"},
+        recorded_at=NOW,
+    )
+
+    outputs = {
+        "p1.attention_items": _register(
+            repository, "p1.attention_items", [{"attention": "coverage gap"}]
+        ),
+        "p1.source_changes": _register(
+            repository, "p1.source_changes", [{"source_id": "source.alpha"}]
+        ),
+        "p1.synthesis_candidate": _register(
+            repository, "p1.synthesis_candidate", {"synthesis": "Mixed evidence"}
+        ),
+        "p1.coverage_candidate": _register(
+            repository, "p1.coverage_candidate", {"coverage": "partial"}
+        ),
+        "p1.decision": _register(
+            repository, "p1.decision", {"decision": "Continue discovery"}
+        ),
+    }
+    reduced = _register(
+        repository,
+        "prepared.p1.library",
+        {"source_ids": ["source.alpha"]},
+    )
+    transform = PreparedPublisherTransform(
+        publication_binding_id="p1.rebuild_literature_library",
+        transform="deterministic_index",
+        document=reduced.document,
+        artifact=reduced.artifact,
+        source_output_sha256={
+            "p1.source_changes": outputs["p1.source_changes"].document_sha256
+        },
+    )
+
+    with pytest.raises(PublicationError) as inapplicable:
+        ContractPublicationService(repository).publish(
+            project_id="project.plan",
+            run_id="run.plan",
+            command_id="command.plan",
+            bindings=plan,
+            outputs=outputs,
+            expected_head=FrozenPublicationHead(
+                authority_sequence=0,
+                authority_root_sha256=ZERO_SHA256,
+                current_revision=0,
+                current_generations={
+                    "p1.literature_library.current": None,
+                    "p1.literature_synthesis.current": None,
+                    "p1.literature_coverage.current": None,
+                    "p1.phase_decision.current": None,
+                },
+            ),
+            prepared_transforms={
+                "p1.rebuild_literature_library": transform,
+            },
+            published_at=NOW,
+        )
+    assert inapplicable.value.code == "publication.binding_mode_inapplicable"

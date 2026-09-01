@@ -32,10 +32,9 @@ def capture_publication_basis(
 ) -> dict[str, Any]:
     """Capture an exhaustive current-slot inventory at preparation time."""
 
-    project = repository.get_project(project_id)
+    project, current_rows = repository.capture_head_and_current_slots(project_id)
     current = {
-        str(row["slot_key"]): str(row["generation_id"])
-        for row in repository.list_current_records(project_id)
+        str(row["slot_key"]): str(row["generation_id"]) for row in current_rows
     }
     scope: str | None = None
     if plan.identity.phase_id in _METHOD_PHASES:
@@ -74,7 +73,12 @@ def recover_publication_head(
 
     if basis.get("complete_current_slot_inventory") is not True:
         raise ValueError("Publication basis is not an exhaustive current-slot inventory.")
-    generations = dict(basis.get("current_generations", {}))
+    sealed = basis.get("current_generations")
+    if not isinstance(sealed, Mapping):
+        raise ValueError(
+            "Publication basis lacks the sealed current-slot inventory."
+        )
+    generations = dict(sealed)
     for binding in plan.publication_bindings:
         if str(binding["operation"]) != "upsert_each":
             continue

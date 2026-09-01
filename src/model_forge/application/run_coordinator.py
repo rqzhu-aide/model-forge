@@ -425,6 +425,7 @@ class RunCoordinator:
                 published_at=published_at,
                 slot_scope_prefix=basis.get("slot_scope_prefix"),
                 prepared_transforms=transforms,
+                artifacts=self.artifacts,
             )
         except RepositoryConflictError:
             prior = self.repository.get_publication_receipt_for_run(run_id)
@@ -498,6 +499,7 @@ class RunCoordinator:
             expected_head=head,
             slot_scope_prefix=basis.get("slot_scope_prefix"),
             prepared_transforms=transforms,
+            artifacts=self.artifacts,
         )
         return validation, plan, recipe, transforms, head
 

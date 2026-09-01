@@ -16,6 +16,7 @@ from model_forge.harness.publication import (
     RegisteredArtifactMetadata,
     RegisteredValidatedOutput,
 )
+from model_forge.storage import ArtifactStore, WorkspacePaths
 from model_forge.storage.repository import (
     HubRepository,
     RepositoryConflictError,
@@ -96,6 +97,10 @@ def _output(
         recorded_at=NOW,
     )
     return RegisteredValidatedOutput(output_id, document, artifact)
+
+
+def _artifact_store(tmp_path: Path, name: str = "workspace") -> ArtifactStore:
+    return ArtifactStore(WorkspacePaths(tmp_path / name, create=True))
 
 
 def _append_binding(output_id: str = "p1.items") -> dict[str, object]:
@@ -323,6 +328,7 @@ def test_method_bound_bundle_requires_explicit_scope_and_preserves_components(
         expected_head=FrozenPublicationHead(0, ZERO_SHA256, 0, {slot: None}),
         published_at=NOW,
         slot_scope_prefix="methods/method.alpha/v1",
+        artifacts=_artifact_store(tmp_path),
     )
     assert set(result.current_slots) == {slot}
     current = repository.get_current_record("project.publication", slot)
@@ -373,6 +379,7 @@ def test_bundle_propagates_identity_and_rejects_conflicting_components(
         expected_head=FrozenPublicationHead(0, ZERO_SHA256, 0, {slot: None}),
         published_at=NOW,
         slot_scope_prefix="methods/method.alpha/v1",
+        artifacts=_artifact_store(tmp_path),
     )
     assert set(result.current_slots) == {slot}
     current = repository.get_current_record("project.publication", slot)
@@ -423,6 +430,7 @@ def test_bundle_propagates_identity_and_rejects_conflicting_components(
             ),
             published_at=NOW,
             slot_scope_prefix="methods/method.alpha/v1",
+            artifacts=_artifact_store(conflict_root),
         )
     assert conflicting.value.code == "publication.conflicting_bundle_method_identity"
     assert conflict_repository.get_project("project.publication")[
@@ -552,3 +560,190 @@ def test_malformed_collection_and_keyed_shapes_fail_before_transaction(
     project = repository.get_project("project.publication")
     assert project["authority_sequence"] == 0
     assert project["authority_root_sha256"] == ZERO_SHA256
+
+
+def _index_binding() -> dict[str, object]:
+    return {
+        "binding_id": "p1.rebuild_library",
+        "applicable_modes": ["p1.update"],
+        "operation": "replace",
+        "output_ids": ["p1.source_changes"],
+        "source_input_ids": ["p1.current_library"],
+        "target": {
+            "kind": "current_slot",
+            "slot_id": "p1.library.current",
+            "record_type": "literature_library",
+        },
+        "prior_target_policy": "absent_or_match_current",
+        "publisher_transform": "deterministic_index",
+        "may_create_scientific_content": False,
+    }
+
+
+def test_index_transform_missing_declared_prior_input_fails(
+    tmp_path: Path,
+) -> None:
+    repository = _repository(tmp_path)
+    service = ContractPublicationService(repository)
+    binding = _index_binding()
+
+    first_run, first_command = _run(repository, "index_first")
+    first_changes = _output(
+        repository,
+        "p1.source_changes",
+        [{"source_id": "source.one"}],
+        suffix="first_changes",
+    )
+    first_index = _output(
+        repository,
+        "prepared.p1.library",
+        {"source_ids": ["source.one"]},
+        suffix="first_index",
+    )
+    first_prepared = PreparedPublisherTransform(
+        publication_binding_id="p1.rebuild_library",
+        transform="deterministic_index",
+        document=first_index.document,
+        artifact=first_index.artifact,
+        source_output_sha256={"p1.source_changes": first_changes.document_sha256},
+        source_input_sha256={"p1.current_library": _sha("prior library")},
+    )
+    first = service.publish(
+        project_id="project.publication",
+        run_id=first_run,
+        command_id=first_command,
+        bindings=[binding],
+        outputs={"p1.source_changes": first_changes},
+        expected_head=FrozenPublicationHead(
+            0, ZERO_SHA256, 0, {"p1.library.current": None}
+        ),
+        prepared_transforms={"p1.rebuild_library": first_prepared},
+        published_at=NOW,
+    )
+    assert first.generation_ids
+
+    second_run, second_command = _run(repository, "index_second")
+    second_changes = _output(
+        repository,
+        "p1.source_changes",
+        [{"source_id": "source.two"}],
+        suffix="second_changes",
+    )
+    second_index = _output(
+        repository,
+        "prepared.p1.library",
+        {"source_ids": ["source.two"]},
+        suffix="second_index",
+    )
+    second_prepared = PreparedPublisherTransform(
+        publication_binding_id="p1.rebuild_library",
+        transform="deterministic_index",
+        document=second_index.document,
+        artifact=second_index.artifact,
+        source_output_sha256={"p1.source_changes": second_changes.document_sha256},
+    )
+    with pytest.raises(PublicationError) as missing:
+        service.publish(
+            project_id="project.publication",
+            run_id=second_run,
+            command_id=second_command,
+            bindings=[binding],
+            outputs={"p1.source_changes": second_changes},
+            expected_head=FrozenPublicationHead(
+                first.new_authority_sequence,
+                first.new_authority_root_sha256,
+                first.new_current_revision,
+                {"p1.library.current": first.generation_ids[0]},
+            ),
+            prepared_transforms={"p1.rebuild_library": second_prepared},
+            published_at=NOW,
+        )
+    assert missing.value.code == "publication.transform_input_missing"
+
+
+def test_bundle_generation_registers_own_artifact(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    artifacts = _artifact_store(tmp_path)
+    run_id, command_id = _run(repository, "bundle_artifact")
+    manuscript = _output(
+        repository,
+        "p5.manuscript_candidate",
+        {"title": "A method manuscript"},
+    )
+    trace = _output(
+        repository,
+        "p5.claim_traceability",
+        {"claims": ["claim.one"]},
+    )
+    slot = "methods/method.alpha/v1/p5.manuscript.current"
+
+    result = ContractPublicationService(repository).publish(
+        project_id="project.publication",
+        run_id=run_id,
+        command_id=command_id,
+        bindings=[_bundle_binding()],
+        outputs={
+            manuscript.contract_output_id: manuscript,
+            trace.contract_output_id: trace,
+        },
+        expected_head=FrozenPublicationHead(0, ZERO_SHA256, 0, {slot: None}),
+        published_at=NOW,
+        slot_scope_prefix="methods/method.alpha/v1",
+        artifacts=artifacts,
+    )
+
+    assert set(result.current_slots) == {slot}
+    current = repository.get_current_record("project.publication", slot)
+    assert current is not None
+    assert current["artifact_id"] != manuscript.artifact.artifact_id
+    bundle_document = json.loads(current["payload_json"])
+    artifact_row = repository.get_artifact(str(current["artifact_id"]))
+    payload = json.loads(artifact_row["payload_json"])
+    assert payload["kind"] == "publication_bundle"
+    assert payload["publication_binding_id"] == "p5.publish_manuscript"
+    assert artifact_row["sha256"] == hashlib.sha256(
+        canonicalize(bundle_document)
+    ).hexdigest()
+
+
+def test_keyed_binding_with_slot_scope_is_rejected(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    run_id, command_id = _run(repository, "keyed_scope")
+    methods = [
+        {"identity": {"stable_id": "method.alpha"}, "summary": "Alpha"},
+    ]
+    output = _output(repository, "p2.method_changes", methods)
+    binding = {
+        "binding_id": "p2.upsert_method_records",
+        "applicable_modes": ["p2.full_catalog"],
+        "operation": "upsert_each",
+        "output_ids": ["p2.method_changes"],
+        "target": {
+            "kind": "keyed_current_slots",
+            "collection_id": "p2.method_records",
+            "record_type": "method_record",
+            "item_key_pointer": "/identity/stable_id",
+            "slot_template": "methods/{item_key}/current",
+        },
+        "prior_target_policy": "absent_or_match_current",
+        "publisher_transform": "none",
+        "may_create_scientific_content": False,
+    }
+
+    with pytest.raises(PublicationError) as rejected:
+        ContractPublicationService(repository).publish(
+            project_id="project.publication",
+            run_id=run_id,
+            command_id=command_id,
+            bindings=[binding],
+            outputs={"p2.method_changes": output},
+            expected_head=FrozenPublicationHead(
+                0,
+                ZERO_SHA256,
+                0,
+                {"methods/method.alpha/current": None},
+            ),
+            published_at=NOW,
+            slot_scope_prefix="methods/method.alpha/v1",
+        )
+    assert rejected.value.code == "publication.keyed_scope_unsupported"

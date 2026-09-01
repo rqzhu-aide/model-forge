@@ -56,17 +56,24 @@ identity.version coerced per pin.
   still seal FAILED. Regression test: observer raising a simulated DB
   error leaves the execution retryable, not sealed-failed.
 
-### P-B: Digest ordering (R2)
+### P-B: Digest ordering (R2) -- DONE
 
-- In `_fix_self_referential_hashes` (`role_execution.py:866-959`): stamp
-  `handoff_artifact.sha256`, `identity.definition_sha256`, E-2 output://
-  pointers, and E-2e input:// pointers FIRST; recompute `content_sha256`
-  LAST (or iterate to a fixpoint). Mirror the ordering in
-  `apply_normalize_transformations` (`:534-536`). Regression test: a method
-  record requiring `definition_sha256` stamping must seal with
-  `content_sha256` matching the sealed bytes per the
-  `method_record.content` digest contract; same for a record with an
-  E-2 `output://` representation pointer.
+DONE 2026-09-01: pins commit 11e017c, fix commit 8cd6fb2. Tests 1342 ->
+1344 (+2: test_content_sha256_recomputed_after_definition_stamping,
+test_content_sha256_recomputed_after_output_pointer_stamping; both
+verified by the coordinator to fail on pre-fix code with the predicted
+stale-digest assertion). Gates: pytest exit 0, validate_package.py exit
+0. Implementation: the content_sha256 recompute block moved to the END
+of `_fix_self_referential_hashes._fix_record` (after handoff,
+definition_sha256, output:// and input:// pointer stamping), docstring
+updated; both call sites (role lane monolith :243, normalize lane :542)
+share the helper so no separate normalize-lane change was needed. Probe
+fact recorded in the pins doc: no schema carries both content_sha256 and
+handoff_artifact, so a single reorder is exact and no fixpoint iteration
+was added.
+
+- R2: `content_sha256` is stale on every record that receives pointer or
+  definition stamping. Fixed per above; regression tests named above.
 
 ### P-C: Correction lane (R3, R4, R13, R7, R22)
 

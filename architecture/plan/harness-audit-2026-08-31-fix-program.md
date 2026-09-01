@@ -75,7 +75,35 @@ was added.
 - R2: `content_sha256` is stale on every record that receives pointer or
   definition stamping. Fixed per above; regression tests named above.
 
-### P-C: Correction lane (R3, R4, R13, R7, R22)
+### P-C: Correction lane (R3, R4, R13, R7, R22) -- DONE
+
+DONE 2026-09-01: pins commit a350be9, fix commit 977e82b. Tests 1344 ->
+1351 (+7: test_partial_scope_correction_of_multi_output_role_passes,
+test_out_of_scope_edit_of_multi_output_role_violates_blast_radius,
+test_correction_replay_preserves_agent_edits,
+test_correction_closure_preserves_raw_output,
+test_correction_raw_preservation_failure_closes_failed,
+test_blast_radius_violation_attempt_report_records_failure,
+test_correction_scope_succeeded_empty_closure_refused; all seven
+verified by the coordinator to fail on pre-fix code with the predicted
+defects). Gates: pytest exit 0, validate_package.py exit 0 (re-run by
+the coordinator after the commit). Probe facts recorded in the pins
+doc: R3/R4/R13 recipes were reproduction-probed against pre-fix code
+before dispatch (six out-of-scope violations on an agent-correct
+partial-scope correction; replay sealed restored source bytes without
+the agent marker; succeeded-empty closure command accepted). One
+approved pin amendment during execution: the R3 violation test edits
+decision.json (dict) instead of attention-items.json (JSON array,
+which the dict-only editing factory cannot mutate). Implementation:
+agent_raw_bytes snapshot iterates all of the role's specs via
+output_plan.for_stage_role; execute_correction reads the
+acknowledgement before prepare and passes materialize_source_bytes
+(False on the reconcile path); _validate_and_close_correction preserves
+raw bytes fail-closed (base-path parity, nested so a preservation
+failure records no attempt row), records the validation attempt AFTER
+blast-radius verification with violation findings in the persisted
+report, and seals raw_output_sha256; _correction_scope_outputs returns
+the (possibly empty) sealed set for every non-failed closure.
 
 - R3: build `agent_raw_bytes` from ALL of the role's specs in the
   correction plan, not `scoped_plan` (`role_execution.py:1916-1939`), so

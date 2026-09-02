@@ -301,16 +301,35 @@ records the rationale).
   assert prompt termination and a CANCELLED closure. Update
   `02-run-harness.md` section 11.1 to state prompt enforcement.
 
-### P-H: Brief extraction (R16)
+### P-H: Brief extraction (R16) -- DONE
 
-- `_extract_prohibited_fields` (`task_briefs.py:242-251`): track `not`
-  depth; collect `required` as prohibition only under negation.
-- `_extract_conditional_requirements` (`task_briefs.py:634-673`): walk
-  then/else recursively and surface nested const-pinned required
-  constraints. Regression test from the real counterexample:
-  `evidence.schema.json` `method_match == "older_method_version"` must
-  produce a brief entry requiring `alignment_at_creation.state` =
-  `"outdated"`.
+DONE 2026-09-01: pins commit f66e04d, fix commit bf8ea5f. Tests 1369 ->
+1373 (+4: test_else_branch_bare_required_is_not_prohibited,
+test_double_negation_required_is_not_prohibited,
+test_nested_const_then_requirement_surfaced,
+test_nested_const_else_requirement_surfaced; all four verified by the
+coordinator to fail on pre-fix code with the predicted defects -
+prohibition misread on role-invocation-closure termination, double
+negation collected, KeyError on both nested const entries). Gates: pytest
+exit 0 (1373 passed), validate_package.py exit 0 (re-run by the
+coordinator after the commit). The dispatch died after writing code and
+tests but before gates/commit; the coordinator audited the diff against
+the pins (verbatim match), salvaged per the P1-variant pattern, and
+applied one approved pin amendment (recorded in the pins doc): Edit 2's
+_describe_condition/_describe_else_condition recursion rendered nested
+conditions with leaf-only names while the pinned tests require dotted
+paths - both functions gained a `_prefix` parameter threading the dotted
+path. Implementation: _extract_prohibited_fields tracks not-depth (a
+bare else.required affirms, not prohibits); _extract_conditional_requirements
+surfaces nested const-pinned required constraints from then AND else via
+_extract_nested_const_requirements; _render_schema_constraints renders
+the pinned value. Verified extractor outcomes match the pins' expected
+table (evidence.schema.json gains alignment_at_creation.state=outdated;
+method.schema.json gains lineage.change_source.kind=research_run;
+role-invocation-closure termination prohibition gone;
+attention-item.schema.json rendering unchanged).
+
+- R16: fixed per above; regression tests named above.
 
 ### P-I: P3 sweep (R18-R25, R27-R31, R36)
 

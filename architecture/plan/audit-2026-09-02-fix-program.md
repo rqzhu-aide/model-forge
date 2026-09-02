@@ -128,7 +128,21 @@ improvement; the message text is honest about the sealed state.
   command (the run stays `correcting`; D-7 re-issue is the designed
   recovery), never a silent sealed-and-lost acceptance.
 
-### P-D: Correction replay attempt protection (F7)
+### P-D: Correction replay attempt protection (F7) -- DONE
+
+DONE 2026-09-02: commit 839b228. Tests 1412 -> 1415 (+3; two fail
+pre-fix, the third guards the guard by design). Gates: pytest exit 0,
+validate_package.py exit 0 (both re-run by the coordinator).
+Implementation verbatim per pin: the correction reconcile branch now
+applies `_recover_completed_execution` to the correction workspace on
+FAILED + exit_code None (outputs present -> judged by validation, attempt
+spent on the validation outcome only), and raises
+`RoleExecutionInfrastructureError` without spending the bounded attempt
+when no outputs exist (propagation traced: `_drive_lane_b` logs, no CAS,
+no attempt row, run stays in the correction lane for D-7 re-issue).
+Noted for future audit: the generic executor-exception path in
+`execute_correction` also builds FAILED/exit_code None and still spends
+the attempt (distinguishable from a vanished process; same shape as F7).
 
 On a reconcile-FAILED during a correction replay where the process
 vanished post-restart (exit_code None, restart-blind diagnostic), apply

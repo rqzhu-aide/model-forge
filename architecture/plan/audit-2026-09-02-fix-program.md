@@ -288,7 +288,19 @@ via a `persist=False` path - the dry-run's writes were redundant because
   no-writes docstring contract; or amend the docstring if persistence
   proves load-bearing (record which in the commit).
 
-### P-K: Dead code and latent pointer guard (F16, F17)
+### P-K: Dead code and latent pointer guard (F16, F17) -- DONE
+
+DONE 2026-09-02: commit 027af75. Tests net 1420 -> 1420 (-6 dead + 5
+migrated guards + 1 F17 regression); pytest exit 0, validate_package.py
+exit 0 (both re-run by the coordinator). Deleted `prepare_candidate_output`/
+`CandidateOutput` (envelope.py) and `_is_placeholder_hash` plus its dead
+supporting constants (role_execution.py); the six tests that exercised the
+dead path were migrated to the production close lane (five guard tests,
+one deleted as a true duplicate - per-test dispositions in the commit).
+F17 guard sits at `normalize_closure_outputs`, the single choke point for
+all persisted normalize mutation (preview path deliberately unguarded -
+read-only, seals nothing); a normalize-lane output carrying an `output://`
+pointer at a co-closure sibling now raises before any write.
 
 - F16: delete `prepare_candidate_output`/`CandidateOutput`
   (`envelope.py:517-630`) and `_is_placeholder_hash`

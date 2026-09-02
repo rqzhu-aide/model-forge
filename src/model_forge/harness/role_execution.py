@@ -1743,8 +1743,29 @@ class RoleLifecycleService:
                 result = await self.executor.reconcile(external_id)
                 if result is None:
                     raise RoleExecutionPending(
-                        f"Execution {execution_id} is acknowledged but not terminal."
+                        f"Execution {execution_id} is acknowledged but not terminal.",
+                        external_execution_id=external_id,
                     )
+                if (
+                    result.status is RoleExecutionStatus.FAILED
+                    and result.exit_code is None
+                ):
+                    recovered = self._recover_completed_execution(invocation, result)
+                    if recovered is not None:
+                        result = recovered
+                    else:
+                        # F7 (audit 2026-09-02): the process vanished
+                        # post-restart AND the correction workspace holds no
+                        # completed outputs - the attempt was lost to
+                        # infrastructure, not judged.  Do not spend the
+                        # bounded attempt; surface as infrastructure so the
+                        # run stays in the correction lane and the
+                        # researcher can re-issue (D-7).
+                        raise RoleExecutionInfrastructureError(
+                            f"Correction execution {execution_id} vanished "
+                            "post-restart with no recoverable outputs; the "
+                            "bounded correction attempt is not spent."
+                        )
         except RoleExecutionPending:
             raise
         except RoleExecutionInfrastructureError:

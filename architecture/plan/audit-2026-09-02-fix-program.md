@@ -259,7 +259,22 @@ allowlist entry removed (P-G follow-up).
 - F20: add `.phase-chip` and `.tl-dot` transitions to the
   reduced-motion block (`styles.css:2812`, `:2987`, block at `:4033`).
 
-### P-J: Backend hygiene (F13, F14, F15, F18)
+### P-J: Backend hygiene (F13, F14, F15, F18) -- DONE
+
+DONE 2026-09-02: commit 57067e1. Tests 1415 -> 1420 (+5, all proven to
+fail pre-fix); pytest exit 0, validate_package.py exit 0 (both re-run by
+the coordinator). Landed: both `_recover_frozen_contract` copies now
+skip corrupted artifact rows with a warning instead of aborting recovery
+(F13); `_fix_record` re-runs handoff stamping after the content recompute
+in a bounded loop - and the package surfaced a real circularity:
+`content_sha256` and `handoff_artifact.sha256` cover each other, so a
+hypothetical hybrid record could never be idempotent; verified no
+contracted record type carries both, documented in code and test (F14);
+executor-failed corrections now preserve raw output bytes exactly like
+the validated-failure path (F15 - R4 only avoided clobbering, it never
+preserved); `validate_materialization` is now genuinely side-effect-free
+via a `persist=False` path - the dry-run's writes were redundant because
+`publish` re-runs the materialization itself (F18).
 
 - F13: `_recover_frozen_contract` (both copies) skips unreadable/corrupt
   `phase_contract_frozen` rows instead of aborting the loop.

@@ -818,10 +818,21 @@ class RunCoordinator:
         for row in self.repository.find_artifacts_by_purpose(
             project_id, "phase_contract_frozen"
         ):
-            document = loads_json(
-                self.artifacts.read_bytes(str(row["sha256"])),
-                source=f"artifact {row['artifact_id']}",
-            )
+            # F13 (audit 2026-09-02): one unreadable or corrupt artifact row
+            # must not abort the whole recovery - skip it and keep scanning.
+            # The pinned-digest comparison below remains the only acceptance
+            # criterion, so a skipped row can never weaken recovery.
+            try:
+                document = loads_json(
+                    self.artifacts.read_bytes(str(row["sha256"])),
+                    source=f"artifact {row['artifact_id']}",
+                )
+            except Exception:
+                logger.warning(
+                    "Skipping unreadable phase_contract_frozen artifact %s.",
+                    row["artifact_id"],
+                )
+                continue
             if type(document) is not dict:
                 continue
             digest = self.specification.digests.compute(

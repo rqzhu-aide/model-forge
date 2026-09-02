@@ -227,7 +227,14 @@ class ContractPublicationService:
         prepared_transforms: Mapping[str, PreparedPublisherTransform] | None = None,
         artifacts: ArtifactStore | None = None,
     ) -> None:
-        """Check the complete publication plan without writing formal state."""
+        """Check the complete publication plan without writing formal state.
+
+        F18 (audit 2026-09-02): this dry-run is genuinely side-effect-free.
+        Bundle digests are computed in memory (the artifact id is derivable
+        from the digest), so no ``artifacts.put_bytes`` or
+        ``repository.record_artifact`` writes happen here; only ``publish``
+        persists bundle bytes and registration rows.
+        """
 
         exact_bindings, resolved_phase = _extract_bindings(
             bindings,
@@ -257,6 +264,7 @@ class ContractPublicationService:
             prepared_transforms=normalized_transforms,
             repository=self.repository,
             artifacts=artifacts,
+            persist=False,
         )
         if not current and not collection:
             raise _fail(
@@ -871,6 +879,7 @@ def _materialize_writes(
     prepared_transforms: Mapping[str, PreparedPublisherTransform],
     repository: HubRepository,
     artifacts: ArtifactStore | None,
+    persist: bool = True,
 ) -> tuple[tuple[_CurrentWrite, ...], tuple[_CollectionWrite, ...]]:
     required_outputs = {
         output_id for binding in bindings for output_id in binding["output_ids"]
@@ -1077,6 +1086,7 @@ def _materialize_writes(
                 artifacts=artifacts,
                 project_id=project_id,
                 run_id=run_id,
+                persist=persist,
             )
         document_sha256 = _canonical_digest(document, binding_id)
         generation_id = _generation_id(
@@ -1114,6 +1124,7 @@ def _bundle_document(
     artifacts: ArtifactStore,
     project_id: str,
     run_id: str,
+    persist: bool = True,
 ) -> tuple[dict[str, Any], RegisteredArtifactMetadata]:
     components = []
     method_identity: dict[str, Any] | None = None
@@ -1154,9 +1165,20 @@ def _bundle_document(
     if method_identity is not None:
         bundle["method_identity"] = method_identity
     payload = canonicalize(bundle)
-    stored = artifacts.put_bytes(payload)
-    digest = str(stored.sha256)
     binding_id = str(binding["binding_id"])
+    if persist:
+        stored = artifacts.put_bytes(payload)
+        digest = str(stored.sha256)
+        size = stored.size
+        relative_path = stored.relative_path
+    else:
+        # F18 (audit 2026-09-02): dry-run validation computes the bundle
+        # digest in memory.  The artifact id below is derivable from the
+        # digest, so neither the artifact-store write nor the registration
+        # row is needed to validate the plan; ``publish`` persists them.
+        digest = hashlib.sha256(payload).hexdigest()
+        size = len(payload)
+        relative_path = None
     artifact_id = _deterministic_id(
         "artifact",
         {
@@ -1167,32 +1189,33 @@ def _bundle_document(
             "content_sha256": digest,
         },
     )
-    repository.record_artifact(
-        artifact_id,
-        project_id,
-        digest,
-        stored.size,
-        "application/json",
-        f"artifact://sha256/{digest}",
-        {
-            "kind": "publication_bundle",
-            "run_id": run_id,
-            "publication_binding_id": binding_id,
-            "storage_relative_path": stored.relative_path,
-            "source_output_sha256": {
-                str(component["output_id"]): outputs[
-                    str(component["output_id"])
-                ].document_sha256
-                for component in binding["components"]
+    if persist:
+        repository.record_artifact(
+            artifact_id,
+            project_id,
+            digest,
+            size,
+            "application/json",
+            f"artifact://sha256/{digest}",
+            {
+                "kind": "publication_bundle",
+                "run_id": run_id,
+                "publication_binding_id": binding_id,
+                "storage_relative_path": relative_path,
+                "source_output_sha256": {
+                    str(component["output_id"]): outputs[
+                        str(component["output_id"])
+                    ].document_sha256
+                    for component in binding["components"]
+                },
             },
-        },
-    )
+        )
     return (
         bundle,
         RegisteredArtifactMetadata(
             artifact_id=artifact_id,
             sha256=digest,
-            byte_length=stored.size,
+            byte_length=size,
             media_type="application/json",
             storage_uri=f"artifact://sha256/{digest}",
         ),

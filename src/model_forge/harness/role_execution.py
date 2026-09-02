@@ -923,19 +923,27 @@ def _fix_self_referential_hashes(
 
     def _fix_record(obj: dict) -> bool:
         nonlocal changed
+
+        def _stamp_handoff() -> bool:
+            # handoff_artifact.sha256 — recompute from the handoff dict
+            ha = obj.get("handoff_artifact")
+            if isinstance(ha, dict) and "sha256" in ha:
+                snapshot = dict(obj)
+                artifact_snapshot = dict(ha)
+                artifact_snapshot.pop("sha256", None)
+                snapshot["handoff_artifact"] = artifact_snapshot
+                correct = hashlib.sha256(canonicalize(snapshot)).hexdigest()
+                if ha.get("sha256") != correct:
+                    ha["sha256"] = correct
+                    return True
+            return False
+
         touched = False
 
-        # 1. handoff_artifact.sha256 — recompute from the handoff dict
-        ha = obj.get("handoff_artifact")
-        if isinstance(ha, dict) and "sha256" in ha:
-            snapshot = dict(obj)
-            artifact_snapshot = dict(ha)
-            artifact_snapshot.pop("sha256", None)
-            snapshot["handoff_artifact"] = artifact_snapshot
-            correct = hashlib.sha256(canonicalize(snapshot)).hexdigest()
-            if ha.get("sha256") != correct:
-                ha["sha256"] = correct
-                touched = True
+        # 1. handoff_artifact.sha256 — first stamping (re-run after step 5;
+        # see the F14 note below).
+        if _stamp_handoff():
+            touched = True
 
         # 2. identity.definition_sha256 — digest contract
         # ``method_record.definition``: payload is
@@ -1015,6 +1023,24 @@ def _fix_self_referential_hashes(
                 obj["content_sha256"] = correct
                 touched = True
 
+        # F14 (audit 2026-09-02): the step-1 handoff stamping hashed a
+        # snapshot carrying whatever content_sha256 value was present at
+        # that moment, but content_sha256 is only finalized at step 5 - so
+        # a record whose content digest moved seals a handoff hash over a
+        # stale snapshot.  Re-run the handoff stamping now that step 5 has
+        # settled; the handoff snapshot excludes only its own sha256
+        # sub-field and nothing else mutates the record during this loop,
+        # so the re-run converges immediately.  Bounded at 3 iterations,
+        # then raise rather than seal an unstable digest.
+        for _ in range(3):
+            if not _stamp_handoff():
+                break
+            touched = True
+        else:
+            raise ValueError(
+                "handoff_artifact.sha256 stamping did not converge within "
+                "3 passes."
+            )
         return touched
 
     if isinstance(data, dict):
@@ -2210,6 +2236,27 @@ class RoleLifecycleService:
                     ) from error
         elif status is RoleExecutionStatus.FAILED:
             failure_code = "executor.role_failed"
+            # F15 (audit 2026-09-02): mirror the base FAILED close path -
+            # an executor-failed correction must also preserve the agent's
+            # raw workspace bytes (R7 parity).  Best-effort like the sibling
+            # branch: a preservation failure is logged and leaves
+            # raw_seal_sha256 None; it must not mask the executor failure
+            # or the bounded-attempt bookkeeping below.
+            try:
+                from .output_adapters import preserve_raw_output
+                raw_seal_sha256 = preserve_raw_output(
+                    workspace=invocation.workspace,
+                    run_id=invocation.run_id,
+                    role=role,
+                    artifacts=self.artifacts,
+                )
+            except Exception:
+                logger.exception(
+                    "Raw output preservation failed for failed correction run %s role %s",
+                    invocation.run_id,
+                    role,
+                )
+                raw_seal_sha256 = None
             if self.context.correction_type is not None:
                 # HV-5.6: an executor-failed correction invocation still
                 # spends the bounded attempt. Without this row a persistently

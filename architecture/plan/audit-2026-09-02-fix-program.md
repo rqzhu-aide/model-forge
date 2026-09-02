@@ -35,9 +35,20 @@ Approved by Tez 2026-09-02 with the coder's recommendations:
 
 ## Packages
 
-### P-A: Restart recovery completion (F1)
+### P-A: Restart recovery completion (F1) -- DONE
 
-Two halves, per the approved decision:
+DONE 2026-09-02: commit 3a53fe7. Tests 1398 -> 1405 (+7; 6 fail pre-fix,
+the 7th pins the missing-output honest-failure path by design). Gates:
+pytest exit 0, validate_package.py exit 0 (both re-run by the
+coordinator). Implementation as pinned: `RoleExecutionPending` carries
+`external_execution_id`; `_recover_completed_execution` performs
+output-based post-restart success detection on FAILED + exit_code None;
+the coordinator spawns a per-execution pending watcher
+(`pending_poll_seconds`, default 5.0) that re-schedules the run when
+reconcile turns terminal. Drift note: the correction-path pending raise
+(`execute_correction` :1735) intentionally still raises without an
+external id - correction states are never auto-advanced; P-D owns that
+lane.
 
 1. In-process wake-up. When `_execute` catches `RoleExecutionPending`,
    spawn a bounded watcher task that polls `executor.reconcile` for the

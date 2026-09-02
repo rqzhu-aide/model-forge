@@ -1,7 +1,7 @@
 # Fix Program: Model Forge Audit 2026-09-02
 
-Status: ACTIVE 2026-09-02. One package, one commit, in the order below.
-Source of truth for findings: [../audit-2026-09-02.md](../audit-2026-09-02.md)
+Status: COMPLETE 2026-09-02. One package, one commit, in the order below.
+Source of truth for findings: [../archive/completed/audit-2026-09-02.md](../archive/completed/audit-2026-09-02.md)
 (F1-F21 with file:line evidence, all independently verified).
 
 Approved by Tez 2026-09-02 with the coder's recommendations:

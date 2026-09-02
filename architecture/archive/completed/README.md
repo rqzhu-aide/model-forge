@@ -6,6 +6,32 @@ phase or production system is complete.
 
 ## Completed work
 
+### Full audit 2026-09-02 fix program (F1-F22)
+
+Closed 2026-09-02: 21 verified findings from the 2026-09-02 full audit
+(backend + UI, three read-only lanes, every finding independently
+re-verified) plus F22 found during program validation. Eleven packages
+(P-A through P-K): restart recovery completion (pending watcher +
+output-based post-exit detection), infrastructure-error containment
+(best-effort heartbeat, close-path guards), cancellation integrity
+(stale-head error, crash-window settle, Lane A correction surface),
+correction replay attempt protection, phase-view keepPreviousData, CSS
+token repair with a static contract test, rerun-flow repairs, UI states
+hygiene, backend hygiene (frozen-contract recovery resilience, handoff-hash
+ordering with a documented circularity, correction raw preservation,
+side-effect-free materialization validation), and dead-machinery deletion
+plus the normalize-lane pointer guard. Backend suite grew 1398 -> 1420
+across the program; frontend vitest 183 -> 201. Every fix shipped with
+regression tests proven to fail on pre-fix code. P-E (F8) was blocked
+when the companion-artifact adapt pipeline proved decorative (result
+discarded at its only call site, no production consumers) and awaits
+Tez's delete-vs-wire-up decision. One coordination incident is recorded
+in the program doc (cron/foreground collision on P-F; cron paused for
+the remainder of the foreground-driven program).
+
+Evidence: [audit and closure note](audit-2026-09-02.md),
+[fix program record](../../plan/audit-2026-09-02-fix-program.md).
+
 ### Harness audit 2026-08-31 fix program (R1-R37)
 
 Closed 2026-09-02: all 37 post-sweep residual findings from the

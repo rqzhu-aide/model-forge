@@ -6,12 +6,17 @@ specification or decision record before code relies on such a change.
 
 ## Active plans
 
-- [audit-2026-09-02-fix-program.md](audit-2026-09-02-fix-program.md) -
-  fix program for the 2026-09-02 full audit (F1-F21), packages P-A
-  through P-K. ACTIVE 2026-09-02.
+None as of 2026-09-02.
 
 ## Recently completed (retained here for their pin documents)
 
+- [audit-2026-09-02-fix-program.md](audit-2026-09-02-fix-program.md) -
+  fix program for the 2026-09-02 full audit (F1-F22), packages P-A
+  through P-K. COMPLETE 2026-09-02: every package landed with regression
+  tests proven against pre-fix code; P-E (F8) was blocked when the
+  companion-artifact adapt pipeline proved decorative and awaits Tez's
+  delete-vs-wire-up decision. The audit doc is archived at
+  [../archive/completed/audit-2026-09-02.md](../archive/completed/audit-2026-09-02.md).
 - [harness-audit-2026-08-31-fix-program.md](harness-audit-2026-08-31-fix-program.md) -
   fix program for the 2026-08-31 harness audit (R1-R37), packages P-A
   through P-K. COMPLETE 2026-09-02; all packages landed or explicitly

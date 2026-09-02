@@ -331,7 +331,12 @@ the current schemas and records a new validation attempt; on pass the run
 re-enters the normal `submitted -> validating -> promoting` pipeline through a
 submission-attempt record that never rewrites the base submission. A
 `normalize` correction applies only disclosed deterministic transformations
-that were previewed to the researcher before authorization. `packaging` and
+that were previewed to the researcher before authorization. A normalize
+closure must refuse (before any mutation, artifact write, or seal) when an
+output carries an `output://` pointer at a sibling output in the same
+rebind set - normalizing the target would silently stale the pointer
+(2026-09-02, F17 guard at the single mutation choke point; the read-only
+preview path stays unguarded). `packaging` and
 `scientific` corrections re-invoke the owning role under a correction identity
 with a pinned basis and a derived pointer list; changed outputs seal as a new
 correction closure in the closure family, never as an edit to the original

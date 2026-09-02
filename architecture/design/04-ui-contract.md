@@ -373,6 +373,17 @@ prefill applies only once the method list and history options for that mode
 have loaded, and pre-filling instructions never overwrites the researcher's
 locally stored draft.
 
+Refinements (2026-09-02, F2/F11/F12): "until the user picks a mode
+explicitly" is per visit - navigating away and back to a rerun link lets
+the frozen basis win again (F11). The prefill is offered only while the
+frozen mode is still in the contract's current mode list; when it is not,
+the form shows an honest "basis no longer offered" note instead of a banner
+promising a basis it cannot apply (F12). And because the phase view is
+keyed by mode and method, switching either keeps showing the previous view
+with a busy note instead of unmounting the form and wiping unpersisted
+entries (F2); during that placeholder window the prefill is visible but
+never re-stamps over the researcher's edits.
+
 ## 7. Status presentation
 
 ### 7.1 Execution state

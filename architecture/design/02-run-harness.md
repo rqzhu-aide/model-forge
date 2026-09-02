@@ -526,6 +526,31 @@ abort the pass with the run left `running`, and reconciliation retries on
 the next pass. Only genuine executor-domain failures close a role as
 `failed`.
 
+Concretely (2026-09-02 program, F1/F3/F4/F5/F6/F7/F22): an unresolved
+acknowledged execution raises `RoleExecutionPending` carrying the
+external execution id, and the coordinator spawns a per-execution watcher
+that polls the executor and re-schedules the run when the process turns
+terminal - a healthy in-flight agent is never dependent on the next
+restart to be noticed. When reconciliation finds the process gone
+(`exit_code` unset) it inspects the workspace first: if every declared
+expected output is present and non-empty, the closure judges the bytes
+the agent actually wrote; otherwise the honest failure stands. The same
+output-based recovery applies to correction replays, and a replay whose
+outputs are absent surfaces as infrastructure WITHOUT spending the
+bounded correction attempt (the researcher re-issues; the attempt
+accounting punishes judged work, never lost processes). Observer
+heartbeat bookkeeping is best-effort: a transient persistence error there
+logs a warning and the agent process survives; strictness lives in the
+close path, where bookkeeping failures become retryable infrastructure
+errors (conflict errors are never reclassified). A cancellation requested
+while the run row is mid-change surfaces a stale-head command error
+("refresh and cancel again") rather than silently dropping; a
+cancellation settled in the crash window between intent and
+acknowledgement seals a properly cancelled closure with a diagnostic
+instead of wedging. Frozen-contract recovery skips corrupted artifact
+rows with a warning and keeps scanning; the digest comparison remains
+the only acceptance criterion.
+
 ## 12. Harness interfaces
 
 The UI, command-line tools, and authorized remote agents should use the same command service:

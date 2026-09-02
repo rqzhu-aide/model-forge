@@ -67,7 +67,15 @@ def validate_submission(
         submission = loads_json(row["payload_json"], source=f"submission {run_id}")
     except JsonLoadError as error:
         return SubmissionValidationResult(
-            {}, {}, (_finding(error.code, error.message, run_id),)
+            {},
+            {},
+            (
+                _finding(
+                    "submission.payload_unreadable",
+                    f"The sealed submission payload could not be parsed: {error.message}",
+                    run_id,
+                ),
+            ),
         )
     if type(submission) is not dict:
         return SubmissionValidationResult(
@@ -92,7 +100,14 @@ def validate_submission(
         )
     for issue in schemas.validate("run-submission.schema.json", submission):
         findings.append(
-            _finding(issue.code, issue.message, run_id, issue.json_pointer)
+            _finding(
+                issue.code,
+                issue.message,
+                run_id,
+                issue.json_pointer,
+                schema_file="run-submission.schema.json",
+                failing_property=issue.failing_property,
+            )
         )
     if submission.get("project_id") != project_id:
         findings.append(
@@ -371,6 +386,15 @@ def _validate_phase_semantics(
             if output is None or type(output.document) is not dict:
                 continue
             declared = output.document.get("method_identity") or output.document.get("identity")
+            if declared is not None and type(declared) is not dict:
+                findings.append(
+                    _finding(
+                        "submission.method_identity_mismatch",
+                        f"Published output {output_id!r} declares a method identity that is not an object.",
+                        output_id,
+                    )
+                )
+                continue
             if identity_required and declared is None:
                 findings.append(
                     _finding(

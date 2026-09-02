@@ -1523,20 +1523,26 @@ def _string_set(value: Any) -> set[str]:
 def _has_cycle(graph: Mapping[str, set[str]]) -> bool:
     visiting: set[str] = set()
     visited: set[str] = set()
-
-    def visit(node: str) -> bool:
-        if node in visiting:
-            return True
-        if node in visited:
-            return False
-        visiting.add(node)
-        if any(visit(dependency) for dependency in graph.get(node, set())):
-            return True
-        visiting.remove(node)
-        visited.add(node)
-        return False
-
-    return any(visit(node) for node in graph)
+    for start in graph:
+        if start in visited:
+            continue
+        stack: list[tuple[str, bool]] = [(start, False)]
+        while stack:
+            node, expanded = stack.pop()
+            if expanded:
+                visiting.discard(node)
+                visited.add(node)
+                continue
+            if node in visiting:
+                return True
+            if node in visited:
+                continue
+            visiting.add(node)
+            stack.append((node, True))
+            for dependency in graph.get(node, ()):
+                if dependency not in visited:
+                    stack.append((dependency, False))
+    return False
 
 
 def _parse_datetime(value: Any) -> datetime | None:

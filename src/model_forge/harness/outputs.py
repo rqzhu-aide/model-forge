@@ -177,6 +177,16 @@ def validate_role_outputs(
     resolved_root = run_root.resolve()
     for spec in specs:
         path = run_root.joinpath(*spec.relative_path.split("/"))
+        if path.is_symlink():
+            findings.append(
+                _finding(
+                    "output.not_regular_file",
+                    f"Output {spec.contract_output_id!r} must be a regular JSON file.",
+                    spec,
+                    method_bound=method_bound,
+                )
+            )
+            continue
         try:
             resolved = path.resolve(strict=True)
             resolved.relative_to(resolved_root)

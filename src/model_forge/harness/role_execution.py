@@ -830,7 +830,21 @@ def _stamp_canonical_artifact(
     uri = artifact.get("uri")
     if not (isinstance(uri, str) and uri.startswith("input://")):
         return False
-    candidate = inputs_dir / uri[len("input://"):]
+    name = uri[len("input://"):]
+    # Basename-only, containment-checked: anything else is left untouched
+    # for validation to reject (R19).
+    if (
+        not name
+        or name in (".", "..")
+        or "/" in name
+        or "\\" in name
+    ):
+        return False
+    candidate = inputs_dir / name
+    try:
+        candidate.resolve().relative_to(inputs_dir.resolve())
+    except (OSError, ValueError):
+        return False
     if not candidate.is_file():
         return False
     digest = hashlib.sha256(candidate.read_bytes()).hexdigest()
@@ -1334,9 +1348,9 @@ def _stableid_positions(schema_file: str) -> dict[str, Any]:
             "array_keys": frozenset(array_keys),
             "heuristic": False,
         }
+        _STABLEID_POSITIONS_CACHE[schema_file] = result
     except Exception:
         result = {"scalar_keys": frozenset(), "array_keys": frozenset(), "heuristic": True}
-    _STABLEID_POSITIONS_CACHE[schema_file] = result
     return result
 
 
@@ -2457,7 +2471,9 @@ class RoleLifecycleService:
                 except Exception:
                     markdown = ""
                 if not markdown.strip():
-                    markdown = raw.decode("utf-8", errors="replace")
+                    # R24: a summary-less envelope has no compact content;
+                    # skip it instead of dumping raw bytes into the brief.
+                    continue
                 compact_dir.mkdir(parents=True, exist_ok=True)
                 dest = compact_dir / f"{input_id}.md"
                 dest.write_text(markdown, encoding="utf-8")
@@ -2654,6 +2670,10 @@ class RoleLifecycleService:
         for key, value in self.context.plan.choice_values.items():
             if str(key).endswith(".selected_method") and isinstance(value, Mapping):
                 method_identity = {str(k): v for k, v in value.items()}
+        # to_role names the single role of the next stage. When the next
+        # stage fans out to multiple roles there is no unique successor,
+        # so to_role stays empty - it is not only empty when terminal
+        # (R23).
         to_role = ""
         for later in self.context.plan.stages:
             if later.sequence > stage.sequence:

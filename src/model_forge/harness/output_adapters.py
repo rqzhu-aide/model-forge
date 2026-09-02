@@ -97,12 +97,20 @@ class DefaultOutputAdapter:
                 ):
                     suffix = sibling.suffix.lower()
                     if suffix in _MEDIA_TYPE_MAP:
+                        try:
+                            relative = str(sibling.relative_to(workspace.resolve()))
+                        except ValueError:
+                            # R31: the sibling is not inside the workspace;
+                            # skip it instead of crashing the scan.
+                            continue
+                        if sibling.stat().st_mtime < validated.path.stat().st_mtime:
+                            # R31: predates the current output - a stale
+                            # leftover from a prior attempt.
+                            continue
                         data = sibling.read_bytes()
                         linked.append(
                             LinkedArtifact(
-                                source_path=str(
-                                    sibling.relative_to(workspace.resolve())
-                                ),
+                                source_path=relative,
                                 sha256=hashlib.sha256(data).hexdigest(),
                                 byte_length=len(data),
                                 media_type=_MEDIA_TYPE_MAP[suffix],
@@ -139,17 +147,18 @@ def preserve_raw_output(
 
     data = buffer.getvalue()
 
-    # Use put_bytes if available
-    try:
-        stored = artifacts.put_bytes(data)
+    # Use put_bytes when the store provides it; genuine failures inside
+    # put_bytes propagate (R30).
+    put_bytes = getattr(artifacts, "put_bytes", None)
+    if callable(put_bytes):
+        stored = put_bytes(data)
         return str(stored.sha256)
-    except AttributeError:
-        # Fallback: store via the artifact hash directly
-        sha256 = hashlib.sha256(data).hexdigest()
-        artifacts_path = artifacts._paths.root / "raw-outputs" / sha256[:2] / sha256[2:4] / f"{sha256}.tar.gz"
-        artifacts_path.parent.mkdir(parents=True, exist_ok=True)
-        artifacts_path.write_bytes(data)
-        return sha256
+    # Fallback: store via the artifact hash directly
+    sha256 = hashlib.sha256(data).hexdigest()
+    artifacts_path = artifacts._paths.root / "raw-outputs" / sha256[:2] / sha256[2:4] / f"{sha256}.tar.gz"
+    artifacts_path.parent.mkdir(parents=True, exist_ok=True)
+    artifacts_path.write_bytes(data)
+    return sha256
 
 
 __all__ = [

@@ -698,7 +698,7 @@ class LocalHermesExecutor:
             )
             try:
                 stdout_b, _ = await asyncio.wait_for(
-                    proc.communicate(), timeout=10
+                    proc.communicate(), timeout=30
                 )
             except asyncio.TimeoutError:
                 # M7: the version probe timed out — kill the child instead

@@ -164,9 +164,11 @@ class RunCoordinator:
                 except asyncio.CancelledError:
                     raise
                 except Exception as error:
-                    if self._handle_error(run_id, error):
-                        return
-                    raise
+                    # _handle_error always returns True: every path seals
+                    # a terminal state or recognizes the error as settled
+                    # (R36).
+                    self._handle_error(run_id, error)
+                    return
 
     async def resume_incomplete(self) -> None:
         """Schedule every durable nonterminal run after application startup."""
@@ -401,7 +403,10 @@ class RunCoordinator:
             return
         validation, plan, recipe, transforms, head = self._publication_plan(run_id)
         if not validation.passed:
-            raise ValueError("Validated submission changed before publication.")
+            raise PublicationError(
+                "publication.revalidation_failed",
+                "Validated submission changed before publication.",
+            )
         run = self.repository.get_run(run_id)
         payload = json.loads(run["payload_json"])
         published_at = _parse_time(str(payload["publication_prepared_at"]))
@@ -523,10 +528,15 @@ class RunCoordinator:
                 str(item["skill_id"]) for item in value.get("skills", ())
             )
         instruction = next(
-            str(value)
-            for key, value in plan.choice_values.items()
-            if key.endswith(".instructions")
+            (
+                str(value)
+                for key, value in plan.choice_values.items()
+                if key.endswith(".instructions")
+            ),
+            None,
         )
+        if instruction is None:
+            raise ValueError("Prepared plan carries no .instructions choice.")
 
         # Resolve separate mode and stage-role instruction layers. The
         # frozen choice remains untouched. When it differs from the

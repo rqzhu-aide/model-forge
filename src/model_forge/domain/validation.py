@@ -38,7 +38,10 @@ class FindingClass(StrEnum):
 # 1.12.0 (E-2e): P2 canonical_artifact pointer integrity; method record
 # canonical pointers are declared input:// and stamped mechanically at
 # closure from the sealed materialized input bytes.
-POLICY_VERSION = "1.12.0"
+# 1.13.0 (R20): unreadable sealed submission payloads are operational
+# failures (submission.payload_unreadable), not correctable json.*
+# findings.
+POLICY_VERSION = "1.13.0"
 
 
 @dataclass(frozen=True, slots=True)
@@ -187,6 +190,22 @@ def _build_registry() -> dict[str, FindingPolicy]:
         guidance=(
             "Re-issue the correction limited to the permitted change "
             "locations (packaging) or the permitted output scope (scientific)."
+        ),
+    )
+
+    # R20: a sealed submission payload that cannot be parsed is a
+    # harness-side storage fault, not a correctable json.* finding.
+    _register(
+        "submission.payload_unreadable",
+        FindingClass.OPERATIONAL_FAILURE,
+        rationale=(
+            "The sealed submission payload in the run repository could not "
+            "be parsed; this is a harness-side storage fault no correction "
+            "lane can repair."
+        ),
+        guidance=(
+            "Investigate the run repository storage; the correction lane "
+            "cannot repair a corrupt sealed payload."
         ),
     )
 

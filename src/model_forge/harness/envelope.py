@@ -60,7 +60,7 @@ class SealedRunFacts:
     method_lifecycle_state: str = ""
     method_lineage: dict[str, Any] | None = None
     sequence: int = 0  # stage sequence (handoffs)
-    to_role: str = ""  # next stage's role (handoffs); empty when terminal
+    to_role: str = ""  # next stage's sole role (handoffs); empty when terminal or when the next stage has multiple roles
 
 
 # --------------------------------------------------------------------------- #

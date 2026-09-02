@@ -94,7 +94,19 @@ output-recovery tests and the watcher test moved their interruption point
 from heartbeat to close-path `record_artifact` (forced by the F3
 semantics change; F1 intent preserved).
 
-### P-C: Cancellation integrity (F5, F6, F22)
+### P-C: Cancellation integrity (F5, F6, F22) -- DONE
+
+DONE 2026-09-02: commit fdf3e20. Tests 1409 -> 1412 (+3, all proven to
+fail pre-fix). Gates: pytest exit 0, validate_package.py exit 0 (both
+re-run by the coordinator). Implementation as pinned: cancel CAS race now
+raises CONTROL_HEAD_STALE carrying the sealed command id (F5);
+settle_cancellation seals a cancelled closure with a crash-window
+diagnostic for intent-without-ack (F6); Lane A correction bookkeeping
+failures surface as an honest CommandRejected via
+`_correction_bookkeeping_failed` (F22). Drift recorded: F22 reuses
+CONTROL_HEAD_STALE (no infrastructure code exists in the registry and
+api/errors.py was out of scope) - a dedicated code is a candidate future
+improvement; the message text is honest about the sealed state.
 
 - F5: `service.py` cancel path raises `CONTROL_HEAD_STALE` on
   `compare_and_swap_failed` (mirror the correction path at `:2571-2585`);

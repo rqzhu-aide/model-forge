@@ -3888,6 +3888,14 @@ p.run-monitor-note {
   color: var(--muted, #6b7280);
 }
 
+.phase-view__refresh-note {
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 2px solid var(--accent, #5b6b7a);
+  font-size: 0.85rem;
+  color: var(--muted, #6b7280);
+}
+
 /* ── Collapsible profile cards (long settings page) ── */
 
 .profile-collapsible {

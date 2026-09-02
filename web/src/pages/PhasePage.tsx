@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
 import type { PhaseId, PhaseView } from "../api/types";
@@ -50,6 +50,10 @@ export function PhasePage() {
       },
     ),
     enabled: Boolean(projectId && phaseId),
+    // F2: a mode/method switch changes the query key; keep rendering the
+    // previous view (with a busy hint) instead of unmounting the run form
+    // and wiping its unpersisted local state.
+    placeholderData: keepPreviousData,
   });
 
   // One-click rerun: ?rerun=<run_id> pre-fills the form with the frozen
@@ -196,6 +200,11 @@ export function PhasePage() {
         </Panel>
       ) : null}
 
+      {phaseQuery.isFetching ? (
+        <p className="phase-view__refresh-note" role="status" aria-live="polite">
+          Refreshing the view for the new selection; your entries below are preserved.
+        </p>
+      ) : null}
       <Panel
         id="configure-run"
         className="launch-panel"
@@ -223,7 +232,18 @@ export function PhasePage() {
             selectedMethodId={selectedMethodId}
             onMethodChange={setSelectedMethodId}
             mode={mode}
-            rerunPrefill={rerunPrefill?.phase === phaseId ? rerunPrefill : undefined}
+            // Do not hand the rerun prefill to the form while it renders
+            // placeholder (previous-key) data: RunForm's apply effect keys
+            // on `mode` and would stamp from the stale view's history
+            // options, then skip the correct re-stamp once fresh data
+            // lands. Withholding it during the placeholder window resets
+            // RunForm's applied-marker, so the stamp runs once, against the
+            // real view.
+            rerunPrefill={
+              !phaseQuery.isPlaceholderData && rerunPrefill?.phase === phaseId
+                ? rerunPrefill
+                : undefined
+            }
             onModeChange={(nextMode) => {
               setUserModeOverride(true);
               setMode(nextMode);

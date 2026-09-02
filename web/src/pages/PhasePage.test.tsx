@@ -3,6 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../api/client";
 import type {
@@ -362,3 +363,102 @@ describe("PhasePage one-click rerun (WP-UX)", () => {
   });
 });
 
+describe("PhasePage mode switch keeps the form (F2)", () => {
+  function twoModeView(): PhaseView {
+    return phaseView({
+      run_configuration: {
+        modes: [
+          {
+            mode_id: "p1.standard",
+            label: "Standard",
+            description: "Single-pass synthesis.",
+          },
+          {
+            mode_id: "p1.deep",
+            label: "Deep sweep",
+            description: "Two-pass deep synthesis.",
+          },
+        ],
+        default_mode: "p1.standard",
+        instruction_label: "Instructions",
+        instruction_help: "State the synthesis instructions.",
+        current_inputs: [],
+        history_options: [],
+        stage_plan: [
+          { stage_id: "s1", label: "Synthesize", roles: ["research_lead"], execution: "serial" },
+        ],
+      },
+    });
+  }
+
+  // The first switch to p1.deep has no cache entry; hold its fetch open for
+  // a tick so the tests can observe the transition window before it settles.
+  function mockDelayedDeepFetch() {
+    (api.getPhaseView as ReturnType<typeof vi.fn>).mockImplementation(
+      (_projectId: string, _phaseId: string, opts?: { mode?: string }) =>
+        opts?.mode === "p1.deep"
+          ? new Promise((resolve) => setTimeout(() => resolve(twoModeView()), 30))
+          : Promise.resolve(twoModeView()),
+    );
+    (api.getRun as ReturnType<typeof vi.fn>).mockResolvedValue({});
+    (api.listMethods as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+  }
+
+  async function renderSettledStandardView() {
+    renderPage();
+    await waitFor(() =>
+      expect(screen.getByRole("radio", { name: /Standard/i })).toBeChecked(),
+    );
+    // Let the default-mode (p1.standard) refetch finish so the only fetch in
+    // flight during the assertions below is the p1.deep one.
+    await waitFor(() =>
+      expect(
+        screen.queryByText(/Refreshing the view for the new selection/i),
+      ).not.toBeInTheDocument(),
+    );
+  }
+
+  it("preserves RunForm local state during and after the first switch to an uncached mode", async () => {
+    mockDelayedDeepFetch();
+    await renderSettledStandardView();
+
+    // phaseOneScope is pure local useState in RunForm: the wipe probe.
+    const scopeRadio = screen.getByRole("radio", { name: /Focused literature question/i });
+    await userEvent.click(scopeRadio);
+    expect(scopeRadio).toBeChecked();
+
+    await userEvent.click(screen.getByRole("radio", { name: /Deep sweep/i }));
+
+    // During the transition window: pre-fix, the key change flipped the page
+    // to <LoadingState/>, unmounting the form and wiping its local state.
+    expect(screen.queryByText("Loading P1 state…")).not.toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Focused literature question/i })).toBeChecked();
+
+    // After the mode-keyed fetch settles, the local state is still there.
+    await waitFor(() =>
+      expect(
+        screen.queryByText(/Refreshing the view for the new selection/i),
+      ).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("radio", { name: /Deep sweep/i })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /Focused literature question/i })).toBeChecked();
+  });
+
+  it("shows a subtle refreshing note while the new mode loads and clears it after settle", async () => {
+    mockDelayedDeepFetch();
+    await renderSettledStandardView();
+
+    await userEvent.click(screen.getByRole("radio", { name: /Deep sweep/i }));
+
+    const note = screen.getByText(/Refreshing the view for the new selection/i);
+    expect(note).toHaveAttribute("aria-live", "polite");
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText(/Refreshing the view for the new selection/i),
+      ).not.toBeInTheDocument(),
+    );
+    // The view itself stayed mounted through the transition.
+    expect(screen.getByRole("radio", { name: /Deep sweep/i })).toBeChecked();
+  });
+});

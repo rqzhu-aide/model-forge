@@ -239,7 +239,19 @@ strands the draft skip flag (F21).
 - Vitest per fix (mode re-wins after navigation; no banner when mode
   retired; same-value external apply does not strand the next edit).
 
-### P-I: UI states hygiene (F19, F20)
+### P-I: UI states hygiene (F19, F20) -- DONE
+
+DONE 2026-09-02: commit 6e6d7b3. Vitest 195 -> 201 (+6; four fail
+pre-fix, two guards pass by design); tsc 0, build ok, validator exit 0
+(all re-run by the coordinator). Landed: overview decision briefs show
+"Decision brief is unavailable" on query failure instead of vanishing
+silently (F19, with a new ProjectOverviewPage test file - none existed);
+`.phase-chip` and `.tl-dot` are covered by the reduced-motion block, the
+hover scale neutralized WITHOUT dropping the centering translate (the
+coordinator's pin said `transform: none`, which would have un-centered
+the dot - the subagent's correction is right); `.tl-dot`'s border
+repointed to `var(--surface)` and the token contract test's `--bg`
+allowlist entry removed (P-G follow-up).
 
 - F19: overview decision briefs render an inline error state when the
   P1/P2 phase-view query fails (`ProjectOverviewPage.tsx:374-383`,

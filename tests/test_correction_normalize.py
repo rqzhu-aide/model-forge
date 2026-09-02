@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import hashlib
 import json
 from pathlib import Path
 
@@ -33,12 +34,19 @@ from model_forge.application.correction_execution import (
     revalidate_closure_outputs,
     seal_correction_submission,
 )
+from model_forge.digests.jcs import canonicalize
 from model_forge.executors import DeterministicFakeExecutor, RoleExecutionStatus
-from model_forge.harness.execution_records import correction_role_identity
+from model_forge.harness.execution_records import (
+    closure_artifact_id,
+    correction_role_identity,
+    document_sha256,
+    output_artifact_id,
+    role_identity,
+)
 from model_forge.harness.stage_execution import HarnessExecutionServices
 from model_forge.json_io import loads_json
 
-from test_correction_command_path import _seal_failed_closure_bytes
+from test_correction_command_path import PROJECT, _seal_failed_closure_bytes
 from test_correction_execution import (
     GOLDEN,
     _Fixture,
@@ -461,3 +469,180 @@ def test_preview_normalize_reports_unfixable_remainder(tmp_path: Path) -> None:
     )
     assert fixture.repository.count_validation_attempts(RUN) == attempts_before
     assert _artifact_count(fixture) == artifacts_before
+
+
+# --------------------------------------------------------------------------- #
+# F17: normalize-lane output:// sibling pointer guard
+# --------------------------------------------------------------------------- #
+
+
+def _seal_multi_output_closure(
+    fixture: _Fixture,
+    stage_id: str,
+    role: str,
+    documents: dict[str, bytes],
+) -> str:
+    """Seal a failed base closure carrying several declared outputs."""
+    stage = next(s for s in fixture.plan.stages if s.stage_id == stage_id)
+    specs = {
+        spec.contract_output_id: spec
+        for spec in fixture.output_plan.for_stage_role(stage_id, role)
+    }
+    outputs = []
+    for contract_output_id, payload in documents.items():
+        spec = specs[contract_output_id]
+        stored = fixture.artifacts.put_bytes(payload)
+        artifact_id = output_artifact_id(fixture.context, spec, str(stored.sha256))
+        fixture.repository.record_artifact(
+            artifact_id,
+            PROJECT,
+            str(stored.sha256),
+            stored.size,
+            "application/json",
+            f"artifact://sha256/{stored.sha256}",
+            {
+                "kind": "validated_role_output",
+                "run_id": RUN,
+                "contract_output_id": spec.contract_output_id,
+                "output_id": spec.output_id,
+                "storage_relative_path": stored.relative_path,
+            },
+        )
+        outputs.append(
+            {
+                "contract_output_id": spec.contract_output_id,
+                "output_id": spec.output_id,
+                "artifact_id": artifact_id,
+                "sha256": str(stored.sha256),
+                "size": stored.size,
+                "media_type": "application/json",
+                "storage_relative_path": stored.relative_path,
+            }
+        )
+    invocation_id, execution_id, closure_id = role_identity(
+        fixture.context, stage, role
+    )
+    invocation_sha256 = _digest("f")
+    fixture.repository.get_or_create_execution(
+        execution_id,
+        invocation_id,
+        RUN,
+        invocation_sha256,
+        {"kind": "role_invocation", "role": role},
+    )
+    fixture.repository.acknowledge_execution(
+        execution_id,
+        f"external.base.{role}",
+        {"kind": "role_acknowledgement", "role": role},
+    )
+    document = {
+        "format": "model-forge.role-invocation-closure",
+        "format_version": "1.0.0",
+        "conformance_state": "vertical_slice",
+        "closure_id": closure_id,
+        "execution_id": execution_id,
+        "invocation_id": invocation_id,
+        "invocation_sha256": invocation_sha256,
+        "run_id": RUN,
+        "project_id": PROJECT,
+        "phase": fixture.plan.identity.phase_id,
+        "mode": fixture.plan.mode_id,
+        "sequence": stage.sequence,
+        "stage_id": stage.stage_id,
+        "role": role,
+        "status": "failed",
+        "external_execution_id": f"external.base.{role}",
+        "exit_code": 1,
+        "summary": "Base invocation failed after sealing its outputs.",
+        "diagnostic_text": None,
+        "failure_code": "output.structural_validation_failed",
+        "outputs": outputs,
+        "findings": [],
+        "output_transformations": [],
+        "raw_output_sha256": None,
+        "closed_at": "2026-08-16T00:00:00Z",
+    }
+    closure_sha256 = document_sha256(document)
+    document["closure_sha256"] = closure_sha256
+    closure_bytes = canonicalize(document)
+    stored_closure = fixture.artifacts.put_bytes(
+        closure_bytes, expected_sha256=hashlib.sha256(closure_bytes).hexdigest()
+    )
+    fixture.repository.record_artifact(
+        closure_artifact_id(closure_id),
+        PROJECT,
+        str(stored_closure.sha256),
+        stored_closure.size,
+        "application/json",
+        f"artifact://sha256/{stored_closure.sha256}",
+        {
+            "kind": "role_invocation_closure",
+            "run_id": RUN,
+            "closure_id": closure_id,
+            "storage_relative_path": stored_closure.relative_path,
+        },
+    )
+    fixture.repository.close_execution(
+        execution_id, closure_id, closure_sha256, document
+    )
+    return closure_id
+
+
+def _pointer_carrier_bytes() -> bytes:
+    """synthesis_candidate carrying an ``output://`` pointer at the sibling
+    compact view, with no ``created_at`` so ``timestamp_injection`` would
+    mutate it when the guard is absent."""
+    document = {
+        "schema_version": "1.0.0",
+        "record_id": "synthesis.test",
+        "record_type": "synthesis",
+        "phase": "P1",
+        "title": "Synthesis candidate",
+        "representations": [
+            {
+                "role": "compact",
+                "artifact": {
+                    "uri": "output://synthesis-compact.json",
+                    "media_type": "application/json",
+                },
+            }
+        ],
+    }
+    return json.dumps(document, indent=2, ensure_ascii=False).encode("utf-8")
+
+
+def test_normalize_refuses_output_pointer_at_co_closure_sibling(
+    tmp_path: Path,
+) -> None:
+    """F17: an ``output://`` pointer at a sibling output in the same rebind
+    set fails the whole normalize before any transformation is applied —
+    the normalize lane cannot re-stamp the pointer, so mutating the sibling
+    would silently stale it."""
+    fixture = _Fixture(tmp_path, DeterministicFakeExecutor(_golden_output))
+    closure_id = _seal_multi_output_closure(
+        fixture,
+        "p1.lead_synthesis",
+        "research_lead",
+        {
+            "p1.synthesis_compact": json.dumps(
+                {"schema_version": "1.0.0", "view": "compact"}
+            ).encode("utf-8"),
+            "p1.synthesis_candidate": _pointer_carrier_bytes(),
+        },
+    )
+    artifacts_before = _artifact_count(fixture)
+    attempts_before = fixture.repository.count_validation_attempts(RUN)
+    closures_before = _closure_count(fixture)
+
+    with pytest.raises(
+        ValueError, match=r"output://synthesis-compact\.json"
+    ) as excinfo:
+        _normalize(fixture, closure_id, ["timestamp_injection"])
+
+    message = str(excinfo.value)
+    assert "p1.synthesis_candidate" in message  # names the pointer carrier
+    assert "p1.synthesis_compact" in message  # names the sibling target
+    # Fail-fast: no mutation persisted, no attempt recorded, no closure sealed.
+    assert _artifact_count(fixture) == artifacts_before
+    assert fixture.repository.count_validation_attempts(RUN) == attempts_before
+    assert _closure_count(fixture) == closures_before

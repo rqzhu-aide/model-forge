@@ -489,6 +489,62 @@ def _check_normalize_allowlist(transformation_codes: Iterable[str]) -> set[str]:
         )
     return codes
 
+def _iter_output_pointer_uris(document: Any) -> Iterable[str]:
+    """Yield every ``uri`` string in *document* using the ``output://`` scheme.
+
+    This is the E-2 pointer declaration format the role lane stamps via
+    ``_stamp_output_pointer`` (``output://<filename>``); a literal
+    ``output://`` URI in a sealed output is one the role lane never
+    resolved.  Matched on the ``uri`` key only, exactly where the
+    stamping machinery looks.
+    """
+    if isinstance(document, dict):
+        uri = document.get("uri")
+        if isinstance(uri, str) and uri.startswith("output://"):
+            yield uri
+        for value in document.values():
+            if isinstance(value, (dict, list)):
+                yield from _iter_output_pointer_uris(value)
+    elif isinstance(document, list):
+        for item in document:
+            if isinstance(item, (dict, list)):
+                yield from _iter_output_pointer_uris(item)
+
+def _check_normalize_sibling_pointers(
+    documents: Mapping[str, Any],
+    filenames: Mapping[str, str],
+) -> None:
+    """Fail fast on ``output://`` pointers at co-closure sibling outputs (F17).
+
+    The normalize lane re-runs ``_fix_self_referential_hashes`` with no
+    pointer context, so it can never re-stamp an ``output://<filename>``
+    pointer.  If a document being rebound carries such a pointer whose
+    target filename is another output declared in the same closure,
+    mutating that sibling would silently stale the pointer.  Refuse the
+    whole normalize before any transformation is applied, naming the
+    pointer and the sibling.
+    """
+    for contract_output_id, document in documents.items():
+        for uri in _iter_output_pointer_uris(document):
+            target = uri[len("output://"):]
+            sibling = next(
+                (
+                    other_id
+                    for other_id, filename in filenames.items()
+                    if filename == target and other_id != contract_output_id
+                ),
+                None,
+            )
+            if sibling is not None:
+                raise ValueError(
+                    f"Normalize output {contract_output_id!r} carries pointer "
+                    f"{uri!r} targeting sibling output {sibling!r} declared "
+                    "in the same closure: the normalize lane cannot re-stamp "
+                    "output:// pointers, so mutating the sibling would "
+                    "silently stale this pointer. Correct the target output "
+                    "directly or re-run the role lane."
+                )
+
 def normalize_closure_outputs(
     *,
     repository: HubRepository,
@@ -542,6 +598,7 @@ def normalize_closure_outputs(
     sealed_results: list[str] = []
     with tempfile.TemporaryDirectory() as temporary:
         run_root = Path(temporary)
+        prepared: list[tuple[Any, str, str, bytes, Any, Path]] = []
         for entry in payload.get("outputs", ()):
             contract_output_id = str(entry["contract_output_id"])
             sha256 = str(entry["sha256"])
@@ -560,6 +617,18 @@ def normalize_closure_outputs(
             target = run_root.joinpath(*spec.relative_path.split("/"))
             target.parent.mkdir(parents=True, exist_ok=True)
             document = json.loads(sealed_bytes.decode("utf-8"))
+            prepared.append(
+                (spec, contract_output_id, sha256, sealed_bytes, document, target)
+            )
+        # F17: refuse the whole normalize before ANY transformation when a
+        # document being rebound carries an ``output://`` pointer at a
+        # sibling output in the same closure (the normalize lane cannot
+        # re-stamp it, so mutating the sibling would silently stale it).
+        _check_normalize_sibling_pointers(
+            {item[1]: item[4] for item in prepared},
+            {item[1]: Path(item[0].relative_path).name for item in prepared},
+        )
+        for spec, contract_output_id, sha256, sealed_bytes, document, target in prepared:
             snapshot = copy.deepcopy(document)
             renames: dict[str, str] = {}
             changed = apply_normalize_transformations(

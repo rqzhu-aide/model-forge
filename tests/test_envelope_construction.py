@@ -6,29 +6,35 @@ Exercises:
 3. content_sha256 is always recomputed (hash paradox)
 4. Determinism: same inputs → same output
 5. No scientific content is added or modified
-6. prepare_candidate_output with missing/invalid payloads
+6. Production close-path population + structural output validation
+   (migrated from the retired prepare_candidate_output tests, F16)
 7. Schema-derived ownership sets are non-empty and partition cleanly
 """
 
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from model_forge.domain.validation import FindingClass, make_finding
 from model_forge.harness.envelope import (
-    CandidateOutput,
     SealedRunFacts,
     agent_authored_fields,
     harness_owned_fields,
     populate_harness_fields,
-    prepare_candidate_output,
     reclassify_harness_owned_finding,
 )
-from model_forge.harness.outputs import OutputSpec
+from model_forge.harness.outputs import (
+    OutputPlan,
+    OutputSpec,
+    validate_role_outputs,
+)
+from model_forge.harness.role_execution import _apply_disclosed_mechanical_repairs
 
 
 # --------------------------------------------------------------------------- #
@@ -60,7 +66,12 @@ def _facts(**overrides) -> SealedRunFacts:
     return SealedRunFacts(**defaults)
 
 
-def _spec(schema_file: str, output_id: str = "test.output") -> OutputSpec:
+def _close_spec(
+    schema_file: str,
+    output_id: str = "test.output",
+    *,
+    schema_application: str = "object",
+) -> OutputSpec:
     return OutputSpec(
         contract_output_id=output_id,
         output_id=f"{output_id}.v1",
@@ -68,7 +79,7 @@ def _spec(schema_file: str, output_id: str = "test.output") -> OutputSpec:
         producer="theorist",
         stage_id="stage.test",
         stage_sequence=1,
-        schema_application="single",
+        schema_application=schema_application,
         schema_file=schema_file,
         relative_path=f"outputs/{output_id}.json",
         required=True,
@@ -344,118 +355,138 @@ def test_original_payload_not_mutated() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# HV-4.4: prepare_candidate_output                                            #
+# HV-4.4 (production path): close-lane population + structural validation     #
 # --------------------------------------------------------------------------- #
+# Migrated from the retired ``prepare_candidate_output`` pinning tests
+# (Audit-2026-09-02 F16).  These exercise the production close path:
+# ``_apply_disclosed_mechanical_repairs`` populates harness-owned fields from
+# sealed run facts and writes the candidate back to disk, and
+# ``validate_role_outputs`` reports the structural findings the close path
+# actually runs.  The missing-file case is covered by
+# tests/test_harness_outputs.py::test_missing_role_outputs_are_reported_without_publication
+# and was dropped as a duplicate.
 
 
-def test_prepare_candidate_output_success(tmp_path: Path) -> None:
-    """A valid raw payload produces a candidate with populated fields."""
+def _write_raw(run_root: Path, spec: OutputSpec, text: str) -> Path:
+    path = run_root.joinpath(*spec.relative_path.split("/"))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)
+    return path
+
+
+def _close_lane_repairs(run_root: Path, spec: OutputSpec):
+    return _apply_disclosed_mechanical_repairs(
+        run_root=run_root,
+        output_plan=OutputPlan((spec,)),
+        stage=SimpleNamespace(stage_id=spec.stage_id),
+        role=spec.producer,
+        run_facts=_facts(),
+    )
+
+
+def _validate_close_lane(run_root: Path, spec: OutputSpec):
+    return validate_role_outputs(
+        schema_catalog=SimpleNamespace(validate=lambda *args, **kwargs: []),
+        run_root=run_root,
+        output_plan=OutputPlan((spec,)),
+        stage=SimpleNamespace(stage_id=spec.stage_id),
+        role=spec.producer,
+    )
+
+
+def test_close_lane_populates_candidate_from_raw_payload(tmp_path: Path) -> None:
+    """A valid raw payload is populated with harness-owned fields in place.
+
+    Production equivalent of the retired prepare_candidate_output success
+    path: raw payload on disk in, populated candidate on disk out.
+    """
+    spec = _close_spec("method.schema.json")
     payload = {"title": "Test Method", "scientific_question": "What?"}
-    raw_path = tmp_path / "outputs" / "test.json"
-    raw_path.parent.mkdir(parents=True)
-    raw_path.write_text(json.dumps(payload))
+    path = _write_raw(tmp_path, spec, json.dumps(payload))
+    source_sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
 
-    spec = _spec("method.schema.json")
-    result = prepare_candidate_output(raw_path, _facts(), spec)
+    records = _close_lane_repairs(tmp_path, spec)
 
-    assert isinstance(result, CandidateOutput)
-    assert result.document["title"] == "Test Method"
-    assert result.document["identity"]["stable_id"] == "method.test"
-    assert len(result.document["content_sha256"]) == 64
-    assert len(result.populated_fields) > 0
-
-
-def test_prepare_candidate_output_missing_file(tmp_path: Path) -> None:
-    """Missing raw payload produces a blocking finding."""
-    raw_path = tmp_path / "nonexistent.json"
-    spec = _spec("method.schema.json")
-    result = prepare_candidate_output(raw_path, _facts(), spec)
-
-    assert len(result.findings) == 1
-    assert result.findings[0].code == "output.required_missing"
-    assert result.findings[0].blocks_publication is True
-    assert result.document == {}
+    document = json.loads(path.read_text())
+    assert document["title"] == "Test Method"
+    assert document["identity"]["stable_id"] == "method.test"
+    assert len(document["content_sha256"]) == 64
+    record = records["test.output"]
+    assert record.source_sha256 == source_sha256
+    assert record.changed
 
 
-def test_prepare_candidate_output_invalid_json(tmp_path: Path) -> None:
-    """Malformed JSON produces a blocking finding."""
-    raw_path = tmp_path / "outputs" / "bad.json"
-    raw_path.parent.mkdir(parents=True)
-    raw_path.write_text("{not valid json")
+def test_close_lane_populates_each_item_array_with_unique_ids(tmp_path: Path) -> None:
+    """Array outputs are populated per element with unique derived ids.
 
-    spec = _spec("method.schema.json")
-    result = prepare_candidate_output(raw_path, _facts(), spec)
+    Production equivalent of the retired each_item success path.
+    """
+    spec = _close_spec(
+        "evidence.schema.json", "test.items", schema_application="each_item"
+    )
+    payload = [{"note": "first"}, {"note": "second"}]
+    path = _write_raw(tmp_path, spec, json.dumps(payload))
 
+    _close_lane_repairs(tmp_path, spec)
+
+    document = json.loads(path.read_text())
+    assert isinstance(document, list)
+    assert len(document) == 2
+    assert document[0]["evidence_id"] != document[1]["evidence_id"]
+    assert all(len(item["content_sha256"]) == 64 for item in document)
+    # Agent-authored content preserved
+    assert document[0]["note"] == "first"
+    assert document[1]["note"] == "second"
+
+
+def test_validate_role_outputs_reports_malformed_json(tmp_path: Path) -> None:
+    """Malformed JSON at a declared output path is a blocking finding on the
+    production validation path (the retired pipeline's json.decode_error
+    case)."""
+    spec = _close_spec("method.schema.json")
+    _write_raw(tmp_path, spec, "{not valid json")
+
+    result = _validate_close_lane(tmp_path, spec)
+
+    assert result.passed is False
     assert len(result.findings) == 1
     assert result.findings[0].code == "json.decode_error"
     assert result.findings[0].blocks_publication is True
 
 
-def test_prepare_candidate_output_non_object(tmp_path: Path) -> None:
-    """A JSON array instead of an object produces a blocking finding."""
-    raw_path = tmp_path / "outputs" / "array.json"
-    raw_path.parent.mkdir(parents=True)
-    raw_path.write_text("[1, 2, 3]")
+def test_validate_role_outputs_reports_array_where_object_expected(
+    tmp_path: Path,
+) -> None:
+    """A JSON array where the contract declares an object output is a
+    blocking shape finding.
 
-    spec = _spec("method.schema.json")
-    result = prepare_candidate_output(raw_path, _facts(), spec)
+    Production reports ``output.expected_object``; the retired pipeline
+    reported ``json.invalid_input_type`` for the same shape error.
+    """
+    spec = _close_spec("method.schema.json")
+    _write_raw(tmp_path, spec, "[1, 2, 3]")
 
-    assert len(result.findings) == 1
-    assert result.findings[0].code == "json.invalid_input_type"
+    result = _validate_close_lane(tmp_path, spec)
+
+    assert result.passed is False
+    assert [finding.code for finding in result.findings] == ["output.expected_object"]
 
 
-def test_prepare_candidate_output_each_item_array(tmp_path: Path) -> None:
-    """each_item (array) outputs are populated per element with unique ids."""
-    payload = [{"note": "first"}, {"note": "second"}]
-    raw_path = tmp_path / "outputs" / "items.json"
-    raw_path.parent.mkdir(parents=True)
-    raw_path.write_text(json.dumps(payload))
-
-    spec = OutputSpec(
-        contract_output_id="test.items",
-        output_id="test.items.v1",
-        output_kind="record",
-        producer="theorist",
-        stage_id="stage.test",
-        stage_sequence=1,
-        schema_application="each_item",
-        schema_file="evidence.schema.json",
-        relative_path="outputs/items.json",
-        required=True,
+def test_validate_role_outputs_reports_object_where_array_expected(
+    tmp_path: Path,
+) -> None:
+    """An object where the contract requires an each_item (array) output is
+    a blocking shape finding (production ``output.expected_array``; the
+    shape error is reported, not silently coerced)."""
+    spec = _close_spec(
+        "evidence.schema.json", "test.items", schema_application="each_item"
     )
-    result = prepare_candidate_output(raw_path, _facts(), spec)
+    _write_raw(tmp_path, spec, json.dumps({"note": "not an array"}))
 
-    assert not result.findings
-    assert isinstance(result.document, list)
-    assert len(result.document) == 2
-    assert result.document[0]["evidence_id"] != result.document[1]["evidence_id"]
-    assert all(len(item["content_sha256"]) == 64 for item in result.document)
-    # Agent-authored content preserved
-    assert result.document[0]["note"] == "first"
+    result = _validate_close_lane(tmp_path, spec)
 
-
-def test_prepare_candidate_output_each_item_rejects_object(tmp_path: Path) -> None:
-    """An object where the contract requires an array produces a blocking
-    finding (the shape error is reported, not silently coerced)."""
-    raw_path = tmp_path / "outputs" / "items.json"
-    raw_path.parent.mkdir(parents=True)
-    raw_path.write_text(json.dumps({"note": "not an array"}))
-
-    spec = OutputSpec(
-        contract_output_id="test.items",
-        output_id="test.items.v1",
-        output_kind="record",
-        producer="theorist",
-        stage_id="stage.test",
-        stage_sequence=1,
-        schema_application="each_item",
-        schema_file="evidence.schema.json",
-        relative_path="outputs/items.json",
-        required=True,
-    )
-    result = prepare_candidate_output(raw_path, _facts(), spec)
-    assert len(result.findings) == 1
-    assert result.findings[0].code == "output.expected_array"
+    assert result.passed is False
+    assert [finding.code for finding in result.findings] == ["output.expected_array"]
 
 
 # --------------------------------------------------------------------------- #

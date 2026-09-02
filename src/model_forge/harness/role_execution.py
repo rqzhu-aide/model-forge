@@ -654,25 +654,6 @@ def _strip_empty_strings(
     return _walk(data)
 
 
-_SHA256_PATTERN = re.compile(r"^[a-f0-9]{64}$")
-_HASH_PLACEHOLDERS = frozenset({
-    "tbd_by_model_forge_on_write", "tbd", "placeholder",
-    "<...>", "...", "n/a", "todo",
-})
-
-
-def _is_placeholder_hash(value: str) -> bool:
-    """Return True if a sha256 value is a placeholder or invalid, not a real hash.
-
-    A valid 64-char lowercase hex string that is NOT in the known placeholder
-    set is assumed to be agent-authored (fabricated but pattern-valid).  We
-    still re-stamp it so the stored hash is authoritative, not decorative.
-    The hash-paradox is fundamental: an agent cannot know the hash of the file
-    it is writing, so every hash field is treated as needing computation.
-    """
-    return True  # Always recompute — agents cannot produce correct self-referential hashes.
-
-
 def _compute_content_hash(data: Any, exclude_keys: set[str]) -> str:
     """Compute the digest-contract hash of *data* with *exclude_keys* removed.
 

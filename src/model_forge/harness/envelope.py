@@ -12,21 +12,15 @@ of the EXISTING phase schemas in place.
 from __future__ import annotations
 
 import hashlib
-import json
-from dataclasses import dataclass, field, replace
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Mapping
+from dataclasses import dataclass, replace
+from typing import Any, Mapping
 
 from ..domain.identities import SCHEMA_VERSION, MethodIdentity
 from ..domain.validation import (
     FindingClass,
     ValidationFinding,
     ValidationSeverity,
-    make_finding,
 )
-
-if TYPE_CHECKING:
-    from .outputs import OutputSpec
 
 
 # --------------------------------------------------------------------------- #
@@ -494,138 +488,9 @@ def _derive_record_id(
     return base
 
 
-# --------------------------------------------------------------------------- #
-# Candidate output preparation                                                #
-# --------------------------------------------------------------------------- #
-
-
-@dataclass(frozen=True, slots=True)
-class CandidateOutput:
-    """Result of preparing a candidate output for validation."""
-
-    contract_output_id: str
-    schema_file: str
-    document: Any  # dict for object outputs, list for each_item outputs
-    populated_fields: tuple[str, ...]
-    findings: tuple[ValidationFinding, ...] = field(default_factory=tuple)
-
-    @property
-    def is_valid(self) -> bool:
-        return not any(f.blocks_publication for f in self.findings)
-
-
-def prepare_candidate_output(
-    raw_payload_path: Path,
-    run_facts: SealedRunFacts,
-    spec: OutputSpec,
-) -> CandidateOutput:
-    """Read raw agent payload, populate harness fields, return candidate.
-
-    1. Reads the agent's raw payload from disk (preserved per HV-1).
-    2. Populates all harness-owned fields from sealed run facts.
-    3. Computes content_sha256.
-    4. Returns the candidate document and any findings.
-
-    ``each_item`` outputs (JSON arrays) are supported: every object element
-    is populated with ``item_index`` set to its array position so derived
-    record identities stay unique.
-
-    This does NOT call a model. It is a deterministic transformation.
-
-    If the raw payload cannot be read or parsed, returns a candidate with
-    a blocking finding.
-    """
-    findings: list[ValidationFinding] = []
-
-    # 1. Read raw payload
-    try:
-        text = raw_payload_path.read_text(encoding="utf-8")
-        payload = json.loads(text)
-    except FileNotFoundError:
-        return CandidateOutput(
-            contract_output_id=spec.contract_output_id,
-            schema_file=spec.schema_file,
-            document={},
-            populated_fields=(),
-            findings=(
-                make_finding(
-                    "output.required_missing",
-                    f"Agent did not produce required output at {raw_payload_path.name}.",
-                    object_id=spec.contract_output_id,
-                ),
-            ),
-        )
-    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-        return CandidateOutput(
-            contract_output_id=spec.contract_output_id,
-            schema_file=spec.schema_file,
-            document={},
-            populated_fields=(),
-            findings=(
-                make_finding(
-                    "json.decode_error",
-                    f"Agent output is not valid JSON: {exc}",
-                    object_id=spec.contract_output_id,
-                ),
-            ),
-        )
-
-    # 2. Populate harness-owned fields (per item for array outputs)
-    owned = harness_owned_fields(spec.schema_file)
-    if spec.schema_application == "each_item":
-        if not isinstance(payload, list):
-            return CandidateOutput(
-                contract_output_id=spec.contract_output_id,
-                schema_file=spec.schema_file,
-                document={},
-                populated_fields=(),
-                findings=(
-                    make_finding(
-                        "output.expected_array",
-                        f"Output {spec.contract_output_id!r} must be a JSON array.",
-                        object_id=spec.contract_output_id,
-                    ),
-                ),
-            )
-        document: Any = [
-            populate_harness_fields(item, run_facts, spec.schema_file, item_index=i)
-            if isinstance(item, dict)
-            else item
-            for i, item in enumerate(payload)
-        ]
-        populated = sorted(owned)
-    else:
-        if not isinstance(payload, dict):
-            return CandidateOutput(
-                contract_output_id=spec.contract_output_id,
-                schema_file=spec.schema_file,
-                document={},
-                populated_fields=(),
-                findings=(
-                    make_finding(
-                        "json.invalid_input_type",
-                        "Agent output must be a JSON object.",
-                        object_id=spec.contract_output_id,
-                    ),
-                ),
-            )
-        document = populate_harness_fields(payload, run_facts, spec.schema_file)
-        populated = sorted(owned)
-
-    return CandidateOutput(
-        contract_output_id=spec.contract_output_id,
-        schema_file=spec.schema_file,
-        document=document,
-        populated_fields=tuple(populated),
-        findings=tuple(findings),
-    )
-
-
 __all__ = [
-    "CandidateOutput",
     "SealedRunFacts",
     "agent_authored_fields",
     "harness_owned_fields",
     "populate_harness_fields",
-    "prepare_candidate_output",
 ]

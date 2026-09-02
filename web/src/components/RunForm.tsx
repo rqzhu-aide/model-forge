@@ -113,6 +113,7 @@ export function RunForm({
   mode,
   onModeChange,
   rerunPrefill,
+  rerunReady = true,
 }: {
   projectId: string;
   phaseView: PhaseView;
@@ -122,6 +123,10 @@ export function RunForm({
   mode: string;
   onModeChange: (mode: string) => void;
   rerunPrefill?: RerunPrefill | undefined;
+  // False while the parent renders placeholder (previous-key) query data:
+  // the prefill must not stamp from a stale view, and the applied-marker
+  // must NOT reset (that reset belongs to a genuinely removed link only).
+  rerunReady?: boolean;
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -169,6 +174,10 @@ export function RunForm({
       rerunApplied.current = "";
       return;
     }
+    // Placeholder window: the prefill stays visible but must not stamp, and
+    // the applied-marker must not reset - a reset here would re-stamp over
+    // the user's edits once fresh data lands (P-F interaction, P-H).
+    if (!rerunReady) return;
     // Apply only when the form already shows the frozen basis's mode, and
     // only once the method list is populated: the PhasePage effect switches
     // mode first, and this effect retries as the mode-keyed phase view and
@@ -208,7 +217,7 @@ export function RunForm({
         ),
       );
     }
-  }, [rerunPrefill, mode, phaseView, methods, onMethodChange, applyExternalInstructions]);
+  }, [rerunPrefill, rerunReady, mode, phaseView, methods, onMethodChange, applyExternalInstructions]);
 
   const selectedMethod = methods.find((method) => method.identity.stable_id === selectedMethodId);
   const action = actionForSelection(phaseView.actions, mode, selectedMethod);

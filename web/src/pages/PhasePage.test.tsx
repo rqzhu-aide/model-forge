@@ -2,7 +2,7 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../api/client";
@@ -460,5 +460,171 @@ describe("PhasePage mode switch keeps the form (F2)", () => {
     );
     // The view itself stayed mounted through the transition.
     expect(screen.getByRole("radio", { name: /Deep sweep/i })).toBeChecked();
+  });
+});
+
+describe("PhasePage rerun-flow repairs (P-H)", () => {
+  function rerunModes(): PhaseView {
+    return phaseView({
+      run_configuration: {
+        modes: [
+          { mode_id: "p1.standard", label: "Standard", description: "Single-pass synthesis." },
+          { mode_id: "p1.deep", label: "Deep sweep", description: "Two-pass deep synthesis." },
+        ],
+        default_mode: "p1.standard",
+        instruction_label: "Instructions",
+        instruction_help: "State the synthesis instructions.",
+        current_inputs: [],
+        history_options: [],
+        stage_plan: [
+          { stage_id: "s1", label: "Synthesize", roles: ["research_lead"], execution: "serial" },
+        ],
+      },
+    });
+  }
+
+  function standardOnlyView(): PhaseView {
+    return phaseView({
+      run_configuration: {
+        modes: [
+          { mode_id: "p1.standard", label: "Standard", description: "Single-pass synthesis." },
+        ],
+        default_mode: "p1.standard",
+        instruction_label: "Instructions",
+        instruction_help: "State the synthesis instructions.",
+        current_inputs: [],
+        history_options: [],
+        stage_plan: [
+          { stage_id: "s1", label: "Synthesize", roles: ["research_lead"], execution: "serial" },
+        ],
+      },
+    });
+  }
+
+  function deepSourceRun() {
+    return {
+      run_id: "run.p1.p1-deep.abc123",
+      phase: "P1",
+      mode: "p1.deep",
+      state: "failed",
+      requested_by: "researcher.demo",
+      requested_at: "2026-08-28T10:00:00Z",
+      updated_at: "2026-08-28T10:30:00Z",
+      actions: [],
+      rerun_prefill: {
+        phase: "P1",
+        mode: "p1.deep",
+        choice_values: { "p1.instructions": "Repeat the deep sweep exactly." },
+        context_policy: "current_only",
+      },
+    };
+  }
+
+  function NavButtons() {
+    const navigate = useNavigate();
+    return (
+      <>
+        <button onClick={() => navigate("/projects/project-1/phases/P1")}>Go away</button>
+        <button onClick={() => navigate("/projects/project-1/phases/P1?rerun=run.p1.p1-deep.abc123")}>Go back</button>
+      </>
+    );
+  }
+
+  function renderRerunPage(withNav = false) {
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/projects/project-1/phases/P1?rerun=run.p1.p1-deep.abc123"]}>
+          {withNav ? <NavButtons /> : null}
+          <Routes>
+            <Route path="/projects/:projectId/phases/:phaseId" element={<PhasePage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+  }
+
+  it("frozen mode wins again after navigation even if the user picked a mode (F11)", async () => {
+    window.localStorage.clear();
+    (api.getPhaseView as ReturnType<typeof vi.fn>).mockResolvedValue(rerunModes());
+    (api.getRun as ReturnType<typeof vi.fn>).mockResolvedValue(deepSourceRun());
+    (api.listMethods as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+
+    renderRerunPage(true);
+    await waitFor(() => {
+      expect(screen.getByRole("radio", { name: /Deep sweep/i })).toBeChecked();
+    });
+
+    // The user explicitly picks a different mode (sets the override).
+    await userEvent.click(screen.getByRole("radio", { name: /Standard/i }));
+    expect(screen.getByRole("radio", { name: /Standard/i })).toBeChecked();
+
+    // A fresh visit clears the explicit choice: the frozen basis wins again.
+    await userEvent.click(screen.getByRole("button", { name: "Go away" }));
+    await waitFor(() => {
+      expect(screen.getByRole("radio", { name: /Standard/i })).toBeChecked();
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Go back" }));
+    await waitFor(() => {
+      expect(screen.getByRole("radio", { name: /Deep sweep/i })).toBeChecked();
+    });
+  });
+
+  it("no banner and an honest note when the frozen mode is no longer offered (F12)", async () => {
+    window.localStorage.clear();
+    (api.getPhaseView as ReturnType<typeof vi.fn>).mockResolvedValue(standardOnlyView());
+    (api.getRun as ReturnType<typeof vi.fn>).mockResolvedValue(deepSourceRun());
+    (api.listMethods as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+
+    renderRerunPage();
+    await waitFor(() => {
+      expect(
+        screen.getByText(/no longer offered by the current contract/i),
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByText(/Pre-filled from the finished run's frozen basis/i),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /instructions/i })).toHaveValue("");
+  });
+
+  it("a placeholder window does not re-stamp the prefill over user edits (P-F interaction)", async () => {
+    window.localStorage.clear();
+    // Every phase fetch is delayed so mode switches to uncached keys open a
+    // real placeholder window (isPlaceholderData true).
+    (api.getPhaseView as ReturnType<typeof vi.fn>).mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve(rerunModes()), 40)),
+    );
+    (api.getRun as ReturnType<typeof vi.fn>).mockResolvedValue(deepSourceRun());
+    (api.listMethods as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+
+    renderRerunPage();
+    const textbox = await screen.findByRole("textbox", { name: /instructions/i });
+    await waitFor(() => {
+      expect(textbox).toHaveValue("Repeat the deep sweep exactly.");
+    });
+
+    // The user edits on top of the prefill.
+    await userEvent.click(textbox);
+    await userEvent.type(textbox, " Plus my note.");
+    expect((textbox as HTMLTextAreaElement).value).toContain("Plus my note.");
+
+    // Switch away (uncached key: placeholder window) and back.
+    await userEvent.click(screen.getByRole("radio", { name: /Standard/i }));
+    await waitFor(() => {
+      expect(screen.getByRole("radio", { name: /Standard/i })).toBeChecked();
+    });
+    await waitFor(() => {
+      expect(screen.queryByText(/Refreshing the view/)).not.toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("radio", { name: /Deep sweep/i }));
+    await waitFor(() => {
+      expect(screen.getByRole("radio", { name: /Deep sweep/i })).toBeChecked();
+    });
+    await waitFor(() => {
+      expect(screen.queryByText(/Refreshing the view/)).not.toBeInTheDocument();
+    });
+
+    // The user's edit survives; the prefill must not re-stamp.
+    expect((textbox as HTMLTextAreaElement).value).toContain("Plus my note.");
   });
 });

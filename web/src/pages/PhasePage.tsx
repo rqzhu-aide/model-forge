@@ -34,6 +34,10 @@ export function PhasePage() {
 
   useEffect(() => {
     setMode("");
+    // F11: a fresh visit clears the explicit-mode choice too, so a rerun
+    // link's frozen basis wins again (contract Section 6: frozen mode wins
+    // until the user picks explicitly - per visit).
+    setUserModeOverride(false);
     // Reset on phase/project change, but honor the deep-link ?method=
     // pre-selection from the P2 catalog.
     setSelectedMethodId(searchParams.get("method") ?? "");
@@ -223,6 +227,12 @@ export function PhasePage() {
             That run does not offer a rerun basis; the form below starts fresh.
           </p>
         ) : null}
+        {rerunPrefill && rerunPrefill.phase === phaseId && !rerunModeApplicable ? (
+          <p className="run-form__rerun-note" role="status">
+            This finished run's basis is no longer offered by the current
+            contract; configure a fresh run below.
+          </p>
+        ) : null}
         {!mode ? <LoadingState label="Resolving the default run scope…" /> : (
           <RunForm
             key={`${projectId}-${phaseId}-run-form`}
@@ -232,18 +242,14 @@ export function PhasePage() {
             selectedMethodId={selectedMethodId}
             onMethodChange={setSelectedMethodId}
             mode={mode}
-            // Do not hand the rerun prefill to the form while it renders
-            // placeholder (previous-key) data: RunForm's apply effect keys
-            // on `mode` and would stamp from the stale view's history
-            // options, then skip the correct re-stamp once fresh data
-            // lands. Withholding it during the placeholder window resets
-            // RunForm's applied-marker, so the stamp runs once, against the
-            // real view.
-            rerunPrefill={
-              !phaseQuery.isPlaceholderData && rerunPrefill?.phase === phaseId
-                ? rerunPrefill
-                : undefined
-            }
+            // F12: hand the rerun prefill to the form only when the frozen
+            // mode is still offered (rerunModeApplicable); otherwise the
+            // banner would promise a basis the form can never apply. The
+            // `rerunReady` flag (not prop withholding) guards the placeholder
+            // window: withholding would trip RunForm's link-removed reset and
+            // re-stamp over the user's edits once fresh data landed.
+            rerunPrefill={rerunModeApplicable ? rerunPrefill : undefined}
+            rerunReady={!phaseQuery.isPlaceholderData}
             onModeChange={(nextMode) => {
               setUserModeOverride(true);
               setMode(nextMode);

@@ -64,9 +64,13 @@ export function useLocalDraft(key: string) {
   }, [key]);
 
   const applyExternal = useCallback((next: string) => {
+    // F21: a same-value application must not arm the skip flag - React
+    // bails out of the state write, the persist effect never runs, and the
+    // stranded flag would silently swallow the user's NEXT genuine edit.
+    if (next === value) return;
     skipPersist.current = true;
     setValue(next);
-  }, []);
+  }, [value]);
 
   return {
     value,

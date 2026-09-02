@@ -1,6 +1,7 @@
 # Fix Program: Harness Audit 2026-08-31
 
-Status: ACTIVE. One package, one commit, in the order below.
+Status: COMPLETE 2026-09-02 (P-J closure commit 840925e; all packages
+DONE). One package, one commit, in the order below.
 Source of truth for findings: [../harness-audit-2026-08-31.md](../archive/completed/harness-audit-2026-08-31.md)
 (R1-R37 with file:line evidence). Decisions recorded in that document:
 R15 delete, R14 enforce, R17 keep live (no code), R37 deferred.
@@ -453,20 +454,34 @@ on the post-P-I tree.
   malformed existing schema file surfaces an ERROR signal instead of
   silently degrading to empty schema info / name heuristics.
 
-### P-J: Closure
+### P-J: Closure -- DONE
+
+DONE 2026-09-02: closure commit 840925e. Tests 1398 -> 1398 (delta 0;
+docs-only package, no test changes). Gates: pytest exit 0 (1398
+passed), validate_package.py exit 0. Coverage re-verified
+programmatically at closure: all 37 findings (P1/P2 headings R1-R17,
+P3 bullets R18-R37) are present in the audit doc and assigned in this
+program (P-A through P-K) or decided-no-change (R17, R37). The audit
+doc moved to `architecture/archive/completed/` with a closure note
+citing all package commits; the pins-doc and plan links were
+retargeted; `architecture/archive/completed/README.md` gained a
+program entry; `architecture/issues/README.md` does not reference this
+audit (verified).
 
 - Verify every R-number is either landed or explicitly recorded as
   decided-no-change (R17, R37). DONE 2026-09-02 (programmatic check):
   all findings accounted for once P-K was added; R8 was the sole gap.
+  Re-verified at closure (commit 840925e).
 - Move `architecture/harness-audit-2026-08-31.md` to
   `architecture/archive/completed/` with a closure note citing the package
   commits; update `architecture/issues/README.md` if it references this
-  audit. Verified 2026-09-02: issues/README.md does not reference this
-  audit.
+  audit. DONE 2026-09-02 in commit 840925e. Verified 2026-09-02:
+  issues/README.md does not reference this audit.
 - Closure-time link maintenance (noted 2026-09-02): the pins docs under
   `architecture/plan/` reference `../harness-audit-2026-08-31.md`;
   retarget those links to `../archive/completed/harness-audit-2026-08-31.md`
-  when the audit moves.
+  when the audit moves. DONE 2026-09-02 in commit 840925e (8 pins/plan
+  link retargets plus 2 backtick path updates).
 - UNBLOCKED 2026-09-02: P-K landed (fix cca96c2); closure may proceed.
 
 ## Progress log
@@ -481,3 +496,7 @@ on the post-P-I tree.
   1398. First dispatch stopped on a pin conflict (test-double catalogs
   lack .directory, 36 AttributeError failures); resolved by approved
   amendment giving the five fakes a real directory. P-J unblocked.
+- 2026-09-02: P-J closure DONE (commit 840925e, tests 1398 -> 1398).
+  Audit doc archived to `architecture/archive/completed/` with a
+  closure note citing all package commits; links retargeted; archive
+  README entry added. Program COMPLETE.

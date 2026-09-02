@@ -187,7 +187,15 @@ def _render_schema_constraints(
         lines.append("Conditional fields (include only when the stated condition holds; omit otherwise):")
         for entry in conditional:
             field = entry["field"]
-            if entry["condition"] and entry["prohibited_when"]:
+            if entry.get("value") is not None and entry["condition"]:
+                line = (
+                    f"- `{field}` — must be `{entry['value']}`"
+                    f" when: {entry['condition']}"
+                )
+                if entry["prohibited_when"]:
+                    line += f"; do NOT include when: {entry['prohibited_when']}"
+                lines.append(line)
+            elif entry["condition"] and entry["prohibited_when"]:
                 lines.append(
                     f"- `{field}` — required only when: {entry['condition']}; "
                     f"do NOT include when: {entry['prohibited_when']}"
@@ -200,55 +208,80 @@ def _render_schema_constraints(
     return "\n".join(lines)
 
 
-def _describe_condition(if_block: dict[str, Any]) -> str:
-    """Render a human-readable description of an if-block's conditions."""
+def _describe_condition(if_block: dict[str, Any], _prefix: str = "") -> str:
+    """Render a human-readable description of an if-block's conditions.
+
+    Nested ``properties`` subobjects recurse, so a condition on a nested
+    leaf renders with its dotted path (`` `a.b` is `...` ``).
+    """
     parts: list[str] = []
     props = if_block.get("properties", {})
     for field, constraint in props.items():
+        if not isinstance(constraint, dict):
+            continue
+        path = f"{_prefix}{field}"
         if "const" in constraint:
-            parts.append(f"`{field}` is `{constraint['const']}`")
+            parts.append(f"`{path}` is `{constraint['const']}`")
         elif "enum" in constraint:
             vals = ", ".join(f"`{v}`" for v in constraint["enum"])
-            parts.append(f"`{field}` is one of ({vals})")
+            parts.append(f"`{path}` is one of ({vals})")
+        elif isinstance(constraint.get("properties"), dict):
+            nested = _describe_condition(constraint, f"{path}.")
+            if nested and nested != "always":
+                parts.append(nested)
     return "; AND ".join(parts) if parts else "always"
 
 
-def _describe_else_condition(if_block: dict[str, Any]) -> str:
+def _describe_else_condition(if_block: dict[str, Any], _prefix: str = "") -> str:
     """Render the condition under which an ``else`` branch applies.
 
     The ``if`` block is a conjunction of property constraints, so its
     negation is the disjunction of the per-property negations (De Morgan).
+    Nested ``properties`` subobjects recurse; because every level is a
+    conjunction, the flattened leaf negations joined by OR remain the
+    exact De Morgan negation.
     """
     parts: list[str] = []
     props = if_block.get("properties", {})
     for field, constraint in props.items():
+        if not isinstance(constraint, dict):
+            continue
+        path = f"{_prefix}{field}"
         if "const" in constraint:
-            parts.append(f"`{field}` is not `{constraint['const']}`")
+            parts.append(f"`{path}` is not `{constraint['const']}`")
         elif "enum" in constraint:
             vals = ", ".join(f"`{v}`" for v in constraint["enum"])
-            parts.append(f"`{field}` is none of ({vals})")
+            parts.append(f"`{path}` is none of ({vals})")
+        elif isinstance(constraint.get("properties"), dict):
+            nested = _describe_else_condition(constraint, f"{path}.")
+            if nested and nested != "never":
+                parts.append(nested)
     return "; OR ".join(parts) if parts else "never"
 
 
-def _extract_prohibited_fields(block: Any) -> set[str]:
+def _extract_prohibited_fields(block: Any, _negated: bool = False) -> set[str]:
     """Collect field names an ``else`` block forbids.
 
-    Handles the common ``not: {anyOf: [{required: [...]}, ...]}`` shape
-    used to forbid fields when the ``if`` condition does not hold.
+    A ``required`` list is a prohibition only under an ODD ``not`` depth
+    (the common ``not: {anyOf: [{required: [...]}, ...]}`` shape). A bare
+    ``required`` affirms the field when the ``if`` condition fails, and
+    double negation affirms it again - neither may be collected.
     """
     fields: set[str] = set()
     if not isinstance(block, dict):
         return fields
-    required = block.get("required")
-    if isinstance(required, list):
-        fields.update(f for f in required if isinstance(f, str))
+    if _negated:
+        required = block.get("required")
+        if isinstance(required, list):
+            fields.update(f for f in required if isinstance(f, str))
     for key in ("not", "anyOf", "allOf", "oneOf"):
         value = block.get(key)
+        child_negated = (not _negated) if key == "not" else _negated
         if isinstance(value, dict):
-            fields |= _extract_prohibited_fields(value)
+            fields |= _extract_prohibited_fields(value, child_negated)
         elif isinstance(value, list):
             for item in value:
-                fields |= _extract_prohibited_fields(item)
+                fields |= _extract_prohibited_fields(item, child_negated)
     return fields
 
 
@@ -618,19 +651,49 @@ def _load_schema_example(
         return None
 
 
-def _extract_conditional_requirements(schema: dict[str, Any]) -> list[dict[str, str | None]]:
+def _extract_nested_const_requirements(
+    block: Any, prefix: str = ""
+) -> list[tuple[str, Any]]:
+    """Collect ``(dotted_path, const)`` pairs pinned by nested required+const.
+
+    Walks the ``properties`` subobjects of a ``then``/``else`` block. When
+    an object-level subschema lists a field in ``required`` and that
+    field's subschema pins ``const``, the pair is a hard value
+    requirement the agent must write. ``not`` subschemas are never
+    descended (negation flips the semantics).
+    """
+    pairs: list[tuple[str, Any]] = []
+    if not isinstance(block, dict):
+        return pairs
+    props = block.get("properties")
+    if not isinstance(props, dict):
+        return pairs
+    required = block.get("required")
+    required_set = set(required) if isinstance(required, list) else set()
+    for name, sub in props.items():
+        if not isinstance(sub, dict):
+            continue
+        path = f"{prefix}{name}"
+        if name in required_set and "const" in sub:
+            pairs.append((path, sub["const"]))
+        pairs.extend(_extract_nested_const_requirements(sub, f"{path}."))
+    return pairs
+
+
+def _extract_conditional_requirements(schema: dict[str, Any]) -> list[dict[str, Any]]:
     """Extract conditional field requirements and prohibitions from if/then/else rules.
 
     Each returned entry has:
     - ``field``: the field name
     - ``condition``: when the field is required (``None`` if never required)
     - ``prohibited_when``: when the field must NOT be included (``None`` if never prohibited)
+    - ``value``: a const the field must equal (``None`` when unconstrained)
 
     Fields named in an ``else`` branch (via ``not``/``anyOf``/``required``)
     are recorded as prohibitions so agents are never told to write fields
     the schema forbids under the same condition.
     """
-    entries: dict[str, dict[str, str | None]] = {}
+    entries: dict[str, dict[str, Any]] = {}
     for rule in schema.get("allOf", []):
         if_block = rule.get("if", {})
         if not isinstance(if_block, dict) or not if_block:
@@ -647,7 +710,7 @@ def _extract_conditional_requirements(schema: dict[str, Any]) -> list[dict[str, 
         prohibited = _extract_prohibited_fields(else_block)
         for field in then_required:
             entry = entries.setdefault(
-                field, {"field": field, "condition": None, "prohibited_when": None}
+                field, {"field": field, "condition": None, "prohibited_when": None, "value": None}
             )
             if entry["condition"]:
                 entry["condition"] = f"{entry['condition']}; OR {condition}"
@@ -660,9 +723,33 @@ def _extract_conditional_requirements(schema: dict[str, Any]) -> list[dict[str, 
                     )
                 else:
                     entry["prohibited_when"] = else_condition
+        if isinstance(then_block, dict):
+            for path, value in _extract_nested_const_requirements(then_block):
+                entry = entries.setdefault(
+                    path,
+                    {"field": path, "condition": None, "prohibited_when": None, "value": None},
+                )
+                if entry["condition"]:
+                    entry["condition"] = f"{entry['condition']}; OR {condition}"
+                else:
+                    entry["condition"] = condition
+                if entry["value"] is None:
+                    entry["value"] = value
+        if else_condition:
+            for path, value in _extract_nested_const_requirements(else_block):
+                entry = entries.setdefault(
+                    path,
+                    {"field": path, "condition": None, "prohibited_when": None, "value": None},
+                )
+                if entry["condition"]:
+                    entry["condition"] = f"{entry['condition']}; OR {else_condition}"
+                else:
+                    entry["condition"] = else_condition
+                if entry["value"] is None:
+                    entry["value"] = value
         for field in sorted(prohibited - set(then_required)):
             entry = entries.setdefault(
-                field, {"field": field, "condition": None, "prohibited_when": None}
+                field, {"field": field, "condition": None, "prohibited_when": None, "value": None}
             )
             if entry["prohibited_when"]:
                 entry["prohibited_when"] = (

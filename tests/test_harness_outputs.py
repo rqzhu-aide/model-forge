@@ -19,6 +19,7 @@ from model_forge.harness.outputs import (
 )
 from model_forge.harness.task_briefs import (
     _extract_conditional_requirements,
+    _extract_prohibited_fields,
     _load_schema_example,
     _render_schema_constraints,
     render_task_brief,
@@ -184,6 +185,61 @@ def test_conditional_fields_render_else_prohibitions() -> None:
         "`authority_at_creation` is `formal_generation`; do NOT include when: "
         "`authority_at_creation` is not `formal_generation`" in rendered
     )
+
+
+def test_else_branch_bare_required_is_not_prohibited() -> None:
+    package = SpecificationPackage.load(ARCHITECTURE)
+    schema = package.schemas.get("role-invocation-closure.schema.json")
+    entries = {
+        entry["field"]: entry
+        for entry in _extract_conditional_requirements(schema)
+    }
+    # allOf[0].else.required is a BARE (non-negated) required: it affirms
+    # `termination` when the if condition fails, so it must not surface as
+    # a prohibition.
+    entry = entries.get("termination")
+    assert entry is None or entry["prohibited_when"] is None
+
+
+def test_double_negation_required_is_not_prohibited() -> None:
+    # Double negation affirms the field; nothing may be collected.
+    assert _extract_prohibited_fields({"not": {"not": {"required": ["x"]}}}) == set()
+    # The canonical prohibition shape must keep working.
+    assert _extract_prohibited_fields(
+        {"not": {"anyOf": [{"required": ["a"]}]}}
+    ) == {"a"}
+
+
+def test_nested_const_then_requirement_surfaced() -> None:
+    package = SpecificationPackage.load(ARCHITECTURE)
+    schema = package.schemas.get("evidence.schema.json")
+    entries = {
+        entry["field"]: entry
+        for entry in _extract_conditional_requirements(schema)
+    }
+    entry = entries["alignment_at_creation.state"]
+    assert entry["condition"] == (
+        "`applicability_at_creation.method_match` is `older_method_version`"
+    )
+    assert entry["value"] == "outdated"
+    rendered = _render_schema_constraints("evidence.schema.json", package.schemas)
+    assert (
+        "- `alignment_at_creation.state` \u2014 must be `outdated` when: "
+        "`applicability_at_creation.method_match` is `older_method_version`"
+        in rendered
+    )
+
+
+def test_nested_const_else_requirement_surfaced() -> None:
+    package = SpecificationPackage.load(ARCHITECTURE)
+    schema = package.schemas.get("method.schema.json")
+    entries = {
+        entry["field"]: entry
+        for entry in _extract_conditional_requirements(schema)
+    }
+    entry = entries["lineage.change_source.kind"]
+    assert entry["value"] == "research_run"
+    assert entry["condition"] == "`lineage.change_class` is not `lifecycle`"
 
 
 def test_task_brief_layers_mode_stage_and_verbatim_researcher_direction() -> None:

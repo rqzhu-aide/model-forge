@@ -326,3 +326,18 @@ _extract_conditional_requirements(schema)}`.
   nested const-pinned conditional extraction in task briefs (R16)`.
 - Do not redesign; execute the pins verbatim. If a pin conflicts with the
   code, STOP and report the conflict with evidence.
+
+## Amendments during execution
+
+- 2026-09-01 (coordinator, pre-commit): APPROVED AMENDMENT to Edit 2. The
+  pinned `_describe_condition` / `_describe_else_condition` recursion
+  appended the nested description built from LEAF field names only, while
+  the pinned regression tests 3 and 4 (and the expected-output section)
+  require the dotted path (`` `a.b` is `...` ``). The pin was internally
+  inconsistent (pin bug, not implementer error; the subagent executed the
+  pins verbatim and the suite caught it). Resolution: both functions gain
+  a `_prefix: str = ""` parameter; each property renders as
+  `f"{_prefix}{field}"` and the recursion passes `f"{path}."`. This
+  matches the pinned tests and probe fact 3's rendering side effect
+  (command-attempt-audit-event now renders `result.status`, not `status`).
+  No other call sites pass positional arguments.

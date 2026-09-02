@@ -76,23 +76,25 @@ executor.role_failed; and a watcher test where reconcile turning terminal
 re-schedules the run without a manual `coordinator.run()` call (the gap
 in `test_restart_with_in_flight_role_recovers`).
 
-### P-B: Infrastructure-error containment (F3, F4)
+### P-B: Infrastructure-error containment (F3, F4) -- DONE
 
-- F3: heartbeat bookkeeping is best-effort inside the local_hermes poll
-  loop - catch `RoleExecutionInfrastructureError` around
-  `observer.heartbeat`, log, continue; the agent process must survive a
-  transient DB error.
-- F4: wrap the close-path repository/artifact calls
-  (`role_execution.py:2901-2932` region, `_seal_output` at `:2955-2969`,
-  correction-path `record_validation_attempt` at `:2155-2165`) in
-  `RoleExecutionInfrastructureError` with the same non-sealing semantics;
-  in the parallel path (`stage_execution.py:132-135`) prefer re-raising
-  Pending/Infrastructure over other errors when both are present.
-- Regression: transient DB failure at heartbeat -> child process alive at
-  test end; transient failure at close-path -> run stays `running`, no
-  FAILED closure.
+DONE 2026-09-02: commit 568bdfb. Tests 1405 -> 1409 (+4 net: 1 rename,
+4 new; all 5 touched tests proven to fail pre-fix). Gates: pytest exit 0,
+validate_package.py exit 0 (both re-run by the coordinator).
+Implementation: heartbeat bookkeeping (append + cancellation read) is
+best-effort with warning logs inside `RepositoryExecutionObserver` - the
+local_hermes tree-kill finally can no longer trigger on a transient DB
+error (F3); all close-path repository/artifact writes (both close paths,
+`_seal_output`, `_seal_authored_snapshot`, both correction attempt-record
+sites, and the two `correction_execution.py` revalidation closures) now
+surface generic failures as `RoleExecutionInfrastructureError` with
+conflicts untouched (F4); the parallel gather prefers Pending/
+Infrastructure over generic errors. Drift recorded: the two P-A
+output-recovery tests and the watcher test moved their interruption point
+from heartbeat to close-path `record_artifact` (forced by the F3
+semantics change; F1 intent preserved).
 
-### P-C: Cancellation integrity (F5, F6)
+### P-C: Cancellation integrity (F5, F6, F22)
 
 - F5: `service.py` cancel path raises `CONTROL_HEAD_STALE` on
   `compare_and_swap_failed` (mirror the correction path at `:2571-2585`);
@@ -103,6 +105,16 @@ in `test_restart_with_in_flight_role_recovers`).
   instead of raising into the swallowing handler; the run completes
   `cancelled`. Regression: intent-without-ack + cancel -> run reaches
   `cancelled`, no wedge across a simulated restart.
+- F22 (added during P-B validation, same sealed-key-loss class as F5):
+  the Lane A correction command path (`service.py:2742-2773`) seals the
+  correction command, then a transient failure in
+  `record_revalidation_closure`/`record_normalize_closure` (now correctly
+  `RoleExecutionInfrastructureError` post-P-B) propagates with no
+  upstream handler, so a client retry with the same idempotency key
+  early-returns without re-applying. Fix: surface the failure as a proper
+  command error that tells the researcher to issue a fresh correction
+  command (the run stays `correcting`; D-7 re-issue is the designed
+  recovery), never a silent sealed-and-lost acceptance.
 
 ### P-D: Correction replay attempt protection (F7)
 

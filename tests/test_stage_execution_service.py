@@ -38,6 +38,7 @@ class OutputPermissiveSchemas:
 
     def __init__(self) -> None:
         self.catalog = SchemaCatalog.load(ARCHITECTURE / "schemas")
+        self.directory = self.catalog.directory
 
     def validate(self, schema_ref: str, document: object):
         if schema_ref == "run-submission.schema.json":

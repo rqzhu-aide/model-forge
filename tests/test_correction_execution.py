@@ -55,6 +55,7 @@ GOLDEN = Path(__file__).resolve().parent / "fixtures" / "golden"
 class _PermissiveSchemas:
     def __init__(self) -> None:
         self.catalog = SchemaCatalog.load(ARCHITECTURE / "schemas")
+        self.directory = self.catalog.directory
 
     def validate(self, schema_ref: str, document: object):
         return ()

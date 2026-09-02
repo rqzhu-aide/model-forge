@@ -283,6 +283,9 @@ class _PermissiveSchemas:
     """Schema catalog stand-in: structural schema findings are not the
     subject of these tests."""
 
+    def __init__(self) -> None:
+        self.directory = (ARCHITECTURE / "schemas").resolve()
+
     def validate(self, schema_ref: str, document: object) -> tuple:
         return ()
 

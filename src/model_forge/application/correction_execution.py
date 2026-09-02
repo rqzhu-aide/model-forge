@@ -536,6 +536,7 @@ def normalize_closure_outputs(
                 ts=isoformat_utc(utc_now()),
                 path=target,
                 renames=renames,
+                schemas_dir=schemas.directory,
             )
             if changed:
                 result_bytes = json.dumps(
@@ -879,6 +880,7 @@ def preview_normalize(
                 ts=isoformat_utc(utc_now()),
                 path=candidate_target,
                 renames=renames,
+                schemas_dir=schemas.directory,
             )
             if changed:
                 result_bytes = json.dumps(

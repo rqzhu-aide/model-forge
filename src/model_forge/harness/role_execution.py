@@ -75,6 +75,7 @@ def _apply_disclosed_mechanical_repairs(
     run_facts: "SealedRunFacts | None" = None,
     record_type_by_output: Mapping[str, str] | None = None,
     canonical_source_lookup: "Callable[[str], str | None] | None" = None,
+    schemas_dir: Path | None = None,
 ) -> dict[str, "OutputTransformationRecord"]:
     """Apply mechanical repairs to agent outputs and record every change.
 
@@ -154,7 +155,9 @@ def _apply_disclosed_mechanical_repairs(
                 # derive it from the schema's const (mechanical, never
                 # agent-authored) - production hole observed on
                 # p3.theory_candidate (run 7af5a339, 2026-08-25).
-                record_type = _schema_record_type_const(spec.schema_file)
+                record_type = _schema_record_type_const(
+                    spec.schema_file, schemas_dir=schemas_dir
+                )
             if record_type:
                 facts = _replace_facts(run_facts, record_type=record_type)
             if isinstance(data, dict):
@@ -170,7 +173,7 @@ def _apply_disclosed_mechanical_repairs(
             # persisted even when the repair heuristics below change nothing.
             populated = data != raw_snapshot
 
-        schema_info = _schema_info(spec.schema_file)
+        schema_info = _schema_info(spec.schema_file, schemas_dir=schemas_dir)
         valid_timestamps = schema_info["timestamps"]
         allowed_props = schema_info["properties"]
         no_additional = schema_info["no_additional"]
@@ -228,7 +231,7 @@ def _apply_disclosed_mechanical_repairs(
         # document, even when no other repair applies — then rewrite
         # same-valued references document-wide so sanitizing a definition
         # site never leaves dangling cross-references.
-        id_coverage = _stableid_positions(spec.schema_file)
+        id_coverage = _stableid_positions(spec.schema_file, schemas_dir=schemas_dir)
         id_renames: dict[str, str] = {}
         if _deep_sanitize_ids(data, id_coverage, renames=id_renames):
             changed = True
@@ -470,6 +473,7 @@ def apply_normalize_transformations(
     ts: str,
     path: Path,
     renames: dict[str, str] | None = None,
+    schemas_dir: Path | None = None,
 ) -> bool:
     """Apply a selected subset of the role lane's mechanical repairs in place.
 
@@ -498,7 +502,7 @@ def apply_normalize_transformations(
 
     Returns True iff any transformation changed *data*.
     """
-    schema_info = _schema_info(spec.schema_file)
+    schema_info = _schema_info(spec.schema_file, schemas_dir=schemas_dir)
     valid_timestamps = schema_info["timestamps"]
     allowed_props = schema_info["properties"]
     no_additional = schema_info["no_additional"]
@@ -549,7 +553,7 @@ def apply_normalize_transformations(
                         changed = True
     # ID sanitization runs even when skip_item_repairs (same as the monolith).
     if "id_sanitization" in codes:
-        id_coverage = _stableid_positions(spec.schema_file)
+        id_coverage = _stableid_positions(spec.schema_file, schemas_dir=schemas_dir)
         renames = {} if renames is None else renames
         if _deep_sanitize_ids(data, id_coverage, renames=renames):
             changed = True
@@ -1037,7 +1041,13 @@ def _fix_self_referential_hashes(
     return changed
 
 
-def _schema_record_type_const(schema_file: str) -> str:
+def _default_schemas_dir() -> Path:
+    return Path(__file__).resolve().parents[3] / "architecture" / "schemas"
+
+
+def _schema_record_type_const(
+    schema_file: str, *, schemas_dir: Path | None = None
+) -> str:
     """Record-type constant pinned by an output schema, if any (F-1b).
 
     Outputs not named in a publication binding still carry the
@@ -1047,17 +1057,18 @@ def _schema_record_type_const(schema_file: str) -> str:
     provenance.  Returns "" when the schema has no const (then the
     publication-binding map or the run facts govern, as before).
     """
+    directory = Path(schemas_dir) if schemas_dir is not None else _default_schemas_dir()
+    schema_path = directory / schema_file
+    if not schema_path.exists():
+        return ""
     try:
         import json as _json
 
-        from pathlib import Path as _Path
-
-        root = _Path(__file__).resolve().parents[3]
-        schema_path = root / "architecture" / "schemas" / schema_file
-        if not schema_path.exists():
-            return ""
         schema = _json.loads(schema_path.read_text())
-    except Exception:
+    except Exception as exc:
+        logger.error(
+            "schema record_type const unreadable for %s: %s", schema_path, exc
+        )
         return ""
     properties = schema.get("properties")
     if not isinstance(properties, dict):
@@ -1068,43 +1079,42 @@ def _schema_record_type_const(schema_file: str) -> str:
     return ""
 
 
-def _schema_info(schema_file: str) -> dict[str, Any]:
+def _schema_info(schema_file: str, *, schemas_dir: Path | None = None) -> dict[str, Any]:
     """Return schema metadata for deterministic post-processing."""
+    directory = Path(schemas_dir) if schemas_dir is not None else _default_schemas_dir()
+    schema_path = directory / schema_file
+    if not schema_path.exists():
+        return _empty_schema_info()
     try:
         import json as _json
 
-        from pathlib import Path as _Path
-
-        root = _Path(__file__).resolve().parents[3]
-        schema_path = root / "architecture" / "schemas" / schema_file
-        if not schema_path.exists():
-            return _empty_schema_info()
         schema = _json.loads(schema_path.read_text())
-        properties = schema.get("properties", {})
-        props = set(properties.keys())
-        timestamps = props & set(_TIMESTAMP_FIELDS)
-        no_additional = schema.get("additionalProperties") is False
-        required = set(schema.get("required", []))
-
-        # Collect nested required fields from sub-object property definitions
-        # and from $defs/$ref-resolved definitions referenced via allOf.
-        nested_required = _collect_nested_required(schema)
-
-        # Collect timestamp-like fields declared in nested properties
-        # (e.g. alignmentAssessment.assessed_at) as a parent_key → fields map.
-        nested_timestamps: dict[str, set[str]] = {}
-        _collect_nested_timestamps(schema, nested_timestamps)
-
-        return {
-            "timestamps": timestamps,
-            "properties": props,
-            "no_additional": no_additional,
-            "required": required,
-            "nested_required": nested_required,
-            "nested_timestamps": nested_timestamps,
-        }
-    except Exception:
+    except Exception as exc:
+        logger.error("schema info unreadable for %s: %s", schema_path, exc)
         return _empty_schema_info()
+    properties = schema.get("properties", {})
+    props = set(properties.keys())
+    timestamps = props & set(_TIMESTAMP_FIELDS)
+    no_additional = schema.get("additionalProperties") is False
+    required = set(schema.get("required", []))
+
+    # Collect nested required fields from sub-object property definitions
+    # and from $defs/$ref-resolved definitions referenced via allOf.
+    nested_required = _collect_nested_required(schema)
+
+    # Collect timestamp-like fields declared in nested properties
+    # (e.g. alignmentAssessment.assessed_at) as a parent_key → fields map.
+    nested_timestamps: dict[str, set[str]] = {}
+    _collect_nested_timestamps(schema, nested_timestamps)
+
+    return {
+        "timestamps": timestamps,
+        "properties": props,
+        "no_additional": no_additional,
+        "required": required,
+        "nested_required": nested_required,
+        "nested_timestamps": nested_timestamps,
+    }
 
 
 def _collect_nested_required(schema: dict[str, Any]) -> set[str]:
@@ -1231,10 +1241,12 @@ _LEGACY_UNDECLARED_ID_KEYS = frozenset({
     "lemma_id", "corollary_id", "proposition_id",
 })
 
-_STABLEID_POSITIONS_CACHE: dict[str, dict[str, Any]] = {}
+_STABLEID_POSITIONS_CACHE: dict[tuple[str, str], dict[str, Any]] = {}
 
 
-def _stableid_positions(schema_file: str) -> dict[str, Any]:
+def _stableid_positions(
+    schema_file: str, *, schemas_dir: Path | None = None
+) -> dict[str, Any]:
     """Schema-exact stableId coverage: which keys the schema pattern-checks.
 
     Walks the schema (properties / items / allOf / anyOf / oneOf / $defs,
@@ -1252,17 +1264,15 @@ def _stableid_positions(schema_file: str) -> dict[str, Any]:
     ``affected_record_ids``; array = parents ending ``_ids`` plus
     ``affected_record_ids``.
     """
-    cached = _STABLEID_POSITIONS_CACHE.get(schema_file)
+    directory = Path(schemas_dir) if schemas_dir is not None else _default_schemas_dir()
+    cache_key = (str(directory), schema_file)
+    cached = _STABLEID_POSITIONS_CACHE.get(cache_key)
     if cached is not None:
         return cached
+    schema_path = directory / schema_file
     try:
         import json as _json
 
-        from pathlib import Path as _Path
-
-        root = _Path(__file__).resolve().parents[3]
-        schemas_dir = root / "architecture" / "schemas"
-        schema_path = schemas_dir / schema_file
         if not schema_path.exists():
             raise FileNotFoundError(schema_file)
         schema = _json.loads(schema_path.read_text())
@@ -1277,7 +1287,7 @@ def _stableid_positions(schema_file: str) -> dict[str, Any]:
             if "#/$defs/" in ref:
                 other_file, _, frag = ref.partition("#/$defs/")
                 if other_file and re.fullmatch(r"[A-Za-z0-9._-]+", other_file):
-                    other_path = schemas_dir / other_file
+                    other_path = directory / other_file
                     if other_path.exists():
                         other_doc = _json.loads(other_path.read_text())
                         return other_doc.get("$defs", {}).get(frag), other_doc
@@ -1348,8 +1358,11 @@ def _stableid_positions(schema_file: str) -> dict[str, Any]:
             "array_keys": frozenset(array_keys),
             "heuristic": False,
         }
-        _STABLEID_POSITIONS_CACHE[schema_file] = result
-    except Exception:
+        _STABLEID_POSITIONS_CACHE[cache_key] = result
+    except FileNotFoundError:
+        result = {"scalar_keys": frozenset(), "array_keys": frozenset(), "heuristic": True}
+    except Exception as exc:
+        logger.error("stableId coverage unreadable for %s: %s", schema_path, exc)
         result = {"scalar_keys": frozenset(), "array_keys": frozenset(), "heuristic": True}
     return result
 
@@ -2073,6 +2086,7 @@ class RoleLifecycleService:
                     run_facts=run_facts,
                     record_type_by_output=self._record_type_by_output(),
                     canonical_source_lookup=_canonical_source_lookup,
+                    schemas_dir=self.schemas.directory,
                 )
                 transformation_summaries = [
                     record.to_dict() for record in repair_records.values()
@@ -2797,6 +2811,7 @@ class RoleLifecycleService:
                     run_facts=run_facts,
                     record_type_by_output=self._record_type_by_output(),
                     canonical_source_lookup=_canonical_source_lookup,
+                    schemas_dir=self.schemas.directory,
                 )
                 validation = validate_role_outputs(
                     schema_catalog=self.schemas,

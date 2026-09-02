@@ -189,3 +189,31 @@ Expected suite delta: 1388 -> 1398 (+10).
   signal is the fix.
 - `harness_owned_fields` (envelope.py:219) is a static in-memory map,
   no filesystem access - out of scope, confirmed not affected by R8.
+
+## Approved amendment (2026-09-02, coordinator)
+
+Edit 10 - test-double `directory` attributes. The first dispatch
+stopped on a pin conflict with evidence: probe fact 5 assumed
+`self.schemas` is always a real SchemaCatalog, but five stand-in
+classes in the suite implement only `validate()` and lack
+`.directory`, producing 36 identical AttributeError failures across
+nine test files. Resolution chosen (option (a) of the subagent's
+report, fail-loud over silent getattr fallback): the fakes gain a real
+`directory`. Production code stays strict, so a future catalog
+implementation without a configured directory raises loudly instead of
+silently diverging - the audit's R8 intent.
+
+- tests/test_correction_execution.py `_PermissiveSchemas.__init__`:
+  add `self.directory = self.catalog.directory`.
+- tests/test_correction_identity.py `_PermissiveSchemas.__init__`: same.
+- tests/test_role_closure_integrity.py `_PermissiveSchemas.__init__`: same.
+- tests/test_stage_execution_service.py `OutputPermissiveSchemas.__init__`:
+  same.
+- tests/test_correction_command_foundation.py `_PermissiveSchemas`: add
+  `__init__` setting `self.directory = (ARCHITECTURE / "schemas").resolve()`
+  (this stand-in loads no catalog; ARCHITECTURE is defined at :22).
+
+All five point at the repo's real schemas dir, so repair behavior in
+those acceptance tests is byte-identical to the pre-P-K default
+resolution. Applied planner-direct (five one-to-three-line test edits
+plus gates; the P1-variant salvage rule).

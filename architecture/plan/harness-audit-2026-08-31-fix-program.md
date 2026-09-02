@@ -399,7 +399,41 @@ value.
   `.instructions` lookup a real error message
   (`run_coordinator.py:170,520-524`).
 
-### P-K: Schema helper root and failure signal (R8)
+### P-K: Schema helper root and failure signal (R8) -- DONE
+
+DONE 2026-09-02: pins commit e58d363, fix commit cca96c2. Tests 1388 ->
+1398 (+10, new file tests/test_schema_helper_root.py:
+test_schema_record_type_const_honors_non_default_root,
+test_schema_info_honors_non_default_root,
+test_stableid_positions_honors_non_default_root,
+test_stableid_positions_cache_isolated_by_schemas_dir,
+test_malformed_existing_schema_logs_error_record_type,
+test_malformed_existing_schema_logs_error_schema_info,
+test_malformed_existing_schema_logs_error_stableid,
+test_missing_schema_file_degrades_without_error_log,
+test_repair_monolith_uses_threaded_schemas_dir,
+test_normalize_transformations_threads_schemas_dir; the coordinator
+independently verified via stash-revert that all ten fail on pre-fix
+code with the predicted TypeError). Gates: pytest exit 0 (1398 passed),
+validate_package.py exit 0 (run after the commit tree was final).
+Stray-write sweep clean. The first dispatch stopped correctly on a pin
+conflict: probe fact 5 assumed self.schemas is always a real
+SchemaCatalog, but five test stand-ins (four _PermissiveSchemas, one
+OutputPermissiveSchemas across five test files) lack .directory,
+producing 36 identical AttributeError failures. Approved amendment
+(recorded in the pins doc): the fakes gained a real directory pointing
+at the repo schemas dir (production code stays strict/fail-loud; no
+getattr fallback), applied planner-direct per the P1-variant rule.
+Implementation: _default_schemas_dir helper; the three schema helpers
+gain keyword-only schemas_dir (default preserves the prior parents[3]
+resolution); existing-but-unparseable schema files now log ERROR via
+the module logger before the unchanged degrade (missing file stays
+silent); _STABLEID_POSITIONS_CACHE keyed by (str(directory),
+schema_file), store still success-only; schemas_dir threaded through
+_apply_disclosed_mechanical_repairs and apply_normalize_transformations
+and wired from RoleLifecycleService (self.schemas.directory, both call
+sites) and correction_execution.py (schemas.directory, both call
+sites).
 
 Added 2026-09-02 after P-J closure verification found R8 unassigned
 (coverage gap recorded in the audit doc's Coordinator notes). Audit
@@ -433,7 +467,7 @@ on the post-P-I tree.
   `architecture/plan/` reference `../harness-audit-2026-08-31.md`;
   retarget those links to `../archive/completed/harness-audit-2026-08-31.md`
   when the audit moves.
-- BLOCKED until P-K lands.
+- UNBLOCKED 2026-09-02: P-K landed (fix cca96c2); closure may proceed.
 
 ## Progress log
 
@@ -443,3 +477,7 @@ on the post-P-I tree.
   and not decided-no-change; the gap is recorded in the audit doc's
   Coordinator notes and the program is extended with P-K (R8). Program
   remains ACTIVE; P-J is blocked until P-K lands.
+- 2026-09-02: P-K (R8) DONE - pins e58d363, fix cca96c2, tests 1388 ->
+  1398. First dispatch stopped on a pin conflict (test-double catalogs
+  lack .directory, 36 AttributeError failures); resolved by approved
+  amendment giving the five fakes a real directory. P-J unblocked.

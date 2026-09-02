@@ -4,7 +4,6 @@
   /* Warm paper + ivory cards (2026-08-29): cards are warm ivory, never
      pure white; the canvas sits a half-step deeper so cards lift. */
   --canvas: #f6f5ef;
-  --canvas-strong: #ecebe3;
   --surface: #fdfcf8;
   --surface-soft: #f3f2ea;
   --text: #111113;
@@ -58,7 +57,6 @@
      (archify warm-dark family), off-white ink accent, desaturated status
      tones. */
   --canvas: #121110;
-  --canvas-strong: #181714;
   --surface: #1b1a17;
   --surface-soft: #22201c;
   --text: #f5f3ee;
@@ -1117,7 +1115,7 @@ fieldset > legend {
   font-size: 0.65rem;
   font-weight: 500;
   color: var(--muted);
-  background: var(--bg);
+  background: var(--surface-soft);
   padding: 0.05rem 0.3rem;
   border-radius: 3px;
   white-space: nowrap;
@@ -1220,7 +1218,7 @@ fieldset > legend {
 .context-feedback__highlight {
   margin: 0;
   padding: 0.75rem;
-  background: var(--bg);
+  background: var(--surface-soft);
   border: 1px solid var(--line);
   border-radius: 8px;
   font-size: 0.85rem;
@@ -2805,7 +2803,7 @@ dd {
   align-items: center;
   gap: 0.4rem;
   padding: 0.5rem 0.8rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
   text-decoration: none;
   color: var(--text);
@@ -2877,7 +2875,7 @@ dd {
 .p2-decision-brief {
   margin-top: 0.8rem;
   padding-top: 0.8rem;
-  border-top: 1px solid var(--border-light);
+  border-top: 1px solid var(--line);
 }
 
 .p2-decision-brief__headline {
@@ -2968,7 +2966,7 @@ dd {
   right: 0;
   top: 50%;
   height: 1px;
-  background: var(--border);
+  background: var(--line);
   transform: translateY(-50%);
 }
 
@@ -3071,7 +3069,7 @@ dd {
   font-size: 0.86em;
   padding: 0.4rem 0.55rem;
   border-left: 2px solid var(--line);
-  background: var(--soft);
+  background: var(--surface-soft);
 }
 
 .finding-group__item code {
@@ -3103,7 +3101,7 @@ dd {
 .timeline-events {
   margin-top: 1.25rem;
   padding-top: 1rem;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line);
 }
 
 .tl-event {
@@ -3142,7 +3140,7 @@ dd {
 .compact-method-table td {
   padding: 0.5rem 0.6rem;
   text-align: left;
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--line);
 }
 
 .compact-method-table thead th {
@@ -3150,7 +3148,7 @@ dd {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--muted);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line);
 }
 
 .compact-method-table tbody th {
@@ -3200,7 +3198,7 @@ dd {
 /* ===== Overview page: compact attention list ===== */
 .attention-list--compact li {
   padding: 0.4rem 0;
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--line);
 }
 
 .attention-list--compact li:last-child {
@@ -3224,7 +3222,7 @@ dd {
   align-items: center;
   gap: 0.5rem;
   padding: 0.4rem 0;
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--line);
 }
 
 .run-list--compact li:last-child {
@@ -3735,8 +3733,9 @@ p.run-monitor-note {
   font-size: 0.875rem;
 }
 .run-logs__pre {
-  background: var(--surface-raised, #111318);
-  border: 1px solid var(--border-subtle, #2a2d35);
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  color: var(--text);
   border-radius: 6px;
   padding: var(--space-3, 0.75rem);
   overflow-x: auto;

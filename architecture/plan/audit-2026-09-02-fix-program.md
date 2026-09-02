@@ -192,7 +192,20 @@ phase query so a mode/method switch renders the stale view with a busy
 hint instead of unmounting the form. Vitest: form field content survives
 a mode switch (the pre-fix wipe).
 
-### P-G: CSS token repair (F9, F10)
+### P-G: CSS token repair (F9, F10) -- DONE
+
+DONE 2026-09-02: commit 417d6d9. Vitest 185 -> 190 (+5; the static
+token-resolution contract test, 3 of its assertions proven to fail
+pre-fix); tsc 0, build ok, validator exit 0 (all re-run by the
+coordinator). All 11 dead references repointed (--bg/--border/
+--border-light/--soft -> --surface-soft/--line), `.run-logs__pre` now
+reads ~15:1 light / ~13:1 dark, `--canvas-strong` deleted. The new
+contract test (`styles-tokens.test.ts`, node:fs read - Vite `?raw`
+imports return empty under vitest, a vacated-contract trap the package
+caught and guarded) also exact-match-locks 13 pre-existing fallback-
+carrying legacy token references; repointing those is recorded as a
+follow-up (P-I takes the one visible defect, `.tl-dot`'s white border in
+dark theme).
 
 Define `--surface-raised` and `--border-subtle` per theme (fixing the
 light-theme run-log contrast, F9); repoint the dead `var(--border)` /

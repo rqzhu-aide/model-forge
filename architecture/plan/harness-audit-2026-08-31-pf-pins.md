@@ -3,7 +3,7 @@
 Status: PINNED 2026-09-01 (coordinator). Every finding below was re-probed
 against the live tree before pinning. Source of truth for the finding and
 the DELETE decision:
-[../harness-audit-2026-08-31.md](../harness-audit-2026-08-31.md) (R15;
+[../harness-audit-2026-08-31.md](../archive/completed/harness-audit-2026-08-31.md) (R15;
 Decisions: "DELETE the dead token/lease path; keep the per-process
 asyncio lock and the DB compare-and-swap as the documented
 single-advancement mechanism; update 02-run-harness.md accordingly").

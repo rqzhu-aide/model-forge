@@ -4,7 +4,7 @@ Status: PINNED 2026-09-01 (coordinator). Subagent executes; it does not
 design. Every probe fact below was re-verified against the live tree at
 commit 19e508a (post P-B).
 
-Source findings: [../harness-audit-2026-08-31.md](../harness-audit-2026-08-31.md).
+Source findings: [../harness-audit-2026-08-31.md](../archive/completed/harness-audit-2026-08-31.md).
 Program entry: P-C in
 [harness-audit-2026-08-31-fix-program.md](harness-audit-2026-08-31-fix-program.md).
 

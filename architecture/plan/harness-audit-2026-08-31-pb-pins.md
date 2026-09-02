@@ -1,6 +1,6 @@
 # P-B Implementation Pins: Digest ordering (R2)
 
-Source finding: `architecture/harness-audit-2026-08-31.md` R2.
+Source finding: `architecture/archive/completed/harness-audit-2026-08-31.md` R2.
 Program entry: `architecture/plan/harness-audit-2026-08-31-fix-program.md` P-B.
 Re-probed against the live tree 2026-08-31 (post P-A): finding stands.
 `_fix_self_referential_hashes` now lives at `role_execution.py:835-980+`

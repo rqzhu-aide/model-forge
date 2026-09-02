@@ -2,7 +2,7 @@
 
 Status: PINNED 2026-09-01 (coordinator). Every finding below was re-probed
 against the live tree before pinning. Source of truth for findings:
-[../harness-audit-2026-08-31.md](../harness-audit-2026-08-31.md).
+[../harness-audit-2026-08-31.md](../archive/completed/harness-audit-2026-08-31.md).
 
 ## Probe facts (verified 2026-09-01 against the live tree)
 

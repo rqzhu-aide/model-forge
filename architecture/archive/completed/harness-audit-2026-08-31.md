@@ -1,6 +1,7 @@
 # Harness Audit 2026-08-31: Post-Sweep Residual Findings
 
-Status: findings only (no code changes, no new tests)
+Status: CLOSED 2026-09-02 (at audit time: findings only, no code changes,
+no new tests). Fix program complete; see the closure note below.
 Author: coder profile (5 parallel audit lanes + independent verification)
 Basis: tree at `2abf534`. Suite state at audit time: backend pytest exit 0.
 Method: five delegated file-lane audits over all of `src/model_forge/harness/`
@@ -13,6 +14,36 @@ Prior sweeps whose findings are NOT repeated here: 2026-08-16 (NA/K items),
 2026-08-29 (`9260dde`, 21 findings). Still-open knowns: NA-2 (cancel
 relabeling across restart; needs persisted cancel intent - design decision),
 K-7 (reviewer-memory boundary; open by design).
+
+## Closure note (2026-09-02)
+
+Fix program complete: all 37 findings are landed or explicitly
+decided-no-change (programmatic coverage check, R1-R37). Package fix
+commits (pins commit in parentheses):
+
+- P-A (R1, R5, R6): ac8586e (pins 223edfa)
+- P-B (R2): 8cd6fb2 (pins 11e017c)
+- P-C (R3, R4, R7, R13, R22): 977e82b (pins a350be9)
+- P-D (R9, R10, R26): 67b58e6 (pins cfccf57)
+- P-E (R11, R12, R32, R33, R34, R35): 3d1b539 (pins d099e03)
+- P-F (R15; decided delete): 6dc2ff7 (pins d3cf9c4)
+- P-G (R14; decided enforce, verified already implemented): b72f939
+  (pins 9868ba1)
+- P-H (R16): bf8ea5f (pins f66e04d)
+- P-I (R18-R25, R27-R31, R36): ba713a4 (pins 9dc592b)
+- P-K (R8): cca96c2 (pins e58d363)
+
+Decided-no-change: R17 (live instruction-layer resolution at execution
+time, deliberate), R37 (review-revision vacuous pass; future contract
+decision). Contradictions and symptom corrections found during the
+program are recorded in the Coordinator notes below (R14, R35); the R8
+coverage gap found at closure verification was closed by P-K. Suite at
+closure: 1398 passed, 0 failures; both gates (pytest,
+validate_package.py) exit 0. Program record:
+[plan/harness-audit-2026-08-31-fix-program.md](../../plan/harness-audit-2026-08-31-fix-program.md).
+This document moved from `architecture/` to
+`architecture/archive/completed/` at closure; the pins docs remain under
+`architecture/plan/`.
 
 ## P1 - reachable, run- or integrity-impacting
 
@@ -451,7 +482,7 @@ a decision item, not a defect.
   design decision with its own failure modes (identifier reuse across
   editions), left for a future contract decision. The R35 regression
   test pins the collision case. Details:
-  [plan/harness-audit-2026-08-31-pe-pins.md](plan/harness-audit-2026-08-31-pe-pins.md)
+  [plan/harness-audit-2026-08-31-pe-pins.md](../../plan/harness-audit-2026-08-31-pe-pins.md)
   probe fact 6.
 - 2026-09-01, Pkg G pinning, R14 contradiction: the finding's premise
   that `settle_cancellation` is the only `executor.cancel` call site and
@@ -464,7 +495,7 @@ a decision item, not a defect.
   with the same executor instance, so the finding's own suggested fix
   ("execute loop (or observer heartbeat) poll ... and call cancel")
   describes the shipped mechanism. Live probe (recipe and output in
-  [plan/harness-audit-2026-08-31-pg-pins.md](plan/harness-audit-2026-08-31-pg-pins.md),
+  [plan/harness-audit-2026-08-31-pg-pins.md](../../plan/harness-audit-2026-08-31-pg-pins.md),
   probe fact 4): a 30 s in-flight role terminated 0.33 s after
   cancellation acceptance; both parallel roles received `executor.cancel`;
   stage outcome CANCELLED; both closures sealed "cancelled". Resolution:

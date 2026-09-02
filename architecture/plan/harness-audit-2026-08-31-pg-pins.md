@@ -4,7 +4,7 @@ Status: PINNED 2026-09-01 (coordinator). Finding re-probed against the live
 tree before pinning; the probe shows the audit's core premise is FALSE and
 the requested enforcement already exists. Source of truth for the finding
 and the ENFORCE decision:
-[../harness-audit-2026-08-31.md](../harness-audit-2026-08-31.md) (R14;
+[../harness-audit-2026-08-31.md](../archive/completed/harness-audit-2026-08-31.md) (R14;
 Decisions: "wire cancellation polling into the execution path so
 `executor.cancel` reaches the in-flight role").
 
@@ -89,7 +89,7 @@ known fixture stack).
 
 - `tests/test_stage_execution_service.py` (one new test + imports)
 - `architecture/design/02-run-harness.md` (one inserted paragraph, below)
-- `architecture/harness-audit-2026-08-31.md` (one Coordinator note)
+- `architecture/archive/completed/harness-audit-2026-08-31.md` (one Coordinator note)
 - `architecture/plan/harness-audit-2026-08-31-pg-pins.md` (this file)
 
 No other files. As with P-F, this package is an exception to the "no

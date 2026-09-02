@@ -3,7 +3,7 @@
 Status: PINNED 2026-09-01 (coordinator). Finding re-probed against the live
 tree before pinning; both halves of the audit claim reproduce exactly.
 Source of truth for the finding:
-[../harness-audit-2026-08-31.md](../harness-audit-2026-08-31.md) (R16).
+[../harness-audit-2026-08-31.md](../archive/completed/harness-audit-2026-08-31.md) (R16).
 Fix program entry:
 [harness-audit-2026-08-31-fix-program.md](harness-audit-2026-08-31-fix-program.md)
 (P-H).

@@ -5,7 +5,7 @@ design. Every probe fact below was re-verified against the live tree at
 commit 23d54e7 (post P-C), including a throwaway reproduction script run
 with the repo venv (`/tmp/pd_probe.py`).
 
-Source findings: [../harness-audit-2026-08-31.md](../harness-audit-2026-08-31.md).
+Source findings: [../harness-audit-2026-08-31.md](../archive/completed/harness-audit-2026-08-31.md).
 Program entry: P-D in
 [harness-audit-2026-08-31-fix-program.md](harness-audit-2026-08-31-fix-program.md).
 

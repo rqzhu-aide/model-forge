@@ -6,6 +6,25 @@ phase or production system is complete.
 
 ## Completed work
 
+### Harness audit 2026-08-31 fix program (R1-R37)
+
+Closed 2026-09-02: all 37 post-sweep residual findings from the
+2026-08-31 harness audit are landed or explicitly decided-no-change
+(R17 keep-live by design, R37 deferred to a future contract decision).
+Eleven packages (P-A through P-K, plus P-J closure): recovery core,
+digest ordering, correction lane, envelope provenance, publication and
+reducers, fencing deletion, cancellation enforcement verification,
+brief extraction, the P3 hardening sweep, and the schema-helper root
+fix. The suite grew 1340 -> 1398 across the program; every fix shipped
+with a regression test verified to fail on pre-fix code. Two audit
+contradictions were found and recorded in the audit doc's Coordinator
+notes (R14 was already implemented at audit time; the R35 symptom
+correction).
+
+Evidence: [audit and closure note](harness-audit-2026-08-31.md),
+[fix program record](../../plan/harness-audit-2026-08-31-fix-program.md),
+and the per-package pins docs under `../../plan/`.
+
 ### K-1 remaining implementation plan + NA-2 (correction lane)
 
 Completed 2026-08-20; archived 2026-08-23. All packages landed and

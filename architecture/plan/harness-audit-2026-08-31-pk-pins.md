@@ -3,7 +3,7 @@
 Status: READY FOR DISPATCH. Written 2026-09-02 by the coordinator after
 re-probing the live tree (post-P-I, HEAD 31a8bb2). One finding, one
 commit. Source finding:
-[../harness-audit-2026-08-31.md](../harness-audit-2026-08-31.md) R8.
+[../harness-audit-2026-08-31.md](../archive/completed/harness-audit-2026-08-31.md) R8.
 
 ## Probe facts (verified on the live tree)
 

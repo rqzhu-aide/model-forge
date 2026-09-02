@@ -1,7 +1,7 @@
 # Fix Program: Harness Audit 2026-08-31
 
 Status: ACTIVE. One package, one commit, in the order below.
-Source of truth for findings: [../harness-audit-2026-08-31.md](../harness-audit-2026-08-31.md)
+Source of truth for findings: [../harness-audit-2026-08-31.md](../archive/completed/harness-audit-2026-08-31.md)
 (R1-R37 with file:line evidence). Decisions recorded in that document:
 R15 delete, R14 enforce, R17 keep live (no code), R37 deferred.
 

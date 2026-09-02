@@ -2397,7 +2397,12 @@ class RoleLifecycleService:
     async def settle_cancellation(
         self, *, stage: ResolvedStage, role: str
     ) -> bool:
-        """Stop and seal one prior acknowledged execution without relaunching it."""
+        """Stop and seal one prior execution without relaunching it.
+
+        An acknowledged execution is cancelled and reconciled; a durable
+        intent with no acknowledgement (the crash window) seals cancelled
+        with a diagnostic (F6), so a cancellation can never wedge the run.
+        """
 
         invocation_id, execution_id, closure_id = _role_identity(
             self.context, stage, role
@@ -2416,9 +2421,43 @@ class RoleLifecycleService:
             return True
         acknowledgement = self._acknowledgement(execution_id)
         if acknowledgement is None:
-            raise RoleExecutionPending(
-                f"Execution {execution_id} has a launch intent but no durable acknowledgement."
+            # F6: a crash between observer.launch_intent and the durable
+            # acknowledgement inside executor.execute leaves an intent with
+            # no ack.  No external process exists to address, so seal a
+            # cancelled closure with a diagnostic (Tez-approved decision)
+            # instead of raising into a handler that wedges the run in
+            # cancellation_requested forever.  The reconcile-CANCELLED path
+            # below closes CANCELLED results the same way.
+            invocation = self._recovery_invocation(
+                stage=stage,
+                role=role,
+                invocation_id=invocation_id,
+                execution_id=execution_id,
             )
+            result = RoleExecutionResult(
+                status=RoleExecutionStatus.CANCELLED,
+                external_execution_id=None,
+                exit_code=None,
+                summary=(
+                    "Cancelled before the execution was acknowledged; "
+                    "no external process was launched."
+                ),
+                diagnostic_text=(
+                    "The harness crashed between recording the launch intent "
+                    "and durably acknowledging the launch; no external process "
+                    "existed to cancel, so the closure is sealed cancelled "
+                    "without process evidence."
+                ),
+            )
+            closure = self._validate_and_close(
+                stage=stage,
+                role=role,
+                invocation=invocation,
+                invocation_sha256=str(intent["invocation_sha256"]),
+                closure_id=closure_id,
+                result=result,
+            )
+            return closure.status is RoleExecutionStatus.CANCELLED
         external_id = str(acknowledgement["external_execution_id"])
         await self.executor.cancel(external_id)
         result = await self.executor.reconcile(external_id)

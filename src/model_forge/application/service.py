@@ -95,6 +95,7 @@ from ..executors.local_hermes import (
 )
 from ..executors.protocol import ExecutionObserver, RoleInvocation
 from ..harness.commands import build_run_command, require_complete_sealed_basis
+from ..harness.execution_records import RoleExecutionInfrastructureError
 from ..harness.outputs import build_output_plan
 from ..harness.role_resource_snapshot import compute_role_resources, load_skill_manifest
 from ..harness.stage_execution import HarnessExecutionServices
@@ -2236,6 +2237,25 @@ class ModelForgeService:
                     smallest_correction="Inspect validation and publication progress.",
                 )
             )
+        if not result.applied and result.reason == "compare_and_swap_failed":
+            # F5: the command row is already sealed (raw preservation), so
+            # this rejection MUST surface; a silent swallow would drop the
+            # cancellation while the sealed idempotency key makes a same-key
+            # retry a no-op.  The error carries the sealed command's
+            # identity; a fresh retry uses a NEW idempotency key.
+            # already_applied / cancellation_fenced stay swallowed: an
+            # equivalent cancellation is already recorded.
+            raise CommandRejected(
+                new_command_error(
+                    "CONTROL_HEAD_STALE",
+                    object_refs=[run_id, str(sealed.row["command_id"])],
+                    researcher_message=(
+                        "The run changed while the cancellation was being "
+                        "requested."
+                    ),
+                    smallest_correction="Refresh the run and cancel again.",
+                )
+            )
         if self.cancellation_notifier is not None:
             await self.cancellation_notifier(run_id)
         return await self.get_run(project_id, run_id)
@@ -2739,17 +2759,22 @@ class ModelForgeService:
                 ) from error
             passed = normalized.attempt.passed
             if passed:
-                record_normalize_closure(
-                    repository=self.repository,
-                    artifacts=self.artifacts,
-                    specification=self.specification,
-                    run_id=run_id,
-                    role_closure_id=role_closure_id,
-                    correction_command_id=command_id,
-                    invocation_sha256=str(sealed.row["command_sha256"]),
-                    result_digests=normalized.result_digests,
-                    transformation_records=normalized.transformation_records,
-                )
+                try:
+                    record_normalize_closure(
+                        repository=self.repository,
+                        artifacts=self.artifacts,
+                        specification=self.specification,
+                        run_id=run_id,
+                        role_closure_id=role_closure_id,
+                        correction_command_id=command_id,
+                        invocation_sha256=str(sealed.row["command_sha256"]),
+                        result_digests=normalized.result_digests,
+                        transformation_records=normalized.transformation_records,
+                    )
+                except RoleExecutionInfrastructureError as error:
+                    raise _correction_bookkeeping_failed(
+                        run_id, role_closure_id, command_id, error
+                    ) from error
         else:
             correction = revalidate_closure_outputs(
                 repository=self.repository,
@@ -2762,15 +2787,20 @@ class ModelForgeService:
             )
             passed = correction.attempt.passed
             if passed:
-                record_revalidation_closure(
-                    repository=self.repository,
-                    artifacts=self.artifacts,
-                    specification=self.specification,
-                    run_id=run_id,
-                    role_closure_id=role_closure_id,
-                    correction_command_id=command_id,
-                    invocation_sha256=str(sealed.row["command_sha256"]),
-                )
+                try:
+                    record_revalidation_closure(
+                        repository=self.repository,
+                        artifacts=self.artifacts,
+                        specification=self.specification,
+                        run_id=run_id,
+                        role_closure_id=role_closure_id,
+                        correction_command_id=command_id,
+                        invocation_sha256=str(sealed.row["command_sha256"]),
+                    )
+                except RoleExecutionInfrastructureError as error:
+                    raise _correction_bookkeeping_failed(
+                        run_id, role_closure_id, command_id, error
+                    ) from error
         if passed:
             services = self.run_coordinator.correction_services(
                 run_id,
@@ -3784,6 +3814,37 @@ def _idempotency_key_reused(project_id: str, request_id: str) -> CommandRejected
             object_refs=[project_id, request_id],
             researcher_message="This idempotency key is bound to another operation.",
             smallest_correction="Submit the action with a new idempotency key.",
+        )
+    )
+
+def _correction_bookkeeping_failed(
+    run_id: str,
+    role_closure_id: str,
+    command_id: str,
+    error: RoleExecutionInfrastructureError,
+) -> CommandRejected:
+    """F22: surface a sealed-then-failed Lane A correction honestly.
+
+    The correction command is already sealed AND the authorization CAS has
+    already committed (the run is in the correction lane), so a raw
+    propagation would leave the sealed idempotency key a permanent no-op
+    for a retry.  Direct the researcher to issue a FRESH correction
+    command with a new idempotency key instead.
+    """
+    return CommandRejected(
+        new_command_error(
+            "CONTROL_HEAD_STALE",
+            object_refs=[run_id, role_closure_id, command_id],
+            researcher_message=(
+                "The correction was authorized and sealed, but recording the "
+                "revalidation closure hit a transient infrastructure failure "
+                f"({error}). The correction authorization stands and the run "
+                "remains in the correction lane."
+            ),
+            smallest_correction=(
+                "Refresh the run and issue a fresh correction command with a "
+                "new idempotency key; the sealed command cannot be retried."
+            ),
         )
     )
 

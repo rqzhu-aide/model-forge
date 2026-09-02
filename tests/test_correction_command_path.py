@@ -52,6 +52,7 @@ from model_forge.configuration.resources import RoleResourceCatalog
 from model_forge.digests.jcs import canonicalize
 from model_forge.executors import DeterministicFakeExecutor
 from model_forge.harness.execution_records import (
+    RoleExecutionInfrastructureError,
     closure_artifact_id,
     correction_role_identity,
     document_sha256,
@@ -1185,3 +1186,73 @@ def test_correction_scope_succeeded_closure_stays_sealed_only(
     }
     scope = stack.service._correction_scope_outputs(RUN, payload)
     assert scope == {"p1.discovery_proposal"}
+
+
+# --------------------------------------------------------------------------- #
+# F22 (audit 2026-09-02): sealed-then-failed Lane A bookkeeping surfaces a
+# command error instead of propagating a raw infrastructure failure
+# --------------------------------------------------------------------------- #
+
+
+def test_lane_a_bookkeeping_infrastructure_failure_surfaces_command_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A transient RoleExecutionInfrastructureError from
+    ``record_revalidation_closure`` (post-P-B semantics) must reach the
+    caller as a CommandRejected that says honestly: the correction was
+    authorized and sealed, the run stays in the correction lane, and the
+    recovery is a FRESH correction command (the sealed idempotency key is
+    a permanent no-op for retries)."""
+
+    async def scenario() -> None:
+        fixture = _Fixture(tmp_path, DeterministicFakeExecutor(_golden_output))
+        stack = _ServiceStack(fixture)
+        # Sealed bytes conform to the real catalog -> revalidation passes,
+        # so the bookkeeping call is reached.
+        _seal_failed_base_closure(fixture, "theorist")
+        _set_run(fixture, "failed", _run_payload(fixture, CORRECTABLE))
+
+        detail = await stack.service.get_run(PROJECT, RUN)
+        action = _correction_action(detail)
+        command = CorrectionRequest(
+            correction_type="revalidate",
+            permitted_output_scope=[_scope(fixture)],
+            action_descriptor_id=action.descriptor_id,
+        )
+        receipt = await _preserve(stack.service, command, "corr-infra")
+
+        def boom(**_kwargs):  # noqa: ANN202
+            raise RoleExecutionInfrastructureError(
+                "Harness bookkeeping for correction closure failed: "
+                "OperationalError: database is locked"
+            )
+
+        monkeypatch.setattr(
+            "model_forge.application.service.record_revalidation_closure", boom
+        )
+
+        with pytest.raises(CommandRejected) as raised:
+            await stack.service.request_output_correction(
+                PROJECT, RUN, command, raw_request=receipt
+            )
+
+        error = raised.value.error
+        assert error.code == "CONTROL_HEAD_STALE"
+        assert "authorized and sealed" in error.researcher_message
+        assert "transient infrastructure failure" in error.researcher_message
+        assert "fresh correction command" in error.smallest_correction
+        assert "cannot be retried" in error.smallest_correction
+        assert RUN in error.object_refs
+
+        # The command WAS sealed and the authorization CAS committed: the
+        # run remains in the correction lane (correction_authorized).
+        command_row = fixture.repository.get_command_by_idempotency(
+            PROJECT, receipt.request_artifact_id
+        )
+        assert command_row is not None
+        command_payload = loads_json(command_row["payload_json"], source="command")
+        assert command_payload["correction_type"] == "revalidate"
+        assert str(command_payload["command_id"]) in error.object_refs
+        assert fixture.repository.get_run(RUN)["status"] == "correction_authorized"
+
+    asyncio.run(scenario())

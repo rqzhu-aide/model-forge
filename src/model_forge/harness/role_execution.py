@@ -1604,8 +1604,16 @@ class RoleLifecycleService:
                 result = await self.executor.reconcile(external_id)
                 if result is None:
                     raise RoleExecutionPending(
-                        f"Execution {execution_id} is acknowledged but not terminal."
+                        f"Execution {execution_id} is acknowledged but not terminal.",
+                        external_execution_id=external_id,
                     )
+                if (
+                    result.status is RoleExecutionStatus.FAILED
+                    and result.exit_code is None
+                ):
+                    recovered = self._recover_completed_execution(invocation, result)
+                    if recovered is not None:
+                        result = recovered
         except RoleExecutionPending:
             raise
         except RoleExecutionInfrastructureError:
@@ -3163,6 +3171,42 @@ class RoleLifecycleService:
             closed_at=str(document["closed_at"]),
             failure_code=document.get("failure_code"),
             reconciled=True,
+        )
+
+    def _recover_completed_execution(
+        self, invocation: RoleInvocation, result: RoleExecutionResult
+    ) -> RoleExecutionResult | None:
+        """Post-restart success detection (F1, audit 2026-09-02).
+
+        A reconcile that reports FAILED with no exit code means the process
+        merely vanished while the server was down; it says nothing about the
+        work. When every declared expected output exists in the workspace,
+        treat the execution as completed and let output validation judge the
+        bytes. Missing outputs keep the honest failure.
+        """
+        paths = invocation.expected_output_paths
+        if not paths:
+            return None
+        for path in paths:
+            try:
+                if not path.is_file() or path.stat().st_size == 0:
+                    return None
+            except OSError:
+                return None
+        return RoleExecutionResult(
+            status=RoleExecutionStatus.SUCCEEDED,
+            external_execution_id=result.external_execution_id,
+            exit_code=None,
+            summary=(
+                "Process exited while the server was down; declared outputs "
+                "are present and will be validated."
+            ),
+            diagnostic_text=(
+                "Recovered post-restart from on-disk outputs "
+                f"(reconcile reported: {result.summary})."
+            ),
+            captured_stdout=result.captured_stdout,
+            captured_stderr=result.captured_stderr,
         )
 
     def _acknowledgement(self, execution_id: str) -> Any | None:

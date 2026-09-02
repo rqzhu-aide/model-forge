@@ -330,6 +330,76 @@ def test_restart_with_in_flight_role_recovers(tmp_path: Path, monkeypatch) -> No
     asyncio.run(scenario())
 
 
+def test_pending_execution_watcher_reschedules_run(tmp_path: Path, monkeypatch) -> None:
+    """F1 (audit 2026-09-02): a pending acknowledged execution must wake the
+    coordinator in-process the moment the external process exits - without
+    any further command acceptance, restart, or cancellation notification."""
+
+    async def scenario() -> None:
+        service = _service(tmp_path)
+        coordinator = service.run_launcher.__self__
+        service.run_launcher = None
+        coordinator._pending_poll_seconds = 0.02
+        coordinator.executor = _RestartFakeExecutor(ARCHITECTURE)
+
+        # One-shot harness-side failure: the FIRST heartbeat append raises,
+        # leaving an acknowledged in-flight execution with the run `running`.
+        original_append = HubRepository.append_execution_heartbeat
+        heartbeat_calls = 0
+
+        def flaky_append_execution_heartbeat(self, *args, **kwargs):
+            nonlocal heartbeat_calls
+            heartbeat_calls += 1
+            if heartbeat_calls == 1:
+                raise sqlite3.OperationalError("database is locked")
+            return original_append(self, *args, **kwargs)
+
+        monkeypatch.setattr(
+            HubRepository, "append_execution_heartbeat", flaky_append_execution_heartbeat
+        )
+
+        project = await _create_project(service, key="create-watcher")
+        started, _, _ = await _start_phase_one(
+            service, project.project_id, key="start-watcher"
+        )
+
+        # Pass 1: heartbeat failure -> run stays `running` with an
+        # acknowledged execution.
+        await coordinator.run(started.run_id)
+        detail = await service.get_run(project.project_id, started.run_id)
+        assert detail.state == "running", detail.terminal_reason
+
+        # Pass 2: reconcile is non-terminal -> RoleExecutionPending; the
+        # pending watcher starts inside the coordinator.
+        await coordinator.run(started.run_id)
+        detail = await service.get_run(project.project_id, started.run_id)
+        assert detail.state == "running", detail.terminal_reason
+
+        # The external process now exits. WITHOUT calling coordinator.run()
+        # again, the watcher must re-schedule the run to a terminal state.
+        coordinator.executor.reconcile_suspended = False
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + 3.0
+        while True:
+            detail = await service.get_run(project.project_id, started.run_id)
+            if detail.state in TERMINAL_STATES:
+                break
+            assert loop.time() < deadline, (
+                "Pending-execution watcher never re-scheduled the run; "
+                f"state is still {detail.state!r}."
+            )
+            await asyncio.sleep(0.02)
+        assert detail.state == "published", detail.terminal_reason
+
+        closures = service.repository.list_role_closures_for_run(started.run_id)
+        assert closures
+        for closure in closures:
+            payload = json.loads(closure["payload_json"])
+            assert payload["status"] == "succeeded", payload
+
+    asyncio.run(scenario())
+
+
 class _NullIdentityVersionExecutor(SchemaExampleFakeExecutor):
     """Emit schema examples whose identity block carries a null version."""
 

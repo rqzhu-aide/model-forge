@@ -80,6 +80,7 @@ class RunCoordinator:
         artifacts: ArtifactStore,
         role_resources: RoleResourceCatalog,
         executor: RoleExecutor,
+        pending_poll_seconds: float = 5.0,
     ) -> None:
         self.settings = settings
         self.specification = specification
@@ -95,6 +96,8 @@ class RunCoordinator:
         self.publisher = ContractPublicationService(repository)
         self._locks: dict[str, asyncio.Lock] = {}
         self._tasks: set[asyncio.Task[None]] = set()
+        self._pending_poll_seconds = pending_poll_seconds
+        self._pending_watchers: dict[tuple[str, str], asyncio.Task[None]] = {}
         resource_root = Path(__file__).resolve().parents[3] / "resources"
         self._skill_manifest = load_json(resource_root / "skills" / "manifest.json")
         team_root = resource_root / "team"
@@ -186,6 +189,36 @@ class RunCoordinator:
         task = asyncio.create_task(self.run(run_id))
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
+
+    def _watch_pending_execution(self, run_id: str, pending: RoleExecutionPending) -> None:
+        external_id = pending.external_execution_id
+        if external_id is None:
+            return
+        key = (run_id, external_id)
+        if key in self._pending_watchers:
+            return
+        task = asyncio.create_task(self._watch_pending(run_id, external_id))
+        self._pending_watchers[key] = task
+        task.add_done_callback(lambda _t: self._pending_watchers.pop(key, None))
+
+    async def _watch_pending(self, run_id: str, external_id: str) -> None:
+        """Poll a pending external execution; re-schedule the run on exit."""
+        while True:
+            await asyncio.sleep(self._pending_poll_seconds)
+            try:
+                row = self.repository.get_run(run_id)
+            except Exception:
+                return
+            if str(row["status"]) != "running":
+                return
+            try:
+                result = await self.executor.reconcile(external_id)
+            except Exception:
+                logger.exception("Pending-execution watcher reconcile failed for run %s.", run_id)
+                continue
+            if result is not None:
+                self._schedule(run_id)
+                return
 
     def _prepare(self, run_id: str) -> None:
         manifest_row = self.repository.get_manifest(run_id)
@@ -310,10 +343,15 @@ class RunCoordinator:
                 plan=plan,
                 services=ProgressReportingServices(services, self.lifecycle),
             )
-        except (RoleExecutionPending, RoleExecutionInfrastructureError):
+        except RoleExecutionPending as pending:
             # Restart-safe recovery: an acknowledged execution is still in
-            # flight, or harness bookkeeping hit a transient failure. Leave
-            # the run `running`; the next resume/notify pass reconciles.
+            # flight. Leave the run `running`, and watch the external
+            # process so the run is re-scheduled the moment it finishes.
+            self._watch_pending_execution(run_id, pending)
+            return True
+        except RoleExecutionInfrastructureError:
+            # Harness bookkeeping hit a transient failure. Leave the run
+            # `running`; the next resume/notify pass reconciles.
             return True
         if result.status is OrchestrationStatus.SUBMITTED:
             return False

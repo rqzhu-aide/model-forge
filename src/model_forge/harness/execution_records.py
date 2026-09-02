@@ -23,6 +23,12 @@ class RoleLifecycleError(RuntimeError):
 class RoleExecutionPending(RoleLifecycleError):
     """An acknowledged external execution has not reached a terminal state."""
 
+    def __init__(
+        self, message: str, *, external_execution_id: str | None = None
+    ) -> None:
+        super().__init__(message)
+        self.external_execution_id = external_execution_id
+
 
 class RoleExecutionInfrastructureError(RoleLifecycleError):
     """Harness-side bookkeeping failed; the execution outcome is unknown.

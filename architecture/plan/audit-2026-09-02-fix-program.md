@@ -172,7 +172,20 @@ linked artifacts; otherwise it is linked and the recorded digest speaks
 for itself. Regression: companion written BEFORE the JSON is linked;
 genuine stale leftover (digest matches prior closure) is still skipped.
 
-### P-F: Phase-view query keeps previous data (F2)
+### P-F: Phase-view query keeps previous data (F2) -- DONE
+
+DONE 2026-09-02: commit c50cf88. Vitest 183 -> 185 (+2, both proven to
+fail pre-fix); tsc 0, build ok, validate_package.py exit 0 (all re-run by
+the coordinator). Implementation: `placeholderData: keepPreviousData` on
+the mode/method-keyed phase query; an aria-live busy note wired to
+`isFetching`; the rerun prefill is withheld while `isPlaceholderData` so
+RunForm's apply effect cannot stamp from the stale view (real hazard
+found in the required placeholder-window audit; the other effects were
+verified safe). Incident recorded: the program cron fired mid-package and
+its session ran P-F concurrently; the two subagents collided twice, the
+first converged a merged tree, and the coordinator verified the merged
+result end-to-end (diff, all four gates). Cron paused for the remainder
+of the foreground-driven program.
 
 `PhasePage.tsx`: `placeholderData: keepPreviousData` (TanStack v5) on the
 phase query so a mode/method switch renders the stale view with a busy

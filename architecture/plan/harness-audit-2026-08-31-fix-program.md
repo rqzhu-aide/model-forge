@@ -331,10 +331,44 @@ attention-item.schema.json rendering unchanged).
 
 - R16: fixed per above; regression tests named above.
 
-### P-I: P3 sweep (R18-R25, R27-R31, R36)
+### P-I: P3 sweep (R18-R25, R27-R31, R36) -- DONE
 
-Small, independent hardening fixes; one commit, one regression test each
-where cheap:
+DONE 2026-09-01: pins commit 9dc592b, fix commit ba713a4. Tests 1373 ->
+1388 (+15, in two new files tests/test_p3_hardening_harness.py and
+tests/test_p3_hardening_submission.py: test_symlinked_output_is_not_regular_file,
+test_canonical_input_pointer_rejects_traversal,
+test_compact_view_skips_summary_less_envelope,
+test_stableid_positions_cache_stores_success_only,
+test_has_cycle_deep_chain_iterative, test_has_cycle_deep_cycle_detected,
+test_preserve_raw_output_propagates_put_bytes_failures,
+test_preserve_raw_output_fallback_when_put_bytes_missing,
+test_companion_scan_skips_outside_workspace,
+test_companion_scan_skips_stale_leftovers,
+test_unreadable_submission_payload_is_operational,
+test_run_submission_schema_finding_reclassifies_harness_owned,
+test_promote_revalidation_failure_is_classified,
+test_phase_semantics_guards_non_object_identity,
+test_execution_components_reports_missing_instructions; the coordinator
+verified all fourteen defect-pinning tests fail on pre-fix code with the
+predicted defects via per-file stash-revert probes - the fifteenth,
+test_preserve_raw_output_fallback_when_put_bytes_missing, is a
+behavior-preservation guard for the R30 fallback). Gates: pytest exit 0
+(1388 passed), validate_package.py exit 0 (run after the commit tree was
+final). Stray-write sweep clean. Executed as two parallel lanes against
+the committed pins doc (plan/harness-audit-2026-08-31-pi-pins.md, which
+records the re-probed live-tree locations - audit line numbers had
+drifted - and one pinned interpretation: R31 "stale" means mtime strictly
+older than the validated output, since the audit does not define it).
+One documented pin deviation: the R24 test uses real sha256 digests
+because the placeholder guard skips single-character digests before the
+fallback path. R23 is comment-only per plan ("where cheap"). Also in
+scope per run directive: the environmental TestHermesVersion flake fix,
+a single-constant bump of the version-probe timeout
+(local_hermes.py wait_for timeout 10 -> 30); no test depends on the
+value.
+
+- R18-R25, R27-R31, R36: fixed per the pins doc; regression tests named
+  above.
 
 - R18: pre-resolve symlink check in `outputs.py:173-198`.
 - R19: basename/containment check for `input://` names in

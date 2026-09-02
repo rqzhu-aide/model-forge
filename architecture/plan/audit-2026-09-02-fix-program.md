@@ -214,7 +214,21 @@ as appropriate (`styles.css:2971, 1223, 2808, 3145, 3153, 3103, 3201,
 3222, 2880`); delete the unused `--canvas-strong` (`:7`, `:61`).
 WCAG-verify the new pairs (>= 4.5:1 for text-bearing surfaces).
 
-### P-H: Rerun-flow UI repairs (F11, F12, F21)
+### P-H: Rerun-flow UI repairs (F11, F12, F21) -- DONE
+
+DONE 2026-09-02: commit b5ebb3b. Vitest 190 -> 195 (+5; four proven to
+fail pre-fix, the fifth guards the prefill no-persist contract by
+design); tsc 0, build ok, validator exit 0. Implemented directly by the
+coordinator after two subagent attempts died on provider API timeouts
+before making any edits (tree verified clean both times). Landed
+behavior: navigation resets the explicit-mode override so a rerun
+link's frozen basis wins again (F11); the prefill is passed only when
+the frozen mode is still offered, with an honest "no longer offered"
+note otherwise (F12); the placeholder window is guarded by a
+`rerunReady` flag instead of prop withholding, so the apply-once marker
+survives placeholder windows and the prefill can never re-stamp over
+user edits (P-F interaction); same-value `applyExternal` no longer
+strands the draft skip flag (F21).
 
 - F11: reset `userModeOverride` in the phase/project/searchParams effect
   (`PhasePage.tsx:35-40`).

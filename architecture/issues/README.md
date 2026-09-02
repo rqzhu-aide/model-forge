@@ -7,9 +7,9 @@ items are marked in place and the document retires to
 ## Documents
 
 - [open-decisions-memo-2026-08-25.md](open-decisions-memo-2026-08-25.md) -
-  the decision queue for Tez (D-1 through D-9 plus later items). D-1, D-7,
-  and D-9 are decided and landed; the remaining items carry the coder's
-  recommendations and wait on Tez.
+  the decision queue for Tez (D-1 through D-9 plus later items). As of
+  2026-09-02 every item is decided and landed or resolved in place; only
+  D-6 (the K-7 reviewer-memory boundary) remains, open by design.
 - [context-selection-issues.md](context-selection-issues.md) - cross-phase
   context-card audit findings (2026-08-07). P0-2 is RESOLVED (folded into
   memo D-1 and landed 2026-08-26 with P5 contract 2.4.0; P5 is now at

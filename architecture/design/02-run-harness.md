@@ -300,6 +300,19 @@ overwrite is recorded as a disclosed transformation, never silently. Fields
 blamed by a validation finding that the harness owns are reclassified as
 operational failures (ADR-015) rather than agent-correctable defects.
 
+Provenance-class harness-owned fields (`record_type`, `to_role`,
+`review_basis_generation_id`) follow a strip-when-empty rule: when the
+sealed run fact for such a field is empty, an agent-supplied value is
+deleted rather than validated, so a fabricated value can never pass on its
+own. The embedded `content_sha256` is recomputed after all pointer and
+identity stamping, so the sealed digest always covers the sealed bytes
+under the digest contracts. Reclassification is mode-aware: `identity` and
+`lineage` count as harness-owned only in method-bound runs, because
+catalog modes leave them agent-authored by design. Disclosed
+transformations are recorded with population-aware codes
+(`generation_identity_strip`, `harness_population_overwrite`) so the audit
+trail attributes each mechanical rewrite to the harness, not to the agent.
+
 ### 8.2 Identity and provenance validation
 
 Checks:
@@ -361,6 +374,16 @@ The publisher must perform the following logical transaction:
 9. Replay the proposed events over the prior committed state to prepare complete derived record-state projections and one new current index.
 10. Commit the staged generations, authority events, derived projections, current index, and publication receipt as one atomic operation.
 11. Mark the run `published` only after the committed state can be read and verified.
+
+Binding enforcement is fail-closed at materialization time. A binding is
+rejected when it is not applicable to the run's sealed mode, when a
+replace-style transform did not consume exactly the declared frozen prior
+inputs, or when a bundle component was not registered as a digest-verified
+artifact. The publication basis (authority head plus the full current-slot
+inventory) is captured in a single storage transaction, so the generation
+checks and the staged transaction never observe a mixed snapshot. Derived
+index reducers fail closed on a malformed prior index instead of degrading
+to a partial merge.
 
 The source run artifacts remain unchanged. A formal generation may contain verified copies, content-addressed references, or a package of selected run outputs. Later authority or dependency changes append events and rebuild projections; they never rewrite a committed content generation or change its digest.
 
@@ -492,6 +515,16 @@ All state transitions are journaled durably. On restart:
 - Recovery verifies the append-only authority-event sequence and replays it to reconstruct derived record state and the current index. Replayed projections must match the last committed publication receipt before new work is published.
 - Recovery separately verifies every retained raw command-request artifact, the contiguous operational-audit sequence, each RFC 8785 content digest, and the binary prior-root chain. It blocks new commands on a gap or mismatch without treating the audit journal as scientific state.
 - Duplicate commands with the same idempotency key return the original run rather than creating another.
+
+A restart with role work in flight never fails the run by itself. When an
+acknowledged execution's external process is still unresolved, the
+advancement pass ends without a state change and a later resume or
+notification pass reconciles the execution against the executor. Harness
+bookkeeping failures (persistence or observer errors, distinct from
+executor-domain failures) are never sealed into a FAILED closure: they
+abort the pass with the run left `running`, and reconciliation retries on
+the next pass. Only genuine executor-domain failures close a role as
+`failed`.
 
 ## 12. Harness interfaces
 

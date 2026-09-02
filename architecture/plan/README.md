@@ -6,9 +6,16 @@ specification or decision record before code relies on such a change.
 
 ## Active plans
 
+None as of 2026-09-02.
+
+## Recently completed (retained here for their pin documents)
+
 - [harness-audit-2026-08-31-fix-program.md](harness-audit-2026-08-31-fix-program.md) -
   fix program for the 2026-08-31 harness audit (R1-R37), packages P-A
-  through P-J.
+  through P-K. COMPLETE 2026-09-02; all packages landed or explicitly
+  decided-no-change (R17, R37). The per-package implementation pins
+  (`harness-audit-2026-08-31-p*-pins.md`) remain in this directory because
+  the archived audit doc and its closure note link to them here.
 
 ## Supporting documents
 

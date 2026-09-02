@@ -137,8 +137,20 @@ attempt: outputs present -> validate them (attempt spent only on the
 validation outcome); outputs absent -> classify interrupted, no spend.
 Depends on P-A.
 
-### P-E: Companion-artifact digest exclusion (F8)
+### P-E: Companion-artifact digest exclusion (F8) -- BLOCKED, needs Tez
 
+BLOCKED 2026-09-02 (contradiction rule): pre-implementation verification
+found the `adapt()` result is discarded at its only production call site
+(`role_execution.py:2937`) and `AdaptedOutput`/`linked_artifacts` have no
+production consumers - the companion scan is decorative machinery, so the
+F8 mtime defect has zero production effect. Awaiting Tez's decision:
+(a) wire linked artifacts into the sealed closure (designed feature,
+contract work), (b) delete the decorative adapt path (coder's
+recommendation, per the retired-code rule), or (c) fix the mtime rule
+anyway. The original pin (digest-based exclusion, approved) applies
+verbatim if (a) or (c) is chosen:
+
+Original pin (kept for the chosen resolution):
 `harness/output_adapters.py:106-109`: replace the mtime rule with
 digest-based prior-attempt exclusion (approved decision): a same-stem
 sibling is skipped only when its digest appears in the prior closure's

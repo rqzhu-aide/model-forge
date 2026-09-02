@@ -18,7 +18,10 @@ import asyncio
 import dataclasses
 import hashlib
 import json
+import sqlite3
 from pathlib import Path
+
+import pytest
 
 from model_forge.contracts import (
     ResolvedPhasePlan,
@@ -33,6 +36,10 @@ from model_forge.executors import (
     RoleExecutionStatus,
 )
 from model_forge.harness.execution_context import RunExecutionContext
+from model_forge.harness.execution_records import (
+    RoleExecutionInfrastructureError,
+    RoleExecutionPending,
+)
 from model_forge.harness.outputs import build_output_plan
 from model_forge.harness.preparation import PreparedRunRecipe
 from model_forge.harness.stage_execution import HarnessExecutionServices
@@ -103,7 +110,9 @@ def _digest(character: str) -> str:
 
 
 class _Fixture:
-    def __init__(self, tmp_path: Path, executor) -> None:
+    def __init__(
+        self, tmp_path: Path, executor, plan: ResolvedPhasePlan | None = None
+    ) -> None:
         self.workspace = WorkspacePaths(tmp_path / "workspace", create=True)
         self.artifacts = ArtifactStore(self.workspace)
         self.repository = HubRepository(self.workspace.root / "hub.sqlite3")
@@ -141,7 +150,7 @@ class _Fixture:
             f"artifact://sha256/{method.sha256}",
             {"kind": "method", "storage_relative_path": method.relative_path},
         )
-        self.plan = _plan()
+        self.plan = plan if plan is not None else _plan()
         self.output_plan = build_output_plan(self.plan)
         recipe_document = {
             "format": "model-forge.prepared-run-recipe",
@@ -207,6 +216,7 @@ class _Fixture:
         recipe_sha256 = hashlib.sha256(canonicalize(recipe_document)).hexdigest()
         self.recipe = PreparedRunRecipe(recipe_document, recipe_sha256)
         self.repository.freeze_manifest("run.closure_test", recipe_sha256, recipe_document)
+        roles = [step.role for stage in self.plan.stages for step in stage.role_steps]
         self.context = RunExecutionContext(
             run_id="run.closure_test",
             project_id="project.closure_test",
@@ -215,8 +225,8 @@ class _Fixture:
             plan=self.plan,
             output_plan=self.output_plan,
             phase_instruction="Use the exact selected method.",
-            role_souls={"research_lead": "State the decision basis."},
-            preloaded_skills={"research_lead": ()},
+            role_souls={role: "State the decision basis." for role in roles},
+            preloaded_skills={role: () for role in roles},
         )
         self.executor = executor
         self.schemas = _PermissiveSchemas()
@@ -289,3 +299,92 @@ def test_raw_preservation_failure_fails_closed(tmp_path: Path, monkeypatch) -> N
     outcome = fixture.execute()
     assert outcome.status is StageStatus.FAILED
     assert outcome.failure_code == "output.raw_preservation_failed"
+
+
+def test_close_path_artifact_failure_raises_infrastructure_error(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """F4 (audit 2026-09-02): a transient repository failure while recording
+    the closure artifact must surface as RoleExecutionInfrastructureError
+    (non-sealing, retryable) - ZERO closure rows are written and the run row
+    stays `running`, never a run-fatal generic error."""
+    fixture = _Fixture(tmp_path, DeterministicFakeExecutor())
+
+    original_record_artifact = HubRepository.record_artifact
+    failed = False
+
+    def flaky_record_artifact(self, artifact_id, *args, **kwargs):
+        nonlocal failed
+        metadata = args[5] if len(args) > 5 else kwargs.get("payload", {})
+        if (
+            not failed
+            and isinstance(metadata, dict)
+            and metadata.get("kind") == "role_invocation_closure"
+        ):
+            failed = True
+            raise sqlite3.OperationalError("database is locked")
+        return original_record_artifact(self, artifact_id, *args, **kwargs)
+
+    monkeypatch.setattr(HubRepository, "record_artifact", flaky_record_artifact)
+
+    with pytest.raises(RoleExecutionInfrastructureError):
+        fixture.execute()
+    assert failed
+    assert fixture.repository.list_role_closures_for_run("run.closure_test") == []
+    assert fixture.repository.get_run("run.closure_test")["status"] == "running"
+
+
+def _parallel_plan() -> ResolvedPhasePlan:
+    stage = ResolvedStage(
+        sequence=1,
+        stage_id="p4.parallel",
+        execution="parallel",
+        objective="Produce a decision and a note concurrently.",
+        role_steps=(
+            ResolvedRoleStep("role_a", ("p4.method",), ("p4.decision",)),
+            ResolvedRoleStep("role_b", ("p4.method",), ("p4.optional_note",)),
+        ),
+        writes=("p4.decision", "p4.optional_note"),
+        handoff_required=False,
+        isolation_rule=None,
+    )
+    return ResolvedPhasePlan(
+        identity=PhaseContractIdentity("P4", "1.0.0", "a" * 64),
+        mode_id="p4.preliminary",
+        choice_values={"p4.instructions": "Use the exact selected method."},
+        context_policy="current_only",
+        stages=(stage,),
+        output_contracts=(
+            _output("p4.decision", "role_a", required=True),
+            _output("p4.optional_note", "role_b", required=False),
+        ),
+        prepared_contexts=(),
+        validation_rules=(),
+        publication_bindings=(),
+        promotion={},
+    )
+
+
+def test_parallel_stage_prefers_pending_over_generic_error(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """F4 (audit 2026-09-02): when a parallel gather yields several errors,
+    the recoverable lifecycle error (Pending/Infrastructure) is re-raised
+    over a generic sibling error - declaration order must not strand the
+    in-flight role.  role_a (declared FIRST) raises the generic error, so
+    pre-fix ``errors[0]`` is the generic one."""
+    fixture = _Fixture(tmp_path, DeterministicFakeExecutor(), plan=_parallel_plan())
+
+    async def fake_execute_or_reconcile(*, stage, role, inputs):
+        if role == "role_a":
+            raise RuntimeError("generic sibling failure declared first")
+        raise RoleExecutionPending(
+            f"Execution for {role} is acknowledged but not terminal."
+        )
+
+    monkeypatch.setattr(
+        fixture.services.roles, "execute_or_reconcile", fake_execute_or_reconcile
+    )
+
+    with pytest.raises(RoleExecutionPending):
+        fixture.execute()

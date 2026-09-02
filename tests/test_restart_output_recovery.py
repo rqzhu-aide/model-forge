@@ -166,20 +166,30 @@ class _VanishedProcessExecutor(SchemaExampleFakeExecutor):
 
 def _flaky_first_heartbeat(monkeypatch) -> None:
     """One-shot harness-side failure leaving an acknowledged execution with
-    the run `running` (simulating the restart mid-pass)."""
-    original_append = HubRepository.append_execution_heartbeat
-    heartbeat_calls = 0
+    the run `running` (simulating the restart mid-pass).
 
-    def flaky_append_execution_heartbeat(self, *args, **kwargs):
-        nonlocal heartbeat_calls
-        heartbeat_calls += 1
-        if heartbeat_calls == 1:
+    P-B (audit 2026-09-02, F3/F4): heartbeat bookkeeping is now best-effort,
+    so the interruption point moved to the close path - the FIRST closure
+    ``record_artifact`` raises a transient DB error and surfaces as a
+    non-sealing RoleExecutionInfrastructureError.  HubRepository uses
+    __slots__, so the wrap is applied at the class level.
+    """
+    original_record_artifact = HubRepository.record_artifact
+    failed = False
+
+    def flaky_record_artifact(self, artifact_id, *args, **kwargs):
+        nonlocal failed
+        metadata = args[5] if len(args) > 5 else kwargs.get("payload", {})
+        if (
+            not failed
+            and isinstance(metadata, dict)
+            and metadata.get("kind") == "role_invocation_closure"
+        ):
+            failed = True
             raise sqlite3.OperationalError("database is locked")
-        return original_append(self, *args, **kwargs)
+        return original_record_artifact(self, artifact_id, *args, **kwargs)
 
-    monkeypatch.setattr(
-        HubRepository, "append_execution_heartbeat", flaky_append_execution_heartbeat
-    )
+    monkeypatch.setattr(HubRepository, "record_artifact", flaky_record_artifact)
 
 
 async def _drive_to_terminal(service, coordinator, project_id: str, run_id: str):
@@ -208,8 +218,8 @@ def test_vanished_process_with_all_outputs_recovers_success(
             service, project.project_id, key="start-recover-success"
         )
 
-        # Pass 1: heartbeat failure leaves an acknowledged execution whose
-        # outputs are all on disk; the run stays `running`.
+        # Pass 1: the close-path bookkeeping failure leaves an acknowledged
+        # execution whose outputs are all on disk; the run stays `running`.
         await coordinator.run(started.run_id)
         detail = await service.get_run(project.project_id, started.run_id)
         assert detail.state == "running", detail.terminal_reason

@@ -2160,17 +2160,33 @@ class RoleLifecycleService:
                 prior_attempt_id = (
                     str(prior["attempt_id"]) if prior is not None else None
                 )
-                self.repository.record_validation_attempt(
-                    attempt_id,
-                    run_id,
-                    ordinal,
-                    registry_version(),
-                    json.dumps(report.to_dict(), sort_keys=True),
-                    source_sha256,
-                    correction_type=self.context.correction_type,
-                    prior_attempt_id=prior_attempt_id,
-                    correction_command_id=self.context.correction_command_id,
-                )
+                # F4 (audit 2026-09-02): a transient repository failure while
+                # recording the bounded attempt must surface as an
+                # infrastructure error (non-sealing, retryable), never as a
+                # run-fatal generic error.  Conflicts keep their
+                # integrity/concurrency semantics and are never converted.
+                try:
+                    self.repository.record_validation_attempt(
+                        attempt_id,
+                        run_id,
+                        ordinal,
+                        registry_version(),
+                        json.dumps(report.to_dict(), sort_keys=True),
+                        source_sha256,
+                        correction_type=self.context.correction_type,
+                        prior_attempt_id=prior_attempt_id,
+                        correction_command_id=self.context.correction_command_id,
+                    )
+                except RoleExecutionInfrastructureError:
+                    raise
+                except RepositoryConflictError:
+                    raise
+                except Exception as error:
+                    raise RoleExecutionInfrastructureError(
+                        f"Harness bookkeeping for validation attempt "
+                        f"{attempt_id} failed: "
+                        f"{type(error).__name__}: {error}"
+                    ) from error
         elif status is RoleExecutionStatus.FAILED:
             failure_code = "executor.role_failed"
             if self.context.correction_type is not None:
@@ -2199,23 +2215,34 @@ class RoleLifecycleService:
                     ],
                 )
                 prior = self.repository.get_latest_validation_attempt(run_id)
-                self.repository.record_validation_attempt(
-                    attempt_id,
-                    run_id,
-                    ordinal,
-                    registry_version(),
-                    json.dumps(report.to_dict(), sort_keys=True),
-                    hashlib.sha256(
-                        f"{self.context.correction_type}:executor_failed".encode(
-                            "utf-8"
-                        )
-                    ).hexdigest(),
-                    correction_type=self.context.correction_type,
-                    prior_attempt_id=(
-                        str(prior["attempt_id"]) if prior is not None else None
-                    ),
-                    correction_command_id=self.context.correction_command_id,
-                )
+                try:
+                    self.repository.record_validation_attempt(
+                        attempt_id,
+                        run_id,
+                        ordinal,
+                        registry_version(),
+                        json.dumps(report.to_dict(), sort_keys=True),
+                        hashlib.sha256(
+                            f"{self.context.correction_type}:executor_failed".encode(
+                                "utf-8"
+                            )
+                        ).hexdigest(),
+                        correction_type=self.context.correction_type,
+                        prior_attempt_id=(
+                            str(prior["attempt_id"]) if prior is not None else None
+                        ),
+                        correction_command_id=self.context.correction_command_id,
+                    )
+                except RoleExecutionInfrastructureError:
+                    raise
+                except RepositoryConflictError:
+                    raise
+                except Exception as error:
+                    raise RoleExecutionInfrastructureError(
+                        f"Harness bookkeeping for validation attempt "
+                        f"{attempt_id} failed: "
+                        f"{type(error).__name__}: {error}"
+                    ) from error
 
         if status is RoleExecutionStatus.CANCELLED:
             failure_code = None
@@ -2254,20 +2281,36 @@ class RoleLifecycleService:
             closure_bytes, expected_sha256=hashlib.sha256(closure_bytes).hexdigest()
         )
         closure_artifact_id = _closure_artifact_id(closure_id)
-        self.repository.record_artifact(
-            closure_artifact_id,
-            str(self.context.project_id),
-            str(stored.sha256),
-            stored.size,
-            "application/json",
-            f"artifact://sha256/{stored.sha256}",
-            {
-                "kind": "role_invocation_closure",
-                "run_id": run_id,
-                "closure_id": closure_id,
-                "storage_relative_path": stored.relative_path,
-            },
-        )
+        # F4 (audit 2026-09-02): close-path bookkeeping runs under the same
+        # non-sealing infrastructure-error semantics as the launch path - a
+        # transient repository failure here must leave the run `running`
+        # for a later reconcile, never fail the run.  Conflicts are
+        # integrity/concurrency semantics and are never converted.
+        try:
+            self.repository.record_artifact(
+                closure_artifact_id,
+                str(self.context.project_id),
+                str(stored.sha256),
+                stored.size,
+                "application/json",
+                f"artifact://sha256/{stored.sha256}",
+                {
+                    "kind": "role_invocation_closure",
+                    "run_id": run_id,
+                    "closure_id": closure_id,
+                    "storage_relative_path": stored.relative_path,
+                },
+            )
+        except RoleExecutionInfrastructureError:
+            raise
+        except RepositoryConflictError:
+            raise
+        except Exception as error:
+            raise RoleExecutionInfrastructureError(
+                f"Harness bookkeeping for closure "
+                f"{closure_id} failed: "
+                f"{type(error).__name__}: {error}"
+            ) from error
         try:
             self.repository.close_execution(
                 invocation.execution_id,
@@ -2286,6 +2329,14 @@ class RoleLifecycleService:
             if recovered is not None:
                 return recovered
             raise
+        except RoleExecutionInfrastructureError:
+            raise
+        except Exception as error:
+            raise RoleExecutionInfrastructureError(
+                f"Harness bookkeeping for closure "
+                f"{closure_id} failed: "
+                f"{type(error).__name__}: {error}"
+            ) from error
         return RoleClosureResult(
             role=role,
             status=status,
@@ -2906,20 +2957,36 @@ class RoleLifecycleService:
             closure_bytes, expected_sha256=hashlib.sha256(closure_bytes).hexdigest()
         )
         closure_artifact_id = _closure_artifact_id(closure_id)
-        self.repository.record_artifact(
-            closure_artifact_id,
-            str(self.context.project_id),
-            str(stored.sha256),
-            stored.size,
-            "application/json",
-            f"artifact://sha256/{stored.sha256}",
-            {
-                "kind": "role_invocation_closure",
-                "run_id": str(self.context.run_id),
-                "closure_id": closure_id,
-                "storage_relative_path": stored.relative_path,
-            },
-        )
+        # F4 (audit 2026-09-02): close-path bookkeeping runs under the same
+        # non-sealing infrastructure-error semantics as the launch path - a
+        # transient repository failure here must leave the run `running`
+        # for a later reconcile, never fail the run.  Conflicts are
+        # integrity/concurrency semantics and are never converted.
+        try:
+            self.repository.record_artifact(
+                closure_artifact_id,
+                str(self.context.project_id),
+                str(stored.sha256),
+                stored.size,
+                "application/json",
+                f"artifact://sha256/{stored.sha256}",
+                {
+                    "kind": "role_invocation_closure",
+                    "run_id": str(self.context.run_id),
+                    "closure_id": closure_id,
+                    "storage_relative_path": stored.relative_path,
+                },
+            )
+        except RoleExecutionInfrastructureError:
+            raise
+        except RepositoryConflictError:
+            raise
+        except Exception as error:
+            raise RoleExecutionInfrastructureError(
+                f"Harness bookkeeping for closure "
+                f"{closure_id} failed: "
+                f"{type(error).__name__}: {error}"
+            ) from error
         try:
             self.repository.close_execution(
                 invocation.execution_id,
@@ -2938,6 +3005,14 @@ class RoleLifecycleService:
             if recovered is not None:
                 return recovered
             raise
+        except RoleExecutionInfrastructureError:
+            raise
+        except Exception as error:
+            raise RoleExecutionInfrastructureError(
+                f"Harness bookkeeping for closure "
+                f"{closure_id} failed: "
+                f"{type(error).__name__}: {error}"
+            ) from error
         return RoleClosureResult(
             role=role,
             status=status,
@@ -2960,21 +3035,35 @@ class RoleLifecycleService:
         artifact_id = _output_artifact_id(
             self.context, spec, str(stored.sha256)
         )
-        self.repository.record_artifact(
-            artifact_id,
-            str(self.context.project_id),
-            str(stored.sha256),
-            stored.size,
-            "application/json",
-            f"artifact://sha256/{stored.sha256}",
-            {
-                "kind": "validated_role_output",
-                "run_id": str(self.context.run_id),
-                "contract_output_id": spec.contract_output_id,
-                "output_id": spec.output_id,
-                "storage_relative_path": stored.relative_path,
-            },
-        )
+        # F4 (audit 2026-09-02): same non-sealing infrastructure-error
+        # semantics as the rest of the close path; conflicts keep their
+        # integrity/concurrency semantics and are never converted.
+        try:
+            self.repository.record_artifact(
+                artifact_id,
+                str(self.context.project_id),
+                str(stored.sha256),
+                stored.size,
+                "application/json",
+                f"artifact://sha256/{stored.sha256}",
+                {
+                    "kind": "validated_role_output",
+                    "run_id": str(self.context.run_id),
+                    "contract_output_id": spec.contract_output_id,
+                    "output_id": spec.output_id,
+                    "storage_relative_path": stored.relative_path,
+                },
+            )
+        except RoleExecutionInfrastructureError:
+            raise
+        except RepositoryConflictError:
+            raise
+        except Exception as error:
+            raise RoleExecutionInfrastructureError(
+                f"Harness bookkeeping for output artifact "
+                f"{artifact_id} failed: "
+                f"{type(error).__name__}: {error}"
+            ) from error
         self._seal_authored_snapshot(spec, path)
         return SealedRoleOutput(
             contract_output_id=spec.contract_output_id,
@@ -3011,21 +3100,32 @@ class RoleLifecycleService:
             f"{spec.contract_output_id}.as_authored",
             str(stored.sha256),
         )
-        self.repository.record_artifact(
-            artifact_id,
-            str(self.context.project_id),
-            str(stored.sha256),
-            stored.size,
-            "application/json",
-            f"artifact://sha256/{stored.sha256}",
-            {
-                "kind": "authored_snapshot",
-                "run_id": str(self.context.run_id),
-                "contract_output_id": f"{spec.contract_output_id}.as_authored",
-                "output_id": spec.output_id,
-                "storage_relative_path": stored.relative_path,
-            },
-        )
+        try:
+            self.repository.record_artifact(
+                artifact_id,
+                str(self.context.project_id),
+                str(stored.sha256),
+                stored.size,
+                "application/json",
+                f"artifact://sha256/{stored.sha256}",
+                {
+                    "kind": "authored_snapshot",
+                    "run_id": str(self.context.run_id),
+                    "contract_output_id": f"{spec.contract_output_id}.as_authored",
+                    "output_id": spec.output_id,
+                    "storage_relative_path": stored.relative_path,
+                },
+            )
+        except RoleExecutionInfrastructureError:
+            raise
+        except RepositoryConflictError:
+            raise
+        except Exception as error:
+            raise RoleExecutionInfrastructureError(
+                f"Harness bookkeeping for output artifact "
+                f"{artifact_id} failed: "
+                f"{type(error).__name__}: {error}"
+            ) from error
 
     def _load_closure(
         self,

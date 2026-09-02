@@ -271,7 +271,14 @@ class _RestartFakeExecutor(SchemaExampleFakeExecutor):
         return None
 
 
-def test_restart_with_in_flight_role_recovers(tmp_path: Path, monkeypatch) -> None:
+def test_heartbeat_bookkeeping_failure_is_best_effort(
+    tmp_path: Path, monkeypatch, caplog
+) -> None:
+    """F3 (audit 2026-09-02): a transient repository failure at the execution
+    heartbeat is best-effort - it logs a warning and the healthy agent run
+    completes normally instead of being killed by the executor's tree-kill
+    finally or wedged unsealed."""
+
     async def scenario() -> None:
         service = _service(tmp_path)
         coordinator = service.run_launcher.__self__
@@ -301,24 +308,100 @@ def test_restart_with_in_flight_role_recovers(tmp_path: Path, monkeypatch) -> No
         )
         assert started.state == "created"
 
-        # Pass 1: the heartbeat raises inside the observer. The harness-side
-        # bookkeeping failure must NOT be sealed into a durable FAILED
-        # closure; the run stays running.
+        # The heartbeat failure is logged as a warning and the run drives to
+        # its normal terminal state - no interruption, no FAILED closure.
+        detail = await service.get_run(project.project_id, started.run_id)
+        with caplog.at_level(
+            "WARNING", logger="model_forge.harness.execution_observer"
+        ):
+            for _ in range(10):
+                await coordinator.run(started.run_id)
+                detail = await service.get_run(project.project_id, started.run_id)
+                if detail.state in TERMINAL_STATES:
+                    break
+        assert detail.state == "published", detail.terminal_reason
+        assert heartbeat_calls >= 1
+        assert any(
+            "heartbeat bookkeeping failed" in record.getMessage()
+            for record in caplog.records
+            if record.name == "model_forge.harness.execution_observer"
+        ), [record.getMessage() for record in caplog.records]
+
+        closures = service.repository.list_role_closures_for_run(started.run_id)
+        assert closures
+        for closure in closures:
+            payload = json.loads(closure["payload_json"])
+            assert payload["status"] == "succeeded", payload
+
+    asyncio.run(scenario())
+
+
+def _one_shot_closure_artifact_failure(monkeypatch) -> None:
+    """Fail the FIRST close-path ``record_artifact`` for a role closure with a
+    transient DB error; later calls delegate to the original method.
+
+    HubRepository uses __slots__, so the wrap is applied at the class level.
+    Output-artifact records (``validated_role_output``) still succeed - the
+    failure lands exactly on the closure artifact write.
+    """
+    original_record_artifact = HubRepository.record_artifact
+    failed = False
+
+    def flaky_record_artifact(self, artifact_id, *args, **kwargs):
+        nonlocal failed
+        metadata = args[5] if len(args) > 5 else kwargs.get("payload", {})
+        if (
+            not failed
+            and isinstance(metadata, dict)
+            and metadata.get("kind") == "role_invocation_closure"
+        ):
+            failed = True
+            raise sqlite3.OperationalError("database is locked")
+        return original_record_artifact(self, artifact_id, *args, **kwargs)
+
+    monkeypatch.setattr(HubRepository, "record_artifact", flaky_record_artifact)
+
+
+def test_close_path_artifact_failure_leaves_run_running_and_recovers(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """F4 (audit 2026-09-02): a transient repository failure while sealing the
+    closure surfaces as RoleExecutionInfrastructureError (non-sealing): the
+    coordinator leaves the run `running` with ZERO closure rows, and a later
+    pass reconciles the acknowledged execution to publication."""
+
+    async def scenario() -> None:
+        service = _service(tmp_path)
+        coordinator = service.run_launcher.__self__
+        service.run_launcher = None
+        coordinator.executor = _RestartFakeExecutor(ARCHITECTURE)
+        _one_shot_closure_artifact_failure(monkeypatch)
+
+        project = await _create_project(service, key="create-close-infra")
+        started, _, _ = await _start_phase_one(
+            service, project.project_id, key="start-close-infra"
+        )
+        assert started.state == "created"
+
+        # Pass 1: the close-path failure raises RoleExecutionInfrastructureError
+        # inside execute_or_reconcile; the coordinator leaves the run running.
+        # p1.discovery is a 3-role PARALLEL stage: the two sibling roles seal
+        # their closures legitimately, but the role whose close-path write
+        # failed has NO closure row.
         await coordinator.run(started.run_id)
         detail = await service.get_run(project.project_id, started.run_id)
         assert detail.state == "running", detail.terminal_reason
-        completed_after_pass_one = len(coordinator.executor.completed)
+        pass_one_closures = service.repository.list_role_closures_for_run(
+            started.run_id
+        )
+        assert len(pass_one_closures) == 2
+        pass_one_roles = {
+            json.loads(row["payload_json"])["role"] for row in pass_one_closures
+        }
+        assert len(pass_one_roles) == 2
 
-        # Pass 2: the acknowledgement exists and reconcile is still
-        # non-terminal, so the pass must leave the run running without
-        # re-executing the role.
-        await coordinator.run(started.run_id)
-        detail = await service.get_run(project.project_id, started.run_id)
-        assert detail.state == "running", detail.terminal_reason
-        assert len(coordinator.executor.completed) == completed_after_pass_one
-
-        # Pass 3+: reconcile now returns the completed result and the run
-        # drives to publication.
+        # Reconcile now returns the completed result; the close succeeds and
+        # the run drives to publication.
         coordinator.executor.reconcile_suspended = False
         for _ in range(10):
             await coordinator.run(started.run_id)
@@ -326,6 +409,15 @@ def test_restart_with_in_flight_role_recovers(tmp_path: Path, monkeypatch) -> No
             if detail.state in TERMINAL_STATES:
                 break
         assert detail.state == "published", detail.terminal_reason
+
+        closures = service.repository.list_role_closures_for_run(started.run_id)
+        closed_roles = {
+            json.loads(row["payload_json"])["role"] for row in closures
+        }
+        assert pass_one_roles < closed_roles  # the failed role sealed on retry
+        for closure in closures:
+            payload = json.loads(closure["payload_json"])
+            assert payload["status"] == "succeeded", payload
 
     asyncio.run(scenario())
 
@@ -342,29 +434,19 @@ def test_pending_execution_watcher_reschedules_run(tmp_path: Path, monkeypatch) 
         coordinator._pending_poll_seconds = 0.02
         coordinator.executor = _RestartFakeExecutor(ARCHITECTURE)
 
-        # One-shot harness-side failure: the FIRST heartbeat append raises,
-        # leaving an acknowledged in-flight execution with the run `running`.
-        original_append = HubRepository.append_execution_heartbeat
-        heartbeat_calls = 0
-
-        def flaky_append_execution_heartbeat(self, *args, **kwargs):
-            nonlocal heartbeat_calls
-            heartbeat_calls += 1
-            if heartbeat_calls == 1:
-                raise sqlite3.OperationalError("database is locked")
-            return original_append(self, *args, **kwargs)
-
-        monkeypatch.setattr(
-            HubRepository, "append_execution_heartbeat", flaky_append_execution_heartbeat
-        )
+        # One-shot harness-side failure: the FIRST close-path closure
+        # artifact record raises (F4), leaving an acknowledged in-flight
+        # execution with the run `running`.  (Pre-P-B this scenario used a
+        # heartbeat failure; heartbeats are best-effort since F3.)
+        _one_shot_closure_artifact_failure(monkeypatch)
 
         project = await _create_project(service, key="create-watcher")
         started, _, _ = await _start_phase_one(
             service, project.project_id, key="start-watcher"
         )
 
-        # Pass 1: heartbeat failure -> run stays `running` with an
-        # acknowledged execution.
+        # Pass 1: close-path infrastructure failure -> run stays `running`
+        # with an acknowledged execution.
         await coordinator.run(started.run_id)
         detail = await service.get_run(project.project_id, started.run_id)
         assert detail.state == "running", detail.terminal_reason

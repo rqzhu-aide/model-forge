@@ -61,6 +61,7 @@ from ..domain.validation import (
 )
 from ..executors import RoleExecutionStatus
 from ..harness.execution_records import (
+    RoleExecutionInfrastructureError,
     closure_artifact_id,
     correction_role_identity,
     deterministic_id,
@@ -81,7 +82,7 @@ from ..orchestration import StageOutcome, StageStatus, SubmissionStatus
 from ..schemas import SchemaCatalog
 from ..specification import SpecificationPackage
 from ..storage.artifacts import ArtifactStore
-from ..storage.repository import HubRepository
+from ..storage.repository import HubRepository, RepositoryConflictError
 from .correction import (
     ALLOWED_NORMALIZE_CODES,
     CorrectionResult,
@@ -417,23 +418,41 @@ def record_revalidation_closure(
     stored = artifacts.put_bytes(
         closure_bytes, expected_sha256=hashlib.sha256(closure_bytes).hexdigest()
     )
-    repository.record_artifact(
-        closure_artifact_id(c_closure_id),
-        str(payload["project_id"]),
-        str(stored.sha256),
-        stored.size,
-        "application/json",
-        f"artifact://sha256/{stored.sha256}",
-        {
-            "kind": "role_invocation_closure",
-            "run_id": run_id,
-            "closure_id": c_closure_id,
-            "storage_relative_path": stored.relative_path,
-        },
-    )
-    repository.close_execution(
-        c_execution_id, c_closure_id, closure_sha256, document
-    )
+    # F4 (audit 2026-09-02): the correction-family close path runs under the
+    # same non-sealing infrastructure-error semantics as the harness close
+    # path - a transient repository failure here marks the bookkeeping
+    # failure as retryable instead of surfacing as an opaque generic error.
+    # Conflicts keep their integrity/concurrency semantics (an exact replay
+    # short-circuits above; a DIFFERENT write must surface the conflict) and
+    # are never converted.
+    try:
+        repository.record_artifact(
+            closure_artifact_id(c_closure_id),
+            str(payload["project_id"]),
+            str(stored.sha256),
+            stored.size,
+            "application/json",
+            f"artifact://sha256/{stored.sha256}",
+            {
+                "kind": "role_invocation_closure",
+                "run_id": run_id,
+                "closure_id": c_closure_id,
+                "storage_relative_path": stored.relative_path,
+            },
+        )
+        repository.close_execution(
+            c_execution_id, c_closure_id, closure_sha256, document
+        )
+    except RoleExecutionInfrastructureError:
+        raise
+    except RepositoryConflictError:
+        raise
+    except Exception as error:
+        raise RoleExecutionInfrastructureError(
+            f"Harness bookkeeping for correction closure "
+            f"{c_closure_id} failed: "
+            f"{type(error).__name__}: {error}"
+        ) from error
     return c_closure_id
 
 @dataclass(frozen=True, slots=True)
@@ -779,23 +798,41 @@ def record_normalize_closure(
     stored = artifacts.put_bytes(
         closure_bytes, expected_sha256=hashlib.sha256(closure_bytes).hexdigest()
     )
-    repository.record_artifact(
-        closure_artifact_id(c_closure_id),
-        str(payload["project_id"]),
-        str(stored.sha256),
-        stored.size,
-        "application/json",
-        f"artifact://sha256/{stored.sha256}",
-        {
-            "kind": "role_invocation_closure",
-            "run_id": run_id,
-            "closure_id": c_closure_id,
-            "storage_relative_path": stored.relative_path,
-        },
-    )
-    repository.close_execution(
-        c_execution_id, c_closure_id, closure_sha256, document
-    )
+    # F4 (audit 2026-09-02): the correction-family close path runs under the
+    # same non-sealing infrastructure-error semantics as the harness close
+    # path - a transient repository failure here marks the bookkeeping
+    # failure as retryable instead of surfacing as an opaque generic error.
+    # Conflicts keep their integrity/concurrency semantics (an exact replay
+    # short-circuits above; a DIFFERENT write must surface the conflict) and
+    # are never converted.
+    try:
+        repository.record_artifact(
+            closure_artifact_id(c_closure_id),
+            str(payload["project_id"]),
+            str(stored.sha256),
+            stored.size,
+            "application/json",
+            f"artifact://sha256/{stored.sha256}",
+            {
+                "kind": "role_invocation_closure",
+                "run_id": run_id,
+                "closure_id": c_closure_id,
+                "storage_relative_path": stored.relative_path,
+            },
+        )
+        repository.close_execution(
+            c_execution_id, c_closure_id, closure_sha256, document
+        )
+    except RoleExecutionInfrastructureError:
+        raise
+    except RepositoryConflictError:
+        raise
+    except Exception as error:
+        raise RoleExecutionInfrastructureError(
+            f"Harness bookkeeping for correction closure "
+            f"{c_closure_id} failed: "
+            f"{type(error).__name__}: {error}"
+        ) from error
     return c_closure_id
 
 def preview_normalize(

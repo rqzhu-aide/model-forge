@@ -24,6 +24,8 @@ from .execution_context import RunExecutionContext
 from .role_execution import (
     FrozenInputPath,
     RoleClosureResult,
+    RoleExecutionInfrastructureError,
+    RoleExecutionPending,
     RoleLifecycleError,
     RoleLifecycleService,
     deterministic_id,
@@ -132,6 +134,16 @@ class HarnessExecutionServices:
             gathered = await asyncio.gather(*pending, return_exceptions=True)
             errors = tuple(item for item in gathered if isinstance(item, BaseException))
             if errors:
+                # F4 (audit 2026-09-02): when several parallel roles fail in
+                # one gather, surface the recoverable lifecycle error over a
+                # generic one - declaration order must not strand an
+                # in-flight sibling behind a sibling's close-path failure.
+                for error in errors:
+                    if isinstance(
+                        error,
+                        (RoleExecutionPending, RoleExecutionInfrastructureError),
+                    ):
+                        raise error
                 raise errors[0]
             results = tuple(item for item in gathered if isinstance(item, RoleClosureResult))
             if len(results) != len(role_inputs):

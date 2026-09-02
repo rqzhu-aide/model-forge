@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Mapping
 
 from ..executors import ExecutionObserver, RoleExecutor, RoleInvocation
 from ..storage.repository import HubRepository
 from .execution_records import RoleExecutionInfrastructureError, deterministic_id
+
+logger = logging.getLogger(__name__)
 
 
 class RepositoryExecutionObserver(ExecutionObserver):
@@ -68,6 +71,13 @@ class RepositoryExecutionObserver(ExecutionObserver):
             ) from error
 
     async def heartbeat(self, invocation: RoleInvocation, activity: str) -> None:
+        # Heartbeat rows are diagnostics, written at the highest frequency
+        # of any bookkeeping in the system (once per executor poll over a
+        # 30-75 minute run).  A transient repository failure here must NOT
+        # propagate: in the local_hermes poll loop a raise lands in the
+        # executor's tree-kill ``finally`` and terminates the healthy agent
+        # process (audit 2026-09-02, F3).  Log and continue instead; the
+        # strict close path is where infrastructure failures must surface.
         self.heartbeat_offset += 1
         heartbeat_id = deterministic_id(
             "heartbeat",
@@ -85,26 +95,27 @@ class RepositoryExecutionObserver(ExecutionObserver):
                     "offset": self.heartbeat_offset,
                 },
             )
-        except RoleExecutionInfrastructureError:
-            raise
         except Exception as error:
-            raise RoleExecutionInfrastructureError(
-                f"Harness bookkeeping for execution "
-                f"{invocation.execution_id} failed: "
-                f"{type(error).__name__}: {error}"
-            ) from error
+            logger.warning(
+                "Execution heartbeat bookkeeping failed for execution %s; "
+                "continuing best-effort: %s: %s",
+                invocation.execution_id,
+                type(error).__name__,
+                error,
+            )
+        cancellation_requested = False
         try:
             cancellation_requested = self.repository.cancellation_requested(
                 invocation.run_id
             )
-        except RoleExecutionInfrastructureError:
-            raise
         except Exception as error:
-            raise RoleExecutionInfrastructureError(
-                f"Harness bookkeeping for execution "
-                f"{invocation.execution_id} failed: "
-                f"{type(error).__name__}: {error}"
-            ) from error
+            logger.warning(
+                "Cancellation poll failed for execution %s; "
+                "continuing best-effort: %s: %s",
+                invocation.execution_id,
+                type(error).__name__,
+                error,
+            )
         if (
             not self.cancel_sent
             and self.external_execution_id is not None

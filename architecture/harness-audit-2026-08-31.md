@@ -471,3 +471,15 @@ a decision item, not a defect.
   no production change; P-G ships the planned mid-flight regression test
   (passes on the pre-package tree, pinning existing behavior) and the
   11.1 wording update.
+- 2026-09-02, Pkg J closure verification, R8 coverage gap: the fix
+  program never assigned R8 to any package, and R8 is not in the
+  decided-no-change set (R17, R37). Programmatic coverage check: all 37
+  findings accounted for except R8. Re-verified live on the post-P-I
+  tree: `_schema_record_type_const`, `_schema_info`, and
+  `_stableid_positions` still resolve schemas from the hardcoded
+  `parents[3]/architecture/schemas` (role_execution.py:1055, :1078,
+  :1263) and still swallow all failures silently (`:1060-1061`,
+  `:1106-1107`, and the `_stableid_positions` heuristic fallback),
+  while validation's SchemaCatalog honors the configured
+  architecture_root. Resolution: program extended with package P-K
+  (R8); closure (P-J) is blocked until P-K lands.

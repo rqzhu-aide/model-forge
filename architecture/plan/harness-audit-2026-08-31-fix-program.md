@@ -399,16 +399,47 @@ value.
   `.instructions` lookup a real error message
   (`run_coordinator.py:170,520-524`).
 
+### P-K: Schema helper root and failure signal (R8)
+
+Added 2026-09-02 after P-J closure verification found R8 unassigned
+(coverage gap recorded in the audit doc's Coordinator notes). Audit
+line numbers have drifted; the live-tree locations below were verified
+on the post-P-I tree.
+
+- R8: thread the configured schema directory into
+  `_schema_record_type_const`, `_schema_info`, and
+  `_stableid_positions` (`role_execution.py:1055,1078,1263`) in place of
+  the hardcoded `parents[3]/architecture/schemas`, so repair coverage
+  cannot silently diverge from the schemas validation actually uses
+  (SchemaCatalog honors the configured architecture_root). Log at ERROR
+  (or fail closed) when an existing schema file fails to parse,
+  replacing the silent `except Exception` swallows (`:1060-1061`,
+  `:1106-1107`, and the `_stableid_positions` heuristic fallback).
+  Regression tests: helpers honor a non-default architecture root; a
+  malformed existing schema file surfaces an ERROR signal instead of
+  silently degrading to empty schema info / name heuristics.
+
 ### P-J: Closure
 
 - Verify every R-number is either landed or explicitly recorded as
-  decided-no-change (R17, R37).
+  decided-no-change (R17, R37). DONE 2026-09-02 (programmatic check):
+  all findings accounted for once P-K was added; R8 was the sole gap.
 - Move `architecture/harness-audit-2026-08-31.md` to
   `architecture/archive/completed/` with a closure note citing the package
   commits; update `architecture/issues/README.md` if it references this
+  audit. Verified 2026-09-02: issues/README.md does not reference this
   audit.
+- Closure-time link maintenance (noted 2026-09-02): the pins docs under
+  `architecture/plan/` reference `../harness-audit-2026-08-31.md`;
+  retarget those links to `../archive/completed/harness-audit-2026-08-31.md`
+  when the audit moves.
+- BLOCKED until P-K lands.
 
 ## Progress log
 
 - 2026-08-31: program created; groundwork commit carries the audit doc and
   this plan.
+- 2026-09-02: P-J closure verification found R8 assigned to no package
+  and not decided-no-change; the gap is recorded in the audit doc's
+  Coordinator notes and the program is extended with P-K (R8). Program
+  remains ACTIVE; P-J is blocked until P-K lands.

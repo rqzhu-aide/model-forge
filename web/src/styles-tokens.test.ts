@@ -62,7 +62,6 @@ function usedTokens(css: string): { withFallback: Set<string>; withoutFallback: 
  * build, and removing a reference requires updating this list.
  */
 const LEGACY_FALLBACK_REFERENCES = new Set([
-  "--bg", // styles.css `.tl-dot` border, has `#fff` fallback
   "--bg-surface-2", // has `#eee` fallback
   "--border-accent", // has `#4a7dab` fallback
   "--font-mono", // has `ui-monospace, monospace` fallbacks

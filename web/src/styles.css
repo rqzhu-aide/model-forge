@@ -2981,7 +2981,7 @@ dd {
   display: inline-block;
   text-decoration: none;
   cursor: pointer;
-  border: 2px solid var(--bg, #fff);
+  border: 2px solid var(--surface);
   transition: transform 0.12s, box-shadow 0.12s;
   z-index: 1;
 }
@@ -4044,7 +4044,14 @@ p.run-monitor-note {
   }
   .project-workspace-tab,
   .panel,
-  .profile-collapsible {
+  .profile-collapsible,
+  .phase-chip,
+  .tl-dot {
     transition: none;
+  }
+  /* Neutralize the hover scale but keep the base translate(-50%, -50%)
+     centering — `transform: none` here would un-center the dot. */
+  .tl-track .tl-dot:hover {
+    transform: translate(-50%, -50%);
   }
 }

@@ -80,8 +80,9 @@ function phaseProgressTitle(phase: string, status: ScientificStatus | undefined)
 
 /* ── Panel 1: Literature at a glance (P1 only) ─────────────────────── */
 
-function LiteratureCard({ p1Phase, overview, basePath }: {
+function LiteratureCard({ p1Phase, p1Error, overview, basePath }: {
   p1Phase: PhaseView | undefined;
+  p1Error: unknown;
   overview: ProjectOverview;
   basePath: string;
 }) {
@@ -123,6 +124,9 @@ function LiteratureCard({ p1Phase, overview, basePath }: {
           <p className="lit-glance__headline">{decision.headline}</p>
         ) : null}
       </div>
+      {p1Error ? (
+        <ErrorState error={p1Error} title="Decision brief is unavailable" />
+      ) : null}
     </Panel>
   );
 }
@@ -425,7 +429,7 @@ export function ProjectOverviewPage() {
       ) : null}
 
       {/* Panel 1: Literature at a glance (P1 only) */}
-      <LiteratureCard p1Phase={p1Query.data} overview={overview} basePath={basePath} />
+      <LiteratureCard p1Phase={p1Query.data} p1Error={p1Query.error} overview={overview} basePath={basePath} />
 
       {/* Panel 2: Method catalog (P2) + decision brief */}
       <Panel
@@ -436,6 +440,9 @@ export function ProjectOverviewPage() {
       >
         {methodsQuery.isLoading ? <LoadingState label="Loading methods..." /> : null}
         {methodsQuery.error ? <ErrorState error={methodsQuery.error} title="Methods are unavailable" /> : null}
+        {p2Query.error ? (
+          <ErrorState error={p2Query.error} title="Decision brief is unavailable" />
+        ) : null}
         {methodsQuery.data && methodsQuery.data.length > 0 ? (
           <>
             <CompactMethodTable methods={methodsQuery.data} />

@@ -1,28 +1,26 @@
 """Regression tests for the P-I hardening package (Lane A: R18, R19, R24,
-R25, R29, R30, R31).
+R25, R29, R30).
 
 Pins: architecture/plan/harness-audit-2026-08-31-pi-pins.md.
+
+R31 (companion-scan guard + stale-leftover mtime rule) was deleted with the
+decorative adapt path on 2026-09-02 (audit finding F8; Tez decision: delete).
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
-import os
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 from model_forge.harness import role_execution
-from model_forge.harness.output_adapters import (
-    DefaultOutputAdapter,
-    preserve_raw_output,
-)
+from model_forge.harness.output_adapters import preserve_raw_output
 from model_forge.harness.outputs import (
     OutputPlan,
     OutputSpec,
-    ValidatedOutput,
     validate_role_outputs,
 )
 from model_forge.harness.scientific_validators import _has_cycle
@@ -278,70 +276,3 @@ def test_preserve_raw_output_fallback_when_put_bytes_missing(
     )
     assert tarball.is_file()
     assert hashlib.sha256(tarball.read_bytes()).hexdigest() == sha256
-
-
-# ---------------------------------------------------------------------------
-# R31: companion-scan relative_to guard + stale-leftover skip
-# ---------------------------------------------------------------------------
-
-def _adapter_fixture(output_dir: Path, stem: str = "theory") -> tuple:
-    output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / f"{stem}.json"
-    payload = b'{"record_type": "theory_record"}'
-    output_path.write_bytes(payload)
-    spec = OutputSpec(
-        contract_output_id="p3.theory_candidate",
-        output_id="output.p3.theory_candidate",
-        output_kind="primary_artifact",
-        producer="theorist",
-        stage_id="stage-1",
-        stage_sequence=1,
-        schema_application="object",
-        schema_file="scientific-record.schema.json",
-        relative_path=f"roles/01-theorist/{stem}.json",
-        required=True,
-    )
-    validated = ValidatedOutput(
-        spec=spec,
-        path=output_path,
-        document={"record_type": "theory_record"},
-        sha256=hashlib.sha256(payload).hexdigest(),
-        byte_length=len(payload),
-    )
-    return spec, validated
-
-
-def test_companion_scan_skips_outside_workspace(tmp_path: Path) -> None:
-    elsewhere = tmp_path / "elsewhere"
-    spec, validated = _adapter_fixture(elsewhere)
-    (elsewhere / "theory.md").write_text("# notes", encoding="utf-8")
-
-    workspace = tmp_path / "unrelated"
-    workspace.mkdir()
-
-    adapter = DefaultOutputAdapter()
-    result = adapter.adapt(spec=spec, workspace=workspace, validated=validated)
-    assert result.linked_artifacts == ()
-
-
-def test_companion_scan_skips_stale_leftovers(tmp_path: Path) -> None:
-    workspace = tmp_path / "workspace"
-    output_dir = workspace / "roles" / "01-theorist"
-    spec, validated = _adapter_fixture(output_dir)
-
-    stale = output_dir / "theory.md"
-    stale.write_text("stale", encoding="utf-8")
-    fresh = output_dir / "theory.txt"
-    fresh.write_text("fresh", encoding="utf-8")
-
-    output_mtime = validated.path.stat().st_mtime
-    os.utime(stale, (output_mtime - 100, output_mtime - 100))
-    os.utime(fresh, (output_mtime, output_mtime))
-
-    adapter = DefaultOutputAdapter()
-    result = adapter.adapt(spec=spec, workspace=workspace, validated=validated)
-
-    assert len(result.linked_artifacts) == 1
-    linked = result.linked_artifacts[0]
-    assert linked.source_path == "roles/01-theorist/theory.txt"
-    assert linked.media_type == "text/plain"

@@ -2,11 +2,14 @@
 
 These tests verify that:
 1. CapabilityBroker is invoked during role execution (inputs materialized)
-2. OutputAdapter is invoked after validation (linked artifacts captured)
-3. Raw output is preserved on failure
-4. NetworkPolicy modes work correctly
-5. Golden fixtures are schema-valid
-6. Mutation fixtures are properly labelled
+2. Raw output is preserved on failure
+3. NetworkPolicy modes work correctly
+4. Golden fixtures are schema-valid
+5. Mutation fixtures are properly labelled
+
+(The WP2 D2.1 adapt-path wiring test was deleted with the decorative
+companion-artifact adapt path on 2026-09-02 — audit finding F8, Tez decision:
+delete. Its result was discarded at the only production call site.)
 """
 
 from __future__ import annotations
@@ -22,7 +25,6 @@ from model_forge.capabilities.broker import CapabilityBroker
 from model_forge.capabilities.network import NetworkPolicy, NetworkPolicyError
 from model_forge.executors.protocol import RoleInvocation, RoleExecutionStatus
 from model_forge.harness.execution_records import FrozenInputPath
-from model_forge.harness.output_adapters import DefaultOutputAdapter, preserve_raw_output
 
 
 # ---------------------------------------------------------------------------
@@ -110,56 +112,7 @@ class TestWiringCapabilityBroker:
 
 
 # ---------------------------------------------------------------------------
-# 3. Wiring verification: adapter captures linked artifacts
-# ---------------------------------------------------------------------------
-
-class TestWiringOutputAdapter:
-    def test_adapter_finds_companion_files(self, tmp_path: Path) -> None:
-        """The adapter should discover companion PDFs next to structured output."""
-        workspace = tmp_path / "workspace"
-        workspace.mkdir()
-        output_dir = workspace / "roles" / "01-theorist"
-        output_dir.mkdir(parents=True)
-
-        output_path = output_dir / "theory.json"
-        payload = b'{"record_type": "theory"}'
-        output_path.write_bytes(payload)
-
-        # Create a companion markdown file
-        md_path = output_dir / "theory.md"
-        md_data = b"# Theory\n\nSome theory content."
-        md_path.write_bytes(md_data)
-
-        from model_forge.harness.outputs import OutputSpec, ValidatedOutput
-
-        spec = OutputSpec(
-            contract_output_id="p3.theory_candidate",
-            output_id="output.p3.theory_candidate",
-            output_kind="primary_artifact",
-            producer="theorist",
-            stage_id="p3.theorist",
-            stage_sequence=1,
-            schema_application="object",
-            schema_file="scientific-record.schema.json",
-            relative_path="roles/01-theorist/theory.json",
-            required=True,
-        )
-        validated = ValidatedOutput(
-            spec=spec,
-            path=output_path,
-            document={"record_type": "theory"},
-            sha256=hashlib.sha256(payload).hexdigest(),
-            byte_length=len(payload),
-        )
-        adapter = DefaultOutputAdapter()
-        result = adapter.adapt(spec=spec, workspace=workspace, validated=validated)
-
-        assert len(result.linked_artifacts) == 1
-        assert result.linked_artifacts[0].media_type == "text/markdown"
-
-
-# ---------------------------------------------------------------------------
-# 4. Golden fixture validation
+# 3. Golden fixture validation
 # ---------------------------------------------------------------------------
 
 class TestGoldenFixtures:
@@ -185,7 +138,7 @@ class TestGoldenFixtures:
 
 
 # ---------------------------------------------------------------------------
-# 5. Mutation fixture validation
+# 4. Mutation fixture validation
 # ---------------------------------------------------------------------------
 
 class TestMutationFixtures:
@@ -201,4 +154,5 @@ class TestMutationFixtures:
             data = json.loads(fixture_path.read_text())
             assert data.get("mutation") is not None
             assert entry["expected"] == "reject"
+
 

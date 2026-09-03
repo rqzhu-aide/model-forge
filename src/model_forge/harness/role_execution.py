@@ -40,7 +40,6 @@ from ..capabilities.broker import CapabilityBroker
 from ..domain.identities import SCHEMA_VERSION
 from .envelope import SealedRunFacts, harness_owned_fields, populate_harness_fields
 from .execution_context import RunExecutionContext
-from .output_adapters import AdaptedOutput, DefaultOutputAdapter
 from .outputs import OutputPlan, OutputSpec, validate_role_outputs
 from .task_briefs import render_task_brief
 
@@ -1553,7 +1552,6 @@ class RoleLifecycleService:
         self.artifacts = artifacts
         self.workspace = workspace
         self._broker = CapabilityBroker()
-        self._adapter = DefaultOutputAdapter()
 
     async def execute_or_reconcile(
         self,
@@ -2980,14 +2978,6 @@ class RoleLifecycleService:
                 transformation_summaries = [
                     record.to_dict() for record in repair_records.values()
                 ]
-            if status is RoleExecutionStatus.SUCCEEDED:
-                # Adapt validated outputs to capture linked artifacts
-                for item in validation.outputs:
-                    self._adapter.adapt(
-                        spec=item.spec,
-                        workspace=invocation.workspace,
-                        validated=item,
-                    )
         elif status is RoleExecutionStatus.FAILED:
             failure_code = "executor.role_failed"
             # Preserve raw output for debugging even on failure

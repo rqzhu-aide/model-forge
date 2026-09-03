@@ -1,5 +1,4 @@
-"""Tests for WP1 D1.2 CapabilityBroker, WP2 D2.1 OutputAdapter, and
-D2.2 scientific validators."""
+"""Tests for WP1 D1.2 CapabilityBroker and D2.2 scientific validators."""
 
 from __future__ import annotations
 
@@ -11,13 +10,6 @@ import pytest
 
 from model_forge.capabilities.broker import CapabilityBroker, CapabilityBrokerError
 from model_forge.harness.execution_records import FrozenInputPath
-from model_forge.harness.output_adapters import (
-    AdaptedOutput,
-    DefaultOutputAdapter,
-    LinkedArtifact,
-    preserve_raw_output,
-)
-from model_forge.harness.outputs import OutputSpec, ValidatedOutput
 from model_forge.harness.scientific_validators import validate_phase_scientific
 from model_forge.domain.validation import ValidationFinding, ValidationSeverity
 from model_forge.harness.publication import RegisteredValidatedOutput, RegisteredArtifactMetadata
@@ -110,91 +102,6 @@ class TestCapabilityBroker:
 
 
 # ---------------------------------------------------------------------------
-# OutputAdapter
-# ---------------------------------------------------------------------------
-
-class TestOutputAdapter:
-    def test_extracts_structured_output(self, tmp_path: Path) -> None:
-        workspace = tmp_path / "workspace"
-        workspace.mkdir()
-        output_dir = workspace / "roles" / "01-research_lead"
-        output_dir.mkdir(parents=True)
-
-        output_path = output_dir / "source-changes.json"
-        payload = b'[{"source_id": "s1"}]'
-        output_path.write_bytes(payload)
-
-        spec = OutputSpec(
-            contract_output_id="p1.source_changes",
-            output_id="output.p1.source_changes",
-            output_kind="scientific_record",
-            producer="research_lead",
-            stage_id="stage-1",
-            stage_sequence=1,
-            schema_application="each_item",
-            schema_file="literature-source.schema.json",
-            relative_path="roles/01-research_lead/source-changes.json",
-            required=True,
-        )
-        validated = ValidatedOutput(
-            spec=spec,
-            path=output_path,
-            document=[{"source_id": "s1"}],
-            sha256=hashlib.sha256(payload).hexdigest(),
-            byte_length=len(payload),
-        )
-        adapter = DefaultOutputAdapter()
-        result = adapter.adapt(spec=spec, workspace=workspace, validated=validated)
-
-        assert result.contract_output_id == "p1.source_changes"
-        assert result.document == [{"source_id": "s1"}]
-        assert result.sha256 == hashlib.sha256(payload).hexdigest()
-
-    def test_binds_linked_artifacts(self, tmp_path: Path) -> None:
-        workspace = tmp_path / "workspace"
-        workspace.mkdir()
-        output_dir = workspace / "roles" / "01-theorist"
-        output_dir.mkdir(parents=True)
-
-        output_path = output_dir / "theory.json"
-        payload = b'{"record_type": "theory_record"}'
-        output_path.write_bytes(payload)
-
-        # Create a companion PDF
-        pdf_path = output_dir / "theory.pdf"
-        pdf_data = b"%PDF-1.4 fake pdf"
-        pdf_path.write_bytes(pdf_data)
-
-        spec = OutputSpec(
-            contract_output_id="p3.theory_candidate",
-            output_id="output.p3.theory_candidate",
-            output_kind="primary_artifact",
-            producer="theorist",
-            stage_id="stage-1",
-            stage_sequence=1,
-            schema_application="object",
-            schema_file="scientific-record.schema.json",
-            relative_path="roles/01-theorist/theory.json",
-            required=True,
-        )
-        validated = ValidatedOutput(
-            spec=spec,
-            path=output_path,
-            document={"record_type": "theory_record"},
-            sha256=hashlib.sha256(payload).hexdigest(),
-            byte_length=len(payload),
-        )
-        adapter = DefaultOutputAdapter()
-        result = adapter.adapt(spec=spec, workspace=workspace, validated=validated)
-
-        assert len(result.linked_artifacts) == 1
-        linked = result.linked_artifacts[0]
-        assert linked.media_type == "application/pdf"
-        assert linked.sha256 == hashlib.sha256(pdf_data).hexdigest()
-        assert linked.byte_length == len(pdf_data)
-
-
-# ---------------------------------------------------------------------------
 # Scientific validators
 # ---------------------------------------------------------------------------
 
@@ -276,3 +183,4 @@ class TestScientificValidators:
         )
         codes = [f.code for f in findings]
         assert "p5.claim_without_evidence" in codes
+

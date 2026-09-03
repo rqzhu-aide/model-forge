@@ -640,3 +640,73 @@ def test_control_routes_return_current_views_and_reject_stale_descriptors(
     )
     assert stale_lifecycle.status_code == 409
     assert stale_lifecycle.json()["code"] == "CONTROL_HEAD_STALE"
+
+
+def test_run_local_candidate_method_activates(tmp_path: Path) -> None:
+    """A P2-sealed run_local_candidate method activates (production-found bug).
+
+    The D-3 activation test kept the example record's
+    authority_at_creation="formal_generation", so the suite never exercised
+    activating a record the way P2 full-catalog actually seals it:
+    authority_at_creation="run_local_candidate" with no publication fields.
+    The lifecycle command stamps published_at/publication_receipt_id, which
+    the method.schema.json publication-integrity rule forbids unless the
+    authority flips to "formal_generation" - activation must flip it.
+    """
+
+    def make_run_local(method: dict) -> None:
+        method.update(
+            {
+                "lifecycle_state": "proposed",
+                "authority_at_creation": "run_local_candidate",
+            }
+        )
+        method.pop("published_at", None)
+        method.pop("publication_receipt_id", None)
+
+    async def scenario() -> None:
+        service, repository, artifacts = _service(tmp_path)
+        project_id = await _create_project(service)
+        original = _publish_method_catalog(
+            repository,
+            artifacts,
+            project_id,
+            method_mutator=make_run_local,
+        )
+        method_id = str(original["identity"]["stable_id"])
+
+        before = (await service.list_methods(project_id))[0]
+        assert before.lifecycle_state == "proposed"
+        action = before.actions[0]
+        assert action.action_type == "activate_method"
+        assert action.enabled
+
+        activate = ReasonedActionRequest(
+            action_descriptor_id=action.descriptor_id,
+            reason="Select this catalog-grown method for Phase 3 theory work.",
+        )
+        body = json.dumps(activate.model_dump(mode="json"), sort_keys=True).encode()
+        raw = await service.preserve_raw_request(
+            _raw(
+                body,
+                family="method_lifecycle",
+                key="activate-run-local-method",
+                project_id=project_id,
+            )
+        )
+        await service.change_method_lifecycle(
+            project_id, method_id, activate, raw_request=raw
+        )
+
+        active = (await service.list_methods(project_id))[0]
+        assert active.lifecycle_state == "active"
+        current = repository.get_current_record(
+            project_id, f"methods/{method_id}/current"
+        )
+        assert current is not None
+        document = json.loads(current["payload_json"])
+        assert document["authority_at_creation"] == "formal_generation"
+        assert document["published_at"]
+        assert document["publication_receipt_id"]
+
+    asyncio.run(scenario())

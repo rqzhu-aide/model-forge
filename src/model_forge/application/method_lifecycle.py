@@ -105,6 +105,13 @@ class MethodLifecycleCommandService:
             {
                 "generation_id": method_generation_id,
                 "lifecycle_state": target_state,
+                # The lifecycle command publishes a new formal generation, so
+                # the document's authority flips with it: a run-local candidate
+                # (as P2 seals catalog-grown methods) must not carry the
+                # publication fields this update stamps, and a formal
+                # generation must (method.schema.json publication-integrity
+                # rule; production-found 2026-09-03, P3 activation blocked).
+                "authority_at_creation": "formal_generation",
                 "lineage": {
                     "predecessor": dict(identity),
                     "change_class": "lifecycle",

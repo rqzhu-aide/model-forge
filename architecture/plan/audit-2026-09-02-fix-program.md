@@ -151,7 +151,19 @@ attempt: outputs present -> validate them (attempt spent only on the
 validation outcome); outputs absent -> classify interrupted, no spend.
 Depends on P-A.
 
-### P-E: Companion-artifact digest exclusion (F8) -- BLOCKED, needs Tez
+### P-E: Companion-artifact adapt path (F8) -- DONE (deleted)
+
+Tez DECIDED 2026-09-02: option (b), delete the decorative path.
+DONE 2026-09-02: commit 1cb1333. Tests 1420 -> 1415 (-5, exactly the
+deleted adapt-path tests; per-test dispositions in the commit - each
+deleted test's real subject either died with the machinery or has a
+named production-path equivalent). Deleted `LinkedArtifact`,
+`AdaptedOutput`, the `OutputAdapter` Protocol, `DefaultOutputAdapter`
+and the R31 mtime companion scan from `output_adapters.py` (170 -> 53
+lines), plus the import/instantiation/discarded call in
+`role_execution.py`. `preserve_raw_output` kept byte-identical (it is
+production-live since P-J). Gates: pytest exit 0, validate_package.py
+exit 0 (both re-run by the coordinator).
 
 BLOCKED 2026-09-02 (contradiction rule): pre-implementation verification
 found the `adapt()` result is discarded at its only production call site
